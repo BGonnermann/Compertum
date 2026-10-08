@@ -6,9 +6,9 @@ A supervised solo quant research system with bounded AI proposals, reproducible 
 
 This is a fresh source workspace created on 8 October 2026. M0 Task 1's cloud setup is verified: the wheel-only lock, dependency imports, owned package build and second clean environment pass. Task 2 adds validated immutable records, five strict schemas and fixed resource/configuration limits. Native Windows validation is pending; overall M0 remains incomplete and strategy evaluation/paper trading remain disabled.
 
-The selected private repository is [BrennanCompertum/Compertum](https://github.com/BrennanCompertum/Compertum). This checkpoint uses the isolated `codex/m0-bootstrap` branch. See [bootstrap progress](reports/M0_BOOTSTRAP.md) and [Task 2 evidence](reports/M0_TASK2.md) for the resume point, and [Windows handoff](docs/WINDOWS_HANDOFF.md) for local Codex instructions. Detailed historical logs and wheels remain in the saved checkpoint ZIP; they are not tracked in this repository.
+The selected private repository is [BrennanCompertum/Compertum](https://github.com/BrennanCompertum/Compertum). The verified cloud foundation is on `codex/m0-bootstrap`; the next source stage uses `codex/m0-task3-cloud`. See [Task 3A progress](reports/M0_TASK3A.md) and [Windows verification handoff](docs/WINDOWS_HANDOFF.md). Cloud implementation ownership was reassigned to this session on 8 October 2026. Historical detailed logs and wheels remain in the saved checkpoint ZIP; runtime evidence is not tracked in this repository.
 
-The existing home project is preserved separately. Its test results and acceptance receipts do not establish this repository's readiness.
+Task 3A adds native ownership adapter source and portable protocol checks. Native ownership remains unverified; named-pipe/bootstrap transport is unimplemented and effectful dispatch stays disabled. The existing home project is preserved separately. Its test results and acceptance receipts do not establish this repository's readiness.
 
 ## Start here
 
