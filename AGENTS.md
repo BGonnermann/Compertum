@@ -27,3 +27,7 @@ Work on M0 in its documented dependency order. Do not start M1-M6, market-data c
 - Use one implementation owner. A reviewer may inspect completed work independently; do not run parallel writers. On 8 October 2026 the owner explicitly reassigned implementation to this cloud session. Local Codex edits are paused; cloud source development owns the isolated Task 3 branch. Native execution remains a separate Windows verification step, not a handoff of implementation ownership. See `docs/WINDOWS_HANDOFF.md`.
 
 Keep updates short: what changed, what was measured, and the next unresolved gate. Never describe a diagnostic's success as milestone acceptance.
+
+## Progress tracker
+
+Keep `README.md` as the owner's visual build tracker. Update its Mermaid diagram, task statuses, latest measured checks, current focus and date whenever a source stage, verification result or blocker changes. Include the tracker update in that work's commit. Distinguish cloud/portable/source completion from native acceptance; skipped checks stay unverified. Keep setup and agent instructions in the handoff documents and this file, rather than adding a "Start here" section to the README.

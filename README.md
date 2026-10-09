@@ -1,36 +1,64 @@
 # Compertum
 
-A supervised solo quant research system with bounded AI proposals, reproducible experiments, independent audits, and gated paper trading.
+A supervised quant research system with reproducible experiments, bounded AI proposals and independent audits.
 
-## Current status
+**M0 foundations: in progress.** Latest source stage: **Task 3C**, merged into `main`. Updated **8 October 2026 (ET)**.
 
-This is a fresh source workspace created on 8 October 2026. M0 Task 1's cloud setup is verified: the wheel-only lock, dependency imports, owned package build and second clean environment pass. Task 2 adds validated immutable records, five strict schemas and fixed resource/configuration limits. Native Windows validation is pending; overall M0 remains incomplete and strategy evaluation/paper trading remain disabled.
+## Build tracker
 
-The selected private repository is [BrennanCompertum/Compertum](https://github.com/BrennanCompertum/Compertum). The verified cloud foundation is on `codex/m0-bootstrap`; the next source stage uses `codex/m0-task3-cloud`. See [Task 3A progress](reports/M0_TASK3A.md) and [Windows verification handoff](docs/WINDOWS_HANDOFF.md). Cloud implementation ownership was reassigned to this session on 8 October 2026. Historical detailed logs and wheels remain in the saved checkpoint ZIP; runtime evidence is not tracked in this repository.
+```mermaid
+flowchart TD
+    environment["1. Environment — cloud verified"] --> contracts["2. Contracts — portable verified"]
+    contracts --> auth["3. Ownership and IPC — IN PROGRESS"]
+    auth --> owners["3A. Ownership — source verified"]
+    auth --> pipes["3B. Named pipes — source verified"]
+    auth --> bootstrap["3C. Worker bootstrap — source verified"]
+    auth --> enrollment["Separate owner registration — pending"]
+    owners --> windows["Windows qualification — UNVERIFIED"]
+    pipes --> windows
+    bootstrap --> windows
+    enrollment --> windows
+    environment -.-> windows
+    windows -. "Native prerequisites" .-> state["4–6. State, resource limits and recovery — QUEUED"]
+    state --> runtime["7–8. Supervisor and AI workflows — QUEUED"]
+    runtime --> acceptance["9. M0 acceptance — QUEUED"]
 
-Task 3A adds native ownership adapter source and portable protocol checks. Native ownership remains unverified; named-pipe/bootstrap transport is unimplemented and effectful dispatch stays disabled. The existing home project is preserved separately. Its test results and acceptance receipts do not establish this repository's readiness.
-
-## Start here
-
-1. Read [Cloud development handoff](docs/CLOUD_HANDOFF.md).
-2. Read [Build specification v1.1](docs/BUILD_SPEC.md).
-3. Follow the nine ordered tasks in the [M0 implementation plan](docs/M0_IMPLEMENTATION_PLAN.md).
-
-Cloud work can develop and test portable M0 components. Windows process ownership, named pipes, Job Objects, storage monitoring, recovery, and the existing Strata server require native validation on the home PC before M0 acceptance.
-
-New spending is $0. Use existing subscription access. M0 enables no broker transport or orders. Engineering completion and strategy acceptance have separate gates.
-
-## Read-only setup inspection
-
-With an existing Python interpreter, from the project root:
-
-```text
-python -B tools/environment_receipt.py
-python -B -m unittest discover -s tests -p test_environment_receipt.py
+    classDef verified fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef active fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef pending fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef queued fill:#f3f4f6,stroke:#6b7280,color:#374151
+    class environment,contracts,owners,pipes,bootstrap verified
+    class auth active
+    class enrollment,windows pending
+    class state,runtime,acceptance queued
 ```
 
-The first command prints observations without creating an environment or contacting providers. Exit 0 means inspection ran, not that M0 passed. Tests create small, unique fixtures under `.cache/test-runs/`; they are development checks, not native acceptance.
+Green means the stated **cloud, portable or source checks** passed. It does not mean Windows acceptance passed. Blue is current work; amber is pending verification or implementation; gray is queued. The diagram groups later tasks; the [implementation plan](docs/M0_IMPLEMENTATION_PLAN.md) defines their exact prerequisites.
 
-With the installed package, the same inspection is available through `python -B -m compertum.environment`. A setup-only `compertum-setup` entry point is also packaged; use `PYTHONDONTWRITEBYTECODE=1` with it for inspection without Python bytecode writes. The full runtime CLI is not implemented yet.
+| Task | Progress | Completed work / remaining gate |
+| --- | --- | --- |
+| 1. Environment | Cloud verified; Windows pending | Locked dependencies, package build and clean reproduction pass in the cloud. Native installation/imports remain unverified. |
+| 2. Contracts and configuration | Portable verified | Immutable records, five strict schemas, fixed budgets and capability checks. |
+| 3. Ownership and IPC | **In progress** | Ownership, named pipes and scoped worker bootstrap source verified. Native lifecycle checks, separate owner registration and later durable replay integration remain. |
+| 4. State and durable events | Queued | Owner-checked stores, durable messages and consumption guards. |
+| 5. Resource and storage controls | Queued | Native process limits, byte reservations and storage watchdog. |
+| 6. Recovery sets | Queued | Consistent snapshots and rollback-safe restore. |
+| 7. Supervisor and terminal flow | Queued | M0 commands and durable offline task lifecycle. |
+| 8. AI proposal workflows | Queued | Manual bridge and bounded local-model qualification. |
+| 9. M0 verification | Queued | Full clean rerun, independent review and acceptance evidence. |
 
-The home interpreter target stays Python 3.14.7. Package metadata declares source compatibility with 3.12-3.14 for cloud development; observed cloud Python is 3.12.14. Native home installation/imports remain unverified. Windows wheel-only resolution has passed a cloud preflight; that is not native acceptance. No interpreter was installed or replaced.
+## Latest verified checkpoint
+
+| Check | Task 3C result |
+| --- | --- |
+| Cloud source suite | **163 passed**, zero failures |
+| Installed-package checks | **147 passed**, zero skips |
+| Native Windows fixtures | **30 skipped — UNVERIFIED** |
+| Independent source review | Completed; two important findings fixed and regression checks passed |
+| M0 acceptance | **Incomplete** |
+
+Current focus: finish the remaining Task 3 source/lifecycle work and obtain native Windows environment, ownership, IPC and bootstrap evidence. No runtime effects or paper trading are enabled.
+
+Evidence: [Environment](reports/M0_BOOTSTRAP.md) · [Contracts](reports/M0_TASK2.md) · [Ownership](reports/M0_TASK3A.md) · [Named pipes](reports/M0_TASK3B.md) · [Worker bootstrap](reports/M0_TASK3C.md).
+
+This tracker is updated with each completed source stage, verification result or changed blocker. Detailed specifications and operating instructions live in [the build specification](docs/BUILD_SPEC.md) and [the verification handoff](docs/WINDOWS_HANDOFF.md).
