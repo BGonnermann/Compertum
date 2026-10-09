@@ -24,6 +24,6 @@ Work on M0 in its documented dependency order. Do not start M1-M6, market-data c
 - M0 has no broker transport, account credentials, authenticated market-data requests, or financial commands.
 - Do not read authentication stores, dump environment variables, or commit credentials, runtime databases, datasets, weights, or private experiment outputs.
 - Do not change the home project, move drives, restart/reconfigure Strata, alter OS security/power settings, or enable unattended services.
-- Use one implementation owner. A reviewer may inspect completed work independently; do not run parallel writers. Once local Codex checks out the published checkpoint and begins the Windows handoff, local Codex owns M0 implementation; cloud work reviews its pushed changes until ownership is explicitly reassigned. See `docs/WINDOWS_HANDOFF.md`.
+- Use one implementation owner. A reviewer may inspect completed work independently; do not run parallel writers. On 8 October 2026 the owner explicitly reassigned implementation to this cloud session. Local Codex edits are paused; cloud source development owns the isolated Task 3 branch. Native execution remains a separate Windows verification step, not a handoff of implementation ownership. See `docs/WINDOWS_HANDOFF.md`.
 
 Keep updates short: what changed, what was measured, and the next unresolved gate. Never describe a diagnostic's success as milestone acceptance.
