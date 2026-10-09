@@ -4,7 +4,7 @@ Owner decision: 8 October 2026, America/New_York.
 
 ## Source and development decision
 
-The owner authorized a new GitHub account, a private Compertum repository, and restarting development in that repository so coding work can continue from a work browser. Preserve the existing home project. No drive migration is part of this decision.
+The owner authorized private GitHub source control and restarting development here so work can continue away from the home PC. The latest account decision is `BrennanCompertum/Compertum`, using its matching GitHub connection, with no browser interaction. On 8 October 2026 that connection verified the repository is private and permits source writes. The checkpoint branch is `codex/m0-bootstrap`; the initial remote main contains only starter documentation. Preserve the existing home project. No drive migration is part of this decision. Earlier BGonnermann connection failures are historical and do not block this selected destination.
 
 This repository starts from the supplied BUILD_SPEC v1.1 and M0 implementation plan. They are copied unchanged. No existing product source, dependency lock, databases, caches, provider credentials, or acceptance receipts were imported.
 
@@ -12,7 +12,9 @@ The original documents assumed local-only version control and prohibited externa
 
 ## Current evidence
 
-The new checkout has no implementation or verified M0 acceptance. The home project's reported 67 passing tests belong to that separate code and environment. They must not be credited to a rebuild.
+Task 1's cloud environment, dependency imports, owned package and clean package reproduction are verified. Task 2 adds portable validated records, versioned schemas and fixed configuration. See the bootstrap and Task 2 reports for measurements. This is source development, not verified M0 acceptance. The home project's reported 67 passing tests belong to that separate code and environment and do not count toward this rebuild.
+
+The retained cloud baseline is local commit `eccbe21dee324cc1cc8e02809de8910c18b0159c`. GitHub publication imports its tracked source plus updated handoff documentation on top of the existing remote history; it does not force-push the unrelated local history. Full prior history, detailed logs, receipts and wheels remain in the saved checkpoint ZIP. A GitHub checkout contains the source and summary reports, not those untracked evidence files. Generate fresh native receipts instead of treating a report's historical count as a local test result.
 
 The latest home report recorded successful directory access repair, full allocation scans below five seconds, and a failed full-root growth detection at 7.337 seconds against a five-second requirement. AI qualification under final wrapper limits and native cancellation remain pending there. These are historical operator reports, not measurements taken in this repository.
 
@@ -30,4 +32,10 @@ Run appropriate portable tests in the cloud. Preserve commands, results and hash
 
 ## Next task
 
-Begin M0 Task 1 against this repository and report cloud observations separately from pending home checks. Use the existing subscription; new spending stays $0. No broker credentials, trading, market-data collection, GPU training, or local-model reconfiguration is part of that task.
+Owner update, 8 October 2026: the user reassigned implementation to this cloud session. Local Codex edits are paused. Source development continues on `codex/m0-task3-cloud`; Windows is used to execute verification, not as a second source writer. Task 3A added candidate ownership source. Task 3B adds restricted named-pipe source for authenticated, effect-free operator inspection. Private inherited child bootstrap/enrollment remains unimplemented and effectful durable dispatch remains disabled. Neither stage passes Task 3. See `reports/M0_TASK3A.md` and `reports/M0_TASK3B.md`.
+
+Windows verification must first establish Task 1's actual environment, wheel-only installation/imports and fresh reproduction, then rerun the portable checks. `tools/verify_environment.py` currently reports cloud-labelled import evidence and native validation as unverified; running it on Windows alone does not establish native acceptance. Collect actual native evidence for the required gates.
+
+Then run the ownership and IPC inspection fixtures with `tools/verify_native_ownership.py --suite all --run-fixtures` and return their measured evidence to the cloud implementation owner. An inspection response is `PROTOCOL_VALIDATED_ONLY`, never a confirmed state change. Full Task 3 still needs private child bootstrap, scoped worker enrollment and later durable replay integration. Do not treat portable contracts as a verified native owner or bypass that prerequisite to initialize shared stores. After each prerequisite passes, continue remaining M0 tasks in their documented order without routine approval pauses. Record genuine unavailable gates honestly and continue only unaffected work. See `WINDOWS_HANDOFF.md` for source-selection and implementation ownership.
+
+New spending stays $0. Broker credentials, trading, market-data collection, GPU training and local-model reconfiguration remain outside M0. Only M0's bounded proposal-only AI qualification is permitted after its wrapper and budget prerequisites pass; this publication makes no provider requests.

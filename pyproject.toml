@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compertum"
+version = "0.0.1"
+description = "Supervised, proposal-only quant research foundations"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "numpy", "pandas", "scipy", "scikit-learn", "sympy", "pyarrow",
+  "httpx", "jsonschema", "exchange-calendars", "tzdata",
+]
+
+[project.scripts]
+compertum-setup = "compertum.environment:main"
+
+[dependency-groups]
+dev = ["pytest", "setuptools", "wheel"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.data-files]
+"share/compertum/schemas" = ["schemas/*.json"]
+"share/compertum/config" = ["config/default.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.uv]
+package = true
+
