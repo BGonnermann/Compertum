@@ -1,6 +1,8 @@
 """Trusted bounded native fixture. No capability is written or printed."""
 from dataclasses import asdict
+import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -18,6 +20,27 @@ def registration(value):
 
 def main():
     config = json.loads(Path(sys.argv[2]).read_text())  # public expectation only
+    if config["mode"] in {"bootstrap_bad_ack", "bootstrap_no_ack"}:
+        from compertum.runtime._windows import OwnedHandle
+        from compertum.runtime.bootstrap import decode_bootstrap, _observation
+        api = NativePipeAPI(); parent = registration(config["supervisor"])
+        with OwnedHandle(api, int(sys.argv[1])) as handle:
+            if not api.handle_flags(handle) & 1: raise RuntimeRefused("BOOTSTRAP_DENIED")
+            api.set_inheritable(handle, False)
+            with api.peer(handle, server_side=False) as peer, api.open_process(os.getpid()) as own:
+                verify_peer(parent, peer); Path(config["ready"]).touch()
+                raw = api.read_frame(handle, deadline_after(5))
+                decode_bootstrap(raw, expected_supervisor=parent, observed_supervisor=peer,
+                                 observed_child=_observation(api, own))
+                Path(config["received"]).touch()
+                if config["mode"] == "bootstrap_bad_ack":
+                    ack = bytearray(hashlib.sha256(raw).digest()); ack[0] ^= 1
+                    api.write_frame(handle, bytes(ack), deadline_after(5))
+                end = time.monotonic() + 6
+                while not Path(config["gate"]).exists():
+                    if time.monotonic() >= end: raise RuntimeRefused("FIXTURE_DEADLINE")
+                    time.sleep(.01)
+        raise RuntimeRefused("FIXTURE_ACK_FAULT")
     credential = receive_bootstrap(int(sys.argv[1]), expected_supervisor=registration(config["supervisor"]))
     packet = _credential(credential)
     began = time.monotonic(); gate = Path(config["gate"])
@@ -43,6 +66,7 @@ def main():
         verify_peer(target, peer)
         api.write_frame(handle, raw, deadline)
         api.read_frame(handle, deadline)
+        if mode == "bad_ack": api.write_frame(handle, b"incorrect acknowledgement", deadline)
     raise RuntimeRefused("UNEXPECTED_REPLY")
 
 

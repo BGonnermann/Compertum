@@ -20,6 +20,15 @@ _WORKER_IDENTITIES = set()
 _WORKER_IDENTITY_LOCK = threading.Lock()
 
 
+def _remember_worker(identity):
+    key = (identity.pid, identity.creation_filetime)
+    with _WORKER_IDENTITY_LOCK:
+        if key in _WORKER_IDENTITIES or len(_WORKER_IDENTITIES) >= 64:
+            raise RuntimeRefused("BOOTSTRAP_DENIED")
+        _WORKER_IDENTITIES.add(key)
+    return key
+
+
 @dataclass(frozen=True)
 class PeerRegistration:
     identity: ProcessIdentity
@@ -234,6 +243,24 @@ class _WorkerEnrollment:
     active: bool = True
 
 
+def _enroll_worker(endpoint, offer, capability, process):
+    from .bootstrap import BootstrapOffer
+    from .owners import require_live_owner
+    if (type(offer) is not BootstrapOffer or offer not in endpoint._offers
+            or offer.endpoint is not endpoint or endpoint.closed or offer.closed
+            or not isinstance(capability, ScopedCapability)
+            or capability.registration.project_id != endpoint.descriptor.registration.project_id
+            or capability.registration.identity.role != offer.role
+            or capability.registration.generation != offer.generation
+            or capability.commands != offer.commands):
+        raise RuntimeRefused("BOOTSTRAP_DENIED")
+    require_live_owner(offer.supervisor)
+    key = _remember_worker(capability.registration.identity)
+    entry = _WorkerEnrollment(capability, process, offer.supervisor)
+    endpoint._workers[key] = entry
+    return entry
+
+
 class RoleEndpoint:
     """A single owned transport for protocol inspection only.
 
@@ -242,14 +269,14 @@ class RoleEndpoint:
     def __init__(self, lease, descriptor, allowed_commands, api, handle):
         self.lease = lease; self.descriptor = descriptor; self.allowed_commands = allowed_commands
         self.api = api; self.handle = handle; self.closed = False; self._lock = threading.RLock()
-        self._workers = {}; self._offers = []
+        self._workers = {}; self._offers = []; self._owner_channel = None
 
     def close(self):
         with self._lock:
             if self.closed: return
             self.closed = True
             failure = None
-            for resource in (*self._offers, self.handle):
+            for resource in (*self._offers, *([self._owner_channel] if self._owner_channel is not None else []), self.handle):
                 try: resource.close()
                 except BaseException as error:
                     if failure is None: failure = error
@@ -257,29 +284,13 @@ class RoleEndpoint:
 
     def _enroll(self, offer, capability, process):
         from .owners import require_live_owner
-        from .bootstrap import BootstrapOffer
-        if (type(offer) is not BootstrapOffer or offer not in self._offers
-                or offer.endpoint is not self or self.closed or offer.closed
-                or not isinstance(capability, ScopedCapability)
-                or capability.registration.project_id != self.lease.project_id
-                or capability.registration.identity.role != offer.role
-                or capability.registration.generation != offer.generation
-                or capability.commands != offer.commands):
-            raise RuntimeRefused("BOOTSTRAP_DENIED")
-        require_live_owner(offer.supervisor)
+        if self._owner_channel is not None: raise RuntimeRefused("BOOTSTRAP_DENIED")
         require_live_owner(self.lease)
-        identity = capability.registration.identity
-        key = (identity.pid, identity.creation_filetime)
-        with _WORKER_IDENTITY_LOCK:
-            if key in _WORKER_IDENTITIES or len(_WORKER_IDENTITIES) >= 64:
-                raise RuntimeRefused("BOOTSTRAP_DENIED")
-            entry = _WorkerEnrollment(capability, process, offer.supervisor)
-            self._workers[key] = entry
-            _WORKER_IDENTITIES.add(key)
-        return entry
+        return _enroll_worker(self, offer, capability, process)
 
     def _authorize_peer(self, value, observed, secret):
         from .owners import require_live_owner
+        if self._owner_channel is not None: raise RuntimeRefused("OWNER_CHANNEL_REQUIRED")
         entry = self._workers.get((observed.pid, observed.creation_filetime))
         capability = None
         if entry is not None:
@@ -315,7 +326,8 @@ class RoleEndpoint:
                         raise RuntimeRefused("PEER_MISMATCH")
                     from .bootstrap import decode_request_frame
                     value, secret = decode_request_frame(self.api.read_frame(self.handle, deadline))
-                    result = self._authorize_peer(value, observed, secret)
+                    result = (self._authorize_peer(value, observed, secret) if self._owner_channel is None else
+                              self._owner_channel.authorize(value, observed, secret, deadline))
                     from .owners import require_live_owner
                     require_live_owner(self.lease)
                     raw = encode_protocol_reply(result)
@@ -324,10 +336,15 @@ class RoleEndpoint:
                     # proves receipt without an unbounded FlushFileBuffers call.
                     if not hmac.compare_digest(self.api.read_frame(self.handle, deadline), hashlib.sha256(raw).digest()):
                         raise RuntimeRefused("REPLY_ACK_DENIED")
+                    if self._owner_channel is not None: self._owner_channel.finish(deadline)
                     return result
+            except BaseException:
+                if self._owner_channel is not None: self.close()
+                raise
             finally:
                 # A uncertain cancellation retires the endpoint/process pipe gate.
-                try: self.api.disconnect(self.handle)
+                try:
+                    if not self.closed: self.api.disconnect(self.handle)
                 except RuntimeRefused:
                     self.close()
                     raise

@@ -132,3 +132,29 @@ def test_reparse_state_directory_cannot_redirect_owner_files(fixture_root):
     if made.returncode: pytest.skip("JUNCTION_FIXTURE_UNAVAILABLE; native requirement remains unverified")
     with pytest.raises(RuntimeRefused, match="REPARSE_DENIED"): acquire_owner(resolve_project(project), "coordinator")
     assert list(outside.iterdir()) == []
+
+
+def test_proved_dead_owner_with_published_endpoint_is_replaced_once(fixture_root):
+    from compertum.runtime.identity import resolve_project
+    from compertum.runtime.owners import acquire_owner, release_owner
+    from compertum.runtime.ipc import start_role_pipe
+    from compertum.runtime.errors import RuntimeRefused
+    root, project = fixture_root; proc = child(root, project, "published", "--publish-pipe")
+    try:
+        (root / "barrier").touch(); first = json.loads(proc.stdout.readline())
+        old = json.loads((project / "state/locks/execution.json").read_text())
+        assert old["endpoint"] and old["identity"]["pid"] == proc.pid
+        with pytest.raises(RuntimeRefused, match="OWNER_BUSY"):
+            acquire_owner(resolve_project(project), "execution")
+    finally: stop(root, proc, "published")
+    assert proc.returncode == 0; proc._handle.Close()
+    lease = acquire_owner(resolve_project(project), "execution")
+    try:
+        endpoint = start_role_pipe(lease, frozenset({"status"}))
+        new = json.loads((project / "state/locks/execution.json").read_text())
+        assert lease.generation == first["generation"] + 1
+        assert new["endpoint"] != old["endpoint"] and new["identity"] != old["identity"]
+        with pytest.raises(RuntimeRefused, match="OWNER_BUSY"):
+            acquire_owner(resolve_project(project), "execution")
+    finally: release_owner(lease)
+    assert endpoint.closed
