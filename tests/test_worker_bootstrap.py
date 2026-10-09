@@ -163,10 +163,12 @@ def test_inheritance_finalization_failure_irrevocably_closes_offer(monkeypatch, 
     import threading
     from types import SimpleNamespace
     from compertum.runtime import owners
+    from compertum.runtime import bootstrap
     from compertum.runtime.bootstrap import BootstrapOffer
     @contextmanager
     def scope(_): yield None
     monkeypatch.setattr(owners, "_owner_scope", scope)
+    monkeypatch.setattr(bootstrap, "_target_scope", scope)
     def handle(value, fail=False):
         h = SimpleNamespace(closed=False, get=lambda: value)
         def close():

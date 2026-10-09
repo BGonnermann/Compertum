@@ -141,3 +141,97 @@ def test_owner_release_closes_transport_before_a_new_owner_can_attempt_startup()
     release_owner(lease)
     assert ep.closed and ep.handle.closed
     with pytest.raises(RuntimeRefused, match="OWNER_UNVERIFIED"): ep.inspect_once(timeout=0.1)
+
+
+def test_client_dacl_denies_create_instance_right_independently_of_first_instance(endpoint):
+    from compertum.runtime._pipes import CLIENT_ACCESS, pipe_name
+    from compertum.runtime._windows import NativeCallError
+    root, _, ep = endpoint
+    # Opening the existing pipe with the extra right exercises its DACL, not
+    # CreateNamedPipe's FILE_FLAG_FIRST_PIPE_INSTANCE collision check.
+    with pytest.raises(NativeCallError) as denied:
+        with ep.api.open_file(pipe_name(ep.descriptor.registration), CLIENT_ACCESS | 4, 0,
+                              flags=0x40000000 | 0x00100000): pass
+    assert denied.value.winerror == 5
+    proc = launch(root, ep.descriptor)
+    assert not ep.inspect_once().can_dispatch and finish(proc)[0] == 0
+
+
+def fault_client(root, descriptor, mode):
+    key = str(uuid4()); ready = root / (key + ".ready"); stop = root / (key + ".stop")
+    received = root / (key + ".received"); config = root / (key + ".json")
+    command = {"schema_version": 1, "request_id": str(uuid4()), "target_role": descriptor.registration.identity.role,
+        "target_generation": descriptor.registration.generation, "action": "status", "payload": {}, "actor": {"kind": "operator"}}
+    config.write_text(json.dumps({"target": asdict(descriptor.registration), "mode": mode,
+        "ready": str(ready), "stop": str(stop), "received": str(received), "command": command}))
+    env = {k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}}
+    env["PYTHONPATH"] = str(ROOT / "src"); env["PYTHONDONTWRITEBYTECODE"] = "1"
+    proc = subprocess.Popen([sys.executable, "-B", str(ROOT / "tests/helpers/pipe_fault_client.py"), str(config)],
+        cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    end = time.monotonic() + 5
+    while not ready.exists():
+        if proc.poll() is not None or time.monotonic() >= end:
+            if proc.poll() is None: proc.terminate()
+            proc.communicate(timeout=3); pytest.fail("native fault client never connected")
+        time.sleep(.01)
+    return proc, stop, received
+
+
+@pytest.mark.parametrize("mode,reason", [("bad_ack", "REPLY_ACK_DENIED"), ("no_ack", "PIPE_DEADLINE_EXCEEDED")])
+def test_missing_or_wrong_public_ack_refuses_completion_and_allows_a_fresh_connection(endpoint, mode, reason):
+    from compertum.runtime.errors import RuntimeRefused
+    root, _, ep = endpoint; proc, stop, received = fault_client(root, ep.descriptor, mode)
+    try:
+        with pytest.raises(RuntimeRefused, match=reason): ep.inspect_once(timeout=.5)
+        assert received.exists()  # timeout occurred after reply, not during child startup
+    finally:
+        stop.touch(); finish(proc)
+    other = launch(root, ep.descriptor)
+    assert not ep.inspect_once().can_dispatch and finish(other)[0] == 0
+
+
+@pytest.mark.parametrize("kind,interrupt", [("read", False), ("write", False), ("read", True), ("write", True)])
+def test_actual_pending_io_is_completed_before_buffers_are_released(endpoint, monkeypatch, kind, interrupt):
+    """Actual native I/O with optional injected Python interruption, not Ctrl+C."""
+    import ctypes as c
+    from compertum.runtime import _pipes
+    from compertum.runtime.errors import RuntimeRefused
+    root, _, ep = endpoint
+    proc, stop, _ = fault_client(root, ep.descriptor, "partial" if kind == "read" else "hold")
+    api = ep.api; pending = []; completed = []; cancellations = []
+    submit_name = "ReadFile" if kind == "read" else "WriteFile"
+    native_submit = getattr(api, submit_name); native_result = api.GetOverlappedResult; native_cancel = api.CancelIoEx
+    def submit(*args):
+        ok = native_submit(*args); error = c.get_last_error()
+        if not ok and error == 997:
+            pending.append(True)
+            if interrupt: raise KeyboardInterrupt()
+        c.set_last_error(error); return ok
+    def cancel(*args):
+        ok = native_cancel(*args); error = c.get_last_error(); cancellations.append(True)
+        c.set_last_error(error); return ok
+    def result(*args):
+        ok = native_result(*args); error = c.get_last_error()
+        if cancellations: completed.append((bool(ok), error))
+        c.set_last_error(error); return ok
+    try:
+        api.connect(ep.handle, _pipes.deadline_after(5))
+        with monkeypatch.context() as patch:
+            patch.setattr(api, submit_name, submit); patch.setattr(api, "CancelIoEx", cancel)
+            patch.setattr(api, "GetOverlappedResult", result)
+            with pytest.raises(KeyboardInterrupt if interrupt else RuntimeRefused,
+                               match=None if interrupt else "PIPE_DEADLINE_EXCEEDED"):
+                deadline = _pipes.deadline_after(.5)
+                if kind == "read": api.read_frame(ep.handle, deadline)
+                else:
+                    # At most 1 MiB and .5 s. Native ERROR_IO_PENDING, not this
+                    # byte budget, is required as proof that cancellation ran.
+                    for _ in range(16): api.write_frame(ep.handle, b"x" * 65536, deadline)
+                    pytest.fail("NATIVE_PENDING_WRITE_NOT_OBSERVED")
+        assert pending and cancellations and completed
+        assert completed[-1][0] or completed[-1][1] == 995
+        assert not _pipes._INFLIGHT and not _pipes._UNCERTAIN
+    finally:
+        api.disconnect(ep.handle); stop.touch(); finish(proc)
+    other = launch(root, ep.descriptor)
+    assert not ep.inspect_once().can_dispatch and finish(other)[0] == 0

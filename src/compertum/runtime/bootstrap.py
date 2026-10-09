@@ -142,20 +142,34 @@ def _observation(api, process):
     return PeerObservation(pid, api.creation_time(process), sid, logon)
 
 
+@contextmanager
+def _target_scope(endpoint):
+    from .ipc import RoleEndpoint
+    from .owners import _owner_scope
+    from .owner_channel import RemoteRoleEndpoint, _remote_scope
+    if type(endpoint) is RemoteRoleEndpoint:
+        with _remote_scope(endpoint): yield
+    elif isinstance(endpoint, RoleEndpoint):
+        with _owner_scope(endpoint.lease) as guard:
+            if endpoint not in guard.resources or endpoint.closed or endpoint._owner_channel is not None:
+                raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+            yield
+    else: raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+
+
 def prepare_bootstrap(supervisor, endpoint, *, role, generation, commands):
     from .owners import _owner_scope
     from ._pipes import NativePipeAPI, deadline_after
-    from .ipc import RoleEndpoint
     with _owner_scope(supervisor) as parent:
         if supervisor.identity.role != "supervisor": raise RuntimeRefused("ROLE_DENIED")
         validate_worker_commands(role, commands)
         if type(generation) is not int or not 1 <= generation < 2**63: raise RuntimeRefused("BOOTSTRAP_DENIED")
-        if not isinstance(endpoint, RoleEndpoint): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
-        with _owner_scope(endpoint.lease) as target, endpoint._lock:
-            if (endpoint not in target.resources or endpoint.closed
-                    or endpoint.lease.project_id != supervisor.project_id
+        with _target_scope(endpoint), endpoint._lock:
+            target = endpoint.descriptor.registration
+            if (target.project_id != supervisor.project_id
                     or (parent.project.operator_sid, parent.project.logon_sid) !=
-                       (target.project.operator_sid, target.project.logon_sid)
+                       (target.identity.operator_sid, target.logon_sid)
+                    or getattr(endpoint, "supervisor", supervisor) is not supervisor
                     or not commands <= endpoint.allowed_commands
                     or len(endpoint._offers) >= 64):
                 raise RuntimeRefused("BOOTSTRAP_DENIED")
@@ -196,7 +210,7 @@ class BootstrapOffer:
     @contextmanager
     def inheritance(self):
         from .owners import _owner_scope
-        with _INHERIT_LOCK, _owner_scope(self.supervisor), _owner_scope(self.endpoint.lease), self.endpoint._lock:
+        with _INHERIT_LOCK, _owner_scope(self.supervisor), _target_scope(self.endpoint), self.endpoint._lock:
             if self.closed or self.launched: raise RuntimeRefused("BOOTSTRAP_DENIED")
             self.launched = True
             try:
@@ -219,7 +233,7 @@ class BootstrapOffer:
         from .owners import _owner_scope
         from ._pipes import deadline_after
         from ._windows import OwnedHandle
-        with _owner_scope(self.supervisor), _owner_scope(self.endpoint.lease), self.endpoint._lock:
+        with _owner_scope(self.supervisor), _target_scope(self.endpoint), self.endpoint._lock:
             if self.closed or not self.launched or self.delivered or not self.client.closed:
                 raise RuntimeRefused("BOOTSTRAP_DENIED")
             process = None

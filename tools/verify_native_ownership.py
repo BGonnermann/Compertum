@@ -17,13 +17,14 @@ import xml.etree.ElementTree as ET
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--run-fixtures", action="store_true")
-    p.add_argument("--suite", choices=("ownership", "ipc", "bootstrap", "all"), default="ownership")
+    p.add_argument("--suite", choices=("ownership", "ipc", "bootstrap", "registration", "all"), default="ownership")
     a = p.parse_args()
     report = {"status": "NATIVE_FIXTURES_NOT_RUN", "fixture_run": False,
               "native_ownership": "UNVERIFIED", "native_task1": "UNVERIFIED",
               "native_task3": "UNVERIFIED", "m0": "INCOMPLETE",
               "native_ipc": "UNVERIFIED", "named_pipe": "NATIVE_UNVERIFIED",
-              "worker_bootstrap": "UNVERIFIED", "durable_dispatch": "DISABLED", "suite": a.suite,
+              "worker_bootstrap": "UNVERIFIED", "owner_registration": "UNVERIFIED",
+              "durable_dispatch": "DISABLED", "suite": a.suite,
               "python": sys.version.split()[0], "spending_usd": "0.00"}
     if os.name != "nt" or sys.platform != "win32":
         report["status"] = "NATIVE_WINDOWS_UNAVAILABLE"
@@ -49,8 +50,10 @@ def main():
     report["evidence_directory"] = str(out.relative_to(root))
     files = {"ownership": ["tests/windows/test_ownership.py"], "ipc": ["tests/windows/test_ipc.py"],
              "bootstrap": ["tests/windows/test_bootstrap.py"],
-             "all": ["tests/windows/test_ownership.py", "tests/windows/test_ipc.py", "tests/windows/test_bootstrap.py"]}[a.suite]
-    minimum = {"ownership": 9, "ipc": 11, "bootstrap": 10, "all": 30}[a.suite]
+             "registration": ["tests/windows/test_remote_owners.py"],
+             "all": ["tests/windows/test_ownership.py", "tests/windows/test_ipc.py", "tests/windows/test_bootstrap.py",
+                     "tests/windows/test_remote_owners.py"]}[a.suite]
+    minimum = {"ownership": 10, "ipc": 18, "bootstrap": 14, "registration": 11, "all": 53}[a.suite]
     try:
         result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", *files,
                                  "--junitxml", str(junit)], cwd=root, env=env,
@@ -73,6 +76,7 @@ def main():
             if a.suite in ("ownership", "all"): report["native_ownership"] = "FIXTURES_PASS"
             if a.suite in ("ipc", "all"): report["native_ipc"] = "INSPECTION_FIXTURES_PASS"
             if a.suite in ("bootstrap", "all"): report["worker_bootstrap"] = "INSPECTION_FIXTURES_PASS"
+            if a.suite in ("registration", "all"): report["owner_registration"] = "INSPECTION_FIXTURES_PASS"
             report["status"] = a.suite.upper() + "_FIXTURES_PASS_M0_INCOMPLETE"
             return emit(report, out, 0)
         report["status"] = "NATIVE_FIXTURES_UNVERIFIED"

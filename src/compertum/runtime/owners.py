@@ -177,7 +177,7 @@ def _metadata(raw, project, role):
 
 def _code_hash():
     h = hashlib.sha256()
-    for name in ("__init__.py", "errors.py", "_windows.py", "_pipes.py", "identity.py", "owners.py", "ipc.py", "bootstrap.py"):
+    for name in ("__init__.py", "errors.py", "_windows.py", "_pipes.py", "identity.py", "owners.py", "ipc.py", "bootstrap.py", "owner_channel.py"):
         with Path(__file__).with_name(name).open("rb") as source: data = source.read(512 * 1024 + 1)
         if len(data) > 512 * 1024: raise RuntimeRefused("CODE_HASH_UNVERIFIED")
         h.update(name.encode() + b"\0" + data)
