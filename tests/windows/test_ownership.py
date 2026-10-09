@@ -6,9 +6,29 @@ import subprocess
 import sys
 import uuid
 import pytest
+from fixture_processes import python_process
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="NATIVE_WINDOWS_UNAVAILABLE")
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_fixture_process_handle_names_the_interpreter_and_preserves_qualified_environment():
+    env = {k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}}
+    code = ("import json, os, sys, jsonschema; "
+            "print(json.dumps({'pid': os.getpid(), 'prefix': sys.prefix, "
+            "'executable': sys.executable, 'version': list(sys.version_info[:3])}))")
+    proc = python_process(["-B", "-c", code], env=env,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try: out, err = proc.communicate(timeout=8)
+    except subprocess.TimeoutExpired:
+        proc.terminate(); proc.communicate(timeout=3)
+        pytest.fail("fixture interpreter exceeded its exit bound")
+    assert proc.returncode == 0 and not err
+    observed = json.loads(out)
+    assert observed["pid"] == proc.pid
+    assert Path(observed["prefix"]).resolve() == Path(sys.prefix).resolve()
+    assert Path(observed["executable"]).resolve() == Path(sys.executable).resolve()
+    assert observed["version"] == list(sys.version_info[:3])
 
 
 @pytest.fixture
@@ -23,7 +43,7 @@ def child(root, project, suffix, *flags):
     allowed = {"SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE", "PATH"}
     env = {k: v for k, v in os.environ.items() if k.upper() in allowed}
     env["PYTHONPATH"] = str(SOURCE_ROOT / "src"); env["PYTHONDONTWRITEBYTECODE"] = "1"
-    proc = subprocess.Popen([sys.executable, "-B", str(SOURCE_ROOT / "tests/helpers/role_holder.py"),
+    proc = python_process(["-B", str(SOURCE_ROOT / "tests/helpers/role_holder.py"),
         "--root", str(project), "--barrier", str(root / "barrier"), "--stop", str(root / f"stop-{suffix}"), *flags],
         cwd=SOURCE_ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     return proc

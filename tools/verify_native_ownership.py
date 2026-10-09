@@ -53,7 +53,7 @@ def main():
              "registration": ["tests/windows/test_remote_owners.py"],
              "all": ["tests/windows/test_ownership.py", "tests/windows/test_ipc.py", "tests/windows/test_bootstrap.py",
                      "tests/windows/test_remote_owners.py"]}[a.suite]
-    minimum = {"ownership": 10, "ipc": 18, "bootstrap": 14, "registration": 11, "all": 53}[a.suite]
+    minimum = {"ownership": 11, "ipc": 18, "bootstrap": 14, "registration": 11, "all": 54}[a.suite]
     try:
         result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", *files,
                                  "--junitxml", str(junit)], cwd=root, env=env,

@@ -7,6 +7,7 @@ import subprocess
 import sys
 from uuid import uuid4
 import pytest
+from fixture_processes import python_process
 from test_bootstrap import launch as launch_worker, finish
 from test_ipc import launch as launch_operator
 from fixture_files import publish_gate
@@ -44,7 +45,7 @@ def launch_owner(state, role="coordinator", claimed_role=None, operator_target=N
     with offer.inheritance() as handle:
         assert offer.api.handle_flags(offer.client) & 1 and not offer.api.handle_flags(offer.server) & 1
         startup = subprocess.STARTUPINFO(); startup.lpAttributeList = {"handle_list": [handle]}
-        proc = subprocess.Popen([sys.executable, "-B", str(ROOT / "tests/helpers/owner_child.py"), str(handle), str(config)],
+        proc = python_process(["-B", str(ROOT / "tests/helpers/owner_child.py"), str(handle), str(config)],
             cwd=ROOT, env=env, close_fds=True, startupinfo=startup, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     children.append(proc)
     remote = offer.accept(int(proc._handle))

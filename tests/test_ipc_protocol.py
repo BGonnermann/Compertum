@@ -95,7 +95,8 @@ def test_worker_capability_is_scoped_and_expires_on_generation_change():
 
 
 @pytest.mark.parametrize("raw", [b'{"schema_version":1,"schema_version":1}', b'[]',
-    b'{"x":NaN}', b'\xff', b'{', b' ' * 65537])
+    b'{"x":NaN}', b'\xff', b'{', b' ' * 65537],
+    ids=["duplicate-key", "array", "nonfinite", "invalid-utf8", "truncated", "oversized"])
 def test_malformed_duplicate_nonfinite_or_oversized_messages_are_denied(raw):
     with pytest.raises(RuntimeRefused):
         decode_envelope(raw)
