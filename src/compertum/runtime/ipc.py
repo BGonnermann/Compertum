@@ -12,6 +12,13 @@ from compertum.domain import ProcessIdentity, capability_for
 from .errors import RuntimeRefused
 from .identity import PeerObservation
 
+# Retain revoked native identities for this process's lifetime. Classification
+# applies across endpoints and projects; no live worker becomes an operator at
+# a target which did not enroll it. Refuse after the bound, never evict a live
+# or uncertain identity to make room. This is not distributed registration.
+_WORKER_IDENTITIES = set()
+_WORKER_IDENTITY_LOCK = threading.Lock()
+
 
 @dataclass(frozen=True)
 class PeerRegistration:
@@ -219,20 +226,81 @@ class PipeDescriptor:
         if not isinstance(self.registration, PeerRegistration): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
 
 
+@dataclass
+class _WorkerEnrollment:
+    capability: ScopedCapability
+    process: object
+    supervisor: object
+    active: bool = True
+
+
 class RoleEndpoint:
     """A single owned transport for protocol inspection only.
 
-    Private inherited child bootstrap and worker enrollment remain unavailable.
     No handler, mutable store or dispatch callback is accepted by this API.
     """
     def __init__(self, lease, descriptor, allowed_commands, api, handle):
         self.lease = lease; self.descriptor = descriptor; self.allowed_commands = allowed_commands
         self.api = api; self.handle = handle; self.closed = False; self._lock = threading.RLock()
+        self._workers = {}; self._offers = []
 
     def close(self):
         with self._lock:
+            if self.closed: return
             self.closed = True
-            self.handle.close()
+            failure = None
+            for resource in (*self._offers, self.handle):
+                try: resource.close()
+                except BaseException as error:
+                    if failure is None: failure = error
+            if failure is not None: raise failure
+
+    def _enroll(self, offer, capability, process):
+        from .owners import require_live_owner
+        from .bootstrap import BootstrapOffer
+        if (type(offer) is not BootstrapOffer or offer not in self._offers
+                or offer.endpoint is not self or self.closed or offer.closed
+                or not isinstance(capability, ScopedCapability)
+                or capability.registration.project_id != self.lease.project_id
+                or capability.registration.identity.role != offer.role
+                or capability.registration.generation != offer.generation
+                or capability.commands != offer.commands):
+            raise RuntimeRefused("BOOTSTRAP_DENIED")
+        require_live_owner(offer.supervisor)
+        require_live_owner(self.lease)
+        identity = capability.registration.identity
+        key = (identity.pid, identity.creation_filetime)
+        with _WORKER_IDENTITY_LOCK:
+            if key in _WORKER_IDENTITIES or len(_WORKER_IDENTITIES) >= 64:
+                raise RuntimeRefused("BOOTSTRAP_DENIED")
+            entry = _WorkerEnrollment(capability, process, offer.supervisor)
+            self._workers[key] = entry
+            _WORKER_IDENTITIES.add(key)
+        return entry
+
+    def _authorize_peer(self, value, observed, secret):
+        from .owners import require_live_owner
+        entry = self._workers.get((observed.pid, observed.creation_filetime))
+        capability = None
+        if entry is not None:
+            # Keep a revoked native identity classified as a worker for this
+            # endpoint's lifetime. It cannot regain operator-control rights.
+            if (not entry.active or self.api.WaitForSingleObject(entry.process.get(), 0) != 258
+                    or self.api.creation_time(entry.process) != observed.creation_filetime):
+                raise RuntimeRefused("CAPABILITY_DENIED")
+            require_live_owner(entry.supervisor)
+            capability = entry.capability
+            registration = capability.registration
+        else:
+            with _WORKER_IDENTITY_LOCK:
+                if (observed.pid, observed.creation_filetime) in _WORKER_IDENTITIES:
+                    raise RuntimeRefused("ROLE_DENIED")
+            if value["actor"]["kind"] != "operator" or secret is not None: raise RuntimeRefused("ROLE_DENIED")
+            registration = _operator_registration(observed, self.descriptor.registration)
+        return authorize_envelope(value, registration=registration, observed=observed,
+            target_project_id=self.lease.project_id, target_role=self.lease.identity.role,
+            target_generation=self.lease.generation, allowed_commands=self.allowed_commands,
+            capability=capability, secret=secret)
 
     def inspect_once(self, *, timeout=5):
         from .owners import _owner_scope
@@ -245,13 +313,9 @@ class RoleEndpoint:
                 with self.api.peer(self.handle, server_side=True) as observed:
                     if (observed.operator_sid, observed.logon_sid) != (guard.project.operator_sid, guard.project.logon_sid):
                         raise RuntimeRefused("PEER_MISMATCH")
-                    value = decode_envelope(self.api.read_frame(self.handle, deadline))
-                    # Native operator authentication never grants a worker role.
-                    if value["actor"]["kind"] != "operator": raise RuntimeRefused("ROLE_DENIED")
-                    registration = _operator_registration(observed, self.descriptor.registration)
-                    result = authorize_envelope(value, registration=registration, observed=observed,
-                        target_project_id=self.lease.project_id, target_role=self.lease.identity.role,
-                        target_generation=self.lease.generation, allowed_commands=self.allowed_commands)
+                    from .bootstrap import decode_request_frame
+                    value, secret = decode_request_frame(self.api.read_frame(self.handle, deadline))
+                    result = self._authorize_peer(value, observed, secret)
                     from .owners import require_live_owner
                     require_live_owner(self.lease)
                     raw = encode_protocol_reply(result)
