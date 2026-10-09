@@ -1,11 +1,12 @@
-"""Protocol checks only. No OS peer authentication or effectful dispatch."""
-from dataclasses import dataclass
+"""Protocol checks and candidate native inspection transport; effects disabled."""
+from dataclasses import dataclass, asdict
 import hashlib
 import hmac
 import json
 import math
 import re
 import secrets
+import threading
 from uuid import UUID
 from compertum.domain import ProcessIdentity, capability_for
 from .errors import RuntimeRefused
@@ -192,8 +193,137 @@ def _string_size(value):
 
 
 def start_role_pipe(lease, allowed_commands):
-    from .owners import require_live_owner
-    require_live_owner(lease)
-    # Named-pipe DACLs, overlapped I/O, native mutual peer checks and private
-    # bootstrap delivery must be implemented and qualified in Task 3B.
-    raise RuntimeRefused("NATIVE_PIPE_UNVERIFIED")
+    from .owners import _owner_scope, _attach_endpoint
+    from ._pipes import NativePipeAPI, pipe_name
+    if (not isinstance(allowed_commands, frozenset) or not allowed_commands
+            or any(not isinstance(x, str) or capability_for(x).exit_code != 0 for x in allowed_commands)):
+        raise RuntimeRefused("COMMAND_DENIED")
+    with _owner_scope(lease) as guard:
+        registration = PeerRegistration(lease.identity, guard.project.logon_sid,
+            lease.project_id, lease.generation, "worker")
+        api = NativePipeAPI()
+        handle = api.server(registration)
+        endpoint = RoleEndpoint(lease, PipeDescriptor(registration), allowed_commands, api, handle)
+        try: _attach_endpoint(lease, endpoint, pipe_name(registration))
+        except BaseException:
+            endpoint.close(); raise
+        return endpoint
+
+
+@dataclass(frozen=True)
+class PipeDescriptor:
+    """Public routing expectation. It grants no capability; Windows checks peers."""
+    registration: PeerRegistration
+
+    def __post_init__(self):
+        if not isinstance(self.registration, PeerRegistration): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+
+
+class RoleEndpoint:
+    """A single owned transport for protocol inspection only.
+
+    Private inherited child bootstrap and worker enrollment remain unavailable.
+    No handler, mutable store or dispatch callback is accepted by this API.
+    """
+    def __init__(self, lease, descriptor, allowed_commands, api, handle):
+        self.lease = lease; self.descriptor = descriptor; self.allowed_commands = allowed_commands
+        self.api = api; self.handle = handle; self.closed = False; self._lock = threading.RLock()
+
+    def close(self):
+        with self._lock:
+            self.closed = True
+            self.handle.close()
+
+    def inspect_once(self, *, timeout=5):
+        from .owners import _owner_scope
+        from ._pipes import deadline_after
+        with _owner_scope(self.lease) as guard, self._lock:
+            if self.closed: raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+            deadline = deadline_after(timeout)
+            try:
+                self.api.connect(self.handle, deadline)
+                with self.api.peer(self.handle, server_side=True) as observed:
+                    if (observed.operator_sid, observed.logon_sid) != (guard.project.operator_sid, guard.project.logon_sid):
+                        raise RuntimeRefused("PEER_MISMATCH")
+                    value = decode_envelope(self.api.read_frame(self.handle, deadline))
+                    # Native operator authentication never grants a worker role.
+                    if value["actor"]["kind"] != "operator": raise RuntimeRefused("ROLE_DENIED")
+                    registration = _operator_registration(observed, self.descriptor.registration)
+                    result = authorize_envelope(value, registration=registration, observed=observed,
+                        target_project_id=self.lease.project_id, target_role=self.lease.identity.role,
+                        target_generation=self.lease.generation, allowed_commands=self.allowed_commands)
+                    from .owners import require_live_owner
+                    require_live_owner(self.lease)
+                    raw = encode_protocol_reply(result)
+                    self.api.write_frame(self.handle, raw, deadline)
+                    # DisconnectNamedPipe discards unread output. A bounded ACK
+                    # proves receipt without an unbounded FlushFileBuffers call.
+                    if not hmac.compare_digest(self.api.read_frame(self.handle, deadline), hashlib.sha256(raw).digest()):
+                        raise RuntimeRefused("REPLY_ACK_DENIED")
+                    return result
+            finally:
+                # A uncertain cancellation retires the endpoint/process pipe gate.
+                try: self.api.disconnect(self.handle)
+                except RuntimeRefused:
+                    self.close()
+                    raise
+
+
+def _operator_registration(observed, target):
+    from uuid import uuid4
+    identity = ProcessIdentity(str(uuid4()), observed.pid, observed.creation_filetime,
+                               observed.operator_sid, "supervisor")
+    return PeerRegistration(identity, observed.logon_sid, target.project_id, target.generation, "operator")
+
+
+def encode_protocol_reply(decision):
+    if not isinstance(decision, ProtocolDecision) or decision.can_dispatch or decision.status != "PROTOCOL_VALIDATED_ONLY":
+        raise RuntimeRefused("REPLY_DENIED")
+    return json.dumps(asdict(decision), sort_keys=True, separators=(",", ":")).encode()
+
+
+def decode_protocol_reply(raw, expected):
+    if not isinstance(raw, bytes) or len(raw) > 2048 or not isinstance(expected, ProtocolDecision):
+        raise RuntimeRefused("REPLY_DENIED")
+    def pairs(values):
+        result = {}
+        for key, value in values:
+            if key in result: raise ValueError("duplicate")
+            result[key] = value
+        return result
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=pairs,
+                           parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        # Compare canonical bytes, not Python equality that equates True and 1.
+        if json.dumps(value, sort_keys=True, separators=(",", ":")).encode() != encode_protocol_reply(expected):
+            raise ValueError("mismatch")
+    except (ValueError, TypeError, UnicodeError, RecursionError): raise RuntimeRefused("REPLY_DENIED") from None
+    return expected
+
+
+def inspect_request(endpoint, command, *, timeout=5):
+    """Authenticate a native roundtrip. It does not execute the requested action."""
+    from ._pipes import NativePipeAPI, deadline_after, verify_peer
+    if not isinstance(endpoint, PipeDescriptor): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+    raw = encode_envelope(command)
+    if command["actor"]["kind"] != "operator": raise RuntimeRefused("ROLE_DENIED")
+    api = NativePipeAPI(); deadline = deadline_after(timeout)
+    with api.client(endpoint.registration) as handle, api.peer(handle, server_side=False) as observed:
+        verify_peer(endpoint.registration, observed)
+        import os
+        with api.open_process(os.getpid()) as process:
+            sid, logon = api.token_sids(process)
+            own = PeerObservation(os.getpid(), api.creation_time(process), sid, logon)
+        if (sid, logon) != (endpoint.registration.identity.operator_sid, endpoint.registration.logon_sid):
+            raise RuntimeRefused("PEER_MISMATCH")
+        expected = authorize_envelope(command, registration=_operator_registration(own, endpoint.registration),
+            observed=own, target_project_id=endpoint.registration.project_id,
+            target_role=endpoint.registration.identity.role, target_generation=endpoint.registration.generation,
+            allowed_commands=frozenset({command["action"]}))
+        api.write_frame(handle, raw, deadline)
+        reply = api.read_frame(handle, deadline)
+        result = decode_protocol_reply(reply, expected)
+        # The server process handle remains retained for the whole response.
+        verify_peer(endpoint.registration, observed)
+        api.write_frame(handle, hashlib.sha256(reply).digest(), deadline)
+        return result

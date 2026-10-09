@@ -99,3 +99,20 @@ def test_cleanup_never_closes_a_reused_handle_for_a_different_file(monkeypatch):
     with pytest.raises(RuntimeRefused, match="OWNER_UNVERIFIED"): owners.require_live_owner(fake)
     assert closed == ["root"]
     assert lock.closed is True
+
+
+def test_transport_is_revoked_before_owner_handles_even_if_transport_close_fails():
+    from types import SimpleNamespace
+    from compertum.runtime import owners
+    steps = []
+    def resource_close():
+        steps.append("pipe")
+        raise RuntimeRefused("PIPE_CLOSE_FAILED")
+    lock = SimpleNamespace(closed=False, close=lambda: steps.append("lock"))
+    state = SimpleNamespace(closed=False, api=SimpleNamespace(file_identity=lambda h: (1, "lock")),
+        lock=lock, lock_identity=(1, "lock"), directories=[], directory_identities=[],
+        resources=[SimpleNamespace(close=resource_close)])
+    with pytest.raises(RuntimeRefused, match="OWNER_CLEANUP_UNVERIFIED"):
+        owners._dispose_guard(state)
+    assert steps == ["pipe", "lock"]
+    assert state.closed and state.cleanup_unverified

@@ -17,11 +17,13 @@ import xml.etree.ElementTree as ET
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--run-fixtures", action="store_true")
+    p.add_argument("--suite", choices=("ownership", "ipc", "all"), default="ownership")
     a = p.parse_args()
     report = {"status": "NATIVE_FIXTURES_NOT_RUN", "fixture_run": False,
               "native_ownership": "UNVERIFIED", "native_task1": "UNVERIFIED",
               "native_task3": "UNVERIFIED", "m0": "INCOMPLETE",
-              "named_pipe": "UNIMPLEMENTED", "durable_dispatch": "DISABLED",
+              "native_ipc": "UNVERIFIED", "named_pipe": "NATIVE_UNVERIFIED",
+              "worker_bootstrap": "UNIMPLEMENTED", "durable_dispatch": "DISABLED", "suite": a.suite,
               "python": sys.version.split()[0], "spending_usd": "0.00"}
     if os.name != "nt" or sys.platform != "win32":
         report["status"] = "NATIVE_WINDOWS_UNAVAILABLE"
@@ -40,13 +42,16 @@ def main():
                 report["status"] = "REPARSE_DENIED"; print(json.dumps(report)); return 3
         current.mkdir(exist_ok=True)
     out.mkdir()
-    junit = out / "ownership.xml"
+    junit = out / (a.suite + ".xml")
     env = {k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR", "TEMP", "TMP", "USERPROFILE", "PATH"}}
     env["PYTHONPATH"] = str(root / "src"); env["PYTHONDONTWRITEBYTECODE"] = "1"
     report["fixture_run"] = True
     report["evidence_directory"] = str(out.relative_to(root))
+    files = {"ownership": ["tests/windows/test_ownership.py"], "ipc": ["tests/windows/test_ipc.py"],
+             "all": ["tests/windows/test_ownership.py", "tests/windows/test_ipc.py"]}[a.suite]
+    minimum = {"ownership": 9, "ipc": 11, "all": 20}[a.suite]
     try:
-        result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "tests/windows/test_ownership.py",
+        result = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", *files,
                                  "--junitxml", str(junit)], cwd=root, env=env,
                                 text=True, capture_output=True, timeout=120)
         # Fixture helpers carry a separate 30-second exit bound. This is not
@@ -63,11 +68,12 @@ def main():
             for suite in ET.parse(junit).getroot().iter("testsuite"):
                 for k in totals: totals[k] += int(suite.attrib.get(k, 0))
         report["counts"] = totals
-        if result.returncode == 0 and totals["tests"] >= 9 and not any(totals[k] for k in ("failures", "errors", "skipped")):
-            report["native_ownership"] = "FIXTURES_PASS"
-            report["status"] = "OWNERSHIP_FIXTURES_PASS_M0_INCOMPLETE"
+        if result.returncode == 0 and totals["tests"] >= minimum and not any(totals[k] for k in ("failures", "errors", "skipped")):
+            if a.suite in ("ownership", "all"): report["native_ownership"] = "FIXTURES_PASS"
+            if a.suite in ("ipc", "all"): report["native_ipc"] = "INSPECTION_FIXTURES_PASS"
+            report["status"] = a.suite.upper() + "_FIXTURES_PASS_M0_INCOMPLETE"
             return emit(report, out, 0)
-        report["status"] = "NATIVE_OWNERSHIP_UNVERIFIED"
+        report["status"] = "NATIVE_FIXTURES_UNVERIFIED"
         return emit(report, out, 3)
     except (subprocess.TimeoutExpired, OSError, ET.ParseError, ValueError):
         report["status"] = "NATIVE_VERIFICATION_UNVERIFIED"

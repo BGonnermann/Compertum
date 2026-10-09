@@ -1,4 +1,5 @@
-from dataclasses import dataclass, asdict
+from contextlib import contextmanager
+from dataclasses import dataclass, asdict, field
 import hashlib
 import json
 import os
@@ -104,6 +105,7 @@ class _Exclusive:
     metadata_bytes: bytes = b""
     closed: bool = False
     cleanup_unverified: bool = False
+    resources: list = field(default_factory=list)
 
 
 def _close_handles(handles):
@@ -118,6 +120,10 @@ def _dispose_guard(state):
     """Revoke before disposal; never close an observed foreign handle value."""
     state.closed = True
     failed = False
+    # Transports/capabilities lose authority before any owner lock is released.
+    for resource in reversed(getattr(state, "resources", [])):
+        try: resource.close()
+        except Exception: failed = True
     resources = [(state.lock, state.lock_identity), *reversed(list(zip(state.directories, state.directory_identities)))]
     for handle, expected in resources:
         if handle.closed: continue
@@ -158,7 +164,8 @@ def _metadata(raw, project, role):
         if (set(p) != {"schema_version", "project_id", "role", "generation", "identity", "endpoint", "code_hash"}
                 or type(p["schema_version"]) is not int or p["schema_version"] != 1 or p["project_id"] != project.project_id
                 or p["role"] != role or type(p["generation"]) is not int or not 1 <= p["generation"] < 2**63 - 1
-                or p["endpoint"] is not None or not isinstance(p["code_hash"], str)
+                or (p["endpoint"] is not None and p["endpoint"] != _endpoint_name(p))
+                or not isinstance(p["code_hash"], str)
                 or not re.fullmatch(r"[0-9a-f]{64}", p["code_hash"])):
             raise ValueError("invalid")
         identity = ProcessIdentity(**p["identity"])
@@ -170,11 +177,38 @@ def _metadata(raw, project, role):
 
 def _code_hash():
     h = hashlib.sha256()
-    for name in ("__init__.py", "errors.py", "_windows.py", "identity.py", "owners.py", "ipc.py"):
+    for name in ("__init__.py", "errors.py", "_windows.py", "_pipes.py", "identity.py", "owners.py", "ipc.py"):
         with Path(__file__).with_name(name).open("rb") as source: data = source.read(512 * 1024 + 1)
         if len(data) > 512 * 1024: raise RuntimeRefused("CODE_HASH_UNVERIFIED")
         h.update(name.encode() + b"\0" + data)
     return h.hexdigest()
+
+
+def _endpoint_name(metadata):
+    return ("\\\\.\\pipe\\compertum-" + metadata["project_id"] + "-" + metadata["role"]
+            + "-" + metadata["identity"]["process_instance_id"] + "-" + str(metadata["generation"]))
+
+
+@contextmanager
+def _owner_scope(lease):
+    # One lock order: owner registry then endpoint. Release waits for the bounded
+    # exchange, preventing teardown racing an overlapped native operation.
+    with _MUTEX:
+        require_live_owner(lease)
+        yield _LEASES[lease]
+        require_live_owner(lease)
+
+
+def _attach_endpoint(lease, resource, name):
+    with _owner_scope(lease) as state:
+        payload = json.loads(state.metadata_bytes)
+        if payload["endpoint"] is not None or name != _endpoint_name(payload):
+            raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+        state.resources.append(resource)
+        payload["endpoint"] = name
+        updated = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        state.api.publish_metadata(state.metadata, updated)
+        state.metadata_bytes = updated
 
 
 def acquire_owner(project: ProjectIdentity, role: str) -> OwnerLease:
