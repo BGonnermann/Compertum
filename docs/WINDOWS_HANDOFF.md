@@ -2,7 +2,7 @@
 
 Repository: https://github.com/BrennanCompertum/Compertum
 
-The foundation and Task 3A–3C checkpoints are merged into `main`. Task 3D adds separate-owner registration and lifecycle fixtures on `codex/m0-lifecycle-registration`; use the actual published `main` head after its reviewed merge. Older branches remain historical checkpoints. Use the actual Git head, not a ZIP's historical local commit. The owner reassigned implementation to this cloud session on 8 October 2026 and authorized reviewed merges. Local code edits are paused; this document describes verification on the home PC.
+The foundation and Task 3A–3D checkpoints are merged into `main`. The first native run at `68f9643cc591b7a3ab3307f3351fae324b4fd729` failed; see `reports/M0_NATIVE_REPAIRS.md` for the operator summary, repair scope and remaining evidence request. Use the actual published repair commit for a new isolated run after publication. Older branches remain historical checkpoints. Use the actual Git head, not a ZIP's historical local commit. The owner reassigned implementation to this cloud session on 8 October 2026 and authorized reviewed merges. Local code edits are paused; this document describes verification on the home PC.
 
 ## Establish the source before changing it
 
@@ -22,7 +22,7 @@ The foundation and Task 3A–3C checkpoints are merged into `main`. Task 3D adds
 ```
 
 - The entry point uses existing dependencies only and creates small, unique project-local fixture/evidence directories. Without `--run-fixtures` it performs no fixture writes. In Linux it exits 3 with `NATIVE_WINDOWS_UNAVAILABLE`, never a native pass. Read the output's exact counts/status and retain its `result.json`/JUnit/log directory. Any skip or failure keeps the ownership fixture suite unverified. Even a successful fixture suite leaves Task 1, full Task 3 and M0 unverified/incomplete; do not mistake exit 0 for milestone acceptance.
-- `--suite all` now includes at least 53 native fixtures: ownership 10, IPC 18, bootstrap 14 and registration 11. `--suite registration` isolates the separate-process cases. Any skipped/failed fixture remains unverified. Trusted bounded helpers use explicit inherited handle lists; no capability enters arguments, environment, metadata or output. Native pending-I/O tests require observed `ERROR_IO_PENDING` and completed cancellation. Injected Python interruption is reported separately from real console Ctrl+C qualification.
+- `--suite all` now includes at least 54 native fixtures: ownership 11, IPC 18, bootstrap 14 and registration 11. `--suite registration` isolates the separate-process cases. Any skipped/failed fixture remains unverified. Trusted bounded helpers use explicit inherited handle lists; no capability enters arguments, environment, metadata or output. Native pending-I/O tests require observed `ERROR_IO_PENDING` and completed cancellation. Injected Python interruption is reported separately from real console Ctrl+C qualification.
 - Separate owners now receive worker requests through fresh, request-bound supervisor approval. Remote endpoints deny all operator claims; positive operator admission remains later supervisor/terminal work. Co-located operator inspection retains its documented process-local worker classification boundary. No universal classification of arbitrary same-user processes is claimed. Effectful requests remain disabled. Full Task 3 still needs native qualification and later durable replay integration. Task 4 stores or actual workers must wait for their prerequisites. No production launcher or Job limits are established here. Cloud implementation continues from measured receipts; the PC does not modify source in parallel.
 - Continue Tasks 4-9 in dependency order once their prerequisites pass. Do not pause between passing tasks for routine confirmations. Record a concrete unavailable/failed gate and continue only work that does not depend on it. Keep M0 incomplete until every required acceptance gate passes.
 
@@ -33,3 +33,13 @@ Cloud source development is the sole implementation writer under the latest owne
 Spending remains $0 and all documented resource/storage/AI limits remain fixed. No administrator/OS security/power changes, drive migration, Strata restart/reconfiguration, broker credentials, trading, market-data collection, M1-M6, training or AVO/RSI/DREAM work. M0's existing proposal-only AI qualification is allowed only after the final wrapper limits and recorded budgets are verified. No unattended service is enabled.
 
 Report briefly: completed task, native measurements, exact unresolved gate and next dependency. Engineering completion never implies strategy acceptance.
+
+## Native failure follow-up — 8 October 2026 ET
+
+Cloud remains the sole source writer. A remote-control connection does not itself transfer implementation ownership or merge chat state. Local Codex remains the bounded native verifier until an explicit handoff.
+
+The repair candidate bounds malformed-input pytest IDs and launches native fixture helpers directly through the current interpreter's base executable while preserving the selected virtual environment. A new Windows fixture must prove child PID equals the retained process handle's PID, the environment/interpreter match, and a locked third-party import succeeds. Peer checks, pipe permissions and cancellation quarantine are unchanged.
+
+For the next run, use an environment allowlist from the start and omit traceback locals/environment dumps. The operator reported a provider key in an initial traceback; do not copy that key or raw unredacted logs. Key rotation is an owner action, not a reason to inspect authentication stores.
+
+Return a redacted REPORT.md plus the first DACL failure and first cancellation failure traceback/test ID, including the Win32 completion code. Preserve the original failed run. Run ownership first, then bootstrap and registration in separate fresh processes to distinguish primary failures from a quarantined transport. The full suite must also pass eventually; isolated passes are diagnostic only. DACL denial and cancellation remain unresolved, so this repair candidate is not expected to establish M0 acceptance by itself.

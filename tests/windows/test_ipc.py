@@ -8,6 +8,7 @@ import sys
 import time
 from uuid import uuid4
 import pytest
+from fixture_processes import python_process
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="NATIVE_WINDOWS_UNAVAILABLE")
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,7 +37,7 @@ def launch(root, descriptor, action="status", actor=None, change=None, raw=False
     packet.write_text(json.dumps({"registration": asdict(descriptor.registration), "command": payload, "raw": raw}))
     env = {k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}}
     env["PYTHONPATH"] = str(ROOT / "src"); env["PYTHONDONTWRITEBYTECODE"] = "1"
-    return subprocess.Popen([sys.executable, "-B", str(ROOT / "tests/helpers/pipe_client.py"), str(packet)],
+    return python_process(["-B", str(ROOT / "tests/helpers/pipe_client.py"), str(packet)],
         cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
@@ -101,7 +102,7 @@ def test_unexpected_native_server_is_denied_before_client_sends_a_command(endpoi
     from compertum.runtime.errors import RuntimeRefused
     root, _, ep = endpoint
     # Public metadata names a different instance of a real child process.
-    other = subprocess.Popen([sys.executable, "-B", "-c", "import time; time.sleep(8)"],
+    other = python_process(["-B", "-c", "import time; time.sleep(8)"],
         env={k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}})
     api = NativePipeAPI()
     try:
@@ -166,7 +167,7 @@ def fault_client(root, descriptor, mode):
         "ready": str(ready), "stop": str(stop), "received": str(received), "command": command}))
     env = {k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}}
     env["PYTHONPATH"] = str(ROOT / "src"); env["PYTHONDONTWRITEBYTECODE"] = "1"
-    proc = subprocess.Popen([sys.executable, "-B", str(ROOT / "tests/helpers/pipe_fault_client.py"), str(config)],
+    proc = python_process(["-B", str(ROOT / "tests/helpers/pipe_fault_client.py"), str(config)],
         cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     end = time.monotonic() + 5
     while not ready.exists():

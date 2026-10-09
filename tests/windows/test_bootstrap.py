@@ -8,6 +8,7 @@ import sys
 import time
 from uuid import uuid4
 import pytest
+from fixture_processes import python_process
 from fixture_files import publish_gate
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="NATIVE_WINDOWS_UNAVAILABLE")
@@ -49,7 +50,7 @@ def launch(state, mode="normal", *, deliver=True):
         assert not _LEASES[supervisor].api.handle_flags(_LEASES[supervisor].lock) & 1
         startup = subprocess.STARTUPINFO()
         startup.lpAttributeList = {"handle_list": [handle]}
-        proc = subprocess.Popen([sys.executable, "-B", str(ROOT / "tests/helpers/bootstrap_child.py"), str(handle), str(public)],
+        proc = python_process(["-B", str(ROOT / "tests/helpers/bootstrap_child.py"), str(handle), str(public)],
             cwd=ROOT, env=env, close_fds=True, startupinfo=startup,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -161,7 +162,7 @@ def test_bad_or_missing_bootstrap_ack_revokes_native_enrollment(owners, mode, re
 def test_live_sibling_handle_cannot_assign_its_capability_to_the_actual_recipient(owners):
     from compertum.runtime.errors import RuntimeRefused
     proc, offer, gate = launch(owners, deliver=False)
-    other = subprocess.Popen([sys.executable, "-B", "-c", "import time; time.sleep(8)"],
+    other = python_process(["-B", "-c", "import time; time.sleep(8)"],
         env={k: v for k, v in os.environ.items() if k.upper() in {"SYSTEMROOT", "WINDIR"}})
     try:
         with pytest.raises(RuntimeRefused): offer.deliver(int(other._handle))
