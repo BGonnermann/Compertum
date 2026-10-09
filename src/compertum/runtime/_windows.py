@@ -81,6 +81,7 @@ class WindowsAPI:
         bind(k, "CreateFileW", HANDLE, c.c_wchar_p, DWORD, DWORD, HANDLE, DWORD, DWORD, HANDLE)
         bind(k, "CloseHandle", BOOL, HANDLE)
         bind(k, "GetHandleInformation", BOOL, HANDLE, c.POINTER(DWORD))
+        bind(k, "SetHandleInformation", BOOL, HANDLE, DWORD, DWORD)
         bind(k, "GetFileInformationByHandleEx", BOOL, HANDLE, c.c_int32, HANDLE, DWORD)
         bind(k, "GetFileInformationByHandle", BOOL, HANDLE, c.POINTER(FILE_INFO))
         bind(k, "GetFinalPathNameByHandleW", DWORD, HANDLE, c.c_wchar_p, DWORD, DWORD)
@@ -124,6 +125,11 @@ class WindowsAPI:
     def handle_flags(self, h):
         result = DWORD(); self.checked(self.GetHandleInformation(h.get(), c.byref(result)), "GetHandleInformation")
         return result.value
+
+    def set_inheritable(self, h, inherited):
+        if type(inherited) is not bool: raise RuntimeRefused("INHERITED_HANDLE_DENIED")
+        self.checked(self.SetHandleInformation(h.get(), 1, int(inherited)), "SetHandleInformation")
+        if bool(self.handle_flags(h) & 1) != inherited: raise RuntimeRefused("INHERITED_HANDLE_DENIED")
 
     def file_info(self, h):
         info = FILE_INFO(); self.checked(self.GetFileInformationByHandle(h.get(), c.byref(info)), "GetFileInformationByHandle")
@@ -201,16 +207,24 @@ class WindowsAPI:
             return sid, logons[0]
 
     def process_snapshot(self):
+        return frozenset(self._process_parents())
+
+    def parent_pid(self, pid):
+        parents = self._process_parents()
+        if type(pid) is not int or pid not in parents: raise RuntimeRefused("PROCESS_SNAPSHOT_UNVERIFIED")
+        return parents[pid]
+
+    def _process_parents(self):
         with self._handle(self.CreateToolhelp32Snapshot(2, 0), "CreateToolhelp32Snapshot") as h:
-            e = PROCESSENTRY32W(); e.size = c.sizeof(e); pids = set()
+            e = PROCESSENTRY32W(); e.size = c.sizeof(e); parents = {}
             ok = self.Process32FirstW(h.get(), c.byref(e))
             if not ok and c.get_last_error() != 18: raise RuntimeRefused("PROCESS_SNAPSHOT_UNVERIFIED")
             while ok:
-                pids.add(e.pid)
-                if len(pids) > 100000: raise RuntimeRefused("PROCESS_SNAPSHOT_UNVERIFIED")
+                parents[e.pid] = e.parent
+                if len(parents) > 100000: raise RuntimeRefused("PROCESS_SNAPSHOT_UNVERIFIED")
                 ok = self.Process32NextW(h.get(), c.byref(e))
             if c.get_last_error() != 18: raise RuntimeRefused("PROCESS_SNAPSHOT_UNVERIFIED")
-            return frozenset(pids)
+            return parents
 
     def read_regular(self, path, maximum=8192):
         with self.open_file(path, 0x80000000, 7) as h:
