@@ -10,13 +10,15 @@
 - [x] Prepare fresh M3 identities and an actual nonsparse 1 GiB reserve. Native storage checks passed in 3.708/3.277 seconds. All 37 execution inputs and script syntax passed; independent admission review cleared on review pass 1 of 3.
 - [ ] Finish active native session 32591: both 63-outcome campaigns, exact paired outputs, 77 audits/reviews, generated Final, independent Final audits/restarts and three-ridge exercise.
 - [ ] Reconcile every acceptance requirement, obtain independent closeout review and publish verified status.
-- [ ] Integrate only mapped M5 R’s 20 files; verify 521 exact cases per lane, including the previously deferred real 1 GiB reserve case.
-- [ ] Integrate only mapped M5 S’s 8 files; verify 94 exact cases per lane, including 13 previously unrun native cases, plus required compatibility checks.
+- [ ] Integrate only mapped M5 Râ€™s 20 files; verify 521 exact cases per lane, including the previously deferred real 1 GiB reserve case.
+- [ ] Integrate only mapped M5 Sâ€™s 8 files; verify 94 exact cases per lane, including 13 previously unrun native cases, plus required compatibility checks.
 - [ ] Complete the existing five-increment market-owner plan after R/S verification. Keep actual financial/account/order and supervised-session gates separate.
 
 ## Exact next action
 
 **Monitor session 32591. Do not launch another heavy job or edit frozen source/package/helper inputs.** It is already running `T/Run-MasterCampaigns01.ps1` followed by `T/Run-RemainingM3-Memory01.ps1`, both with PinsSha256 `9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d` and native Windows handle access, without administrator elevation.
+
+The repaired source campaign completed all **63 outcomes in 59 native chunks**, with zero failed/skipped calculations and all Supervisor exits observed. Source-only proof: `artifacts/m3/pair_validation_source_campaign.json`. It retains 89 startup control errors before work began and zero active-work control errors. The installed-package campaign is now running; exact paired comparison and audits remain pending.
 
 T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m3-pair-runtime-20261013-01`. Read `T/campaign-progress02.jsonl`, then `T/remaining-sequence01.jsonl` for current progress. These runners are fresh-only: **never restart over existing labels or progress**. On failure, preserve receipts and inspect the actual saved state before preparing a targeted recovery.
 
@@ -24,7 +26,7 @@ T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m
 - Current proof: `artifacts/m3/pair_validation_complete_regressions.json`, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7.
 - Fresh pair: SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. Numerical folds/parameters/units/data/Final recipe match the prior fixture; identity-bearing mathematical and trial digests changed with the new runtime/package.
 - Admission review: `T/execution-review01.json`. Actual full-run results and final requirement reconciliation remain required.
-- Latest verified GitHub commit before this checkpoint edit: `3fb60c797001120893ae7309f0f0009c23979874`.
+- Latest verified GitHub commit before this checkpoint edit: `9be99f7c0e5aacdc8b076d7ccb5ee92dd6d7fa02`.
 
 ## Preserved failures and cleanup
 
