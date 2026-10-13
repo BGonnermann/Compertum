@@ -40,3 +40,15 @@ The current encrypted schema supports collection evidence only. This increment p
 Exact next action: complete the frozen M3 pair,77audits and Final. Verify/integrate staged retries and opening baseline in dependency order, then implement this integration with fresh storage/RAM admission. No native fixture suites run concurrently with M3. Active source/package Q remain frozen; this document does not change them.
 
 Inspection references: paper_read_owner.py; paper_read_publication.py; managed.py; runtime/managed_owner.py; runtime/supervisor.py; domain.py; runtime/service_budget.py; runtime/paper_market_collection.py; runtime/paper_market_fresh.py; runtime/paper_market_evidence.py; runtime/paper_market_compose.py. Existing component plans/receipts remain authoritative for exact numerical and privacy limits.
+
+## Implementation map after dependency verification
+
+Read-only preparation on 13 October found no missing consequential decision for this local scope. Keep the sequence M3 closeout, collection-retry integration (R), opening-baseline integration (S), then these five increments. Fresh R/S checks must precede edits to their consumers.
+
+1. Immutable grants and purpose-prefixed state records. Reuse OperationalMarketPlan and PaperReadOwner validation/commit patterns. Test exact grant binding, unknown fields,32-job bound, conflicts, consumed-before-construction,60-second expiry, clock rollback and restart invalidation.
+2. Cooperative execution-owner lifecycle. Add the private helper to PaperReadOwner tick/checkpoint/close. Account work ticks first. Preserve existing producer permits, priorities0/1/2, quotas, original20/80-second deadlines and account confirmation state. Test WAITING, cancellation, health loss and uncertain cleanup blocking replacement/checkpoint.
+3. Opaque collection publication and ACK. Reuse PaperReadPublication and typed market evidence functions. Coordinator allocates genuine IDs/reservations. Test32KiB chunks,3MiB ceiling, context/hash/offset corruption, partial/failed snapshots, publication/ACK interruption, retained manifests and both-owner restart without recollection.
+4. Authenticated routing and private composition. Update the matching allowlists/dispatch in supervisor.py, managed.py, managed_owner.py and domain.py. Keep status/compose uncached. Retain reopened HISTORY context; reuse its exact plan after09:25 with a separate FRESH grant. Test subject/role isolation, original-plan reuse, stale inputs, replaced/closed views and scanned bounded summaries.
+5. Serial native integration with invented credentials and loopback fixtures. Extend existing paper-read helpers; test actual owner/coordinator restart, publication, composition and cleanup. Preserve account/preflight/service-budget and R/S behavior. Freeze exact IDs, compare source/installed results and obtain independent implementation review, maximum3 passes.
+
+HISTORY/CURRENT_ACTIONS publication is in scope; durable FRESH/composition lineage remains a later required dependency. No actual provider, account or order request is authorized by this plan. Local preparation receipt: artifacts/m5/market_owner_preparation.json.
