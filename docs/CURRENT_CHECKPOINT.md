@@ -19,7 +19,7 @@
 
 ## Exact next action
 
-Complete independent admission review of the37 bound inputs in `.cache/test-runs/m3-pair-native-20261013-01/execution-pins01.json`, SHA9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d. If clear, launch Run-MasterCampaigns01.ps1 followed by Run-RemainingM3-Memory01.ps1 with that exact PinsSha256, from master using native Windows access. This is a fresh-only sequence: never restart it over existing progress or labels. No campaign is active yet.
+Independent admission review cleared1/3 for the37 bound inputs in `.cache/test-runs/m3-pair-native-20261013-01/execution-pins01.json`, SHA9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d. Active native session32591 is running Run-MasterCampaigns01.ps1 followed by Run-RemainingM3-Memory01.ps1 with that exact PinsSha256, from master using native Windows access. This is a fresh-only sequence: never restart it over existing progress or labels. Monitor session32591 and T/campaign-progress02.jsonl, then T/remaining-sequence01.jsonl. On failure preserve receipts and inspect actual state; do not restart the fresh-only sequence.
 
 Source recovery session37737 and qualification session96250 both completed with exit0. The current proof is `artifacts/m3/pair_validation_complete_regressions.json` (SHA 39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7): 592 distinct IDs per lane, zero test failures/errors/skips, all children exited. Original session63365 stopped before launching source_components01 because STORAGE_SCAN_DEADLINE exceeded the unchanged five-second bound. Its failed receipt remains explicitly included in the proof; component02 was the sole replacement label, with identical plan/tests.
 
@@ -33,7 +33,7 @@ Historical session48305 ended after both campaigns and76 audits/reviews passed. 
 
 Subsequent preparation supersedes the preceding draft status: native storage-admission03 passed3.708seconds after sandbox attempts01/02 exceeded the unchanged bound. The same production scan and helper were used; both refused receipts remain. Five proven passing historical basetemps were archived and verified before copies were removed:15,258 files,8,990 directories,180 links. Archive SHA3479cb3268489995b29343e088818496d1e27ebf7ecfa6381e609de6352099ff under backups/pair-history-fixtures-20261013-01. No failed fixture or report was removed.
 
-Fresh pair preparation passed with new run/seal/runtime identities, unchanged synthetic data/recipe and actual nonsparse1GiB reserve. Post-preparation storage scan passed3.277seconds with all reserved growth inside existing caps. New runtime: `.cache/test-runs/m3-pair-runtime-20261013-01`. New pair SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. All37 bound inputs match; all19 Python helpers and seven PowerShell helpers parse. Actual admission review remains pending; no native campaign acceptance is added.
+Fresh pair preparation passed with new run/seal/runtime identities, unchanged synthetic data/recipe and actual nonsparse1GiB reserve. Post-preparation storage scan passed3.277seconds with all reserved growth inside existing caps. New runtime: `.cache/test-runs/m3-pair-runtime-20261013-01`. New pair SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. All37 bound inputs match; all19 Python helpers and seven PowerShell helpers parse. Actual admission review cleared1/3, recorded in T/execution-review01.json; no native campaign acceptance is added.
 
 Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/test-runs/m3-master-runtime-20261013-01` (V). Current progress: `U/campaign-progress02.jsonl`, then `U/remaining-sequence01.jsonl`. See [native plan](M3_MASTER_NATIVE_PLAN.md) for exact commands and pins and [acceptance map](M3_MASTER_ACCEPTANCE_MAP.md) for required evidence.
 
@@ -41,11 +41,11 @@ Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/t
 - Execution manifest SHA: `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`.
 - Preceding frozen-release regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane; new two-module repair verification is separate).
 - Source qualification: `U/env-source-qualify03`; installed qualification: `U/env-wheel-qualify01`.
-- Latest published commit before this update: `7b5c6996cbdc3c8fc4e49aea30088f6b281e6def`.
+- Latest published commit before this update: `3969fd1e69c5e7eb6805548a461db64f2cfdb3f5`.
 
 ## Roadmap and remaining authority
 
-M0 accepted. M1 bounded real-data replay verified; full financial input qualification open. M2 synthetic components verified. The M3 pair-validation repair passed592 tests per lane and environment qualification; fresh full-run preparation passed and actual admission review is pending. Full M3 acceptance is not claimed. M4 fake-broker engineering accepted. M5 local integration and actual walkthrough remain. M6 has **0 of 10 actual supervised market sessions**.
+M0 accepted. M1 bounded real-data replay verified; full financial input qualification open. M2 synthetic components verified. The M3 pair-validation repair passed592 tests per lane and environment qualification; fresh full-run preparation and admission review passed. Full M3 acceptance is not claimed. M4 fake-broker engineering accepted. M5 local integration and actual walkthrough remain. M6 has **0 of 10 actual supervised market sessions**.
 
 The 28-file M5 integration map is preserved read-only at `C:\Users\bgonn\Desktop\Compertum-development\.cache\test-runs\m3-final-native-20261012-01\next-integration-map01.json`. After it passes, continue [the market-owner plan](M5_MARKET_OWNER_PLAN.md). Do not overwrite master with a whole historical archive. A fresh read-only review verified all28 before/after hashes and both archives, with no health/Final overlap. R requires521 cases per lane (the actual-reserve case is still pending); S requires94, including13 native cases not yet run. Exact compatibility groups are saved in artifacts/m5/master_integration_readiness.json.
 

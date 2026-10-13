@@ -1,6 +1,6 @@
 # M3 fresh master acceptance map
 
-13 October 2026. This map records closeout requirements and results for the preserved frozen release. Its paired comparison is terminally blocked after76 successful audits/reviews. A two-module validation repair is now in progress; existing release results are not acceptance of that changed code. Strata stays off.
+13 October 2026. This map retains closeout requirements and results for the preserved frozen release. Its paired comparison is terminally blocked after76 successful audits/reviews. The two-module validation repair now passed592 distinct tests per source/installed lane and both complete environment qualifications. Its new full run is prepared under `.cache/test-runs/m3-pair-native-20261013-01`, with admission review cleared1/3 and session32591 now running. The table below remains evidence for the preceding release; it is not full-run acceptance of the repaired code. Strata stays off.
 
 U = `.cache/test-runs/m3-master-native-20261013-01`; V = `.cache/test-runs/m3-master-runtime-20261013-01`. All paths are under master. Release, environment and 37 execution-input pins are in [the native plan](M3_MASTER_NATIVE_PLAN.md).
 
