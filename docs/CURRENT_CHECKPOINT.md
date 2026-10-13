@@ -18,7 +18,9 @@
 
 ## Exact next action
 
-Session48305 has ended. Preserve the blocked comparison task `e09d4e35-c8e2-58c6-a306-2ca439aa805b`; do not resume/reset it or rerun the fresh-only scripts. Both campaigns and76 audits/reviews passed. The repair now reuses each aggregate's validation context within the same call and explicitly rechecks its seal. Source66 distinct checks passed; read-only old/new diagnostics preserve exact outputs and halve repeated scans. The fresh native launch-stress probe passed result acceptance with a final health age of3.306seconds and all children closed. Finish the remaining source/installed checks and unchanged health-refusal tests, then freeze/qualify the repaired release before new full-run admission. Work and receipts are under `.cache/test-runs/m3-pair-validation-repair-20261013-01`; see [repair checklist](M3_PAIR_VALIDATION_REPAIR.md). Historical runtime identities and bound helper files remain frozen.
+Monitor active session63365: `.cache/test-runs/m3-pair-regressions-20261013-01/Run-All01.ps1` runs installed592 then the remaining source505, serially. All87 targeted source cases already passed, including unchanged health-refusal checks. Both fresh source/installed launch-stress probes passed result acceptance and child closure; read-only old/new diagnostics preserve exact outputs and halve repeated scans. The first installed component group passed292. Retain the complete566-ID admission requirement and26 supporting IDs; do not rerun the87 matching source passes. On failure preserve state and diagnose; never restart this fresh-only sequence over existing labels. Then qualify both complete environments, prepare/admit new full-run identities and obtain independent review. Work and receipts are in the repair/regression namespaces; see [repair checklist](M3_PAIR_VALIDATION_REPAIR.md).
+
+Historical session48305 ended after both campaigns and76 audits/reviews passed. Preserve blocked comparison task `e09d4e35-c8e2-58c6-a306-2ca439aa805b` and its bound helper files; never resume/reset/repin them. New helper drafts in `.cache/test-runs/m3-pair-native-20261013-01` are not yet admitted, and their planned runtime does not exist yet. Four inactive old test folders were preserved under master backups with every file/directory/link verified to make room; no failed evidence was deleted.
 
 Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/test-runs/m3-master-runtime-20261013-01` (V). Current progress: `U/campaign-progress02.jsonl`, then `U/remaining-sequence01.jsonl`. See [native plan](M3_MASTER_NATIVE_PLAN.md) for exact commands and pins and [acceptance map](M3_MASTER_ACCEPTANCE_MAP.md) for required evidence.
 
@@ -26,7 +28,7 @@ Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/t
 - Execution manifest SHA: `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`.
 - Preceding frozen-release regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane; new two-module repair verification is separate).
 - Source qualification: `U/env-source-qualify03`; installed qualification: `U/env-wheel-qualify01`.
-- Latest published commit before this update: `3128d6c09e10599c9b558392f813d9e11b4f0170`.
+- Latest published commit before this update: `b92c149982283151d710666466caf8c15d1341ef`.
 
 ## Roadmap and remaining authority
 
