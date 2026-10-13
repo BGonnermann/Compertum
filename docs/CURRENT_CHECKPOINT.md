@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-13 October 2026. Work only in `C:\Users\bgonn\Desktop\Compertum`. **Do not start Strata or its model server.** One heavy job at a time; require 16 GiB free physical/commit memory to start and stop below 12 GiB. Worker limits remain 4 GiB, four CPU threads and120 seconds. Existing storage/category limits remain unchanged.
+13 October 2026. Keep master (`C:\Users\bgonn\Desktop\Compertum`) and GitHub up to date. The owner clarified that synchronization does not require restarting a valid existing test solely because of its folder. The current sequence already runs in master. **Do not start Strata or its model server.** One heavy job at a time; require 16 GiB free physical/commit memory to start and stop below 12 GiB. Worker limits remain 4 GiB, four CPU threads and 120 seconds. Existing storage/category limits remain unchanged.
 
 ## Checklist
 
@@ -42,4 +42,4 @@ M0 accepted; M1 bounded real-data replay verified but full financial input quali
 
 The M5 map remains read-only at `C:\Users\bgonn\Desktop\Compertum-development\.cache\test-runs\m3-final-native-20261012-01\next-integration-map01.json`. Never extract a whole historical archive over master. Exact R/S batch preparation and compatibility references are in `artifacts/m5/master_retry_execution_plan.json`, `master_opening_execution_plan.json` and `master_integration_readiness.json`. Continue [the market-owner plan](M5_MARKET_OWNER_PLAN.md) only after those dependencies pass. Native suites remain serial.
 
-Local engineering and meaningful verified GitHub checkpoints are authorized. New spending, new permissions, actual account/order actions, administrator/security changes, protected real-data evaluation and scheduled services are not authorized by this work. No new automation is needed. Credentials, datasets, runtime databases, detailed local evidence and backups stay out of Git. Preserve siblings read-only and keep all new edits in master.
+Local engineering and meaningful verified GitHub checkpoints are authorized. New spending, new permissions, actual account/order actions, administrator/security changes, protected real-data evaluation and scheduled services are not authorized by this work. No new automation is needed. Credentials, datasets, runtime databases, detailed local evidence and backups stay out of Git. Use master for ongoing implementation; preserve historical siblings and their recorded identities.

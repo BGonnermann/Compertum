@@ -2,11 +2,11 @@
 
 ## Current owner direction — 13 October 2026
 
-- Make all new file/folder edits in `C:\Users\bgonn\Desktop\Compertum`, the master working folder. Do not create another desktop checkout.
+- Keep `C:\Users\bgonn\Desktop\Compertum`, the master working folder, and GitHub up to date. The owner clarified that this is a synchronization requirement: an existing valid test need not be restarted solely because its results are written in another folder. Use master for current implementation and avoid unnecessary new desktop checkouts.
 - The owner explicitly authorized updating `https://github.com/BrennanCompertum/Compertum` and keeping it current for rollback. Commit and push meaningful verified checkpoints, documenting pending/failed checks. Preserve history; no force-push, destructive reset or scheduled automation.
 - Older guidance designating `Compertum-development`, preserving master as read-only, prohibiting this publication, or limiting the already approved roadmap engineering to M0 is historical and superseded by later owner instructions.
 - Preserve sibling directories and historical runtime identities. Do not relocate/resume a path-bound runtime as if it were created in master. Never erase failed evidence or reset task/attempt IDs to manufacture success.
-- The owner approved finishing the existing interrupted M3 test in its original `Compertum-development` runtime/output folders. This is a narrow exception for that frozen test's execution records. New source, helper and documentation edits remain in master.
+- The owner approved finishing the existing interrupted M3 test in its original `Compertum-development` runtime/output folders, with master and GitHub kept current. This does not authorize resuming a subsequently blocked test or changing its frozen identities. The current fresh M3 sequence is already running in master and should continue there.
 - The owner reported an out-of-memory crash and explicitly prohibited starting Strata again. Do not launch, restart or auto-start Strata or its model server for this work. Preserve its files/configuration. Check host memory before bounded jobs, keep one heavy job at a time, and pause our work if memory headroom becomes unsafe.
 
 ## Execution
