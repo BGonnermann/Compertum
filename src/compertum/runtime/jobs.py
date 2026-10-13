@@ -257,18 +257,18 @@ def _campaign_inputs(lease,payload,writer,unit,primary,dependency,dependency_sha
         raise RuntimeRefused('CAMPAIGN_INPUT_DENIED')
 
 
-def launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,unit=None,dependency_artifact=None,dependency_sha256=None,before_resume=None,fit_artifact=None,audit_request=None,review_request=None,final_request=None,final_audit_request=None):
+def launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,unit=None,dependency_artifact=None,dependency_sha256=None,before_resume=None,before_execute=None,fit_artifact=None,audit_request=None,review_request=None,final_request=None,final_audit_request=None):
     # Capture ownership before CreateProcess can return.
     from .audit_job_lifetime import AuditLaunch,AuditLaunchFailed
     tracker=AuditLaunch(final_audit_request,writer) if final_audit_request is not None else None
     try:
-        return _launch_bounded(lease,task,argv,writer=writer,offset=offset,input_artifact=input_artifact,unit=unit,dependency_artifact=dependency_artifact,dependency_sha256=dependency_sha256,before_resume=before_resume,fit_artifact=fit_artifact,audit_request=audit_request,review_request=review_request,final_request=final_request,final_audit_request=final_audit_request,_audit_launch=tracker)
+        return _launch_bounded(lease,task,argv,writer=writer,offset=offset,input_artifact=input_artifact,unit=unit,dependency_artifact=dependency_artifact,dependency_sha256=dependency_sha256,before_resume=before_resume,before_execute=before_execute,fit_artifact=fit_artifact,audit_request=audit_request,review_request=review_request,final_request=final_request,final_audit_request=final_audit_request,_audit_launch=tracker)
     except BaseException as error:
         if tracker is not None:raise AuditLaunchFailed(tracker) from error
         raise
 
 
-def _launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,unit=None,dependency_artifact=None,dependency_sha256=None,before_resume=None,fit_artifact=None,audit_request=None,review_request=None,final_request=None,final_audit_request=None,_audit_launch=None):
+def _launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,unit=None,dependency_artifact=None,dependency_sha256=None,before_resume=None,before_execute=None,fit_artifact=None,audit_request=None,review_request=None,final_request=None,final_audit_request=None,_audit_launch=None):
     require_live_owner(lease)
     if lease.identity.role!='coordinator' or not isinstance(task,TaskSpec): raise RuntimeRefused('JOB_ADMISSION_DENIED')
     payload=task.to_payload(); budget=payload['budget']
@@ -278,6 +278,8 @@ def _launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,u
     if argv[1] not in {'campaign','audit','scorecard','aggregate','pair_compare','final','final_audit'} and any(v is not None for v in (dependency_artifact,dependency_sha256,before_resume)):raise RuntimeRefused('CAMPAIGN_INPUT_DENIED')
     if argv[1]!='audit' and (fit_artifact is not None or audit_request is not None):raise RuntimeRefused('AUDITOR_INPUT_DENIED')
     if argv[1] not in {'scorecard','aggregate','pair_compare'} and review_request is not None:raise RuntimeRefused('REVIEW_INPUT_DENIED')
+    if argv[1] not in {'scorecard','aggregate','pair_compare'} and before_execute is not None:raise RuntimeRefused('REVIEW_INPUT_DENIED')
+    if argv[1] in {'scorecard','aggregate','pair_compare'} and not callable(before_execute):raise RuntimeRefused('REVIEW_INPUT_DENIED')
     if argv[1] in {'scorecard','aggregate','pair_compare'} and any(v is not None for v in (input_artifact,unit,dependency_artifact,dependency_sha256,fit_artifact,audit_request)):raise RuntimeRefused('REVIEW_INPUT_DENIED')
     if argv[1]!='final' and final_request is not None:raise RuntimeRefused('FINAL_INPUT_DENIED')
     if argv[1]=='final' and (not callable(before_resume) or type(final_request) is not dict or any(v is not None for v in (input_artifact,unit,dependency_artifact,dependency_sha256,fit_artifact,audit_request,review_request))):raise RuntimeRefused('FINAL_INPUT_DENIED')
@@ -510,6 +512,8 @@ def _launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,u
                 if time.monotonic()>=deadline:raise RuntimeRefused('TASK_DEADLINE_EXCEEDED')
             if argv[1] in {'scorecard','aggregate','pair_compare'}:
                 before_resume(handle.execution_identity);require_live_owner(lease)
+                # Refresh before the final seal/input check so refresh cannot open a revocation gap.
+                before_execute(refresh=True)
                 reviews.verify_launch(review_request,payload,writer.grant.grant_id,execution_identity=handle.execution_identity)
                 if time.monotonic()>=deadline:raise RuntimeRefused('TASK_DEADLINE_EXCEEDED')
             if argv[1]=='final':
@@ -520,6 +524,8 @@ def _launch_bounded(lease,task,argv,*,writer=None,offset=0,input_artifact=None,u
                 before_resume(handle.execution_identity);require_live_owner(lease)
                 final_audits.verify_launch(final_audit_request,payload,writer.grant.grant_id,execution_identity=handle.execution_identity)
             if startup_binding.before_resume(process)!=handle.startup_evidence:raise RuntimeRefused('STARTUP_IMAGE_UNVERIFIED')
+            if argv[1] in {'scorecard','aggregate','pair_compare'}:
+                before_execute();require_live_owner(lease)
             if time.monotonic()>=deadline:raise RuntimeRefused('TASK_DEADLINE_EXCEEDED')
             if argv[1]=='final_audit':handle.audit_lifetime.resume_attempted=True
             if api.ResumeThread(thread.get())!=1: raise RuntimeRefused('RESUME_UNVERIFIED')

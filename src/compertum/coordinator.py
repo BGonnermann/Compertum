@@ -12,9 +12,9 @@ CONTROL_ACTIONS=frozenset({'pause_research','resume_research','stop_research','s
 def utc_now(): return datetime.now(timezone.utc).isoformat()
 
 class Coordinator:
-    def __init__(self,store,*,health=None,halt=None,checkpoint=None,stop_run=None):
+    def __init__(self,store,*,health=None,refresh_health=None,halt=None,checkpoint=None,stop_run=None):
         require_live_owner(store.lease,'coordinator')
-        self.store=store;self.health=health;self.halt=halt;self.checkpoint=checkpoint;self.stop_run=stop_run
+        self.store=store;self.health=health;self.refresh_health=refresh_health;self.halt=halt;self.checkpoint=checkpoint;self.stop_run=stop_run
         with store._live(),store.conn:
             store.conn.execute('''CREATE TABLE IF NOT EXISTS control_requests(
                 request_id TEXT PRIMARY KEY,subject TEXT NOT NULL,payload_hash TEXT NOT NULL,
@@ -32,7 +32,8 @@ class Coordinator:
                     'order_admission':'DISARMED','execution_process':'NOT_ACTIVE',
                     'generation':self.store.lease.generation,'attempts':self.store.attempts()}
 
-    def require_health(self):
+    def require_health(self,*,refresh=False):
+        if refresh and self.refresh_health is not None:self.refresh_health()
         if self.health is None: raise RuntimeRefused('HEALTH_UNVERIFIED')
         result=self.health()
         if (result.get('status')!='HEALTHY' or not isinstance(result.get('observed_monotonic'),(int,float))

@@ -12,7 +12,7 @@ from compertum.modeling.campaign import UNITS
 
 
 def controller_for(storage):
-    return ResearchController(SimpleNamespace(status=lambda:{'research_state':'RUNNING'},require_health=lambda:None),storage)
+    return ResearchController(SimpleNamespace(status=lambda:{'research_state':'RUNNING'},require_health=lambda **_:None),storage)
 
 
 def finish_unit(controller,run):

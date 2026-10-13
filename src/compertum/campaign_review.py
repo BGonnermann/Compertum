@@ -30,8 +30,8 @@ class CampaignReviewController:
             task=TaskSpec(payload,project_root=self.storage.root);self.runs.bind_task(prepared,payload)
             grant=self.storage.reserve_bytes(task_id,'records',16*MIB);writer=self.storage.open_artifact(grant,prepared['output_path'])
             def commit(identity):
-                self.coordinator.require_health();self.runs.begin(prepared,payload,grant.grant_id,identity)
-            job=launch_bounded(self.storage.lease,task,['fixture',s['kind'],str(writer.destination)],writer=writer,review_request=prepared,before_resume=commit)
+                self.coordinator.require_health(refresh=True);self.runs.begin(prepared,payload,grant.grant_id,identity)
+            job=launch_bounded(self.storage.lease,task,['fixture',s['kind'],str(writer.destination)],writer=writer,review_request=prepared,before_resume=commit,before_execute=self.coordinator.require_health)
             self.active=(task_id,writer,job);return self.runs.status(task_id)
         except Exception as error:
             if job is not None:job.close()

@@ -13,7 +13,7 @@ from compertum.campaign_review import CampaignReviewController
 
 root=Path(sys.argv[1]).resolve();run,task,action=sys.argv[2:5];project=resolve_project(root)
 lease=acquire_owner(project,'coordinator');storage=StorageManager(lease,load_config(root/'config.toml',root))
-coordinator=SimpleNamespace(status=lambda:{'research_state':'RUNNING'},require_health=lambda:None)
+coordinator=SimpleNamespace(status=lambda:{'research_state':'RUNNING'},require_health=lambda **_:None)
 audit=None;author=None;supervisor=None;managed=None
 try:
     if action in ('create','create_aggregate','create_aggregate_ready'):

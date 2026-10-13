@@ -132,6 +132,7 @@ def test_supervisor_routes_final_and_halts_it_with_other_research():
  from compertum.runtime.supervisor import Supervisor,ACTIONS
  from uuid import uuid4
  s=object.__new__(Supervisor);calls=[];sid=str(uuid4())
+ s.final_audit=None
  s.fixtures=SimpleNamespace(active=None,pause=lambda reason:calls.append(('fixture',reason)))
  from compertum.research import ResearchController
  s.research=object.__new__(ResearchController);s.research.active=None;s.research.pending=None;s.research.last_operation_error=None

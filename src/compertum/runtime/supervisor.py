@@ -51,7 +51,7 @@ class Supervisor:
             self.coordinator_lease=acquire_owner(self.project,'coordinator');self.leases.append(self.coordinator_lease)
             self.store=open_store(self.coordinator_lease,'coordinator')
             self.storage=StorageManager(self.coordinator_lease,config)
-            self.coordinator=Coordinator(self.store,health=self.get_health,halt=self.halt,checkpoint=self.checkpoint,stop_run=self.stop_run)
+            self.coordinator=Coordinator(self.store,health=self.get_health,refresh_health=self.poll_health,halt=self.halt,checkpoint=self.checkpoint,stop_run=self.stop_run)
             self.fixtures=FixtureController(self.coordinator,self.storage)
             from compertum.research import ResearchController
             self.research=ResearchController(self.coordinator,self.storage,cooperative=True)
