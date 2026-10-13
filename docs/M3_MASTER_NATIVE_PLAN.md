@@ -8,7 +8,7 @@
 - [x] Repair stale review health and verify 562 distinct cases in each source/installed lane: 12 focused, 262 component, 70 native and 218 negative/control cases. Zero failures/errors/skips and no remaining children. Receipt: `artifacts/m3/review_health_complete_regressions.json`.
 - [x] Back up and reuse `.cache/clean-env-m0` for editable source; keep `.venv` as the installed-wheel lane. Full environment verification passed for both. Python, configuration, launchers and all 38 dependencies remain unchanged.
 - [x] Admit fresh storage envelopes and prepare an actual nonsparse 1 GiB journal reserve, new pair/run/seal IDs, the same mathematical data and generated Final recipe, 77 audit/review tasks, and the three-ridge plan.
-- [ ] Finish independent review of the 37 bound execution inputs. Static preparation review cleared 1/3; actual final admission review 2/3 is pending. No campaign job is running.
+- [x] Finish independent review of the 37 bound execution inputs. Static preparation review cleared 1/3 and actual final admission review cleared 2/3. Receipt: `U/execution-review02.json`. The serial sequence is active in terminal session48305.
 - [ ] Run both 63-unit campaigns, verify exact outputs and late-prefix responsiveness, then all 77 audits/reviews, generated Final, independent Final audits, terminal restarts and the three-ridge exercise.
 - [ ] Reconcile every acceptance requirement with evidence and obtain closeout review. Publish the verified result, then integrate only the already mapped 28-file M5 retry/opening delta, preserving newer Final work. Full financial inputs and actual supervised market sessions remain separate gates.
 
@@ -23,7 +23,7 @@ Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/t
 - Execution pins: `U/execution-pins01.json`, SHA `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`. Both runners require the exact same 37-name inventory. All bound Python and PowerShell helpers parse.
 - Storage admission passed in 3.767 seconds; post-preparation scan passed in 3.310 seconds. Tooling limit 96 MiB; runtime limit 1 GiB plus 384 MiB; project scratch remains below the unchanged 5 GiB category cap including remaining reserved growth.
 
-After independent admission review clears, execute `U/Run-MasterCampaigns01.ps1 -PinsSha256 5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f` from master. When it exits successfully, execute `U/Run-RemainingM3-Memory01.ps1` with the same argument. These are fresh-only runners: never repeat over existing labels. Inspect and preserve actual state on any failure.
+Admission review cleared2/3 and terminal session48305 launched the following sequence. For provenance only, the campaign command is `U/Run-MasterCampaigns01.ps1 -PinsSha256 5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f` from master. The active shell invokes the following only after campaign success: `U/Run-RemainingM3-Memory01.ps1` with the same argument. These are fresh-only runners: never repeat over existing labels. Inspect and preserve actual state on any failure.
 
 ## Preservation and corrected assumptions
 
@@ -33,4 +33,4 @@ The original 10,004-file M0 environment is fully backed up at `backups/m0-clean-
 
 Preparation preserved several failed checks. A package-name comparison initially confused underscores and hyphens; all original file bytes matched. The isolated editable build did not leave source metadata, so locked setuptools generated the six files required by the existing environment contract. The empty SciPy wheel file was initially misclassified: it is a declared dependency payload, and its exact bytes were restored. Two compiled M0 cache files had no remaining source files; they were hash-verified and moved to `backups/master-source-cache-20261013-01`. The unchanged environment verifier then passed both lanes. Do not remove the legitimate SciPy payload or weaken the manifest rules.
 
-Latest published checkpoint before this update: `a783d5d966974627dc36bb48745a396f26c38c73`. Exact next action: obtain the pending admission review result, resolve any concrete finding, and start the serial fresh campaign sequence.
+Latest published checkpoint before this update: `82e8d3b9c8292a6fd7d2c7e14eee87c0956779df`. Exact next action: monitor active session48305 and reconcile its retained receipts as each phase completes. Keep source, environments and the37 bound inputs frozen. On failure preserve actual state and diagnose before any further launch.

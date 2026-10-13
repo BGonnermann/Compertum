@@ -8,16 +8,18 @@ Updated 13 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.
 
-The frozen Final auditor release passed the same **545 distinct component checks in each environment**. Fresh master verification now covers **311 distinct cases per environment**, including all218 previously missing negative/control checks, with zero failures, errors or skips in the accepted paired runs. These sets overlap by37 cases:819 distinct cases per environment in total. The initial interrupted and access-denied runs remain recorded. See [the consolidation report](reports/MASTER_CONSOLIDATION.md).
+The current repaired release passed **562 distinct matching tests in each source/installed environment**, with zero failures, errors or skips. Both complete environment qualifications passed; Python and all 38 dependencies are unchanged. All 190 installed modules match source.
 
-The interrupted M3 campaign recovered through the normal restart path. Both campaigns now have63/63 completed outcomes, with all63 mathematical outputs matching exactly.37 of77 audits/reviews completed; the source aggregate stopped on an unverified-health refusal and remains blocked. A native regression reproduced stale cached health after slow preparation. The repair passed 562 distinct tests in each environment, with zero failures, errors or skips. Both environments also passed full file and dependency qualification. Full M3 evidence requires new campaign identities, including audits and Final checks. Strata stays off. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md) and [repair checkpoint](docs/M3_REVIEW_HEALTH_REPAIR.md). Full M3 acceptance remains incomplete.
+Fresh M3 campaigns and the audited Final sequence are running in the master folder, with one heavy job at a time and memory checks. **Strata stays off.** The current sequence has not yet established complete M3 acceptance. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
+
+The historical M3 run completed both 63-outcome campaigns with exact mathematical agreement, then stopped after 37 of 77 audits/reviews because cached health had expired. That run remains terminally blocked and preserved. Its earlier combined 819-case component coverage is historical, not fresh coverage of the repaired release. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md) and [health repair](docs/M3_REVIEW_HEALTH_REPAIR.md).
 
 | Milestone | Status |
 | --- | --- |
 | M0: Local foundation and controls | Accepted; preserved acceptance evidence |
 | M1: Trustworthy research inputs | Bounded real-data replay verified; full financial input qualification open |
 | M2: Strategies and mathematical checks | Synthetic components verified; financial qualification open |
-| M3: Protected evaluation and audit | 545 paired component checks and63/63 native campaign comparison passed; audits/Final acceptance incomplete |
+| M3: Protected evaluation and audit | Current release: 562 paired checks; fresh full native verification running |
 | M4: Simulated broker | Fake-broker engineering accepted; 662 matching source/package checks |
 | M5: Supervised paper walkthrough | Component verification underway; integration and actual walkthrough pending |
 | M6: Daily supervised operation | Evidence structure implemented; **0 of 10 actual supervised market sessions** |
@@ -37,8 +39,8 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 ## Next work
 
 1. Master consolidation published and verified; keep pushing verified checkpoints.
-2. Owner approved finishing the frozen test in its historical folder. Storage admission and interruption recovery passed; continue serial verification with memory checks. Strata must not be started.
-3. Verify the review-health repair, freeze a new release, then complete fresh M3 audits and Final checks. Preserve the blocked original run.
+2. Historical recovery is preserved; its failed aggregate cannot resume. Continue the fresh master sequence with memory checks. Strata must not be started.
+3. The repair passed 562 tests per environment and both complete environment qualifications. The fresh paired M3 campaigns and audited Final sequence are running; preserve the blocked original run.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) Ã‚Â· [Build specification](docs/BUILD_SPEC.md) Ã‚Â· [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) Ã‚Â· [M0 acceptance](reports/M0_ACCEPTANCE.md) Ã‚Â· [M4 acceptance](reports/M4_ACCEPTANCE.md)
