@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "account_alias": {
+      "type": "string",
+      "pattern": "^fake-[a-z0-9_-]{1,48}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "record_type": {
+      "const": "ExecutionIntent"
+    },
+    "intent_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "kind": {
+      "enum": [
+        "STRATEGY",
+        "CLOSE_LONG",
+        "CANCEL"
+      ]
+    },
+    "side": {
+      "anyOf": [
+        {
+          "enum": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "symbol": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,8}$"
+    },
+    "quantity": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000000
+    },
+    "strategy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authorization_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rebalance_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "plan_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "child_index": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "order_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "currency": {
+      "const": "USD"
+    },
+    "inputs_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "account_alias",
+    "generation",
+    "record_type",
+    "intent_id",
+    "created_at",
+    "expires_at",
+    "kind",
+    "side",
+    "symbol",
+    "quantity",
+    "strategy_sha256",
+    "authorization_sha256",
+    "rebalance_id",
+    "snapshot_sha256",
+    "plan_id",
+    "child_index",
+    "order_id",
+    "currency",
+    "inputs_sha256"
+  ]
+}

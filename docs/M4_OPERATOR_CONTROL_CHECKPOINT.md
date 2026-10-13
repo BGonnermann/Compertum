@@ -1,0 +1,32 @@
+# M4 operator-control checkpoint
+
+11 October 2026. F=.cache/test-runs/m4-operator-authority-20261011-01. Local deterministic fake execution only.
+
+- [x] Immutable session/calendar/input profile, native supervision timestamps, generation/instance invalidation and execution-owned retry ledger implemented.
+- [x] Initial 13 focused checks passed. F/authority-green01, zero failures/errors/skips. These small fixtures simulate reserve capacity only.
+- [ ] Authenticated public/private routing and checkpoint exclusion implemented; targeted routing verification pending.
+- [ ] Independent review of authority rules in progress. First review pass; bounded to three evidence-backed repair/review iterations.
+- [ ] Real-process retry/reconnect/restart with actual1GiBreserve, then exact source/package verification.
+- [ ] Owner-built observations, immutable plan approval/start and bounded serial progression, followed by full current-source recovery and numerical/campaign gates.
+
+Acceptance for this increment: exact fake-only command shape; callers cannot inject health/authority; changed retries rejected, identical receipts do not extend supervision; restart/session change disarms; five-minute supervision and native health/clock/session-close checks; no mutations while checkpoint barrier held. Source and package must match. No broker/account effects, paid services or financial admission.
+
+Existing artifacts/m4/native_mutual_health.json stays immutable. Namespace F is64MiB; each full reserve test uses E admission and explicit1GiB+32MiB allowance, one at a time, within unchanged global caps. Failed fixtures remain preserved.
+
+Exact next action: focused routing and review regressions, then admitted actual-reserve public-control integration. No full M4 acceptance claim.
+
+Current update09:08UTC: first independent review closed after seven reproduced failures were repaired.82focused checks passed. Frozen334files, source archiveSHA761b5ea9129c46cb5e440003bd92f2efaf770a61d9446eb60cdad0c313e92490.134installedPython files match;241matching passes per lane,3explicit non-Windows-only skips. F/paired-small01.json. Native operator-source01 failed on a fixture's randomly regenerated input pin after confirming reconnect deduplication and disarmed restart. Exact failed1GiBfixture remains preserved. Fixed the test to reuse its frozen profile and added barrier checks. Complete native test remains unverified.
+
+G=.cache/test-runs/m4-operator-native-20261011-01 has a separate explicit1GiB+32MiBbudget. No allocation until fresh global admission. Independent bounded audit is identifying previously passed disposable copies for archive/hash-verified cleanup; no failed evidence or active environment removal. Exact next action: verify audit manifest, archive qualifying copies, recheck capacity, run G/operator-source01 and identical installed case, then retain final authority receipt.
+
+Current update after installed native run: G/operator-source01 passed with actual1GiBreserve and was archived with full readback verification. F/authority-source02 and authority-wheel02 each passed241cases with3non-Windows-only skips; exact134Python files matched. Third authority review closed.
+
+G/operator-wheel01 failed at restart with EXECUTION_HEALTH_UNVERIFIED. Preserved watchdog evidence identifies UNACCOUNTED_GROWTH: reading shutdown SQLite snapshots created unreserved -wal/-shm files. All saved snapshot headers were WAL; copied snapshots reproduce the sidecars without touching original evidence. This is a real persistence defect. The installed/native operator component remains unverified.
+
+New bounded repair increment: make saved snapshots self-contained while live owner databases stay WAL/FULL. Acceptance: readonly snapshot inspection creates no sidecars, hash/content remain stable, live durability stays unchanged, relevant recovery tests pass, then both exact source/package native restart paths pass. Up to three evidence-backed repair/review iterations. No weakened storage checks or removed failure evidence. Exact next action: add and run native persistence regression before the targeted repair. Full-reserve rerun additionally needs fresh storage admission; closed failed fixtures may be relocated intact into backups with verified hashes and an explicit original-path mapping.
+Snapshot repair update: the new regression reproduced unreserved WAL/SHM creation in snapshot-red02. StateStore now converts only the saved copy to DELETE mode before fsync/hash; live WAL/FULL is unchanged. Independent repair review closed with no findings. Source03 passes260checks with3explicit platform-only skips; G/operator-source02 passes the actual-reserve reconnect/restart case. Installed package03 matches all134Python files; installed checks are running.
+
+Preservation: G/operator-wheel01-tmp moved intact into backups/failed-fixtures-20261011-01/m4-operator-native-20261011-01/operator-wheel01-tmp. All41regular files and original link text verified before/after; failure logs/XML unchanged. F/failed-relocation01.json records restoration. The local F namespace reached73,823,480bytes, above64MiB; this failed capacity check remains namespace03. Four closed earlier fixtures moved intact to backups/closed-fixtures-20261011-01 with exact hash/link verification, returning F to39,583,160bytes. F/closed-relocation01.json records their241pass/3skip outcomes without relabeling. Global scratch4,159,569,016bytes, backups2,665,359,008bytes after preservation; caps unchanged. No failed evidence discarded.
+Completed11October2026: operator authority source/package/native verification.261matching passes each,3explicit non-Windows-only skips,0failures/errors. Actual1GiBreserve reconnect/restart/barrier case passes in both environments after standalone snapshot repair. Independent review closed. Receipt artifacts/m4/operator_authority.json; report reports/M4_OPERATOR_AUTHORITY.md. Failed evidence preserved with explicit restoration mappings; final small namespace53,138,832bytes.
+
+Next coherent increment: bounded exact runtime storage admission for fake-broker DB/WAL/SHM and256attempt records. Acceptance: one aggregate capacity scan per admission, atomic all-or-none reservations, exact-path watchdog acceptance for first writes, idempotent restart, capacity/mismatch/write failures refuse. No broker effects, account actions, new transport, numerical claims or changed limits. Three evidence-backed repair/review iterations. Then owner-built observations and immutable plan approval/start, per docs/M4_PLAN_OWNER_INTEGRATION.md.

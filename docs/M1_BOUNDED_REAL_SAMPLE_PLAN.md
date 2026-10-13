@@ -1,0 +1,19 @@
+# M1 bounded real-data acceptance sample
+
+Frozen10October2026 before requesting additional prices or inspecting strategy outcomes. Implements BUILD_SPEC16 M1 sample acceptance. Full2016-2023 campaign remains separately required for M2/M3 and is not declared qualified from this subset.
+
+Universe unchanged:12 frozen stocks and SPY. Scored sample:2023-10-02 through2023-11-30 inclusive. This fixed two-calendar-month autumn window includes the November DST transition and Thanksgiving early close and admits complete21-session holding intervals. Starts with cash; no earlier-position entitlements. Warmup: exactly252 completed sessions before first decision, plus all subsequent feature sessions. Final entries whose H-session exit exceeds sample end are suppressed by the existing boundary rule, not dropped after observing returns.
+
+All three H=1/5/21 baselines and10/20bp price-cost scenarios use the same frozen dates, universe and original contract. Required400-observation strategy-qualification minimum remains unchanged: a short M1 pipeline sample cannot qualify a strategy, even if returns are positive. M1 engineering acceptance must explicitly demonstrate the zero/cash candidate failing original strategy gates. Full-campaign claims, M2 registered runs and M3 evaluation remain unverified.
+
+Required prices: explicit SIP raw and split daily history, plus raw and split09:35 and final-regular-minute references for every symbol on every scored session. No synthetic relabeling. >=99.5% expected daily coverage per symbol/segment,100% selected fills/held action terms, no forward filling. Previously retained2021NVDA split and March2023 DST/missing-IEX cases remain distinct real source diagnostics, supplemented by actual-provider failure fixtures. Their results cannot be substituted for sample coverage.
+
+Required action contract: seven inventoried dividends with ex-dates within the scored window plus scoped official source checks for unlisted relevant actions and verified boundary exclusions. Identify merger parties before ledger application. Warmup requires correct split/symbol basis; cash dividends do not retrospectively enter momentum price-return features. Preserve all observed actions and every claimed source coverage scope. Unknown relevant action or listing state blocks financial scoring.
+
+Ruling: a complete eight-year action-knowledge census is not required before implementing the separate real-provider adapter or qualifying this predeclared M1 sample. BUILD_SPEC distinguishes M1 sample/pipeline from full campaign and protected qualification. Cost if wrong: M1 stays pending, and no campaign financial claim is made.
+
+Ruling: date-only public announcement receives a conservative availability bound at the first09:25 NewYork exchange cutoff strictly after its publication date. This is later than the latest possible end of that calendar date anywhere onEarth. It is a policy bound, not fabricated actual receipt. Retrospective declaration tables do not establish public announcement dates.
+
+Ruling: user authorizes routine local work through milestones without repeated approval. Existing no-purchase/no-publishing/no-live/explicit concrete-paper-plan boundaries persist. Freeze the final reviewable dataset/protocol packet before determining any remaining adoption gate; do not prematurely ask for approval or seal unqualified inputs.
+
+Checklist: [ ] required publication/coverage/identity/fee facts; [ ] separate provider adapter and rejection tests; [ ] bounded warmup/reference acquisition and source validation; [ ] qualified snapshot and fixed protocol; [ ] baselines/control/reproducibility; [ ] independent review and M1 acceptance ruling.

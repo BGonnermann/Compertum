@@ -1,15 +1,54 @@
+# Python and local tooling
 .venv/
-.cache/
-state/
-artifacts/
-data/
-backups/
-.pytest_cache/
+venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
 *.egg-info/
 build/
 dist/
+
+# Local secrets
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+secrets/
+credentials/
+
+# Runtime, provider data, evidence, and backups
+state/
+data/
+!src/compertum/data/
+src/compertum/data/*
+!src/compertum/data/*.py
+artifacts/
+backups/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.gguf
+*.safetensors
+*.pt
+*.pth
+
+# Editors and OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Implementation workspace and clean-environment reproduction
+.superpowers/
+.worktrees/
+.venv-repro/

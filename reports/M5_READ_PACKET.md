@@ -1,0 +1,11 @@
+# Bounded paper read sequence
+
+11 October2026. **499 matching source/package checks passed, zero failures/errors/skips.** The38 focused checks use native execution ownership and invented DPAPI credentials with supplied replies. No transport dispatch or real credentials. Independent review closed2/3. All152 package modules match source. Four exact packet replays contain31 replies and139245bytes, SHA `379527b1525e34705168c24819445765a13613fe64d3c7cb3153ce279c5dd984`.
+
+The driver permits one packet per execution owner and one outstanding read. It pins the plan and credential ciphertext, bootstraps the private account ID, counts every issued attempt, and refuses retries. Sequence: account, initial clock, calendar, positions, up to eight order pages, final clock. Eight full pages stops incomplete; a short eighth page can finish within13total attempts. Cursor continuation uses the previous full page's last ID. Duplicate IDs, decreasing/future submission times and invalid rows stop coverage; supported equal times continue. Unsupported/foreign activity remains visible as deficiencies, never a clean-account claim.
+
+The30second monotonic deadline and supplied wall-clock bounds both apply. Provider chronology/freshness retains nanoseconds; local execution timestamps reject unsupported precision. Close serializes with operations and clears owned private response/account/order/client/cursor/credential references. All three review findings were reproduced before repair; historical failed runs remain retained. Passing fixture copies were archived and verified before removal. Earlier source bytes remain unchanged.
+
+Source `3b8ab5fc11da45520f8f760ab004f5ed51e67586dd831c2554c9fcd346e17466`; wheel `83aa73a9fe6ab85b75b6021adf57397c11d6dda1b0b1fb9a161424f126efedbc`. [Receipt](../artifacts/m5/read_packet.json). Detailed evidence `.cache/test-runs/m5-read-packet-20261011-01`.
+
+This is offline sequencing evidence, not account compatibility, order authority, ownership, actual flatness or milestone acceptance. Next: protected credential/evidence persistence, then existing native-owner integration and a concrete read grant. [Provider pagination reference](https://docs.alpaca.markets/us/v1.4.2/reference/getallorders-1).

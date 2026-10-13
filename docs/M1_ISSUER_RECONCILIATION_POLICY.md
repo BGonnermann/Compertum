@@ -1,0 +1,12 @@
+# Issuer reconciliation policy v1
+
+Frozen before reconciliation on 10 October 2026. This produces an auditable current-vintage evidence artifact, not a financial Snapshot.
+
+- Retain every original provider field and each issuer observation with source hash, retrieval time, exact extraction location and source class. A current issuer-hosted vendor table is not an independently archived announcement.
+- SPY's official State Street workbook is the authoritative economic source for its 32 development-period distributions. Create a separate issuer-preferred version for missing rows/fields and its exact amount discrepancy. Retain original disagreements. No additional provider query is required to observe December 2023's stated January 2024 payment.
+- For other stocks, fill absent provider economic fields only after a unique event association. Conflicting nonmissing fields remain unresolved; differences may reflect semantics, revisions or errors. No blanket overwrite.
+- Association requires the same symbol, no conflicting available CUSIP, and either the same explicit ex-date, or an equal exact amount plus a matching available record/pay date. A dated declaration plus record date may bind a unique equal-amount provider ex-date within that interval; label that method explicitly. It does not independently corroborate the ex-date. Ambiguous associations and sources with no match stay unbound. Never calculate an ex-date from record-date arithmetic or assume a missing dividend is zero.
+- NVIDIA tax forms report payment/action dates and historical CUSIP. They contain no per-share cash amounts, record or ex-dates. Associate only with an equal already-known provider payment date and label the limited corroboration. They cannot invent missing payment dates or declaration timing.
+- An 'on or after' payment date is a lower bound, not an exact payable date. Keep that constraint separately.
+- A current history's declaration date is a source claim. A dated release is stronger evidence for the stated announcement date, but neither supplies an observed historical provider arrival. No date-only claim is silently converted into a timestamp. NVIDIA's retrospective tax-form signatures do not establish advance dividend knowledge.
+- Unknown identity, action completeness, knowledge timing, lifecycle, eligibility and sectors remain explicit. Current evidence does not qualify historical financial claims. No financial admission or runtime policy changes.

@@ -1,13 +1,41 @@
-import json,subprocess,sys
+"""Read-only and unavailable CLI calls leave the actual inventory untouched."""
 from pathlib import Path
+import hashlib
+import pytest
+from compertum.cli import main
 
-def invoke(root,*args):
-    return subprocess.run([sys.executable,'-B','-m','compertum','--root',str(root),*args,'--json'],capture_output=True,text=True,timeout=20)
+def inventory(root):
+    return {p.relative_to(root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file()}
 
-def test_read_only_and_financial_commands(tmp_path):
-    (tmp_path/'sentinel').write_text('preserve');before={str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
-    for args in [('doctor','--read-only'),('status',)]:assert invoke(tmp_path,*args).returncode==0
-    for args in [('start','--mode','supervised-paper'),('data','fetch'),('evaluate','final'),('paper','arm'),('orders','cancel'),('positions','close')]:
-        r=invoke(tmp_path,*args);assert r.returncode==3 and json.loads(r.stdout)['reason']=='CAPABILITY_UNAVAILABLE'
-    after={str(p.relative_to(tmp_path)):p.read_bytes() for p in tmp_path.rglob('*') if p.is_file()}
-    assert before==after
+@pytest.mark.parametrize('args',[['doctor','--read-only','--json'],['status'],['start','--mode','supervised-paper'],['data','fetch'],['evaluate','final'],['paper','arm'],['orders','cancel']])
+def test_read_only_or_unavailable_never_creates_state(tmp_path,args,capsys):
+    (tmp_path/'existing.txt').write_text('preserve')
+    before=inventory(tmp_path)
+    code=main(['--project-root',str(tmp_path),*args])
+    assert code==(0 if args[0]=='doctor' else 3)
+    assert inventory(tmp_path)==before
+    text=capsys.readouterr().out
+    assert 'DISARMED' in text
+
+
+def test_baseline_cli_routes_explicit_unit_and_controls(tmp_path,monkeypatch,capsys):
+    from uuid import uuid4
+    import compertum.runtime.supervisor as supervisor
+    calls=[];run=str(uuid4())
+    monkeypatch.setattr(supervisor,'control',lambda root,action,payload: calls.append((action,payload)) or {'state':'PAUSED'})
+    for operation in ('status','resume','step','pause','stop'):
+        assert main(['--project-root',str(tmp_path),'baseline',operation,'--run',run])==0
+        assert calls[-1]==('baseline',{'run_id':run,'operation':operation})
+    assert main(['--project-root',str(tmp_path),'baseline','step'])==3
+
+
+def test_final_cli_routes_only_existing_seal_controls(tmp_path,monkeypatch,capsys):
+ from uuid import uuid4
+ import compertum.runtime.supervisor as supervisor
+ sid=str(uuid4());calls=[]
+ monkeypatch.setattr(supervisor,'control',lambda root,action,payload:calls.append((action,payload)) or dict(status='CONSUMED_WAITING_FOR_BATCH'))
+ for operation in ('status','step','resume','pause','stop','recover'):
+  assert main(['--project-root',str(tmp_path),'final',operation,'--seal',sid])==0
+  assert calls[-1]==('final',dict(seal_id=sid,operation=operation))
+ assert main(['--project-root',str(tmp_path),'final','step'])==3
+ assert main(['--project-root',str(tmp_path),'final','create','--seal',sid])==3

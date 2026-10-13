@@ -1,64 +1,141 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "request_id",
-    "action",
-    "state",
-    "evidence",
-    "at",
-    "exit_code"
-  ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": "1"
+    },
+    "record_type": {
+      "const": "ControlReceipt"
     },
     "request_id": {
-      "type": "string"
+      "type": "string",
+      "format": "uuid"
     },
     "action": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
     },
     "target": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
     },
     "state": {
-      "type": "string"
+      "enum": [
+        "SUBMITTED",
+        "PENDING",
+        "CONFIRMED",
+        "FAILED",
+        "UNKNOWN",
+        "CAPABILITY_UNAVAILABLE"
+      ]
     },
-    "evidence": {
+    "evidence_label": {
       "enum": [
         "VERIFIED_PASS",
         "VERIFIED_FAIL",
         "UNVERIFIED",
         "PENDING_EXTERNAL_TIME",
-        "DIAGNOSTIC_ONLY"
+        "CAPABILITY_UNAVAILABLE"
       ]
+    },
+    "confirmed": {
+      "type": "boolean"
     },
     "generation": {
-      "type": [
-        "string",
-        "null"
+      "type": "integer",
+      "minimum": 1
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "observed_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "utc-time"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "at": {
-      "type": "string",
-      "format": "date-time"
-    },
     "exit_code": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 6
+      "anyOf": [
+        {
+          "type": "integer",
+          "enum": [
+            0,
+            2,
+            3,
+            4,
+            5,
+            6
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "reason": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
     },
     "artifacts": {
-      "type": "array"
-    },
-    "result": {
-      "type": "object"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "path": {
+            "type": "string",
+            "format": "project-path",
+            "maxLength": 1024
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "artifact_id",
+          "path",
+          "size_bytes",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1024
     }
-  }
+  },
+  "required": [
+    "schema_version",
+    "record_type",
+    "request_id",
+    "action",
+    "target",
+    "state",
+    "evidence_label",
+    "confirmed",
+    "generation",
+    "requested_at",
+    "observed_at",
+    "exit_code",
+    "reason",
+    "artifacts"
+  ],
+  "additionalProperties": false
 }

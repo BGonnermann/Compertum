@@ -1,0 +1,13 @@
+# M2 synthetic dataset assembly
+
+Authorized local roadmap engineering. Bridge existing validated synthetic snapshots, fixed causal features and entry-to-exit price labels into the verified annual ridge contract. No provider-to-synthetic relabeling, real fitting, new market access, protected outcomes, protocol adoption or financial admission.
+
+- [x] Assemble rows for a bounded consecutive decision-session range, H=1/5/21, from existing synthetic Snapshot objects only. Reuse load_market, feature_vector and the established label correction allowance. Features end the previous session; entry09:35 and exitHsessions later; split factors affect price labels, dividends do not.
+- [x] Bind every admitted row to its feature digest, entry/exit raw rows and applied split revisions. Preserve selected derived label revision ID and simulated availability in FitRows. Future label availability stays explicit so prepare_fit purges the whole affected decision date at its07:00 cutoff; it never becomes a midnight label.
+- [x] Missing features/raw eligibility omit the affected asset without imputation. Missing/unusable label references or split knowledge purge all otherwise eligible assets for that decision date; record reasons. Keep denominator12frozen-watchlist assets per requested session, including absent symbols. Missing SPY blocks source validation. Dataset coverage is reported separately and does not qualify a campaign.
+- [x] Test hand labels, splits versus dividends, future label/revision exclusion, provenance, absent-symbol coverage, missing-label whole-date exclusion, provider rejection, and feature-to-fit-to-row/batch prediction parity. Test H=1/5/21 with invented data. Compare source/wheel; independent review; at most3targeted repair/review rounds.
+- [x] Record all checks and continue12-variant synthetic campaign/simulator integration. FullM2 and financial acceptance remain false.
+
+API: modeling/dataset.py, immutable DatasetAssembly(content,sha256,rows) and assemble_training_rows(chunks,sectors,start,end,horizon). rows is a validated FitRows or None when no complete rows survive. Report contains row provenance, omissions and actual expected/present counts. Consumed input snapshots remain caller-owned immutable evidence. Existing model/math/simulation behavior stays unchanged.
+
+Bounds: <=1024decision sessions and32768fit rows, existing market64chunks/16MiB input limits, <=8MiB assembly report. Fresh .cache/test-runs/m2-dataset-20261010-01<=64MiB;120second verification commands, one independent reviewer. Use synthetic fixtures in memory; no copying real snapshots. Calendar and numerical dependencies stay locked.

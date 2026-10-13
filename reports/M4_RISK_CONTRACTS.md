@@ -1,0 +1,11 @@
+# M4 pure risk and control contracts
+
+Verified11October2026: **166 identical checks passed in both source and installed-wheel environments; zero failures/errors/skips.** Independent review closed11findings. This is a component result; fullM4 remains incomplete.
+
+The implementation adds strict immutable USD observations, intents, decisions, independent calendar/strategy-input pins, reviewed plans, authorization and operation-start receipts. Exact Decimal checks reserve only remaining buys, grant no credit for unconfirmed sells, enforce fixed risk limits and include documented dividend receivables/undebited liabilities. Receivables increase economic NAV but never spendable cash. The calendar and strategy-input records must later be authenticated by the execution owner.
+
+Halted controls have a separate predicate. Fixed close plans use at most12children within10minutes/session close, preserve reviewed maximum quantities/notional, allow downsizing only and record unsold quantities. Prerequisite cancellation uses its own stable identity. Partial terminal fills leave residuals; unknown orders and realized cap breaches stop further children. Cancellation acceptance and flat status are not inferred by these pure checks.
+
+Evidence: `artifacts/m4/risk_contracts.json`; source archive `contracts-source02.zip` SHA256 `b7f1581be5b19649301c19b8c575fab2b20393b5b375031b55230c466cbecfc1`; wheel SHA256 `ba2867490074260c51ada4c87a8507b1d26d5e43a2684413745544265f8295ae`, under `.cache/test-runs/m4-execution-contracts-20261011-01`.127installed Python files, schemas, config and lock match frozen source. Source/package tests:60risk,28plans,27import-boundary,51existing domain checks. Namespace physical allocation2,248,456bytes of64MiB. The first source proof detected only build-generated `SOURCES.txt`; original snapshot/failure preserved and a second snapshot records that exact metadata delta. Product and test bytes did not change.
+
+Remaining required work: persistent independent fake-broker state, execution-owner pin authentication/journaling, duplicate-prevention crash tests, health/restart/recovery integration and fullM4acceptance. No real account, broker transport, credential or order capability was added. Latest global resource scan4.392746seconds passed; fullM3numerical native work remains below its8GiB available-RAM floor.

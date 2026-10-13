@@ -1,1 +1,1 @@
-"""Native Windows M0 ownership and process controls."""
+"""Native ownership and protocol foundations; runtime launch is not qualified."""

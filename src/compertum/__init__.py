@@ -1,2 +1,3 @@
-"""M0 foundations. Financial capabilities are unavailable."""
-__version__ = "0.1.0"
+"""Compertum M0 foundations; no trading capability."""
+
+__version__ = "0.0.1"

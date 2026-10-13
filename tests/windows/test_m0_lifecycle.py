@@ -1,75 +1,129 @@
-import json,time,subprocess,sys
-import pytest
-from compertum.cli import start_research,control
-from compertum.domain import digest
-from compertum.coordinator import FIXTURE
-from compertum.runtime import win32 as w
-
-def healthy(root):
-    deadline=time.monotonic()+12
-    while time.monotonic()<deadline:
-        status=control(root,'status')['result']
-        if status['storage_healthy']:return status
-        time.sleep(.1)
-    pytest.fail('native watchdog health unverified')
-
-def stopped(root):
-    meta=json.loads((root/'state/runtime/supervisor.json').read_text());deadline=time.monotonic()+15
-    while time.monotonic()<deadline:
-        if w.process_absent(meta['pid']):return
-        try:
-            if w.identity(meta['pid'])['exited']:return
-        except OSError:pass
-        time.sleep(.1)
-    pytest.fail('original supervisor still alive')
-
-def test_two_terminal_attach_pause_restart_artifact_and_stop(tmp_path):
-    first=start_research(tmp_path);second=start_research(tmp_path)
-    assert first['generation']==second['generation']
-    try:
-        healthy(tmp_path)
-        assert control(tmp_path,'watchdog-health')['exit_code']==3
-        paused=subprocess.run([sys.executable,'-B','-m','compertum','--root',str(tmp_path),'research','pause','--reason','operator','--json'],capture_output=True,text=True,timeout=10)
-        assert paused.returncode==0 and json.loads(paused.stdout)['result']['state']=='PAUSED'
-        assert control(tmp_path,'resume')['exit_code']==0
-        task=control(tmp_path,'fixture',request_id='fixture-once')['result']
-        duplicate=control(tmp_path,'fixture',request_id='fixture-once')['result'];assert duplicate['task_id']==task['task_id']
-        time.sleep(.3);started=time.monotonic();assert control(tmp_path,'pause')['exit_code']==0;assert time.monotonic()-started<30
-        paused=control(tmp_path,'status')['result']['tasks'][0];assert paused['state']=='PAUSED'
-        assert control(tmp_path,'shutdown')['exit_code']==0;stopped(tmp_path)
-        third=start_research(tmp_path);assert third['generation']!=first['generation'];healthy(tmp_path)
-        assert control(tmp_path,'resume')['exit_code']==0
-        deadline=time.monotonic()+12
-        while time.monotonic()<deadline:
-            result=control(tmp_path,'status')['result']['tasks'][0]
-            if result['state']=='COMPLETE':break
-            time.sleep(.1)
-        assert result['state']=='COMPLETE' and result['attempts']==2
-        assert result['artifact']['sha256']==digest(FIXTURE)
-        assert (tmp_path/result['artifact']['path']).read_bytes()==b'{"answer":14,"fixture":"m0-v1"}'
-        other=control(tmp_path,'fixture')['result'];assert control(tmp_path,'stop',run_id=other['task_id'])['result']['state']=='STOPPED'
-    finally:
-        try:control(tmp_path,'shutdown');stopped(tmp_path)
-        except (OSError,RuntimeError):pass
-
-def test_ai_absence_does_not_stop_foundation(tmp_path):
-    from compertum.foundation import run_foundation_suite
-    r=run_foundation_suite(tmp_path);assert r['result']['sha256']==digest(FIXTURE)
-
-def test_mismatched_checkpoint_hash_refuses_restart(tmp_path):
-    start_research(tmp_path);healthy(tmp_path);control(tmp_path,'resume');control(tmp_path,'fixture');control(tmp_path,'pause');control(tmp_path,'shutdown');stopped(tmp_path)
-    script='''
-import sys
+"""Two-terminal lifecycle with real supervisor, watcher and bounded fixture Jobs."""
+import hashlib
+import json
+import os
 from pathlib import Path
-from compertum.runtime.identity import resolve_project
-from compertum.runtime.owners import acquire_owner
-from compertum.persistence import open_store
-p=resolve_project(Path(sys.argv[1]))
-with acquire_owner(p,'coordinator') as l:
- s=open_store(l,'coordinator');key=s.db.execute("SELECT key FROM kv WHERE key LIKE 'task:%'").fetchone()[0];v=s.get(key);v['code_hash']='synthetic mismatch';s.set(key,v);s.close()
-'''
-    changed=subprocess.run([sys.executable,'-B','-c',script,str(tmp_path)],capture_output=True,text=True,timeout=10);assert changed.returncode==0,changed.stderr
+import shutil
+import subprocess
+import sys
+import time
+import pytest
+from compertum.runtime.supervisor import control
+from compertum.runtime.errors import RuntimeRefused
+
+ROOT=Path(__file__).parents[2]
+
+def launch(root):
+    env={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','TEMP','TMP','PYTHONPATH'}}
+    env.update(__PYVENV_LAUNCHER__=sys.executable,PYTHONNOUSERSITE='1',PYTHONDONTWRITEBYTECODE='1')
+    child=subprocess.Popen([sys.executable,'-B',str(ROOT/'tests/helpers/supervisor_holder.py'),str(root)],
+        executable=sys._base_executable,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,creationflags=0x08000000)
+    deadline=time.monotonic()+8
+    while time.monotonic()<deadline:
+        if child.poll() is not None:
+            out,err=child.communicate();pytest.fail(err.decode())
+        try:
+            status=control(root,'status')
+            return child,status
+        except (RuntimeRefused,OSError): time.sleep(.05)
+    child.kill();out,err=child.communicate(timeout=3);pytest.fail('SUPERVISOR_START_TIMEOUT '+err.decode())
+
+def stopped(child):
+    out,err=child.communicate(timeout=5)
+    assert child.returncode==0,err.decode()
+
+def test_terminal_pause_checkpoint_restart_resume(tmp_path):
+    shutil.copyfile(ROOT/'config/default.toml',tmp_path/'config.toml')
+    child,status=launch(tmp_path)
     try:
-        start_research(tmp_path);healthy(tmp_path);assert control(tmp_path,'resume')['exit_code']==3
-        assert control(tmp_path,'status')['result']['research_paused'] is True
-    finally:control(tmp_path,'shutdown');stopped(tmp_path)
+        assert status['research_state']=='PAUSED' and status['watchdog']['status']=='HEALTHY'
+        control(tmp_path,'resume_research')
+        task=control(tmp_path,'foundation.check',{'operation':'submit'});time.sleep(.3)
+        began=time.monotonic();pause=control(tmp_path,'pause_research')
+        assert pause['confirmed'] and time.monotonic()-began<30
+        status=control(tmp_path,'status');checkpoint=status['fixtures'][0]['checkpoint']
+        assert status['fixtures'][0]['status']=='PAUSED'
+        assert (tmp_path/checkpoint['path']).is_file()
+        control(tmp_path,'shutdown');stopped(child)
+        child,status=launch(tmp_path)
+        assert status['supervisor_generation']==2 and status['order_admission']=='DISARMED'
+        control(tmp_path,'resume_research')
+        control(tmp_path,'foundation.check',{'operation':'resume','task_id':task['task_id']})
+        deadline=time.monotonic()+6
+        while time.monotonic()<deadline:
+            status=control(tmp_path,'status')
+            if status['fixtures'][0]['status']=='COMPLETED': break
+            time.sleep(.1)
+        final=status['fixtures'][0]
+        assert final['status']=='COMPLETED',status
+        assert final['artifact']['sha256']==hashlib.sha256(b'compertum-offline-fixture-v1\n').hexdigest()
+        assert status['watchdog']['status']=='HEALTHY'
+        control(tmp_path,'shutdown');stopped(child)
+    finally:
+        if child.poll() is None: child.kill();child.wait(timeout=5)
+
+
+def test_storage_trip_stops_active_job_and_blocks_resume(tmp_path):
+    from compertum.runtime._windows import WindowsAPI
+    shutil.copyfile(ROOT/'config/default.toml',tmp_path/'config.toml')
+    child,status=launch(tmp_path)
+    observed=None
+    try:
+        assert status['coordinator_limits']['memory_limit']==256*1024**2
+        control(tmp_path,'resume_research');control(tmp_path,'foundation.check',{'operation':'submit'})
+        status=control(tmp_path,'status');api=WindowsAPI();observed=api.open_process(status['active_job_pid'])
+        began=time.monotonic();(tmp_path/'bypass.bin').write_bytes(b'x'*65536)
+        deadline=began+5
+        while time.monotonic()<deadline:
+            status=control(tmp_path,'status')
+            if status['watchdog']['status']=='RESEARCH_BLOCKED': break
+            time.sleep(.1)
+        assert time.monotonic()-began<5 and status['watchdog']['reason']=='UNACCOUNTED_GROWTH'
+        assert api.WaitForSingleObject(observed.get(),0)==0
+        assert status['research_state']=='PAUSED'
+        with pytest.raises(RuntimeRefused,match='HEALTH_UNVERIFIED'): control(tmp_path,'resume_research')
+        control(tmp_path,'shutdown');stopped(child)
+        child,status=launch(tmp_path)
+        assert status['watchdog']['status']=='RESEARCH_BLOCKED'
+        assert status['watchdog']['reason']=='RETAINED_WATCHDOG_HALT'
+        control(tmp_path,'shutdown');stopped(child)
+    finally:
+        if observed: observed.close()
+        if child.poll() is None: child.kill();child.wait(timeout=5)
+
+
+def test_request_id_is_bound_across_control_fixture_and_ai_branches(tmp_path):
+    from uuid import uuid4
+    shutil.copyfile(ROOT/'config/default.toml',tmp_path/'config.toml')
+    child,status=launch(tmp_path)
+    try:
+        request_id=str(uuid4());control(tmp_path,'resume_research',request_id=request_id)
+        with pytest.raises(RuntimeRefused,match='REQUEST_CONFLICT'):
+            control(tmp_path,'foundation.check',{'operation':'submit'},request_id=request_id)
+        assert control(tmp_path,'status')['fixtures']==[]
+        request_id=str(uuid4());task_id=str(uuid4())
+        first=control(tmp_path,'ai.export',{'task_id':task_id,'provider':'subscription'},request_id=request_id)
+        assert first['status']=='WAITING_FOR_OPERATOR'
+        assert control(tmp_path,'ai.export',{'task_id':task_id,'provider':'subscription'},request_id=request_id)==first
+        with pytest.raises(RuntimeRefused,match='REQUEST_CONFLICT'):
+            control(tmp_path,'ai.export',{'task_id':str(uuid4()),'provider':'subscription'},request_id=request_id)
+        control(tmp_path,'shutdown');stopped(child)
+    finally:
+        if child.poll() is None: child.kill();child.wait(timeout=5)
+
+
+def test_stop_named_run_and_pause_reason_are_applied(tmp_path):
+    from uuid import uuid4
+    shutil.copyfile(ROOT/'config/default.toml',tmp_path/'config.toml')
+    child,status=launch(tmp_path)
+    try:
+        control(tmp_path,'resume_research');task=control(tmp_path,'foundation.check',{'operation':'submit'})
+        with pytest.raises(RuntimeRefused,match='RUN_UNKNOWN'): control(tmp_path,'stop_research',{'run_id':str(uuid4())})
+        assert control(tmp_path,'status')['active_job_pid'] is not None
+        receipt=control(tmp_path,'stop_research',{'run_id':task['run_id']})
+        assert receipt['confirmed'] and control(tmp_path,'status')['active_job_pid'] is None
+        assert control(tmp_path,'status')['fixtures'][0]['status']=='FAILED'
+        assert control(tmp_path,'pause_research',{'reason':'Synthetic operator checkpoint'})['confirmed']
+        control(tmp_path,'shutdown');stopped(child)
+    finally:
+        if child.poll() is None: child.kill();child.wait(timeout=5)

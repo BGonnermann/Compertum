@@ -1,0 +1,7 @@
+# Native ownership qualification
+
+Verified11October2026:15identical source/package checks passed,zero failures/errors/skips. Independent review closed on pass1/3. Actual child package origins are checked; simultaneous startup and two overlapping restart contenders admit exactly one native owner. Path aliases, live processes with dead owner threads, handle loss and published endpoints remain conservative.
+
+The installed-origin regression failed before repair and passed afterward. Tests now use the checked pytest scratch namespace. Passing fixtures were archived with verified bytes and Windows junction type/target metadata, then disposable copies removed. Product package code is unchanged from the510-check full-recovery component;137installedPython files and config/schema/lock match. Source/test freeze and receipt: .cache/test-runs/m4-native-qualification-20261011-01/ownership-source01.json and artifacts/m4/native_ownership.json.
+
+FullM4 remains open for declared-opening economic reconciliation and explicit recovery to DISARMED. Fresh idle resource check N/resources01 passed:8,887,967,744B available RAM exceeds8GiB; storage4.347614seconds,allcategorycapsandfreefloorpass. This permits preparation; every actual numerical launch must recheck admission. Next: finish the pending paired native M3 campaigns and audits under a fresh preregistration/current source freeze. M4 reconciliation checklist remains docs/M4_REMAINING_QUALIFICATION_PLAN.md.

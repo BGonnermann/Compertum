@@ -1,10 +1,71 @@
-paper_enabled = false
-mode = "research"
-storage_cap_gib = 50
-cpu_threads = 4
-ram_gib = 4
-daily_ai_tasks = 8
-daily_ai_requests = 40
-daily_cpu_seconds = 7200
-strata_url = "http://127.0.0.1:8080"
-manual_wait_seconds = 86400
+[project]
+schema_version = "1"
+mode = "m0"
+new_spending_usd = "0.00"
+
+[storage]
+total_bytes = 53687091200
+data_bytes = 16106127360
+models_bytes = 5368709120
+scratch_bytes = 5368709120
+records_bytes = 5368709120
+backups_bytes = 21474836480
+execution_reserve_bytes = 1073741824
+reserve_release_bytes = 67108864
+minimum_unused_reserve_bytes = 268435456
+minimum_free_bytes = 53687091200
+ingestion_free_bytes = 107374182400
+maximum_write_chunk_bytes = 8388608
+attempt_log_bytes = 10485760
+
+[resources]
+research_cpu_threads = 4
+research_ram_bytes = 4294967296
+heavy_job_slots = 1
+local_inference_slots = 1
+ai_tasks_per_day = 8
+ai_requests_per_day = 40
+ai_wrapper_cpu_threads = 1
+ai_wrapper_ram_bytes = 268435456
+coordinator_ram_bytes = 268435456
+execution_ram_bytes = 536870912
+watchdog_ram_bytes = 134217728
+data_ram_bytes = 1073741824
+report_ram_bytes = 536870912
+report_output_bytes = 524288000
+dispatch_available_ram_bytes = 8589934592
+pause_available_ram_bytes = 6442450944
+local_input_tokens = 16384
+local_output_tokens = 2048
+local_request_seconds = 120
+manual_receipt_seconds = 86400
+heartbeat_seconds = 5
+missing_heartbeat_seconds = 15
+task_lease_seconds = 30
+volume_monitor_seconds = 1
+project_monitor_seconds = 5
+recovery_barrier_seconds = 30
+
+[paths]
+state = "state"
+data = "data"
+artifacts = "artifacts"
+scratch = ".cache"
+backups = "backups"
+reports = "reports"
+logs = "logs"
+
+[seeds]
+campaign = 1729
+model = 1730
+bootstrap = 1731
+counterexample = 1732
+
+[capabilities]
+paper = false
+authenticated_data = false
+final_evaluation = false
+promotion = false
+gpu_training = false
+automatic_codex = false
+local_ai_dispatch = false

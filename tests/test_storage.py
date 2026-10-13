@@ -1,77 +1,115 @@
+"""Reservations reject crossing writes and preserve all interrupted evidence."""
 import importlib
+from dataclasses import replace
+from pathlib import Path
+from uuid import uuid4
 import pytest
-from compertum.runtime.owners import acquire_owner,resolve_project
-from compertum.persistence import open_store
+from test_persistence import owned
+from compertum.config import load_config
+from compertum.runtime.errors import RuntimeRefused
 
-def api():
-    try:return importlib.import_module('compertum.storage')
-    except ImportError:pytest.fail('bounded storage missing')
 
-def test_crossing_write_refused_and_failed_bytes_retained(tmp_path):
-    m=api();owner=acquire_owner(resolve_project(tmp_path),'coordinator');store=open_store(owner,'coordinator')
-    try:
-        manager=m.StorageManager(store,free_floor=0)
-        grant=manager.reserve_bytes('task','scratch',4)
-        writer=manager.open_artifact(grant,'.cache/out.bin');writer.write(b'ab')
-        with pytest.raises(ValueError):writer.write(b'cde')
-        writer.close()
-        assert writer.staging.read_bytes()==b'ab'
-        assert manager.reservations()[0]['written']==2
-    finally:store.close();owner.close()
+def module(): return importlib.import_module('compertum.storage')
 
-def test_reserve_release_floor_refill_and_wrong_role(tmp_path):
-    m=api();p=resolve_project(tmp_path);execution=acquire_owner(p,'execution');coordinator=acquire_owner(p,'coordinator')
-    try:
-        initial=m.create_journal_reserve(execution,320*1024**2);assert initial['allocated_bytes']>=320*1024**2
-        with pytest.raises(ValueError,match='DENIED'):m.release_journal_reserve(coordinator,64*1024**2,'bad')
-        released=m.release_journal_reserve(execution,64*1024**2,'synthetic-incident');assert released['bytes']==256*1024**2
-        with pytest.raises(ValueError,match='CAPACITY'):m.release_journal_reserve(execution,64*1024**2,'floor')
-        assert m.refill_journal_reserve(execution,320*1024**2)['allocated_bytes']>=320*1024**2
-    finally:execution.close();coordinator.close()
 
-def test_reservations_and_publish_are_serialized(tmp_path):
-    m=api();owner=acquire_owner(resolve_project(tmp_path),'coordinator');store=open_store(owner,'coordinator')
-    try:
-        manager=m.StorageManager(store,free_floor=0,category_caps={'scratch':8192})
-        grant=manager.reserve_bytes('one','scratch',4096)
-        with pytest.raises(ValueError):manager.reserve_bytes('two','scratch',8192)
-        writer=manager.open_artifact(grant,'.cache/published.bin');writer.write(b'ok');manifest=writer.publish()
-        assert manifest['bytes']==2 and (tmp_path/'.cache/published.bin').read_bytes()==b'ok'
-        with pytest.raises(ValueError):writer.publish()
-        assert manager.reservations()[0]['state']=='PUBLISHED'
-    finally:store.close();owner.close()
+def manager(owned):
+    project,leases=owned
+    source=Path(__file__).parents[1]/'config/default.toml'
+    config_path=project.root_path/'config.toml'; config_path.write_bytes(source.read_bytes())
+    config=load_config(config_path,project.root_path)
+    return module().StorageManager(leases['coordinator'],config)
 
-def test_flush_failure_retains_evidence_without_publication(tmp_path,monkeypatch):
-    m=api();owner=acquire_owner(resolve_project(tmp_path),'coordinator');store=open_store(owner,'coordinator')
-    try:
-        manager=m.StorageManager(store);grant=manager.reserve_bytes('flush','scratch',4096);writer=manager.open_artifact(grant,'.cache/flush.bin')
-        original=m.os.fsync
-        def failed(fd):raise OSError('INJECTED_FLUSH_FAILURE')
-        monkeypatch.setattr(m.os,'fsync',failed)
-        with pytest.raises(OSError,match='FLUSH'):writer.write(b'evidence')
-        with pytest.raises(ValueError,match='UNFLUSHED'):writer.publish()
-        monkeypatch.setattr(m.os,'fsync',original);writer.close();assert writer.staging.read_bytes()==b'evidence' and not writer.target.exists()
-    finally:store.close();owner.close()
 
-def test_simulated_free_space_drop_refuses_write(tmp_path,monkeypatch):
-    m=api();owner=acquire_owner(resolve_project(tmp_path),'coordinator');store=open_store(owner,'coordinator')
-    try:
-        manager=m.StorageManager(store);grant=manager.reserve_bytes('low','scratch',4096);writer=manager.open_artifact(grant,'.cache/low.bin')
-        original=m.shutil.disk_usage(tmp_path)
-        monkeypatch.setattr(m.shutil,'disk_usage',lambda p:original._replace(free=49*1024**3))
-        with pytest.raises(ValueError,match='WRITE_CAPACITY'):writer.write(b'x')
-        writer.close();assert writer.staging.stat().st_size==0
-    finally:store.close();owner.close()
+def test_crossing_chunk_writes_no_bytes_and_publish_is_idempotent(owned):
+    store=manager(owned); task=str(uuid4()); grant=store.reserve_bytes(task,'records',8)
+    writer=store.open_artifact(grant,f'artifacts/runs/{task}/result.bin')
+    writer.write(b'abcd')
+    with pytest.raises(RuntimeRefused,match='OUTPUT_BOUND_EXCEEDED'): writer.write(b'12345')
+    assert writer.path.read_bytes()==b'abcd'
+    writer.write(b'efgh'); receipt=writer.publish()
+    assert writer.publish()==receipt and receipt['size_bytes']==8
+    assert (store.root/receipt['path']).read_bytes()==b'abcdefgh'
+    assert store.reservations()[0]['status']=='PUBLISHED'
 
-def test_native_junction_artifact_target_refused(tmp_path):
-    import subprocess
-    m=api();owner=acquire_owner(resolve_project(tmp_path),'coordinator');store=open_store(owner,'coordinator')
-    try:
-        manager=m.StorageManager(store);grant=manager.reserve_bytes('reparse','scratch',4096)
-        cache=tmp_path/'.cache';cache.mkdir();target=tmp_path/'target';target.mkdir();link=cache/'link'
-        made=subprocess.run(['cmd','/c','mklink','/J',str(link),str(target)],capture_output=True,timeout=5);assert made.returncode==0
-        try:
-            with pytest.raises(ValueError,match='REPARSE'):manager.open_artifact(grant,'.cache/link/output')
-            assert not list(target.iterdir())
-        finally:link.rmdir()
-    finally:store.close();owner.close()
+
+def test_reservations_serialize_and_cannot_raise_fixed_caps(owned):
+    store=manager(owned)
+    with pytest.raises(RuntimeRefused,match='STORAGE_CAPACITY'):
+        store.reserve_bytes(str(uuid4()),'records',5*1024**3)
+    task=str(uuid4()); grant=store.reserve_bytes(task,'records',100)
+    with pytest.raises(RuntimeRefused): store.reserve_bytes(task,'unknown',100)
+    with pytest.raises(RuntimeRefused): store.open_artifact(grant,'../outside.bin')
+    with pytest.raises(RuntimeRefused): store.open_artifact(grant,'state/execution-reserve.bin')
+
+
+def test_abandoned_bytes_remain_charged_after_manager_restart(owned):
+    store=manager(owned); task=str(uuid4()); grant=store.reserve_bytes(task,'records',8192)
+    writer=store.open_artifact(grant,f'artifacts/runs/{task}/incomplete.bin'); writer.write(b'x'*1024); writer.close()
+    before=store.observation()['categories']['records']
+    restarted=module().StorageManager(store.lease,store.config)
+    assert restarted.observation()['categories']['records']>=before
+    assert restarted.reservations()[0]['status']=='ABANDONED'
+    assert writer.path.exists()
+
+
+def test_native_scan_counts_allocation_and_rejects_reparse_escape(owned):
+    project,_=owned
+    file=project.root_path/'small.bin'; file.write_bytes(b'x')
+    observed=module().sample_storage(project)
+    assert observed['files']['small.bin']['allocated']>=1
+    target=project.root_path.parent/'external'; target.mkdir(exist_ok=True)
+    (project.root_path/'escape').symlink_to(target,target_is_directory=True)
+    with pytest.raises(RuntimeRefused,match='STORAGE_REPARSE_ESCAPE'):
+        module().sample_storage(project)
+
+
+def test_execution_reserve_is_allocated_exclusive_and_role_scoped(owned):
+    project,leases=owned
+    with pytest.raises(RuntimeRefused,match='WRONG_OWNER_ROLE'):
+        module().create_journal_reserve(leases['coordinator'],1024*1024)
+    reserve=module().create_journal_reserve(leases['execution'],1024*1024)
+    assert reserve.receipt()['allocated_bytes']>=1024*1024
+    assert reserve.receipt()['sparse'] is False
+    from compertum.runtime._windows import WindowsAPI,NativeCallError
+    with pytest.raises(NativeCallError):
+        with WindowsAPI().open_file(project.root_path/'state/execution-reserve.bin',0x40000000,0): pass
+    reserve.release(65536,str(uuid4()))
+    assert reserve.receipt()['unused_bytes']==1024*1024-65536
+
+
+def test_concurrent_reservations_cannot_overbook_category(owned):
+    from concurrent.futures import ThreadPoolExecutor
+    store=manager(owned)
+    def reserve_one(_):
+        try: return store.reserve_bytes(str(uuid4()),'records',2*1024**3)
+        except RuntimeRefused as error:
+            assert error.code=='STORAGE_CAPACITY'; return None
+    with ThreadPoolExecutor(max_workers=3) as pool: admitted=list(pool.map(reserve_one,range(3)))
+    assert sum(item is not None for item in admitted)==1
+
+
+def test_owner_release_closes_an_abandoned_open_writer(owned):
+    from compertum.runtime.owners import release_owner
+    store=manager(owned); task=str(uuid4()); grant=store.reserve_bytes(task,'records',100)
+    writer=store.open_artifact(grant,f'artifacts/runs/{task}/abandoned.bin');writer.write(b'preserved')
+    release_owner(store.lease)
+    assert writer.closed and writer.path.read_bytes()==b'preserved'
+
+
+def test_split_grant_cannot_duplicate_reserved_capacity(owned):
+    store=manager(owned); parent=store.reserve_bytes(str(uuid4()),'backups',8192)
+    child=store.split_grant(parent,4096)
+    with pytest.raises(RuntimeRefused,match='GRANT_BOUND_EXCEEDED'):
+        store.split_grant(parent,4097)
+    assert child.maximum==4096
+    with pytest.raises(RuntimeRefused): store.open_artifact(parent,f'backups/{parent.task_id}/parent.bin')
+
+
+def test_reserve_release_and_refill_have_durable_idempotent_intents(owned):
+    _,leases=owned;reserve=module().create_journal_reserve(leases['execution'],1024*1024)
+    incident=str(uuid4());reserve.release(65536,incident);reserve.release(65536,incident)
+    assert reserve.receipt()['unused_bytes']==1024*1024-65536
+    refill=str(uuid4());reserve.refill(refill);reserve.refill(refill)
+    assert reserve.receipt()['unused_bytes']==1024*1024
+    reserve.release(65536,incident)
+    assert reserve.receipt()['unused_bytes']==1024*1024

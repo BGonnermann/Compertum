@@ -1,0 +1,12 @@
+# M2 registered candidate evaluator
+
+Authorized synthetic engineering, BUILD_SPEC sections9-10. Add one pure bounded annual-fold unit; it will later run under the existing coordinator-owned campaign lifecycle. No real fitting, financial admission, protected prices, broker actions or protocol adoption.
+
+- [x] Evaluate only the12fixed variant IDs and development years2021/2022/2023. Require a strictly earlier training segment, same-year scoring segment, synthetic validated snapshots and no2024+price rows. Register the fixed family in every result; persistent campaign registration remains a separate step.
+- [x] Ridge uses the existing dataset adapter, whole-date purged annual manifest and fit/serve code. Keep features cached by original decision/symbol, with no scoring labels used in fitting or signal creation. Momentum retains its existing transparent calculation. Record synthetic fit/audit activation as an assumption, never actual historical approval.
+- [x] Reuse the existing ledger and shared sizing/risk behavior unchanged at10/20bp. Name the result portfolio strategy and identify the candidate explicitly. Retain benchmark/diagnostic portfolios, full economic NAV, actions, costs, omissions, halts and trades. Each fold starts independently at10000.
+- [x] Prediction report retains full12asset denominator, raw price labels and source revisions, boundary/missing/unavailable omissions, MSE/MAE/signed error against zero and momentum on identical rows, per-date ranks and separate ML gate. No short/synthetic segment can qualify financially.
+- [x] Red/green tests for causality, same-date annual fit purge, provider/protected refusal, horizon boundary, unchanged momentum ledger, all registered variants and same-row prediction/serving parity. Source/wheel reproduction and one independent reviewer; at most3targeted repair rounds. Fresh test namespace<=64MiB, commands<=120seconds.
+- [x] Archive evidence and update checkpoint. Continue full12variant search-history/scorecard aggregation and saved lifecycle. FullM2 remains incomplete until all required evidence exists.
+
+Assumption: this pure engineering unit treats freshly computed fits as available before the first scored decision only within its explicitly synthetic execution model. Production activation still requires actual fit/audit completion receipts and owner authorization. Existing synthetic maximum64chunks/16MiB/1024sessions remains fixed; full2016-2023 campaigns will need bounded fold/streaming integration rather than relaxing those limits.

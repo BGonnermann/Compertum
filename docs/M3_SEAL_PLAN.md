@@ -1,0 +1,12 @@
+# M3 synthetic protocol and owner seal component
+
+Dependency: artifacts/m3/qualification.json passed72 source and72 wheel checks plus exact five-report reproduction. This component establishes immutable protocol records and the owner-held pre-development binding; later components connect final evaluation, audit and operator commands. No financial authority or real protected data.
+
+- [x] Pure bounded synthetic protocol definition: fixed universe/features/all12variants, seeds,10/20costs, annual development folds,2024-2025 final window, reserved2026 exclusion,252-session forward rules, unchanged qualification/selection/tolerances and runtime/data/development-input pins. Keep definition validation lightweight enough for the256MiB evaluation owner; test equality with existing model/feature constants rather than import the numerical stack into the owner.
+- [x] Evaluation-owned typed registry over existing guarded SQLite: immutable seal and fixed future development ID/input; bounded idempotent requests, conflicts rejected, changed code/input/protocol denied, irreversible invalidation retained. Generic fixture events cannot create or replace a seal. Hashes bind trusted owner records; they do not authenticate caller booleans.
+- [ ] Fresh-development admission: coordinator obtains the evaluation owner receipt before registering/computing a new campaign. Preserve diagnostic campaign APIs and explicitly label old campaigns unsealed. Same run/input receipt recovery is idempotent; an already-started diagnostic cannot be retroactively sealed. No work unit can bypass a missing/mismatched seal through another execution path.
+- [ ] Source/wheel protocol/registry/admission tests, actual native owner/restart checks, adversarial identity and rollback cases, independent review and bounded exact receipts. Extend authenticated owner transport and recovery closure before claiming the complete lifecycle.
+
+Next concrete work: implement and test the pure protocol contract, then typed evaluation registry, then coordinator admission. Keep existing64KiB/five-second RPC,16MiBstores,64MiBrecovery grants and consumption guard semantics. Do not execute numerical work in the compact owner. See docs/M3_LIFECYCLE_INTEGRATION_NOTES.md for integration hazards and tests.
+
+Protocol/registry/native component verified in artifacts/m3/seal_ledger.json:143 checks per environment. Fresh campaign admission remains the next required item; records explicitly do not grant it.

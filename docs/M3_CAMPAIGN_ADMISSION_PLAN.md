@@ -1,0 +1,10 @@
+# Fresh sealed synthetic campaign admission
+
+Dependency: artifacts/m3/seal_ledger.json;143 source and143 wheel checks, exact protocol, independent review closed. This extends the verified owner ledger; it does not adopt a real financial protocol.
+
+- [x] Coordinator commits a bounded unique ticket binding future run ID, seal ID, protocol/input/runtime pins before asking the evaluation owner. Reject existing diagnostic run IDs before committing any ticket; retain pending tickets after interrupted RPC.
+- [x] Evaluation owner appends ADMIT_DEVELOPMENT only after independently inspecting the matching coordinator ticket and absence of a registered run. Commit/mirror before receipt. Replay of the same admitted ticket is idempotent; changed identity, missing evidence, invalidation and conflicting development IDs refuse. Preserve event256/seal128 bounds and retain room to invalidate live seals.
+- [x] Coordinator stores the genuine receipt and registers the immutable protocol_seal binding. Ordinary registration cannot bypass a pending/admitted ticket. Verify the current journal, evaluation mirror and ticket on every synchronous/native campaign admission and result acceptance; pure diagnostic computations remain explicitly unsealed.
+- [x] Test crash/retry around ticket, remote commit, local receipt and registration; old diagnostic retrofit denial; missing/changed ticket, receipt, runtime, journal and mirror; invalidation before launch and before acceptance; actual native owner/worker route; exact source/wheel artifacts and independent review.
+
+No final-period inputs are opened. Data manifests are hash pins with unqualified synthetic provenance. Existing development-only dates, bounded Jobs, storage grants, owner limits, numerical thresholds and broker denials remain unchanged. Full recovery-set closure is a later required M3 dependency; this component cannot claim it. Next after admission: frozen complete trial history/shortlist and one consumed synthetic final transaction, independent audit, recovery and operator commands, then M4.

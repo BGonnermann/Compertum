@@ -1,0 +1,24 @@
+# Native saved campaign integration
+
+Implement after the owner-stage receipt is complete. Retain every existing replay/provider path and keep campaign results synthetic and financially unqualified.
+
+- [x] Register a separate `campaign` Job command. Fixed63unit schedule;120seconds,4threads,4GiB and16MiB output. Existing replay limit9 and its two handles are unchanged.
+- [x] Campaign workers inherit only input and output handles; ridge evaluation additionally receives its committed fit's read-only handle. Bind primary input SHA, dependency frame SHA and dependency payload SHA independently. Verify/unwrap the fit frame before evaluation; no ambient dependency paths or cold fitting.
+- [x] Add an internal campaign-only pre-resume callback. Prepare exact unit/attempt/input/dependency/output reservation; perform admission and suspended process assignment; commit that exact prepared attempt; recheck ownership/deadline; resume. The deadline never restarts. Before commitment, admission refusal leaves pending work; after commitment, record matching infrastructure failure. Preserve all orphan reservations.
+- [x] Controller uses read-only job/storage/run-budget preflight before output reservation. Unknown integrity/code errors block, deterministic computation errors fail only their unit, transient I/O permits at most2attempts. Health and operator controls remain required. No loop may consume repeated attempts for a known admission gate.
+- [x] Verify wrong input/dependency/unit/handles, frozen model reuse, process/CPU/RAM/output limits, full Job exit and output acceptance. Record outcomes and scorecard from committed artifacts.
+- [x] Exercise actual process crashes before fit computation, after fit publication before owner commit, after fit commit, and during evaluation. Preserve orphans. Committed fits never execute again. Restarted controller remains paused. Duplicate acceptance, pause/resume and terminal stop stay explicit.
+- [x] Run the63unit synthetic campaign within unchanged128MiB and daily7200second budgets or preserve precise resource failures. Source/wheel outputs must match. Use separate<=64MiB fixture namespaces; no ignored failures/skips or budget increases.
+- [x] Retain source archive, receipts, independent review, original preservation and checkpoint. Continue independent M3/M4 engineering after native campaign verification.
+
+Owner-stage prerequisites: artifacts/m2/campaign_contract.json and artifacts/m2/campaign_owner.json. Four financial blockers remain unchanged: full protocol adoption, complete real2016-2023 data integration, qualified action/eligibility/billing evidence, and required financial coverage. This stage does not authorize protected prices, broker account activity, paid services or publication.
+
+## Native interfaces and failure routing
+
+Prepared tests are in tests/windows/test_campaign_job.py. Worker compute takes primary raw bytes/digest/unit plus optional dependency_raw, dependency_digest (framed artifact SHA) and dependency_payload_sha256 (committed fit payload SHA). Return the framed campaign result. Validate the declared dependency against the fixed unit schedule before serving; test serving with the fitter disabled. Main-worker exit codes are0success,4deterministic unit computation failure,5transient I/O,6input/dependency/code integrity failure. Unknown failures block; they must not become failed independent trials.
+
+Keep the Job deadline measured from task preparation, including the admission callback; do not reset it when the process resumes. Recheck ownership/deadline after the callback. The campaign's charged start should include its admission/preparation time without changing legacy Job timing. Resource preflight checks the one-job slot, available RAM, local-AI slot and existing daily charges before output reservation. Actual launch rechecks gates under the existing owner guard.
+
+Controller failure cleanup distinguishes whether the exact prepared unit/attempt/reservation was committed. Pre-commit failure terminates the suspended child, retains reservations and leaves pending work. Post-commit launch/health failure records the matching attempt; never interrupt an unrelated old attempt. Bound native receipt schema to2KiB and retain actual Job exit evidence before publication/acceptance.
+
+For full synthetic campaign verification, use short batches of units across fresh owner processes if the complete63unit run would exceed the120second verification-wrapper limit. Keep the same immutable run/input and explicit resume; do not raise worker or daily limits. New crash tests should distinguish before fit computation, after fit publication/before commit, after fit commit and interrupted evaluation. Verify exact payloads and count fit attempts after recovery, retaining all orphans.

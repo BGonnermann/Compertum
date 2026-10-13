@@ -1,0 +1,11 @@
+# Synthetic protocol and seal ledger
+
+143 source checks and143 installed-package checks passed, with zero failures, errors or skips in both final runs. One existing non-Windows-only test was explicitly deselected. The10,337-byte protocol reproduces exactly across environments. Five actual native owner tests in each environment cover the256MiB/one-core/one-process limit, restart, checkpoint barrier, role/command denial, malformed replies and independent watchdog scans.
+
+The fixed contract binds the12 variants, inputs/runtime, features, fitting, costs, selection, qualification and forward rules. Only the evaluation owner writes seals. Its append-preserved journal survives older SQLite state and retains invalidation; missing/corrupt evidence refuses reuse. Coordinator storage grants precede journal events. Typed authenticated refusals preserve a healthy owner channel; malformed/unacknowledged exchanges retire it. Two independently identified one-sided journal-loss defects were reproduced and repaired. Older databases without a trustworthy seal journal now refuse automatic migration.
+
+A wrong-role test initially started the production-sized execution reserve and breached scratch limits. The completed passing fixture's654,311,424-byte disposable file was compressed, byte-verified and removed under existing cleanup approval; the archive, hashes and failed storage incident remain. The repaired test prepares a64KiB native reserve in a separate exited process. Production limits remain unchanged; final storage and namespace checks pass.
+
+Receipt: artifacts/m3/seal_ledger.json. Failed experiments, earlier wheels, red/green regressions and the complete source archive are retained in .cache/test-runs/m3-seal-20261010-01. Native owner-channel failure injection is explicit; these are invented fixtures, not financial evidence.
+
+This component records rules only: every seal receipt says development_admitted=false. Next implement coordinator-held fresh-run reservation, genuine evaluation receipt binding and mandatory checks on all campaign execution paths. Then complete shortlist, single-consumption final evaluation, independent audit, full recovery closure and operator commands. Full M3 and financial acceptance remain incomplete.

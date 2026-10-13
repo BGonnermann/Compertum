@@ -1,0 +1,11 @@
+# Private order-response qualification
+
+11 October 2026. Offline component verified:855matching source/package passes, zero final failures/errors, one inapplicable non-Windows skip per lane. Independent review closed1/3. All158installed Python modules match. All preexisting source files remain byte-identical to the verified native transport snapshot.
+
+Execution-private requests bind owner, generation, protected credential envelope, private account reference, intent and exact validated request. Public records exclude account UUID and never confer authority. Raw and decoded credential reflections are rejected before reply hashing/retention. Submit and lookup responses must match their requested identities. Late, oversized, malformed or mismatched replies fail with fixed reasons.204 remains cancellation-request acceptance only;404/422/5xx/missing status remain unconfirmed, with no retry or flatness claim.
+
+Seven synthetic request/reply cases reproduced byte-for-byte under native execution ownership in source and installed-package processes. Result SHA256 2b9254d11866eb7c66abcaf6ae9f4a03d0d732229d64e2e54de42a1658d6b773. Actual credentials, broker calls and write grants remain unused. This is request/reply qualification, not provenance of an actual broker result or durable write admission.
+
+Source SHA256 00da246d0d7cf951eda8c651ab08b567a6469333f2167f579adc55b68cbc8ca7. Wheel SHA256 f394b72fc7072297fc693c7d1ac05cb419955c176498f85cfaf6d76f9896de91. Receipt artifacts/m5/order_qualification.json retains command/XML/archive/review hashes. Preserved red tests cover expected missing module, private account-context integrity and fixed errors for damaged requests. The first replay helper failed for a relative root; its absolute-root correction passed without product changes.
+
+Latest resource observation: 8231677952bytes available RAM versus8589934592required for M3. Storage result is recorded exactly in the receipt. Next: extend the existing execution-store intent and attempt evidence for paper requests, preserving fake-broker behavior and preventing duplicate submission after lost replies, restart or old-snapshot restore. Then integrate concrete grants, fresh inputs, risk/supervision and reconciliation. M6 session evidence remains independent offline work.

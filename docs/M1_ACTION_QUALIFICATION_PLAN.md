@@ -1,0 +1,14 @@
+# M1 corporate-action qualification
+
+Approved continuation, 9 October 2026 ET. The latest owner approval continues the linked real-snapshot objective. Use the existing authorized read-only key without renewed credential or feed questions. Extend the established evidence package, preserving the synthetic engine and all financial gates.
+
+- [x] Collect a frozen 2016-2023 action inventory for the 12-stock/SPY watchlist and issuer-confirmed FB alias. All types, region us, data_quality all, limit 100, complete pagination. One native job, one CPU, 1 GiB, 600 seconds, 40 HTTP attempts, 10 seconds per request, 16 MiB original bodies. No later action closure or protected-price queries.
+- [x] Validate request/page/hash/date/type/participant fields into immutable action evidence. Distinguish incomplete records, unsupported actions, process dates and economic dates. Reconcile explicit issuer observations without treating missing records as zero actions or a matched subset as complete coverage.
+- [x] Use observed inventory and official issuer evidence to establish viable real-snapshot inputs. Continue supported dependencies; keep unavailable full coverage, historical eligibility and knowledge explicit. No warmup collection on an unqualified input contract, no real strategy execution or seal in this data-only step.
+- [x] Verify positive/negative cases and actual retained data in both locked environments. Independent review, repair up to three iterations per failure class, preserve all failures, source archive, receipt and durable checkpoint.
+
+Ruling: the provider request filter describes process dates. Annual 2016-2023 queries establish only that process-window inventory; issuer reconciliation is necessary for effective/ex-date coverage. A later query interval is not silently inferred. META's May 31, 2022 issuer announcement confirms the June 9 FB-to-META ticker change and unchanged CUSIP.
+
+Implementation stays in new data modules and focused tests where possible. Existing source/lock/budgets and original checkout stay preserved. Current scratch headroom is small; use fresh .cache/test-runs/m1-action-coverage-20261009-01, measure before each batch, and do not allocate reserve fixtures or delete retained artifacts. No commits/publishing, broker/account/order endpoints, paid services, training or Strata changes.
+
+Completed10October2026 ET. The third item concludes with a rejected real-snapshot input contract, not verified full coverage. Eight inventory requests plus three targeted rechecks share the original aggregate ceiling: 11 total attempts, all HTTP200, two serial one-CPU/1GiB jobs with aggregate runtime below600seconds. No later action queries. All implementation, source/wheel verification and review are complete; required external historical evidence remains unavailable in the retained sources. See reports/M1_ACTION_QUALIFICATION.md and docs/CURRENT_CHECKPOINT.md.

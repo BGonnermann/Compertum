@@ -1,0 +1,14 @@
+# Native paper credential primitive plan
+
+11 October 2026. Authorized offline preparation before any real paper credential/account access. This increment adds no transport, credential-file read, persisted credential, Credential Manager entry, public paper command, purchase or broker action. All native tests use invented marker bytes inside a newly admitted64MiB test namespace. Existing owner/runtime behavior remains unchanged.
+
+Use current-user Windows DPAPI with CRYPTPROTECT_UI_FORBIDDEN and no machine-wide flag. Fixed optional entropy binds protocol version, actual native project identity, account alias and the fixed paper origin. Seal/open require a verified existing execution lease. Use bounded binary plaintext framing for two ASCII key fields, avoiding plaintext JSON/exception representations. Native DATA_BLOB buffers must be wiped and LocalFree'd on every path; mutable decrypted plaintext is registered as an existing lease resource, revoked/wiped at context exit or owner release. No separate owner or secret journal. Direct constructor, wrong role/project/alias, closed lease, corrupted blob and oversize data fail with fixed errors. Repr and pickle cannot expose plaintext. Python/http-client temporary string copies are not claimed to provide secure memory erasure; only the owned native/mutable buffers have explicit wiping.
+
+API in runtime/paper_credentials.py: seal_paper_credentials(lease, account_alias, key:bytearray, secret:bytearray) -> immutable ProtectedPaperCredentials; open_paper_credentials(lease, protected) -> short-lived context-managed credential access. Both functions have no environment, file or network access. The primitive establishes OS protection and owner scoping, not actual broker authorization. The transport runner must separately require the current scoped read grant and attach its cancellation resource to the same lease. Decrypt only to populate a single allowlisted request within that runner; no arbitrary caller-supplied host/method.
+
+- [x] Admit fresh64MiB namespace; write/run red tests.
+- [x] Implement bounded DPAPI and owner-scoped lifetime.
+- [x] Verify real Windows seal/open, context mismatch, corruption, release/restart, role denial, redacted representations, no persistence and buffer zeroing with synthetic markers.
+- [x] Independent bounded review, source/installed-wheel checks, deterministic semantic reproduction without expecting randomized DPAPI ciphertext equality, package/lock/storage receipts and checkpoint.
+
+Next: cooperative bounded GET-only transport under the existing execution owner. Existing owner RPC holds the owner scope during its5second exchange; no multi-request packet or long synchronous network call belongs inside it. Native async WinHTTP teardown must retain callback context through HANDLE_CLOSING. M3 worker admission remains independently RAM-blocked. Actual credentials/account reads and later concrete writes keep their existing approval gates.

@@ -1,0 +1,11 @@
+# Independent campaign history and aggregate audit
+
+54 source and54 installed-package tests passed with zero failures/errors/skips. Both environments reproduced the same audit and raw evidence export for the preserved63-unit synthetic campaign:27 fits,36 evaluations,212 history events and11 control receipts. The separate failure fixture retains9 completed,27 failed and27 skipped units, including37 attempts with an interrupted retry. Independent review has no remaining material finding.
+
+The audit reconstructs the immutable history with semantic transitions, exact dependency order and controls; verifies separate frame/payload hashes and nested fitted identities; checks all36 score slots and12 registered variants; and independently derives both-cost concatenated returns, pooled errors, coverage and ranking. A hand example with unequal folds verifies10%,-10%,20% returns and pooled MSE14/3. Ranking and contribution gates must agree exactly even when scalar differences fall within declared numeric tolerance.
+
+Four review gaps were repaired through14 reproduced false-pass cases: blocking failures disguised as terminal failures, contradictory calendars/coverage, mismatched nested fit identities and exceeded declared run budgets. The initial rehash test helper omitted legitimate null fields; a positive unchanged-history control now proves the adversarial tests reach the intended checks. Failed logs remain. Historical controls predate the display-only protocol_status field: only that exact older unsealed shape is accepted, original bytes stay pinned and11 legacy receipts are explicitly counted. Sealed histories still require the field.
+
+This is consistency evidence over historical synthetic results. Per-fold source/execution audits must still be composed under a real independent native auditor; current seal authority, resource authenticity, fresh locked reruns, shortlist authority and financial qualification remain unverified. No candidate was promoted. Next: bounded auditor-role worker and owner-held admission/result binding, then full fresh admitted campaign and locked reruns.
+
+Receipt: artifacts/m3/campaign_audit.json. Sources, package, raw failed/passing evidence and exact reports: .cache/test-runs/m3-campaign-audit-20261010-01. Storage and preservation checks passed.

@@ -1,44 +1,172 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "task_id",
-    "summary"
-  ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": "1"
+    },
+    "record_type": {
+      "const": "AIProposal"
+    },
+    "proposal_id": {
+      "type": "string",
+      "format": "uuid"
     },
     "task_id": {
-      "type": "string"
+      "type": "string",
+      "format": "uuid"
+    },
+    "role": {
+      "enum": [
+        "research_proposer",
+        "ml_planner",
+        "mathematician",
+        "mathematical_checker",
+        "ai_adapter"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "prompt_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 1,
+      "maxItems": 1024
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "enum": [
+            "manual_subscription",
+            "strata"
+          ]
+        },
+        "model_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "usage_status": {
+          "enum": [
+            "UNKNOWN",
+            "OPERATOR_SUPPLIED",
+            "MEASURED"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "model_label",
+        "usage_status"
+      ],
+      "additionalProperties": false
+    },
+    "state": {
+      "const": "PROPOSAL_ONLY"
     },
     "summary": {
       "type": "string",
-      "maxLength": 10000
+      "minLength": 1,
+      "maxLength": 2048
     },
-    "claims": {
+    "assumptions": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 0,
+      "maxItems": 1024
     },
-    "limitations": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "provider": {
-      "type": "string"
-    },
-    "model": {
-      "type": "string"
-    },
-    "at": {
+    "falsifier": {
       "type": "string",
-      "format": "date-time"
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://",
+        "maxLength": 2048
+      },
+      "minItems": 0,
+      "maxItems": 1024
+    },
+    "proposed_patch": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 16384
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fictional_tool_proposal": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "fixture_lookup"
+            },
+            "arguments": {
+              "type": "object",
+              "properties": {
+                "fixture_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "fixture_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "name",
+            "arguments"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
-  }
+  },
+  "required": [
+    "schema_version",
+    "record_type",
+    "proposal_id",
+    "task_id",
+    "role",
+    "created_at",
+    "prompt_sha256",
+    "input_hashes",
+    "provider",
+    "state",
+    "summary",
+    "assumptions",
+    "falsifier",
+    "citations",
+    "proposed_patch",
+    "fictional_tool_proposal"
+  ],
+  "additionalProperties": false
 }

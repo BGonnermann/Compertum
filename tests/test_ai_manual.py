@@ -1,45 +1,67 @@
+import hashlib
 import json
+from datetime import datetime,timezone
+from pathlib import Path
+import shutil
+import sys
 import pytest
+sys.path.insert(0,str(Path(__file__).parent/'helpers'))
+from ai_fixture import ai_task,proposal
+from compertum.ai.manual import ManualBridge
+from compertum.config import load_config
+from compertum.storage import StorageManager
 from compertum.runtime.identity import resolve_project
-from compertum.runtime.owners import acquire_owner
-from compertum.persistence import open_store
-from compertum.domain import TaskSpec,ContractError,now
-from compertum.ai.manual import export_subscription_task,import_proposal
+from compertum.runtime.owners import acquire_owner,release_owner
+from compertum.runtime.errors import RuntimeRefused
 
-def test_manual_bundle_provenance_and_no_execution(tmp_path):
-    with acquire_owner(resolve_project(tmp_path),'coordinator') as lease:
-        store=open_store(lease,'coordinator');task=TaskSpec(kind='AI_PROPOSAL');artifact=export_subscription_task(store,task,{'question':'Describe fixture','fixture':True})
-        assert artifact['path'].endswith('packet.json')
-        bundle=tmp_path/'artifacts/ai'/task.task_id;response=bundle/'response.json';metadata={'provider':'subscription_manual','model':'operator supplied','operator_supplied':True,'response_at':now()}
-        response.write_text(json.dumps({'schema_version':1,'task_id':task.task_id,'summary':'Proposal only','claims':['fictional tool, never dispatched']}))
-        (tmp_path/'protected-sentinel.json').write_text(response.read_text())
-        with pytest.raises(ContractError,match='BUNDLE'):import_proposal(store,task.task_id,'protected-sentinel.json',metadata)
-        value=json.loads(response.read_text());value['execute']='arbitrary';response.write_text(json.dumps(value))
-        with pytest.raises(ContractError,match='SCHEMA'):import_proposal(store,task.task_id,str(response.relative_to(tmp_path)),metadata)
-        del value['execute'];response.write_text(json.dumps(value));result=import_proposal(store,task.task_id,str(response.relative_to(tmp_path)),metadata)
-        assert result['result']['executed'] is False and not (tmp_path/'executed').exists()
-        assert store.get('ai-requests:'+now()[:10])==1;store.close()
+@pytest.fixture
+def bridge(tmp_path):
+    shutil.copyfile(Path(__file__).parents[1]/'config/default.toml',tmp_path/'config.toml')
+    lease=acquire_owner(resolve_project(tmp_path),'coordinator')
+    try: yield ManualBridge(StorageManager(lease,load_config(tmp_path/'config.toml',tmp_path))),tmp_path
+    finally: release_owner(lease)
 
-def test_manual_secrets_and_expiry_fail_closed(tmp_path):
-    with acquire_owner(resolve_project(tmp_path),'coordinator') as lease:
-        store=open_store(lease,'coordinator');task=TaskSpec(kind='AI_PROPOSAL')
-        with pytest.raises(ContractError,match='SECRET'):export_subscription_task(store,task,{'question':'sk-'+'s'*24})
-        with pytest.raises(ContractError,match='BUNDLE'):export_subscription_task(store,task,{'path':'protected-sentinel'})
-        export_subscription_task(store,task,{'question':'fixture'});state=store.get('ai:'+task.task_id);state['expires_at']='2000-01-01T00:00:00Z';store.set('ai:'+task.task_id,state)
-        with pytest.raises(ContractError,match='EXPIRED'):import_proposal(store,task.task_id,'missing.json',{})
-        store.close()
+def packet(bridge):
+    b,root=bridge;task,relative=ai_task(root);artifact=b.export_subscription_task(task,prompt='Check this fixture.',files=[relative])
+    value=json.loads((root/artifact['path']).read_bytes());response=proposal(task,value['prompt_sha256'])
+    path=root/relative;path=path.with_name('response.json');path.write_text(json.dumps(response))
+    meta={'provider':'manual_subscription','model_label':'synthetic-model','received_at':datetime.now(timezone.utc).isoformat(),'provenance':'SYNTHETIC_FIXTURE'}
+    return b,root,task,path,response,meta
 
-def test_expired_task_cannot_receive_new_manual_deadline(tmp_path):
-    with acquire_owner(resolve_project(tmp_path),'coordinator') as lease:
-        store=open_store(lease,'coordinator');task=TaskSpec(kind='AI_PROPOSAL',deadline_at='2000-01-01T00:00:00Z')
-        with pytest.raises(ContractError,match='DEADLINE'):export_subscription_task(store,task,{'question':'expired'})
-        assert not (tmp_path/'artifacts').exists();store.close()
+def test_manual_original_and_provenance_retained_without_execution(bridge):
+    b,root,task,path,response,meta=packet(bridge)
+    response['proposed_patch']="raise SystemExit('DO_NOT_EXECUTE')";path.write_text(json.dumps(response))
+    result=b.import_proposal(task.to_payload()['task_id'],path,meta)
+    assert result['executed'] is False and result['hosted_response_observed'] is False
+    assert result['status']=='PROPOSAL_ONLY'
+    assert (root/result['original']['path']).read_bytes()==path.read_bytes()
+    assert b.import_proposal(task.to_payload()['task_id'],path,meta)==result
 
-def test_explicit_coordinator_inbox_retains_original_envelope(tmp_path):
-    from compertum.ai.manual import import_inbox_proposal
-    with acquire_owner(resolve_project(tmp_path),'coordinator') as lease:
-        store=open_store(lease,'coordinator');task=TaskSpec(kind='AI_PROPOSAL');export_subscription_task(store,task,{'question':'fixture'})
-        inbox=tmp_path/'artifacts/inbox';inbox.mkdir();container={'proposal':{'schema_version':1,'task_id':task.task_id,'summary':'synthetic'},'provenance':{'provider':'subscription_manual','model':'synthetic fixture only','operator_supplied':True,'response_at':now()}}
-        path=inbox/'response.json';path.write_text(json.dumps(container))
-        result=import_inbox_proposal(store,task.task_id,'artifacts/inbox/response.json')
-        assert result['result']['executed'] is False and (tmp_path/result['result']['original']['path']).read_bytes()==path.read_bytes();store.close()
+def test_outside_bundle_and_sensitive_input_are_denied_before_export(bridge):
+    b,root=bridge;task,relative=ai_task(root)
+    outside=root/'protected.txt';outside.write_text('PROTECTED_SENTINEL')
+    with pytest.raises(RuntimeRefused,match='AI_BUNDLE_DENIED'): b.export_subscription_task(task,prompt='x',files=['protected.txt'])
+    (root/relative).write_text('PROTECTED_SENTINEL')
+    with pytest.raises(RuntimeRefused,match='AI_SENSITIVE_INPUT_DENIED'): b.export_subscription_task(task,prompt='x',files=[relative])
+    assert b.store.conn.execute('SELECT count(*) FROM ai_tasks').fetchone()[0]==0
+
+@pytest.mark.parametrize('mutation',['unknown','mismatch','expired','sensitive'])
+def test_manual_invalid_or_late_response_never_becomes_proposal(bridge,mutation):
+    b,root,task,path,response,meta=packet(bridge);task_id=task.to_payload()['task_id']
+    if mutation=='unknown': response['execute']=True
+    elif mutation=='mismatch': response['prompt_sha256']='f'*64
+    elif mutation=='expired':
+        with b.store.conn: b.store.conn.execute("UPDATE ai_tasks SET deadline='2020-01-01T00:00:00+00:00'")
+    else: response['summary']='PROTECTED_SENTINEL'
+    path.write_text(json.dumps(response))
+    with pytest.raises(RuntimeRefused): b.import_proposal(task_id,path,meta)
+    assert b.store.conn.execute('SELECT status FROM ai_tasks').fetchone()[0]=='WAITING_FOR_OPERATOR'
+
+
+def test_aggregate_output_budget_and_idempotent_retention(bridge):
+    b,root,task,path,response,meta=packet(bridge);task_id=task.to_payload()['task_id']
+    first=b._retain(task_id,'bounded.txt',b'x'*100)
+    assert b._retain(task_id,'bounded.txt',b'x'*100)==first
+    b._retain(task_id,'large.txt',b'x'*(128*1024))
+    with pytest.raises(RuntimeRefused,match='AI_OUTPUT_BUDGET'): b._retain(task_id,'overflow.txt',b'x'*(128*1024))
+    assert not (root/f'artifacts/runs/{task_id}/ai/overflow.txt').exists()

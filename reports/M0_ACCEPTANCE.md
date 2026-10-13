@@ -1,76 +1,73 @@
-# M0 acceptance
+# M0 native Windows acceptance - 9 October 2026
 
-**M0_BLOCKED. STRATEGY_NOT_EVALUATED. PAPER_DISABLED. New spending: $0.**
+**ENGINEERING_FOUNDATIONS_READY: all 10 M0 gates verified.** STRATEGY_NOT_EVALUATED. PAPER_DISABLED. M1 has not started.
 
-Implementation remains at M0. BUILD_SPEC version 1.1 and the preparation/implementation-plan files are preserved. Engineering readiness is withheld; no strategy, financial calculation, authenticated market-data access, brokerage credential, account action or order was exercised. M1 was not started.
+## Checkout and environment
 
-## What works
+- Checkout: `C:\Users\bgonn\Desktop\Compertum-development`
+- Repository: https://github.com/BrennanCompertum/Compertum
+- Branch: `local/m0-development`; published base: `cb0759e4bd9d28c6608bc3c5f9fb8da49e622781`.
+- Implementation remains uncommitted/unpublished; base commit alone does not identify it. Source manifest SHA256: `635ed71cf096cdade2c2018ba596dae98c1eba4b195210ddc1f815b0625a3678`. Package SHA256: `ddab106f2695102d09f2f9b0a7758c52036a61db4cd673d7313ca1f878d97c49`; installed wheel matches.
+- Windows 11 Home x64 build26300, Python3.14.7,39 locked distributions in two isolated environments. Third-party wheels only. No interpreter substitution, lock change, system installation or administrator changes.
+- Qualification used the project's Python3.14.7 plus Strata's existing tokenizer/frontend tools read-only, including regex2026.9.10, Jinja2 3.1.6 and MarkupSafe3.0.3. These are external qualification-tool dependencies, not additions to the project lock or either environment. Locations are in `tokenizer-preparation.json`.
+- `uv.lock`, BUILD_SPEC v1.1 and M0_IMPLEMENTATION_PLAN remain unchanged. Lock SHA256: `178974e50c154e7f424bbe94fc6656dbcebf379523358bde3aec794bfe649c53`.
 
-- Python 3.14.7, compatible locked wheels, an isolated environment and a non-editable clean-wheel reproduction with the same 39 distribution versions. No interpreter substitution or third-party source-build fallback.
-- Native single-owner handles, canonical root identity, verified process creation/SID, generation fencing, private watchdog bootstrap, local authenticated named pipes and durable request deduplication.
-- Owner-checked SQLite/WAL records, serialized reads/writes, once-only message projections, checkpoint history and complete synthetic recovery sets. Restored missing/corrupt databases are rejected. Known consumption survives; every restored unconsumed seal is conservatively compromised because M0 has no independent external rollback witness. Arms/plans are invalidated.
-- Suspended child assignment before resume, CPU affinity, committed-memory limits, denied breakaway, timeout/tree termination, bounded capture, reservations, crossing-write/flush/reparse refusal and crash recount. The real 1 GiB non-sparse execution reserve was measured; scaled release/floor/refill checks passed.
-- Separate watchdog/native disk writer checks and real terminal lifecycle checks. Offline fixtures survive matching checkpoints, reject mismatched hashes and expired leases, and preserve interrupted history. Financial commands return exit 3.
-- Sanitized manual subscription packets/provenance/expiry/import checks. Hosted response/access/quota remain unknown; no API credits are assumed. Local model-only qualification and stricter wrapper evidence are described below.
+## Commands and measured results
 
-## Required gates still blocked
-
-1. **Complete project storage verification fails.** Normal-user inspection cannot traverse private directories created by the earlier sandbox account. The final scanner refuses incomplete coverage with `PermissionError`; no permissions were changed and no paths were silently excluded. A preserved earlier measurement was 6.774 seconds, exceeding five seconds; complete coverage and the five-second deadline remain unverified. Runtime admission stays conservative. Small-root growth tests do not establish the main-root gate.
-2. **The complete AI suite needs a rerun under the final strict wrapper.** Seven real worker-v1 checks passed under the earlier wrapper. After correcting its limit to one CPU and 256 MiB, native hashing and three live checks—JSON, structured fictional call and supplied-result JSON continuation—passed. Usage is 39/40 requests and 7/8 AI tasks for UTC 2026-10-08; a seven-request rerun cannot fit today. This is an unverified required gate, not a skipped passing test. Automatic hosted/local dispatch remains disabled.
-3. **Native cancellation is unverified.** Owned timeout/verified idle behavior passed; no global cancellation was sent. Any task requiring cancellation stays disabled.
-
-The runtime supports the documented default configuration. Unsupported lower aggregate limits are refused explicitly. Git identity is unconfigured, so no author identity or commit was invented; staged source, patch and hash receipts provide the local checkpoint.
-
-## Verified setup
-
-Python 3.14.7; Git and uv present; Ryzen 7 7700X registry identity; native physical RAM about 62.9 GiB; RTX 5070 Ti/driver and free VRAM recorded in the fresh environment receipt; CUDA compiler 13.4.59. DDR5 type/speed remain supplied, not independently verified. Registry build is 26300/26H2, with a legacy `Windows 10 Home` product-name value; exact branding remains unresolved. C: is about 930.47 GiB total with over 50 GiB free. Physical topology behind the two logical volumes remains unresolved; new project files stay on C:.
-
-Strata remains the existing `127.0.0.1:8080` service, model `qwen3.8-flash-next-iq2_xs`, engine 0.1.40.2, 65,536 context positions and one slot. Binary, configuration, server source, both weight shards and tokenizer/template files were hashed in place with before/after file identity checks. Model hashing ran in a native 600-second Job. No Strata environment, server configuration or model file was changed.
-
-## Verification and evidence
-
-**Final frozen-source suite: 67 passed, zero skips.** Clean non-editable reproduction passed with 39 identical distribution versions and the same deterministic artifact. Native reserve recheck measured exactly 1,073,741,824 allocated bytes. Eight acceptance gates passed; main-root process/storage is `VERIFIED_FAIL`, and full local qualification under the final strict wrapper is `UNVERIFIED`.
-
-Deliberate fault injection is identified separately from actual native assignment, process exit, file allocation, socket deadline and live inference evidence. The repaired disk-growth notification passed the unchanged five-second check; the scanner now starts every four seconds and publishes restrictive results immediately. This does not establish complete main-root inventory coverage.
-
-| Evidence | Location |
+| Check | Pass / fail / skip |
 | --- | --- |
-| Final native suite command/output | `artifacts/m0/full_suite.json`; immutable final history under `artifacts/m0/history/` |
-| Clean installed-wheel versions, commands and fixture | `artifacts/m0/clean_reproduction.json` |
-| Environment/hardware | `artifacts/m0/final_environment.json`, `artifacts/m0/hardware.json` |
-| Full reserve and failed main-root timing | `artifacts/m0/journal_reserve_final.json`, `artifacts/m0/storage_timing.json` |
-| Live worker-v1 / strict wrapper / historical failures | `artifacts/m0/ai/strata_worker_v1.json`, `artifacts/m0/ai/strict_wrapper.json`, `artifacts/m0/ai/runs/` |
-| Classification of earlier weaker text-only checks | `artifacts/m0/ai/history_classification.json` |
-| Scope, budgets and machine acceptance | `artifacts/m0/scope_review.json`, `artifacts/m0/budgets.json`, `artifacts/m0/acceptance.json` |
-| Independent review and progress | `reports/M0_INDEPENDENT_REVIEW.md`, `artifacts/m0/progress.jsonl` |
+| Full source pytest suite | 342 / 0 / 11,90.67s |
+| `python -B tools/verify_native_ownership.py --suite all --run-fixtures` | 54 / 0 / 0 |
+| Installed-wheel contract/configuration/persistence checks | 72 / 0 / 0 |
+| Reporting repair regressions | 11 / 0 / 0 |
+| Health compatibility repair, source and installed wheel | 26 / 0 / 0 in each environment |
+| Current361 test-ID reconciliation | 350 unique passes,11 Windows-inapplicable skips |
+| `python -B .cache/test-runs/m0-strata-20261009-01/run_six.py` | 6 / 0 / 0,7.10s total runner time |
+| Live artifact/token/identity verification | All6 request/response pairs and reported token counts matched |
 
-The fixture comparison is byte-exact, with SHA-256 `01349740c940b25d6bb01e722a513b7e955319c8cb36e1db20708cd841152da4`. Time/resource limits remain hard limits; no tolerance was widened. AI temperature was zero and exact prompts/settings/responses/usage were retained; no general determinism or mathematical/trading usefulness is inferred from these checks.
+Source and installed-wheel `foundation check --suite m0 --offline` both exited0, produced complete separate-owner recovery manifests and identical29-byte artifact SHA256 `735c5148dc1073d5833c2e5911158205ef74706174656f54272e3b990e340ff4`. Actual non-sparse1GiB reserve allocation was measured. No required native gate was skipped.
 
-Independent review used one read-only agent and three bounded repair cycles. It covered ownership, authentication, assignment, storage and recovery; later primary fixes and actual checks are identified in its report. Earlier native second-turn HTTP failures remain recorded. The intermittent SQLite `InterfaceError` was diagnosed from actual fixture state, repaired by serializing owner-connection reads as well as writes, and given a concurrency regression check.
+The original aggregate verifier exited3 because live qualification was then unavailable; that receipt remains unchanged. The final acceptance combines that run with the tested reporting/health repairs and this fresh live qualification. No product source changed after the latest affected source/wheel checks, or during live qualification. Exact commands, exit codes and timings remain in both run directories' `commands.jsonl`.
 
-## Inspect from the project root
+## Live Strata qualification
 
-```powershell
-Get-Content reports/M0_ACCEPTANCE.md
-Get-Content artifacts/m0/acceptance.json
-.\.venv\Scripts\python.exe -B -m compertum doctor --read-only --json
-.\.venv\Scripts\python.exe -B -m compertum status --json
-.\.venv\Scripts\python.exe -B -m compertum ai status --json
-git -c safe.directory=C:/Users/bgonn/Desktop/Compertum diff --cached --stat
-```
+The owner separately approved six model-only checks and startup of `D:\Strata\run-iq2_xs.bat` unchanged. Model `qwen3.8-flash-next-iq2_xs`, engine Strata0.1.40.2, configured context65536,one serving slot. Binary/model/tokenizer/template/config/expert-profile hashes retained; both weight shards were streamed in place without copying. The served template matches the recorded tokenizer template. Configuration/binary/tool hashes and weight sizes/mtimes were unchanged after the run. Strata remains running and idle.
 
-To rerun only the offline foundation after inspecting receipts:
+| Check | Input tokens | Output tokens | Seconds | Result |
+| --- | ---: | ---: | ---: | --- |
+| json_object | 99 | 11 | 1.260 | PASS |
+| math_domain | 117 | 11 | 0.721 | PASS |
+| fictional_tool_proposal | 336 | 54 | 1.417 | PASS |
+| second_turn_fixture_result | 190 | 7 | 0.746 | PASS |
+| context_a | 92 | 8 | 0.564 | PASS |
+| context_b | 92 | 8 | 0.577 | PASS |
 
-```powershell
-.\.venv\Scripts\python.exe -B -m compertum foundation check --suite m0 --offline --json
-```
+Each request used temperature0,reasoning_effort=none,stream=false,at most16384 input/2048 output tokens and120seconds. Exact full-template counts matched measured server usage6/6. The adapter's native Job enforced1CPU,256MiB and one process/no children. Only synthetic inputs were sent; the fictional tool proposal had no real execution. Exact requests,responses,settings,latency and usage are retained under the fresh qualification project. No retries or additional inference requests were made.
 
-This creates a new bounded engineering fixture and does not certify main-root storage. Model qualification must wait until its full request allowance fits; do not raise the daily ceiling. A later complete verification uses `python -B tools/verify_m0.py`, preserving failed/unverified gates.
+## Gates and remaining capability limits
 
-## Remaining decisions
+Verified: isolated environment; strict contracts/no-order capability; native ownership/roles; durable records/messages; native process/storage limits; recovery cannot unconsume; deterministic operation without AI; manual proposal bridge; bounded local qualification; independent scope/audit review.
 
-- Choose an authorized way to make the complete project inventory readable to one operating identity, preserving evidence; then establish the five-second native monitoring deadline. No ACL change, deletion or workspace relocation was inferred.
-- After the UTC request budget resets, repeat the full worker-v1 suite under the final one-CPU/256 MiB wrapper. Native cancellation needs separate owned-request evidence before affected automation can operate.
-- Supply a local Git author identity if commits are wanted. Exact Windows/DDR5/storage topology and hosted entitlement/quota remain unresolved observations.
+Native Strata owned-request cancellation/timeout remains **UNVERIFIED**. Automatic local dispatch remains **false**, as Task8 requires when that separate capability is unavailable. Hosted subscription responses/usage were not observed; manual bridge acceptance does not claim hosted use. These limits are recorded, not marked passed.
 
-M1, data entitlement/credentials, universe/benchmark adoption and paper integration remain later authorized work. They are not an automatic continuation of this report.
+## Preserved failures
+
+The initial live preflight failed with `httpx.ConnectError: [WinError 10061]` because Strata was stopped. That attempt sent zero model requests. After separate startup approval, idle preflight and all six live checks passed. The failed preflight result/JUnit/logs remain beside the fresh live receipts.
+
+Earlier native fixture races, persistent-consumption/compromise defects, grant/scan accounting, watchdog acceptance coverage and health metadata handling were repaired and retested. An earlier `HEALTH_UNVERIFIED` run used a retained `UNACCOUNTED_GROWTH` halted fixture; the halt was preserved and fresh accepted evidence used a separate fixture. Detailed red/green history and the previous report are retained under the paths below.
+
+## Evidence and preservation
+
+- Current acceptance: `artifacts/m0/acceptance.json`; local capability: `artifacts/m0/ai/strata_worker_v1.json`.
+- Live evidence: `.cache/test-runs/m0-strata-20261009-01/`: `live-result.json`,`live-junit.xml`,`post-verification.json`,`identity-preparation.json`,`serving-after.json`,`independent-final-review.json`,per-request artifacts and `final-source.zip`.
+- Full native/wheel run: `.cache/test-runs/m0-acceptance-d5fb0093-113d-43a1-9ff4-221e1801d492/`.
+- Native ownership: `.cache/test-runs/native-verification-632b1a11-a1ee-429f-9294-4156192da954/`.
+- Installation,repair and live command logs: `.cache/test-runs/m0-local-20261009-01/`.
+- Earlier report snapshot: `.cache/test-runs/m0-strata-20261009-01/before-final-M0_ACCEPTANCE.md`.
+- Independent reviews: `artifacts/m0/review.json`,health compatibility receipt and final live review.
+
+Original `C:\Users\bgonn\Desktop\Compertum` source,history,runtime state and prior verification checkout were preserved. Original Git index SHA256 remains `46cf3ffa16ca521ec81c5f2816ffc77e6b6f096ca71d3e63c735afbd6edd0a0e`. Historical results and intentionally halted/compromised fixtures remain intact. No commits,pushes,merges,external publishing,spending,broker access,market data,protected evaluation,training,production workers or unattended services. Strata startup and its six requests were explicitly approved; its source,environment and configuration were not modified.
+
+Project usage after qualification:4,446,211,480 bytes total,scratch4,444,256,864 bytes,below5GiB; scan2.713s. Do not allocate another full-reserve fixture without a fresh budget check. The small final source archive is additional retained evidence within the available margin.
+
+Next milestone is M1; it is not started or authorized by this receipt.

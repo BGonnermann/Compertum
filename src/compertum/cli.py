@@ -1,67 +1,87 @@
-"""M0 command graph. Unsupported financial verbs exit before any transport."""
-import argparse,json,time,sys,shutil,subprocess
-from dataclasses import asdict
+"""M0 terminal interface. Unsupported milestones have no dispatch path."""
+import argparse
+import json
 from pathlib import Path
-from .domain import receipt,ContractError,new_id
-from .runtime.identity import resolve_project
-from .runtime.ipc import RoleEndpoint,request
-from .runtime.supervisor import spawn_service
+import sys
+from .domain import ContractError
+from .config import load_config,ConfigError
+from .runtime.errors import RuntimeRefused
 
-def endpoint(root):return RoleEndpoint(**json.loads((Path(root)/'state/runtime/endpoint.json').read_text()))
-def control(root,action,**fields):return request(endpoint(root),{'action':action,'request_id':fields.pop('request_id',new_id()),**fields})
-def start_research(root):
-    p=resolve_project(root)
-    try:return control(root,'status')
-    except (OSError,RuntimeError,PermissionError):pass
-    child=spawn_service(p.root_path,'supervisor');deadline=time.monotonic()+10
-    while time.monotonic()<deadline:
-        try:return control(root,'status')
-        except (OSError,RuntimeError,PermissionError):time.sleep(.1)
-    raise ContractError('START_UNVERIFIED')
-
-def doctor(root):
-    from .config import load_config
-    cfg=load_config(Path(__file__).resolve().parent/'resources/default.toml',root)
-    from .storage import sample_storage
-    from .ai.strata import probe_strata
-    tools={}
-    for name,args in {'git':['--version'],'uv':['--version'],'nvidia-smi':['--query-gpu=name,driver_version,memory.total,memory.free','--format=csv,noheader']}.items():
-        path=shutil.which(name)
-        if path:
-            observed=subprocess.run([path,*args],capture_output=True,text=True,timeout=10);tools[name]={'exit_code':observed.returncode,'observed':observed.stdout[:2048]}
-        else:tools[name]={'state':'UNVERIFIED'}
-    try:storage={'state':'OBSERVED','observation':sample_storage(root)}
-    except OSError as exc:storage={'state':'UNVERIFIED','reason':type(exc).__name__,'code':exc.errno}
-    try:provider=probe_strata()
-    except Exception as exc:provider={'health':'UNAVAILABLE','reason':type(exc).__name__}
-    result=receipt('doctor');result['result']={'python':sys.version.split()[0],'tools':tools,'financial_capability':'CAPABILITY_UNAVAILABLE','broker':'NOT_CONFIGURED','strategy':'STRATEGY_NOT_EVALUATED','paper':'PAPER_DISABLED','provider_subscription':'UNKNOWN','strata':provider,'strata_inference':'NOT_INVOKED','config':{k:str(v) for k,v in asdict(cfg).items()},'storage':storage};return result
 
 def main(argv=None):
-    args=list(sys.argv[1:] if argv is None else argv);root=Path.cwd()
-    # The checked root option is useful for bounded tests; no arbitrary inputs execute.
-    if '--root' in args:
-        i=args.index('--root');root=Path(args[i+1]).resolve();del args[i:i+2]
-    args=[a for a in args if a!='--json']
+    parser=argparse.ArgumentParser(prog='compertum')
+    parser.add_argument('--project-root',type=Path,default=Path.cwd())
+    parser.add_argument('command',nargs='?',default='status');parser.add_argument('verb',nargs='?')
+    parser.add_argument('--json',action='store_true');parser.add_argument('--read-only',action='store_true')
+    parser.add_argument('--mode',default='research');parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
+    parser.add_argument('--checkpoint',action='store_true');parser.add_argument('--suite');parser.add_argument('--offline',action='store_true')
+    parser.add_argument('--task');parser.add_argument('--provider');parser.add_argument('--response');parser.add_argument('--reason');parser.add_argument('--run');parser.add_argument('--seal')
+    args,unknown=parser.parse_known_args(argv);root=args.project_root.absolute()
+    action=(args.command,args.verb)
     try:
-        if args and args[0]=='doctor' and set(args[1:])<= {'--read-only'}:result=doctor(root)
-        elif args==['status']:
-            try:result=control(root,'status')
-            except (OSError,RuntimeError,PermissionError):result=receipt('status','STOPPED');result['result']={'broker':'NOT_CONFIGURED','paper':'PAPER_DISABLED','strategy':'STRATEGY_NOT_EVALUATED','owner':'UNAVAILABLE'}
-        elif args and args[0]=='start':
-            parser=argparse.ArgumentParser();parser.add_argument('--mode',choices=['research']);parser.add_argument('--config',default='config/default.toml');a=parser.parse_args(args[1:])
-            from .config import load_config
-            load_config(root/a.config,root);result=start_research(root)
-        elif args==['research','pause'] or (len(args)==4 and args[:3]==['research','pause','--reason']):result=control(root,'pause',reason=args[3] if len(args)==4 else 'operator')
-        elif args==['research','resume']:result=control(root,'resume')
-        elif args[:2]==['research','stop'] and (len(args)==3 or len(args)==4 and args[2]=='--run'):result=control(root,'stop',run_id=args[-1])
-        elif args==['shutdown','--checkpoint']:result=control(root,'shutdown')
-        elif args==['foundation','check','--suite','m0','--offline']:
+        if unknown: raise RuntimeRefused('CAPABILITY_UNAVAILABLE')
+        if action==('ai','status'):
+            from .ai.manual import provider_status
+            result=provider_status()
+        elif args.command=='doctor' and args.read_only:
+            from .runtime.identity import resolve_project
+            from .storage import sample_storage
+            project=resolve_project(root);observed=sample_storage(project)
+            result={'status':'READ_ONLY','python':sys.version.split()[0],'project_id':project.project_id,
+                'project_bytes':observed['total_bytes'],'free_bytes':observed['free_bytes'],
+                'broker_state':'NOT_CONFIGURED','order_admission':'DISARMED','strategy_state':'NOT_EVALUATED',
+                'strata':'NOT_PROBED','subscription_quota':'UNKNOWN'}
+        elif action==('foundation','check') and args.suite=='m0' and args.offline:
             from .foundation import run_foundation_suite
-            result=run_foundation_suite(root)
-        elif args and args[0]=='ai':
-            from .ai.manual import cli_ai
-            result=cli_ai(root,args[1:])
-        else:result=receipt('unavailable','FAILED',3,'CAPABILITY_UNAVAILABLE')
-    except (OSError,RuntimeError,ValueError) as exc:result=receipt('command','FAILED',3,type(exc).__name__)
-    except SystemExit:result=receipt('unavailable','FAILED',3,'CAPABILITY_UNAVAILABLE')
-    print(json.dumps(result,sort_keys=True));return result['exit_code']
+            from .runtime.supervisor import control
+            from .runtime._windows import NativeCallError
+            config=load_config(root/args.config,root)
+            try: result=run_foundation_suite(config,offline=True)
+            except RuntimeRefused as error:
+                if error.code!='OWNER_BUSY': raise
+                import time
+                submitted=control(root,'foundation.check',{'operation':'submit'})
+                deadline=time.monotonic()+30
+                while time.monotonic()<deadline:
+                    status=control(root,'status');result=next(r for r in status['fixtures'] if r['task_id']==submitted['task_id'])
+                    if result['status']!='RUNNING': break
+                    time.sleep(.1)
+                if result['status']!='COMPLETED': raise RuntimeRefused('FOUNDATION_UNVERIFIED')
+                result={'status':'FOUNDATION_VERIFIED','task_id':result['task_id'],'artifact':result['artifact'],'ai_requests':0,'strategy_state':'NOT_EVALUATED','paper':'DISABLED'}
+        elif args.command=='start' and args.mode=='research':
+            from .runtime.supervisor import Supervisor,control
+            config=load_config(root/args.config,root)
+            try: supervisor=Supervisor(config)
+            except RuntimeRefused as error:
+                if error.code!='OWNER_BUSY': raise
+                result=control(root,'attach')
+            else:
+                print(json.dumps({'status':'STARTED','project_id':supervisor.project.project_id,'generation':supervisor.supervisor.generation}),flush=True)
+                supervisor.run();result={'status':'STOPPED','order_admission':'DISARMED'}
+        else:
+            from .runtime.supervisor import control
+            actions={('status',None):'status',('research','pause'):'pause_research',('research','resume'):'resume_research',
+                     ('research','stop'):'stop_research',('checkpoint',None):'checkpoint'}
+            if args.command=='baseline' and args.verb in {'status','resume','step','pause','stop'} and args.run:
+                result=control(root,'baseline',{'run_id':args.run,'operation':args.verb})
+            elif args.command=='final' and args.verb in {'status','resume','step','pause','stop','recover'} and args.seal:
+                result=control(root,'final',{'seal_id':args.seal,'operation':args.verb})
+            elif action==('ai','export') and args.task and args.provider=='subscription':
+                result=control(root,'ai.export',{'task_id':args.task,'provider':args.provider})
+            elif action==('ai','import') and args.task and args.response:
+                result=control(root,'ai.import',{'task_id':args.task,'response':args.response})
+            elif action in actions:
+                payload={'reason':args.reason} if action==('research','pause') and args.reason else {'run_id':args.run} if action==('research','stop') and args.run else {}
+                result=control(root,actions[action],payload)
+            elif action==('shutdown',None) and args.checkpoint: result=control(root,'shutdown')
+            elif action==('foundation','check') and args.suite=='m0' and args.offline:
+                result=control(root,'foundation.check',{'operation':'submit'})
+            else: raise RuntimeRefused('CAPABILITY_UNAVAILABLE')
+        print(json.dumps(result,sort_keys=True));return 0
+    except (RuntimeRefused,ContractError,ConfigError) as error:
+        reason=error.code if isinstance(error,RuntimeRefused) else error.reason
+        print(json.dumps({'status':reason,'order_admission':'DISARMED'}));return 3
+
+if __name__=='__main__': raise SystemExit(main())
+
+

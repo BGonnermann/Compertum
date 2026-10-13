@@ -1,0 +1,133 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "record_type": {
+      "const": "ExecutionInputs"
+    },
+    "strategy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authorization_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rebalance_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "session_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "feature_session": {
+      "type": "string",
+      "format": "date"
+    },
+    "feature_available_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "decision_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "bundle_finalized_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "arm_expires_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "calendar_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sector_mapping_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "securities": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "sector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "provider_asset_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "feature_sessions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "raw_close": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.\\d{1,8})?$"
+          },
+          "mean_dollar_volume": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.\\d{1,8})?$"
+          },
+          "tradable": {
+            "type": "boolean"
+          },
+          "actions_verified": {
+            "type": "boolean"
+          },
+          "mapping_verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "symbol",
+          "sector",
+          "provider_asset_id",
+          "feature_sessions",
+          "raw_close",
+          "mean_dollar_volume",
+          "tradable",
+          "actions_verified",
+          "mapping_verified"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "record_type",
+    "strategy_sha256",
+    "authorization_sha256",
+    "rebalance_id",
+    "session_date",
+    "feature_session",
+    "feature_available_at",
+    "decision_at",
+    "bundle_finalized_at",
+    "arm_expires_at",
+    "calendar_sha256",
+    "sector_mapping_sha256",
+    "securities"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

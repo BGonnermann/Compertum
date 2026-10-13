@@ -1,0 +1,76 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "account_alias": {
+      "type": "string",
+      "pattern": "^fake-[a-z0-9_-]{1,48}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "record_type": {
+      "const": "ExecutionStart"
+    },
+    "plan_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "economic_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "currency": {
+      "const": "USD"
+    },
+    "start_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "authorization_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "utc-time"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "account_alias",
+    "generation",
+    "record_type",
+    "plan_id",
+    "plan_sha256",
+    "snapshot_sha256",
+    "economic_sha256",
+    "currency",
+    "start_id",
+    "authorization_sha256",
+    "started_at",
+    "deadline"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

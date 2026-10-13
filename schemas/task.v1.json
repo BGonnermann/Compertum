@@ -1,21 +1,49 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "task_id",
-    "kind",
-    "role",
-    "budget",
-    "permissions"
-  ],
   "properties": {
     "schema_version": {
-      "const": 1
+      "const": "1"
+    },
+    "record_type": {
+      "const": "TaskSpec"
     },
     "task_id": {
-      "type": "string"
+      "type": "string",
+      "format": "uuid"
+    },
+    "parent_task_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "campaign_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "role": {
+      "enum": [
+        "experiment_runner",
+        "research_proposer",
+        "ml_planner",
+        "mathematician",
+        "mathematical_checker",
+        "experiment_auditor",
+        "ai_adapter"
+      ]
     },
     "kind": {
       "enum": [
@@ -25,81 +53,193 @@
         "RECOVERY_FIXTURE"
       ]
     },
-    "role": {
-      "type": "string"
+    "created_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "deadline_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "utc-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "input_hashes": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "minItems": 1,
+      "maxItems": 1024
     },
-    "code_hash": {
-      "type": "string"
+    "code_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
-    "expected_schema": {
-      "type": "string"
+    "lock_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
-    "deadline_at": {
-      "type": [
-        "string",
-        "null"
+    "output_schema_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_identity": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "enum": [
+                "manual_subscription",
+                "strata"
+              ]
+            },
+            "model_label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "provider",
+            "model_label",
+            "sha256"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "permissions": {
+    "acceptance_checks": {
       "type": "array",
       "items": {
-        "enum": [
-          "development_read",
-          "task_write",
-          "model_proposal",
-          "loopback"
-        ]
-      }
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048
+      },
+      "minItems": 1,
+      "maxItems": 1024
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "tools": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "trusted_fixture",
+              "propose_fixture_tool"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 1024
+        },
+        "filesystem_bundle": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "project-path",
+            "maxLength": 1024
+          },
+          "minItems": 0,
+          "maxItems": 1024
+        },
+        "output_directory": {
+          "type": "string",
+          "format": "project-path",
+          "maxLength": 1024
+        },
+        "network_destinations": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "http://127.0.0.1:8080"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 1024
+        },
+        "protected_data": {
+          "type": "boolean"
+        },
+        "broker": {
+          "type": "boolean"
+        },
+        "shell": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tools",
+        "filesystem_bundle",
+        "output_directory",
+        "network_destinations",
+        "protected_data",
+        "broker",
+        "shell"
+      ],
+      "additionalProperties": false
     },
     "budget": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "cpu_threads": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 4
+          "minimum": 1
         },
         "ram_bytes": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 4294967296
+          "minimum": 0
         },
         "output_bytes": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2147483648
+          "minimum": 0
         },
         "wall_seconds": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2700
+          "minimum": 1
         },
-        "attempts": {
+        "max_attempts": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2
+          "minimum": 1
         },
         "ai_requests": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 10
+          "minimum": 0
+        },
+        "gpu_training": {
+          "type": "boolean"
         },
         "input_tokens": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 16384
+          "minimum": 0
         },
         "output_tokens": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2048
+          "minimum": 0
+        },
+        "request_deadline_seconds": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -107,11 +247,108 @@
         "ram_bytes",
         "output_bytes",
         "wall_seconds",
-        "attempts",
+        "max_attempts",
         "ai_requests",
+        "gpu_training",
         "input_tokens",
-        "output_tokens"
-      ]
+        "output_tokens",
+        "request_deadline_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "clock": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "REGISTERED",
+            "ACTIVE",
+            "WAITING_FOR_OPERATOR"
+          ]
+        },
+        "active_elapsed_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "manual_wait_started_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "utc-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "manual_deadline_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "utc-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "process_lease_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cpu_reserved": {
+          "type": "boolean"
+        },
+        "active_started_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "utc-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "active_elapsed_seconds",
+        "manual_wait_started_at",
+        "manual_deadline_at",
+        "process_lease_id",
+        "cpu_reserved",
+        "active_started_at"
+      ],
+      "additionalProperties": false
     }
-  }
+  },
+  "required": [
+    "schema_version",
+    "record_type",
+    "task_id",
+    "parent_task_id",
+    "campaign_id",
+    "role",
+    "kind",
+    "created_at",
+    "deadline_at",
+    "input_hashes",
+    "code_sha256",
+    "lock_sha256",
+    "output_schema_sha256",
+    "model_identity",
+    "acceptance_checks",
+    "permissions",
+    "budget",
+    "clock"
+  ],
+  "additionalProperties": false
 }

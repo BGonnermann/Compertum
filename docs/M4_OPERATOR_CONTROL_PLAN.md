@@ -1,0 +1,16 @@
+# M4 persisted fake operator controls
+
+Local deterministic fake execution only, continuing the accepted M4 integration plan. Native mutual health and actual1GiBreserve are verified in artifacts/m4/native_mutual_health.json. No paper/account endpoint, credentials, spending or financial qualification.
+
+- [ ] Persist immutable fake session/calendar/input profile, owner-generation binding, actual operator acknowledgment time, arms and operation receipts in the execution-owned SQLite store. Restart invalidates supervision, arms and unstarted plans.
+- [ ] Add exact fake-only public command routed by the authenticated Supervisor operator decision to the existing private execution channel. Retain request ID/subject/payload identity before effects; changed retries fail. Public callers cannot supply native health or authorization records.
+- [ ] Build observations in the execution owner from the independent deterministic broker, frozen fixture input profile and current native owner/watchdog/reserve/journal checks. Financial admission stays false. Research/AI availability is not a prerequisite for otherwise valid cancellation or owned close.
+- [ ] Generate immutable cancellation/finite-close plans in the owner, require an explicit unexpired approval and start, bind current economic state and generation, and persist serial progress. One step can grant at most one original intent; unknown effects block later children. Preserve residual holdings and pending orders.
+- [ ] Five-minute supervision, native clock gap/reversal and session close disarm. An old request receipt never renews authority. Halt/reset/restart never silently resumes a started operation.
+- [ ] Native public double-click/reconnect/restart, stale supervision, partial-fill/cancel/unknown-child and generation tests; source/package equality and independent review. Full current-source recovery must then be exercised with actual default reserve.
+
+Material fixture-time assumption: historical fixture market time and native liveness time are separate. Any fake market clock must be anchored to native elapsed time and pinned in the immutable session; a caller cannot stamp a health or supervision time. Actual native heartbeat/supervision checks use native monotonic/UTC observations. Fixture market observations and simulated broker events must be visibly labeled as invented; they cannot enter real financial admission.
+
+Use the existing execution contracts, plan builders, FakeIntentJournal, FakeExecutionDriver and DeterministicBroker. Do not introduce another dispatcher, supervisor or broker transport. Keep public and inherited-channel messages64KiB, SQLite16MiB, existing256intents/512events, and bounded request/session/plan counts. On a request interrupted after durable preparation, reconcile its original intent or report interruption; never generate a replacement effect.
+
+Next dependency: durable session/operator authority and strict command routing, then operation progression. Three evidence-backed review/repair passes per coherent increment; no unchanged retry loops. Small fixtures get a fresh checked64MiBnamespace; any actual reserve scenario receives an explicit1GiB+32MiBnamespace budget after fresh global admission, one at a time. Preserve all failed evidence; archive/hash-verify passing disposable allocations before approved cleanup.

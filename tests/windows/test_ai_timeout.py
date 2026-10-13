@@ -1,49 +1,52 @@
-from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
-import threading,time,json,httpx
+"""A native supervisor and offline Job continue during manual wait/local timeout.
+
+The disposable HTTP server is contract evidence, never live Strata acceptance.
+"""
+import hashlib
+from pathlib import Path
+import shutil
+import time
+from uuid import uuid4
 import pytest
-from compertum.ai.strata import MODEL,request_proposal,native_post
-from compertum.domain import TaskSpec,ContractError
-from compertum.runtime.identity import resolve_project
-from compertum.runtime.owners import acquire_owner
-from compertum.persistence import open_store
+from test_ai_manual import bridge
+from test_ai_strata_contract import server,adapter
+from ai_fixture import ai_task
+from test_m0_lifecycle import launch,stopped
+from compertum.runtime.supervisor import control
+from compertum.runtime.errors import RuntimeRefused
 
-def test_native_owned_socket_timeout_blocks_next_dispatch(tmp_path):
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self,*args):pass
-        def do_GET(self):
-            value={'/health':{'model':MODEL,'loaded':True},'/v1/models':{'data':[{'id':MODEL}]},'/v1/status':{'model':MODEL,'engine':'fixture','concurrency':{'serving':1},'context':{'max_positions':65536},'activity':{'in_flight':0},'structured_output':{}}}[self.path]
-            body=json.dumps(value).encode();self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
-        def do_POST(self):
-            self.rfile.read(int(self.headers['Content-Length']));time.sleep(.5)
-            try:self.send_response(200);self.end_headers();self.wfile.write(b'{}')
-            except OSError:pass
-    server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
-    class LoopbackFixtureTransport(httpx.BaseTransport):
-        def __init__(self):self.native=httpx.HTTPTransport()
-        def handle_request(self,r):return self.native.handle_request(httpx.Request(r.method,r.url.copy_with(port=server.server_port),headers=r.headers,content=r.content,extensions=r.extensions))
-        def close(self):self.native.close()
-    try:
-        with acquire_owner(resolve_project(tmp_path),'coordinator') as lease:
-            store=open_store(lease,'coordinator');task=TaskSpec(kind='AI_QUALIFICATION')
-            with httpx.Client(transport=LoopbackFixtureTransport(),trust_env=False) as client:
-                start=time.monotonic()
-                with pytest.raises(ContractError,match='TIMEOUT'):request_proposal(store,task,[{'role':'user','content':'timeout'}],client=client,post=lambda b,t:native_post(b,t,server.server_port),timeout=.1,diagnostic=True)
-                assert time.monotonic()-start<2 and store.get('local-timeout-unresolved') is True
-                with pytest.raises(ContractError,match='UNCERTAIN'):request_proposal(store,task,[{'role':'user','content':'next'}],client=client,diagnostic=True)
-            store.close()
-    finally:server.shutdown();server.server_close();thread.join(2)
 
-def test_native_absolute_deadline_with_slow_body(tmp_path):
-    class Drip(BaseHTTPRequestHandler):
-        def log_message(self,*args):pass
-        def do_POST(self):
-            self.rfile.read(int(self.headers['Content-Length']));self.send_response(200);self.send_header('Content-Length','1000');self.end_headers()
-            try:
-                for n in range(40):self.wfile.write(b'x');self.wfile.flush();time.sleep(.03)
-            except OSError:pass
-    server=ThreadingHTTPServer(('127.0.0.1',0),Drip);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+def test_provider_outage_does_not_stop_native_offline_work(bridge):
+    b,airoot=bridge;root=airoot.parent/('offline-outage-'+str(uuid4()));root.mkdir()
+    shutil.copyfile(Path(__file__).parents[2]/'config/default.toml',root/'config.toml')
+    manual,relative=ai_task(airoot);b.export_subscription_task(manual,prompt='Synthetic manual wait.',files=[relative])
+    child,status=launch(root)
     try:
-        started=time.monotonic()
-        with pytest.raises(httpx.ReadTimeout):native_post({'fixture':'slow body'},.2,server.server_port)
-        assert .15<=time.monotonic()-started<.6
-    finally:server.shutdown();server.server_close();thread.join(2)
+        control(root,'resume_research');submitted=control(root,'foundation.check',{'operation':'submit'})
+        with server('timeout') as (port,state):
+            client=adapter(bridge,port);task,_=ai_task(airoot,'strata',deadline=1)
+            with pytest.raises(RuntimeRefused,match='LOCAL_COMPLETION_UNVERIFIED'):
+                client.request_proposal(task,[{'role':'user','content':'Synthetic timeout.'}],validate_proposal=False)
+            assert client.state()=='OWNED_REQUEST_UNCERTAIN'
+            deadline=time.monotonic()+8
+            while time.monotonic()<deadline:
+                status=control(root,'status');record=next(r for r in status['fixtures'] if r['task_id']==submitted['task_id'])
+                if record['status']=='COMPLETED': break
+                time.sleep(.1)
+            assert record['status']=='COMPLETED'
+            assert record['artifact']['sha256']==hashlib.sha256(b'compertum-offline-fixture-v1\n').hexdigest()
+            assert status['watchdog']['status']=='HEALTHY' and status['order_admission']=='DISARMED'
+            assert b.store.conn.execute('SELECT status FROM ai_tasks').fetchone()[0]=='WAITING_FOR_OPERATOR'
+        control(root,'shutdown');stopped(child)
+    finally:
+        if child.poll() is None: child.kill();child.wait(timeout=5)
+
+
+def test_native_adapter_process_has_one_cpu_and_256mib_limit(tmp_path):
+    import os,subprocess,sys,json
+    env={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','TEMP','TMP'}}
+    env.update(PYTHONDONTWRITEBYTECODE='1',PYTHONNOUSERSITE='1')
+    result=subprocess.run([sys.executable,'-B',str(Path(__file__).parents[1]/'helpers/ai_limits.py')],env=env,capture_output=True,text=True,timeout=10)
+    assert result.returncode==0 and not result.stderr
+    observed=json.loads(result.stdout)
+    assert observed['verified'] and observed['memory_limit']==256*1024**2 and observed['affinity'].bit_count()==1 and observed['active_process_limit']==1

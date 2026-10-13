@@ -1,0 +1,13 @@
+# Offline portfolio observations
+
+11 October2026. **250matching source/package checks passed, zero failures/errors/skips.** Independent review closed2/3. All145Python modules plus config/schema/lock files match the installed package. Five complete synthetic input/output records reproduce exactly:69,521bytes, SHA256 `2b7c2b0a7e2f4a2859351f0bb7e362961c4d498d19d1de45065cbc60437517b4`.
+
+Added bounded unfiltered positions and all-status order-list fixtures. Pagination starts from the beginning, uses the preceding order ID, rejects broken/repeated cursors and requires a final short page. Local limits are25orders/page and8pages, beneath the existing64KiB wire/metadata bounds. Complete fixture shape never proves an atomic broker snapshot or fill coverage. Time filters describe submission, not execution history. [Official orders contract](https://docs.alpaca.markets/us/reference/getallorders-1), [positions contract](https://docs.alpaca.markets/us/reference/getallopenpositions).
+
+Unsupported, foreign, fractional, short and conflicting activity remains visible through indexed normalized records and retained raw-byte hashes. Missing/404/truncated responses cannot imply an empty account. Cash and margin buying power remain separate. Every supplied reply remains bound even if it is the wrong operation. Requests/replies use bounded freshness; embedded clock age is checked against5seconds and the calendar query covers the New York date. Empty calendar results remain possible; comparison with the pinned calendar stays unverified.
+
+All records remain PAPER_WIRE_FIXTURE. Actual account identity, system ownership, fill-event/economic reconciliation, quotes/eligibility/entitlement, native authority and real-flat status are unverified. No account/credential/transport or new dependency was added. Existing paper capabilities remain unavailable. Review reproduced three defects and corrected them with regression evidence; prior failures remain retained. Passing disposable test directories were archived and removed.
+
+Source archive `b802e7252c37d26703b8bca8e03d3982b302dce15d3a48eca96b0e8099e781cb`; wheel `59d327a91bb0cdc4674b6f081d1462b72c715c1061063b429f5aac97e1e6d0b8`. [Machine receipt](../artifacts/m5/portfolio_observations.json). Exact commands, raw synthetic reproduction and source archive: `.cache/test-runs/m5-portfolio-observations-20261011-01`.
+
+Next: offline ENGINEERING_FIXTURE proposal/approval envelope using separately bound quote/eligibility inputs, then walkthrough-sequence checking. This component does not accept M5. M3 remains independently RAM-blocked and M6 needs10actual consecutive supervised sessions.

@@ -1,45 +1,30 @@
-"""Independent restrictive health/storage observer. No broker or AI calls."""
-import time,threading
-from .domain import atomic_json,now
-from .storage import sample_storage,CAPS
+"""Restrictive decisions from measured storage; never enables brokerage."""
+import time
+from .storage import CAPS,GIB
 
-def check_storage(observation,reservations=()):
-    return not observation['unexpected_reparse'] and observation['free_bytes']>=50*1024**3 and all(observation['used'][k]<=CAPS[k] for k in CAPS)
 
-class StorageWatchdog:
-    def __init__(self,lease,heartbeat_path,manager_check=None):
-        lease.verify();self.lease=lease;self.heartbeat_path=heartbeat_path;self.check=manager_check;self.stop=threading.Event();self.last=None;self.error=None
-        self.last_scan=None;self.state_lock=threading.RLock()
-        self.scanner=threading.Thread(target=self._scan,daemon=True);self.scanner.start()
-        self.thread=threading.Thread(target=self._loop,daemon=True);self.thread.start()
-    def _scan(self):
-        while not self.stop.is_set():
-            start=time.monotonic()
-            try:
-                status=self.check() if self.check else {'admitted':check_storage(sample_storage(self.lease.project.root_path))}
-                elapsed=time.monotonic()-start
-                with self.state_lock:
-                    self.last=status if elapsed<=5 else {'admitted':False,'reason':'STORAGE_SCAN_DEADLINE'}
-                    self.last_scan=time.monotonic()
-                    if not self.last['admitted']:self.publish()
-            except Exception as exc:
-                with self.state_lock:
-                    self.error=type(exc).__name__;self.last={'admitted':False,'reason':'STORAGE_MONITOR_UNVERIFIED'};self.publish()
-            self.stop.wait(max(0,4-(time.monotonic()-start)))
-    def publish(self):
-        import shutil
-        with self.state_lock:
-            self.lease.verify();root=self.lease.project.root_path;current=time.monotonic();free=shutil.disk_usage(root).free
-            age=current-self.last_scan if self.last_scan is not None else float('inf')
-            unhealthy=free<50*1024**3 or self.last is None or not self.last['admitted'] or age>5
-            if unhealthy:atomic_json(root/'state/watchdog/halt.json',{'at':now(),'reason':'STORAGE_UNHEALTHY'})
-            atomic_json(self.heartbeat_path,{'at':now(),'monotonic':current,'free_bytes':free,'storage_healthy':not unhealthy,'generation':self.lease.generation})
-    def _loop(self):
-        root=self.lease.project.root_path
-        while not self.stop.is_set():
-            try:
-                self.publish()
-            except Exception as exc:
-                self.error=type(exc).__name__;atomic_json(root/'state/watchdog/halt.json',{'at':now(),'reason':'STORAGE_MONITOR_UNVERIFIED'})
-            self.stop.wait(1)
-    def close(self):self.stop.set();self.thread.join(10);self.scanner.join(10)
+def check_storage(observation,reservations,*,previous=None):
+    reason=None
+    if time.monotonic()-observation['completed_monotonic']>5 or observation['scan_seconds']>5:
+        reason='STORAGE_STALE'
+    elif observation['free_bytes']<50*GIB: reason='FREE_SPACE_FLOOR'
+    elif observation['total_bytes']>50*GIB or any(observation['categories'][key]>cap for key,cap in CAPS.items()):
+        reason='STORAGE_CAPACITY'
+    elif previous is not None:
+        if set(observation.get('reparse_paths',[]))-set(previous.get('reparse_paths',[])):
+            reason='UNACCOUNTED_REPARSE'
+        allowed={row['path'].replace('\\','/').split('.partial-',1)[0]:row['maximum'] for row in reservations if row.get('path')}
+        used={}
+        for path,item in observation['files'].items():
+            old=previous['files'].get(path,{'size':0,'charged':0})
+            base=path.split('.partial-',1)[0].split('.incoming-',1)[0]
+            if base in allowed:
+                used[base]=used.get(base,0)+item['charged']
+                # Metadata rename staging may coexist with its bounded old copy.
+                allowance=((allowed[base]+4095)//4096)*4096
+                if used[base]>allowance: reason='UNACCOUNTED_GROWTH';break
+            elif item['size']>old['size'] or item['charged']>old['charged']:
+                reason='UNACCOUNTED_GROWTH';break
+    return {'status':'RESEARCH_BLOCKED' if reason else 'STORAGE_OBSERVED','reason':reason,
+            'broker_capability':'CAPABILITY_UNAVAILABLE','measured_at':observation['completed_monotonic']}
+

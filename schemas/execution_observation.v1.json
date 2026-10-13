@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "account_alias": {
+      "type": "string",
+      "pattern": "^fake-[a-z0-9_-]{1,48}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "record_type": {
+      "const": "ExecutionObservation"
+    },
+    "observation_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "feed": {
+      "const": "fixture"
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "observed_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "broker_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "calendar_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "calendar_verified": {
+          "type": "boolean"
+        },
+        "prior_session": {
+          "type": "string",
+          "format": "date"
+        },
+        "session_open_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "session_close_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "strategy_open_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "strategy_close_at": {
+          "type": "string",
+          "format": "utc-time"
+        }
+      },
+      "required": [
+        "observed_at",
+        "broker_at",
+        "calendar_sha256",
+        "calendar_verified",
+        "prior_session",
+        "session_open_at",
+        "session_close_at",
+        "strategy_open_at",
+        "strategy_close_at"
+      ]
+    },
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "execution_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "watchdog_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "supervision_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "connected": {
+          "type": "boolean"
+        },
+        "account_enabled": {
+          "type": "boolean"
+        },
+        "durable": {
+          "type": "boolean"
+        },
+        "resources_ok": {
+          "type": "boolean"
+        },
+        "exclusive_owner": {
+          "type": "boolean"
+        },
+        "journal_reserved": {
+          "type": "boolean"
+        },
+        "broker_cancel_allowed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "execution_at",
+        "watchdog_at",
+        "supervision_at",
+        "connected",
+        "account_enabled",
+        "durable",
+        "resources_ok",
+        "exclusive_owner",
+        "journal_reserved",
+        "broker_cancel_allowed"
+      ]
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ownership_complete": {
+          "type": "boolean"
+        },
+        "foreign_activity": {
+          "type": "boolean"
+        },
+        "unknown_intents": {
+          "type": "boolean"
+        },
+        "armed": {
+          "type": "boolean"
+        },
+        "halted": {
+          "type": "boolean"
+        },
+        "strategy_admitted": {
+          "type": "boolean"
+        },
+        "strategy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "authorization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rebalance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inputs_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "ownership_complete",
+        "foreign_activity",
+        "unknown_intents",
+        "armed",
+        "halted",
+        "strategy_admitted",
+        "strategy_sha256",
+        "authorization_sha256",
+        "rebalance_id",
+        "inputs_sha256"
+      ]
+    },
+    "account": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reconciled_at": {
+          "type": "string",
+          "format": "utc-time"
+        },
+        "sleeve_cash": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+        },
+        "broker_cash": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+        },
+        "prior_close_nav": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+        },
+        "prior_peak_nav": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+        },
+        "submissions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "dividend_receivables": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.\\d{1,8})?$"
+        },
+        "undebited_liabilities": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.\\d{1,8})?$"
+        }
+      },
+      "required": [
+        "reconciled_at",
+        "sleeve_cash",
+        "broker_cash",
+        "prior_close_nav",
+        "prior_peak_nav",
+        "submissions",
+        "dividend_receivables",
+        "undebited_liabilities"
+      ]
+    },
+    "positions": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+          },
+          "owned_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "symbol",
+          "quantity",
+          "owned_quantity"
+        ]
+      }
+    },
+    "orders": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "client_order_id": {
+            "type": "string",
+            "pattern": "^cmp-[0-9a-f]{40}$"
+          },
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "side": {
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "filled_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "status": {
+            "enum": [
+              "ACKNOWLEDGED",
+              "PARTIALLY_FILLED",
+              "FILLED",
+              "CANCELED",
+              "EXPIRED",
+              "REJECTED",
+              "UNKNOWN"
+            ]
+          },
+          "owned": {
+            "type": "boolean"
+          },
+          "filled_notional": {
+            "type": "string",
+            "pattern": "^(?:0|[1-9][0-9]{0,15})(?:\\.\\d{1,16})?$"
+          }
+        },
+        "required": [
+          "order_id",
+          "client_order_id",
+          "symbol",
+          "side",
+          "quantity",
+          "filled_quantity",
+          "status",
+          "owned",
+          "filled_notional"
+        ]
+      }
+    },
+    "quotes": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "sector": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "bid": {
+            "type": "string",
+            "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+          },
+          "ask": {
+            "type": "string",
+            "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "utc-time"
+          },
+          "feed": {
+            "const": "fixture"
+          },
+          "mean_dollar_volume": {
+            "type": "string",
+            "pattern": "^-?(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$"
+          },
+          "liquidity_sessions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "liquidity_as_of": {
+            "type": "string",
+            "format": "date"
+          },
+          "liquidity_verified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "symbol",
+          "sector",
+          "bid",
+          "ask",
+          "observed_at",
+          "feed",
+          "mean_dollar_volume",
+          "liquidity_sessions",
+          "liquidity_as_of",
+          "liquidity_verified"
+        ]
+      }
+    },
+    "currency": {
+      "const": "USD"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "account_alias",
+    "generation",
+    "record_type",
+    "observation_id",
+    "observed_at",
+    "feed",
+    "clock",
+    "health",
+    "authority",
+    "account",
+    "positions",
+    "orders",
+    "quotes",
+    "currency"
+  ]
+}

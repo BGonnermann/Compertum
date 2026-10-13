@@ -1,0 +1,14 @@
+# M1 issuer reconciliation plan
+
+The owner's 10October2026 continuation authorizes resolving the existing real-data gaps using available official sources and reversible supporting implementation. Existing provider access is already approved; this increment begins with public issuer sources and no credential use.
+
+- [x] Retain bounded official issuer history files for the nine dividend-paying watchlist stocks; preserve exact source bytes, links, extraction locations and current retrieval time. Reuse the preserved SPY workbook.
+- [x] Freeze issuer-first economic reconciliation: exact source fields for the correctly identified US issuer override absent/conflicting provider economic fields in a separate derived version. Keep vendor values, source hashes and every change. Never derive an ex-date from record-date arithmetic. Never turn an unknown publication date into a historical observation.
+- [x] Extract all supported 2016-2023 economic fields and declaration-date claims; distinguish current historical tables, contemporaneous announcements, identity evidence and unavailable fields. Check the full relevant action inventory, not just SPY.
+- [x] Verify extraction/reconciliation, source/wheel behavior for any new code, independent review and all preservation/storage checks. Update the roadmap and durable checkpoint with the original M1 requirements still unsatisfied.
+
+Economic terms can be resolved from authoritative issuer evidence without requiring the vendor to repair its feed. This is separate from financial readiness: announcement knowledge, lifecycle/tradability and dated sector facts remain explicit. No full real Snapshot is admitted merely because an economic field has been filled. No protected prices, account/order calls, spending, seal, strategy run, training, Strata changes, publication or deletion.
+
+Public collection is serial and capped at24 requests,2MiB per body,16MiB retained bodies and10seconds per request. Fresh .cache/test-runs/m1-issuer-reconciliation-20261010-01 and data/issuer-reconciliation-20261010-01. Keep scratch below its unchanged5GiB cap; retain prior failures and evidence. Three repair iterations per failure class.
+
+Execution result: bounded workflow verified; source coverage is PARTIAL. All nine issuer sites were attempted, but dynamic/denied pages and partial tax records do not provide complete history. Retained236 observations;111 provider dividends still lack issuer association. The issuer-first policy was narrowed before comparison: SPY source precedence is explicit; stock conflicts remain until source interpretation.118 source and118 wheel checks passed; exact output reproduction and review complete. See reports/M1_ISSUER_RECONCILIATION.md. Checked tasks describe the bounded collection/extraction/verification, not complete economic coverage or M1 acceptance.

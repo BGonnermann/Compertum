@@ -1,139 +1,410 @@
-"""Local Windows named pipes. Kernel peers, scoped roles and duplicate receipts."""
-from dataclasses import dataclass
-import ctypes as C
-from ctypes import wintypes as W
+"""Protocol checks and candidate native inspection transport; effects disabled."""
+from dataclasses import dataclass, asdict
+import hashlib
+import hmac
 import json
-import os
+import math
+import re
 import secrets
 import threading
-import time
-from . import win32 as w
-from ..domain import canonical,digest,receipt,new_id
+from uuid import UUID
+from compertum.domain import ProcessIdentity, capability_for
+from .errors import RuntimeRefused
+from .identity import PeerObservation
 
-class SecurityAttributes(C.Structure):
-    _fields_=[('length',W.DWORD),('descriptor',C.c_void_p),('inherit',W.BOOL)]
-Security=w.bind(w.A,'ConvertStringSecurityDescriptorToSecurityDescriptorW',[W.LPCWSTR,W.DWORD,C.POINTER(C.c_void_p),C.POINTER(W.DWORD)],W.BOOL)
-CreatePipe=w.bind(w.K,'CreateNamedPipeW',[W.LPCWSTR,W.DWORD,W.DWORD,W.DWORD,W.DWORD,W.DWORD,W.DWORD,C.POINTER(SecurityAttributes)],W.HANDLE)
-Connect=w.bind(w.K,'ConnectNamedPipe',[W.HANDLE,C.c_void_p],W.BOOL)
-Disconnect=w.bind(w.K,'DisconnectNamedPipe',[W.HANDLE],W.BOOL)
-Read=w.bind(w.K,'ReadFile',[W.HANDLE,C.c_void_p,W.DWORD,C.POINTER(W.DWORD),C.c_void_p],W.BOOL)
-Write=w.bind(w.K,'WriteFile',[W.HANDLE,C.c_void_p,W.DWORD,C.POINTER(W.DWORD),C.c_void_p],W.BOOL)
-ClientPid=w.bind(w.K,'GetNamedPipeClientProcessId',[W.HANDLE,C.POINTER(W.ULONG)],W.BOOL)
-ServerPid=w.bind(w.K,'GetNamedPipeServerProcessId',[W.HANDLE,C.POINTER(W.ULONG)],W.BOOL)
-Flush=w.bind(w.K,'FlushFileBuffers',[W.HANDLE],W.BOOL)
-OpenThread=w.bind(w.K,'OpenThread',[W.DWORD,W.BOOL,W.DWORD],W.HANDLE)
-CancelSync=w.bind(w.K,'CancelSynchronousIo',[W.HANDLE],W.BOOL)
-ThreadId=w.bind(w.K,'GetCurrentThreadId',[],W.DWORD)
+# Retain revoked native identities for this process's lifetime. Classification
+# applies across endpoints and projects; no live worker becomes an operator at
+# a target which did not enroll it. Refuse after the bound, never evict a live
+# or uncertain identity to make room. This is not distributed registration.
+_WORKER_IDENTITIES = set()
+_WORKER_IDENTITY_LOCK = threading.Lock()
 
-def bounded_io(call,seconds=5):
-    target=OpenThread(1,False,ThreadId())
-    if not target:raise RuntimeError('IPC_DEADLINE_UNVERIFIED')
-    timer=threading.Timer(seconds,lambda:CancelSync(target));timer.daemon=True;timer.start()
-    try:return call()
-    finally:timer.cancel();timer.join();w.CloseHandle(target)
+
+def _remember_worker(identity):
+    key = (identity.pid, identity.creation_filetime)
+    with _WORKER_IDENTITY_LOCK:
+        if key in _WORKER_IDENTITIES or len(_WORKER_IDENTITIES) >= 64:
+            raise RuntimeRefused("BOOTSTRAP_DENIED")
+        _WORKER_IDENTITIES.add(key)
+    return key
+
 
 @dataclass(frozen=True)
+class PeerRegistration:
+    identity: ProcessIdentity
+    logon_sid: str
+    project_id: str
+    generation: int
+    subject_kind: str
+
+    def __post_init__(self):
+        if (not isinstance(self.identity, ProcessIdentity) or not isinstance(self.logon_sid, str)
+                or not re.fullmatch(r"S-1-5-5-\d+-\d+", self.logon_sid)
+                or not isinstance(self.project_id, str) or not re.fullmatch(r"[0-9a-f]{64}", self.project_id)
+                or type(self.generation) is not int or not 1 <= self.generation < 2**63
+                or self.subject_kind not in ("operator", "worker")):
+            raise RuntimeRefused("INVALID_REGISTRATION")
+
+
+class ScopedCapability:
+    __slots__ = ("registration", "commands", "secret")
+
+    def __init__(self, registration, commands):
+        if (not isinstance(registration, PeerRegistration) or registration.subject_kind != "worker"
+                or not isinstance(commands, frozenset) or not commands or any(not isinstance(x, str) for x in commands)):
+            raise RuntimeRefused("INVALID_CAPABILITY")
+        object.__setattr__(self, "registration", registration)
+        object.__setattr__(self, "commands", commands)
+        object.__setattr__(self, "secret", secrets.token_hex(32))
+
+    def __setattr__(self, name, value):
+        raise AttributeError("immutable capability")
+
+    def __delattr__(self, name):
+        raise AttributeError("immutable capability")
+
+    def __repr__(self):
+        return "<ScopedCapability private; protocol-only>"
+
+    def __getstate__(self):
+        raise RuntimeRefused("PRIVATE_CAPABILITY")
+
+
+def encode_envelope(value):
+    _validate(value)
+    try: data = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False, ensure_ascii=True).encode("utf-8")
+    except (ValueError, TypeError, RecursionError): raise RuntimeRefused("INVALID_ENVELOPE") from None
+    if len(data) > 65536: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+    return data
+
+
+def decode_envelope(raw):
+    if not isinstance(raw, bytes) or len(raw) > 65536: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+    def pairs(values):
+        result = {}
+        for key, value in values:
+            if key in result: raise ValueError("duplicate key")
+            result[key] = value
+        return result
+    def nonfinite(_): raise ValueError("nonfinite")
+    try: value = json.loads(raw.decode("utf-8"), object_pairs_hook=pairs, parse_constant=nonfinite)
+    except (UnicodeError, ValueError, RecursionError): raise RuntimeRefused("INVALID_ENVELOPE") from None
+    _validate(value)
+    return value
+
+
+def authorize_envelope(value, *, registration, observed, target_project_id, target_role, target_generation,
+                       allowed_commands, capability=None, secret=None):
+    value = decode_envelope(encode_envelope(value))
+    if (not isinstance(registration, PeerRegistration) or not isinstance(observed, PeerObservation)
+            or type(observed.pid) is not int or type(observed.creation_filetime) is not int
+            or (observed.pid, observed.creation_filetime, observed.operator_sid, observed.logon_sid) !=
+               (registration.identity.pid, registration.identity.creation_filetime,
+                registration.identity.operator_sid, registration.logon_sid)):
+        raise RuntimeRefused("PEER_MISMATCH")
+    if (registration.project_id != target_project_id or value["target_role"] != target_role
+            or value["target_generation"] != target_generation): raise RuntimeRefused("TARGET_MISMATCH")
+    action = value["action"]
+    if (not isinstance(allowed_commands, frozenset) or action not in allowed_commands
+            or capability_for(action).exit_code != 0): raise RuntimeRefused("COMMAND_DENIED")
+    actor = value["actor"]
+    if actor["kind"] != registration.subject_kind: raise RuntimeRefused("ROLE_DENIED")
+    if actor["kind"] == "worker":
+        if (not isinstance(capability, ScopedCapability) or capability.registration != registration
+                or action not in capability.commands or not isinstance(secret, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", secret)
+                or not hmac.compare_digest(capability.secret, secret)):
+            raise RuntimeRefused("CAPABILITY_DENIED")
+        identity = registration.identity
+        if (actor["role"], actor["instance_id"], actor["generation"]) != (
+                identity.role, identity.process_instance_id, registration.generation):
+            raise RuntimeRefused("ROLE_DENIED")
+        subject = ["worker", identity.operator_sid, registration.logon_sid, identity.pid,
+                   identity.creation_filetime, identity.process_instance_id, identity.role, registration.generation]
+    else:
+        if capability is not None or secret is not None: raise RuntimeRefused("ROLE_DENIED")
+        subject = ["operator", observed.operator_sid, observed.logon_sid, "control"]
+    subject_key = hashlib.sha256(json.dumps(subject, separators=(",", ":")).encode()).hexdigest()
+    fingerprint = {"subject": subject_key, "action": action, "payload": value["payload"],
+                   "target_role": target_role, "target_generation": target_generation, "project_id": target_project_id}
+    digest = hashlib.sha256(json.dumps(fingerprint, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+    return ProtocolDecision(value["request_id"], subject_key, digest, target_generation)
+
+
+def request(endpoint, command):
+    # Task 4 must supply durable authenticated receiver state before any effect.
+    raise RuntimeRefused("DURABLE_DISPATCH_UNAVAILABLE")
+
+
+@dataclass(frozen=True)
+class ProtocolDecision:
+    request_id: str
+    subject_key: str
+    payload_hash: str
+    target_generation: int
+    status: str = "PROTOCOL_VALIDATED_ONLY"
+    can_dispatch: bool = False
+
+
+def _uuid(value):
+    try: return isinstance(value, str) and str(UUID(value)) == value
+    except (ValueError, TypeError, AttributeError): return False
+
+
+def _validate(value):
+    stack = [(value, 0)]; visited = 0; size = 0
+    while stack:
+        node, depth = stack.pop(); visited += 1
+        if depth > 32 or visited > 4096: raise RuntimeRefused("ENVELOPE_TOO_COMPLEX")
+        if isinstance(node, dict):
+            if visited + len(stack) + len(node) > 4096: raise RuntimeRefused("ENVELOPE_TOO_COMPLEX")
+            if any(not isinstance(k, str) for k in node): raise RuntimeRefused("INVALID_ENVELOPE")
+            size += 2 + max(0, len(node) - 1) + len(node)
+            for key in node:
+                size += _string_size(key)
+                if size > 65536: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+            stack.extend((v, depth + 1) for v in node.values())
+        elif isinstance(node, list):
+            if visited + len(stack) + len(node) > 4096: raise RuntimeRefused("ENVELOPE_TOO_COMPLEX")
+            size += 2 + max(0, len(node) - 1)
+            stack.extend((v, depth + 1) for v in node)
+        elif node is None: size += 4
+        elif type(node) is bool: size += 4 if node else 5
+        elif type(node) is str: size += _string_size(node)
+        elif type(node) is int:
+            if node.bit_length() > 217706: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+            try: size += len(str(node))
+            except ValueError: raise RuntimeRefused("INVALID_ENVELOPE") from None
+        elif type(node) is float and math.isfinite(node): size += len(repr(node))
+        else: raise RuntimeRefused("INVALID_ENVELOPE")
+        if size > 65536: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+    keys = {"schema_version", "request_id", "target_role", "target_generation", "action", "payload", "actor"}
+    roles = {"supervisor", "coordinator", "evaluation", "execution", "watchdog", "recovery"}
+    if (not isinstance(value, dict) or set(value) != keys or type(value["schema_version"]) is not int
+            or value["schema_version"] != 1 or not _uuid(value["request_id"])
+            or not isinstance(value["target_role"], str) or value["target_role"] not in roles
+            or type(value["target_generation"]) is not int or not 1 <= value["target_generation"] < 2**63
+            or not isinstance(value["action"], str) or not re.fullmatch(r"[a-z][a-z_.]{0,63}", value["action"])
+            or not isinstance(value["payload"], dict) or not isinstance(value["actor"], dict)):
+        raise RuntimeRefused("INVALID_ENVELOPE")
+    actor = value["actor"]
+    if actor.get("kind") == "operator" and set(actor) == {"kind"}: return
+    if (actor.get("kind") == "worker" and set(actor) == {"kind", "role", "instance_id", "generation"}
+            and isinstance(actor["role"], str) and actor["role"] in roles and _uuid(actor["instance_id"])
+            and type(actor["generation"]) is int and 1 <= actor["generation"] < 2**63): return
+    raise RuntimeRefused("INVALID_ENVELOPE")
+
+
+def _string_size(value):
+    if len(value) > 65534: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+    size = 2
+    for char in value:
+        code = ord(char)
+        if char in '\\"\b\t\n\f\r': size += 2
+        elif code < 32 or 127 < code <= 65535: size += 6
+        elif code > 65535: size += 12
+        else: size += 1
+        if size > 65536: raise RuntimeRefused("ENVELOPE_TOO_LARGE")
+    return size
+
+
+def start_role_pipe(lease, allowed_commands):
+    from .owners import _owner_scope, _attach_endpoint
+    from ._pipes import NativePipeAPI, pipe_name
+    if (not isinstance(allowed_commands, frozenset) or not allowed_commands
+            or any(not isinstance(x, str) or capability_for(x).exit_code != 0 for x in allowed_commands)):
+        raise RuntimeRefused("COMMAND_DENIED")
+    with _owner_scope(lease) as guard:
+        registration = PeerRegistration(lease.identity, guard.project.logon_sid,
+            lease.project_id, lease.generation, "worker")
+        api = NativePipeAPI()
+        handle = api.server(registration)
+        endpoint = RoleEndpoint(lease, PipeDescriptor(registration), allowed_commands, api, handle)
+        try: _attach_endpoint(lease, endpoint, pipe_name(registration))
+        except BaseException:
+            endpoint.close(); raise
+        return endpoint
+
+
+@dataclass(frozen=True)
+class PipeDescriptor:
+    """Public routing expectation. It grants no capability; Windows checks peers."""
+    registration: PeerRegistration
+
+    def __post_init__(self):
+        if not isinstance(self.registration, PeerRegistration): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+
+
+@dataclass
+class _WorkerEnrollment:
+    capability: ScopedCapability
+    process: object
+    supervisor: object
+    active: bool = True
+
+
+def _enroll_worker(endpoint, offer, capability, process):
+    from .bootstrap import BootstrapOffer
+    from .owners import require_live_owner
+    if (type(offer) is not BootstrapOffer or offer not in endpoint._offers
+            or offer.endpoint is not endpoint or endpoint.closed or offer.closed
+            or not isinstance(capability, ScopedCapability)
+            or capability.registration.project_id != endpoint.descriptor.registration.project_id
+            or capability.registration.identity.role != offer.role
+            or capability.registration.generation != offer.generation
+            or capability.commands != offer.commands):
+        raise RuntimeRefused("BOOTSTRAP_DENIED")
+    require_live_owner(offer.supervisor)
+    key = _remember_worker(capability.registration.identity)
+    entry = _WorkerEnrollment(capability, process, offer.supervisor)
+    endpoint._workers[key] = entry
+    return entry
+
+
 class RoleEndpoint:
-    name:str
-    generation:str
-    process:dict
-    role:str
+    """A single owned transport for protocol inspection only.
 
-def _send(handle,value):
-    payload=canonical(value)
-    if len(payload)>65536: raise ValueError('IPC_CAPACITY')
-    done=W.DWORD()
-    if not bounded_io(lambda:Write(handle,payload,len(payload),C.byref(done),None)) or done.value!=len(payload): raise w.error('IPC_WRITE_FAILED')
-def _read(handle):
-    buf=C.create_string_buffer(65536); done=W.DWORD()
-    if not bounded_io(lambda:Read(handle,buf,len(buf),C.byref(done),None)): raise w.error('IPC_READ_FAILED')
-    return json.loads(buf.raw[:done.value])
+    No handler, mutable store or dispatch callback is accepted by this API.
+    """
+    def __init__(self, lease, descriptor, allowed_commands, api, handle):
+        self.lease = lease; self.descriptor = descriptor; self.allowed_commands = allowed_commands
+        self.api = api; self.handle = handle; self.closed = False; self._lock = threading.RLock()
+        self._workers = {}; self._offers = []; self._owner_channel = None
 
-class RoleServer:
-    def __init__(self,lease,allowed,handler,store=None):
-        self.lease=lease; self.allowed=allowed; self.handler=handler; self.stop=threading.Event(); self.ready=threading.Event(); self.error=None
-        self.store=store
-        prefix=chr(92)*2+'.'+chr(92)+'pipe'+chr(92)+'cmp-'
-        self.records={}; self.peers={}; self.endpoint=RoleEndpoint(prefix+lease.project.project_id[:16]+'-'+lease.generation,lease.generation,lease.process,lease.role)
-        self.thread=threading.Thread(target=self._loop,daemon=True); self.thread.start()
-        if not self.ready.wait(5) or self.error: raise RuntimeError('PIPE_START_UNVERIFIED')
-    def register_peer(self,process,role,actions):
-        token=secrets.token_hex(32)
-        self.peers[token]={'process':process,'role':role,'actions':frozenset(actions)}
-        return token
-    def _authorize(self,handle,command):
-        pid=W.ULONG()
-        if not ClientPid(handle,C.byref(pid)): raise PermissionError('PEER_UNVERIFIED')
-        peer=w.identity(pid.value)
-        if peer['sid']!=self.lease.project.operator_sid: raise PermissionError('PEER_SID')
-        if command.get('pid',pid.value)!=pid.value or command.get('generation')!=self.lease.generation: raise PermissionError('PEER_GENERATION')
-        role=command.get('role','operator')
-        if role=='operator':
-            if command.get('capability'): raise PermissionError('WRITER_CAPABILITY_DENIED')
-            return peer['sid'],self.allowed
-        admitted=self.peers.get(command.get('capability',''))
-        if not admitted or role!=admitted['role'] or peer!=admitted['process']: raise PermissionError('ROLE_UNVERIFIED')
-        return digest({'peer':peer,'role':role}),admitted['actions']
-    def _loop(self):
-        descriptor=C.c_void_p(); size=W.DWORD()
-        # Read/write data, attributes and EA; omit FILE_CREATE_PIPE_INSTANCE (4).
-        sddl='D:P(A;;0x0012019b;;;'+self.lease.project.operator_sid+')(A;;GA;;;SY)'
-        if not Security(sddl,1,C.byref(descriptor),C.byref(size)):
-            self.error='DACL_UNVERIFIED'; self.ready.set(); return
-        attrs=SecurityAttributes(C.sizeof(SecurityAttributes),descriptor,False)
-        try:
-            while not self.stop.is_set():
-                handle=CreatePipe(self.endpoint.name,0x3|0x00080000,0x4|0x2|0x8,1,65536,65536,1000,C.byref(attrs))
-                if handle==w.INVALID: self.error='PIPE_OWNER_UNVERIFIED'; self.ready.set(); return
-                self.ready.set()
-                try:
-                    if not Connect(handle,None) and C.get_last_error()!=535: raise w.error('PIPE_CONNECT_FAILED')
-                    if self.stop.is_set(): continue
-                    command=_read(handle)
-                    try:
-                        self.lease.verify(); subject,allowed=self._authorize(handle,command)
-                        action=command.get('action')
-                        if action not in allowed: raise PermissionError('ACTION_DENIED')
-                        rid=command.get('request_id') or new_id(); ph=digest({k:v for k,v in command.items() if k not in {'capability','pid','role','generation','request_id'}})
-                        old=self.records.get(rid)
-                        if old:
-                            if old[:2]!=(subject,ph): raise PermissionError('REQUEST_ID_REUSE')
-                            result=old[2]
-                        else:
-                            result=receipt(action,request_id=rid,generation=self.lease.generation)
-                            callback=lambda:self.handler(command) if self.handler else {}
-                            result['result']=self.store.request_once(rid,subject,self.lease.generation,{'hash':ph},callback) if self.store else callback()
-                            self.records[rid]=(subject,ph,result)
-                    except (PermissionError,ValueError) as exc:
-                        result=receipt('denied','FAILED',3,type(exc).__name__,generation=self.lease.generation)
-                    _send(handle,result); bounded_io(lambda:Flush(handle))
-                except (OSError,ValueError) as exc:
-                    self.error=type(exc).__name__
-                finally: Disconnect(handle); w.CloseHandle(handle)
-        finally: w.LocalFree(descriptor)
     def close(self):
-        self.stop.set()
-        try:
-            handle=w.CreateFile(self.endpoint.name,0x00120003,0,None,3,0,None)
-            if handle!=w.INVALID: w.CloseHandle(handle)
-        except OSError: pass
-        self.thread.join(5)
-        if self.thread.is_alive(): raise RuntimeError('PIPE_SHUTDOWN_UNVERIFIED')
+        with self._lock:
+            if self.closed: return
+            self.closed = True
+            failure = None
+            for resource in (*self._offers, *([self._owner_channel] if self._owner_channel is not None else []), self.handle):
+                try: resource.close()
+                except BaseException as error:
+                    if failure is None: failure = error
+            if failure is not None: raise failure
 
-def start_role_pipe(lease,allowed_commands,handler=None,store=None): return RoleServer(lease,allowed_commands,handler,store)
+    def _enroll(self, offer, capability, process):
+        from .owners import require_live_owner
+        if self._owner_channel is not None: raise RuntimeRefused("BOOTSTRAP_DENIED")
+        require_live_owner(self.lease)
+        return _enroll_worker(self, offer, capability, process)
 
-def request(endpoint,command):
-    deadline=time.monotonic()+5; handle=w.INVALID
-    while time.monotonic()<deadline:
-        handle=w.CreateFile(endpoint.name,0x00120003,0,None,3,0,None)
-        if handle!=w.INVALID: break
-        time.sleep(.02)
-    if handle==w.INVALID: raise RuntimeError('PIPE_UNAVAILABLE')
+    def _authorize_peer(self, value, observed, secret):
+        from .owners import require_live_owner
+        if self._owner_channel is not None: raise RuntimeRefused("OWNER_CHANNEL_REQUIRED")
+        entry = self._workers.get((observed.pid, observed.creation_filetime))
+        capability = None
+        if entry is not None:
+            # Keep a revoked native identity classified as a worker for this
+            # endpoint's lifetime. It cannot regain operator-control rights.
+            if (not entry.active or self.api.WaitForSingleObject(entry.process.get(), 0) != 258
+                    or self.api.creation_time(entry.process) != observed.creation_filetime):
+                raise RuntimeRefused("CAPABILITY_DENIED")
+            require_live_owner(entry.supervisor)
+            capability = entry.capability
+            registration = capability.registration
+        else:
+            with _WORKER_IDENTITY_LOCK:
+                if (observed.pid, observed.creation_filetime) in _WORKER_IDENTITIES:
+                    raise RuntimeRefused("ROLE_DENIED")
+            if value["actor"]["kind"] != "operator" or secret is not None: raise RuntimeRefused("ROLE_DENIED")
+            registration = _operator_registration(observed, self.descriptor.registration)
+        return authorize_envelope(value, registration=registration, observed=observed,
+            target_project_id=self.lease.project_id, target_role=self.lease.identity.role,
+            target_generation=self.lease.generation, allowed_commands=self.allowed_commands,
+            capability=capability, secret=secret)
+
+    def inspect_once(self, *, timeout=5):
+        from .owners import _owner_scope
+        from ._pipes import deadline_after
+        with _owner_scope(self.lease) as guard, self._lock:
+            if self.closed: raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+            deadline = deadline_after(timeout)
+            try:
+                self.api.connect(self.handle, deadline)
+                with self.api.peer(self.handle, server_side=True) as observed:
+                    if (observed.operator_sid, observed.logon_sid) != (guard.project.operator_sid, guard.project.logon_sid):
+                        raise RuntimeRefused("PEER_MISMATCH")
+                    from .bootstrap import decode_request_frame
+                    value, secret = decode_request_frame(self.api.read_frame(self.handle, deadline))
+                    result = (self._authorize_peer(value, observed, secret) if self._owner_channel is None else
+                              self._owner_channel.authorize(value, observed, secret, deadline))
+                    from .owners import require_live_owner
+                    require_live_owner(self.lease)
+                    raw = encode_protocol_reply(result)
+                    self.api.write_frame(self.handle, raw, deadline)
+                    # DisconnectNamedPipe discards unread output. A bounded ACK
+                    # proves receipt without an unbounded FlushFileBuffers call.
+                    if not hmac.compare_digest(self.api.read_frame(self.handle, deadline), hashlib.sha256(raw).digest()):
+                        raise RuntimeRefused("REPLY_ACK_DENIED")
+                    if self._owner_channel is not None: self._owner_channel.finish(deadline)
+                    return result
+            except BaseException:
+                if self._owner_channel is not None: self.close()
+                raise
+            finally:
+                # A uncertain cancellation retires the endpoint/process pipe gate.
+                try:
+                    if not self.closed: self.api.disconnect(self.handle)
+                except RuntimeRefused:
+                    self.close()
+                    raise
+
+
+def _operator_registration(observed, target):
+    from uuid import uuid4
+    identity = ProcessIdentity(str(uuid4()), observed.pid, observed.creation_filetime,
+                               observed.operator_sid, "supervisor")
+    return PeerRegistration(identity, observed.logon_sid, target.project_id, target.generation, "operator")
+
+
+def encode_protocol_reply(decision):
+    if not isinstance(decision, ProtocolDecision) or decision.can_dispatch or decision.status != "PROTOCOL_VALIDATED_ONLY":
+        raise RuntimeRefused("REPLY_DENIED")
+    return json.dumps(asdict(decision), sort_keys=True, separators=(",", ":")).encode()
+
+
+def decode_protocol_reply(raw, expected):
+    if not isinstance(raw, bytes) or len(raw) > 2048 or not isinstance(expected, ProtocolDecision):
+        raise RuntimeRefused("REPLY_DENIED")
+    def pairs(values):
+        result = {}
+        for key, value in values:
+            if key in result: raise ValueError("duplicate")
+            result[key] = value
+        return result
     try:
-        pid=W.ULONG()
-        if not ServerPid(handle,C.byref(pid)) or w.identity(pid.value)!=endpoint.process: raise PermissionError('SERVER_IDENTITY_UNVERIFIED')
-        _send(handle,{'generation':endpoint.generation,'role':'operator','pid':os.getpid(),**command})
-        response=_read(handle)
-        if response['generation']!=endpoint.generation: raise PermissionError('SERVER_GENERATION')
-        return response
-    finally: w.CloseHandle(handle)
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=pairs,
+                           parse_constant=lambda _: (_ for _ in ()).throw(ValueError()))
+        # Compare canonical bytes, not Python equality that equates True and 1.
+        if json.dumps(value, sort_keys=True, separators=(",", ":")).encode() != encode_protocol_reply(expected):
+            raise ValueError("mismatch")
+    except (ValueError, TypeError, UnicodeError, RecursionError): raise RuntimeRefused("REPLY_DENIED") from None
+    return expected
+
+
+def inspect_request(endpoint, command, *, timeout=5):
+    """Authenticate a native roundtrip. It does not execute the requested action."""
+    from ._pipes import NativePipeAPI, deadline_after, verify_peer
+    if not isinstance(endpoint, PipeDescriptor): raise RuntimeRefused("ENDPOINT_UNVERIFIED")
+    raw = encode_envelope(command)
+    if command["actor"]["kind"] != "operator": raise RuntimeRefused("ROLE_DENIED")
+    api = NativePipeAPI(); deadline = deadline_after(timeout)
+    with api.client(endpoint.registration) as handle, api.peer(handle, server_side=False) as observed:
+        verify_peer(endpoint.registration, observed)
+        import os
+        with api.open_process(os.getpid()) as process:
+            sid, logon = api.token_sids(process)
+            own = PeerObservation(os.getpid(), api.creation_time(process), sid, logon)
+        if (sid, logon) != (endpoint.registration.identity.operator_sid, endpoint.registration.logon_sid):
+            raise RuntimeRefused("PEER_MISMATCH")
+        expected = authorize_envelope(command, registration=_operator_registration(own, endpoint.registration),
+            observed=own, target_project_id=endpoint.registration.project_id,
+            target_role=endpoint.registration.identity.role, target_generation=endpoint.registration.generation,
+            allowed_commands=frozenset({command["action"]}))
+        api.write_frame(handle, raw, deadline)
+        reply = api.read_frame(handle, deadline)
+        result = decode_protocol_reply(reply, expected)
+        # The server process handle remains retained for the whole response.
+        verify_peer(endpoint.registration, observed)
+        api.write_frame(handle, hashlib.sha256(reply).digest(), deadline)
+        return result

@@ -1,1 +1,1 @@
-"""Proposal workflows; imports never dispatch code or tools."""
+"""Proposal-only AI boundaries; provider availability grants no execution rights."""

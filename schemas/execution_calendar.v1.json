@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "record_type": {
+      "const": "ExecutionCalendar"
+    },
+    "session_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "prior_session": {
+      "type": "string",
+      "format": "date"
+    },
+    "session_open_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "session_close_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "record_type",
+    "session_date",
+    "prior_session",
+    "session_open_at",
+    "session_close_at",
+    "source_sha256"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

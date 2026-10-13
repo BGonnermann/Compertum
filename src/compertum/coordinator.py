@@ -1,119 +1,84 @@
-"""Single-writer fixture lifecycle, budgets and restrictive admission."""
-import json,time,threading
-from dataclasses import asdict
-from pathlib import Path
-from .domain import TaskSpec,Budget,ContractError,atomic_json,canonical,digest,file_hash,new_id,now,within
-from .persistence import open_store
-from .runtime.owners import acquire_owner
-from .runtime.ipc import start_role_pipe
-from .runtime.jobs import launch_bounded
-from .runtime.supervisor import spawn_service
-from .storage import StorageManager
-from .recovery import restore_admission
+"""Research-only durable coordinator. No broker or provider transport."""
+from datetime import datetime,timezone
+import json
+import time
+from .domain import validate_record
+from .events import canonical
+from .runtime.errors import RuntimeRefused
+from .runtime.owners import require_live_owner
 
-FIXTURE={'answer':14,'fixture':'m0-v1'}
-def fixture_code_hash():return file_hash(Path(__file__).with_name('coordinator.py'))
+CONTROL_ACTIONS=frozenset({'pause_research','resume_research','stop_research','shutdown','checkpoint'})
+
+def utc_now(): return datetime.now(timezone.utc).isoformat()
 
 class Coordinator:
-    def __init__(self,store):
-        self.store=store;self.root=store.lease.project.root_path;self.manager=StorageManager(store);self.quit=threading.Event()
-        for task in self.tasks():
-            if task['state']=='RUNNING':
-                task['state']='INTERRUPTED';task['attempt_history'].append({'state':'INTERRUPTED','at':now()});self.save(task)
-        self.store.set('paused',True) # Every start is conservatively paused.
-    def tasks(self):
-        with self.store.lock:return [json.loads(r[0]) for r in self.store.db.execute("SELECT value FROM kv WHERE key LIKE 'task:%'")]
-    def save(self,task):self.store.set('task:'+task['task_id'],task)
-    def health(self):
-        try:
-            wd=json.loads((self.root/'state/watchdog/heartbeat.json').read_text())
-            if time.monotonic()-wd['monotonic']>15 or not wd['storage_healthy']:return False
-            peer=self.store.get('watchdog-role-health',{})
-            if time.monotonic()-peer.get('monotonic',0)>15 or peer.get('storage_healthy') is not True:return False
-            return restore_admission(self.root)
-        except (OSError,ValueError,KeyError):return False
-    def status(self):return {'broker':'NOT_CONFIGURED','strategy':'STRATEGY_NOT_EVALUATED','paper':'PAPER_DISABLED','order_admission':'DISARMED','research_paused':self.store.get('paused',True),'storage_healthy':self.health(),'ai_dispatch':'MANUAL_OR_UNQUALIFIED','execution_active':False,'tasks':self.tasks(),'generation':self.store.lease.generation}
-    def handle(self,command):
-        action=command['action']
-        if action=='status':return self.status()
-        if action=='watchdog-health':
-            if type(command.get('storage_healthy')) is not bool:raise ContractError('WATCHDOG_HEALTH_SCHEMA')
-            self.store.set('watchdog-role-health',{'monotonic':time.monotonic(),'at':now(),'storage_healthy':command['storage_healthy']});return {'state':'AUTHENTICATED'}
-        if action in {'ai-export','ai-import','ai-export-existing','ai-import-inbox'}:
-            from .ai.manual import export_subscription_task,import_proposal,import_inbox_proposal
-            if not self.health():raise ContractError('ADMISSION_UNHEALTHY')
-            if action=='ai-export-existing':
-                waiting=self.store.get('ai:'+command['task_id'])
-                if not waiting:raise ContractError('AI_TASK_UNKNOWN')
-                return waiting['packet']
-            if action=='ai-import-inbox':return import_inbox_proposal(self.store,command['task_id'],command['response_path'])
-            if action=='ai-export':
-                task=TaskSpec(kind='AI_PROPOSAL',role='proposer',expected_schema='ai_proposal',permissions=('model_proposal',))
-                return export_subscription_task(self.store,task,{'question':command['question'],'fixture':True})
-            return import_proposal(self.store,command['task_id'],command['response_path'],command['metadata'])
-        if action=='pause':
-            self.store.set('paused',True)
-            for t in self.tasks():
-                if t['state']=='RUNNING':t['state']='PAUSED';self.save(t)
-            return {'state':'PAUSED','checkpointed':True}
-        if action=='resume':
-            if not self.health():raise ContractError('ADMISSION_UNHEALTHY')
-            for t in self.tasks():
-                if t['state'] in {'PAUSED','INTERRUPTED'}:
-                    if t['code_hash']!=fixture_code_hash() or t['inputs_hash']!=digest(FIXTURE):raise ContractError('CHECKPOINT_HASH_MISMATCH')
-                    if t['attempts']>=2:raise ContractError('ATTEMPTS_EXHAUSTED')
-                    t['attempts']+=1;t['state']='RUNNING';self.save(t)
-            self.store.set('paused',False);return {'state':'RUNNING'}
-        if action=='fixture':
-            if self.store.get('paused',True) or not self.health():raise ContractError('ADMISSION_UNHEALTHY')
-            if any(t['state']=='RUNNING' for t in self.tasks()):raise ContractError('RESOURCE_BUSY')
-            day=now()[:10];reserved=self.store.get('cpu:'+day,0)
-            if reserved+10>7200:raise ContractError('DAILY_CPU_LIMIT')
-            self.store.set('cpu:'+day,reserved+10) # Reserve full trusted fixture deadline; crash never refunds.
-            task={'task_id':new_id(),'kind':'OFFLINE_FIXTURE','state':'RUNNING','step':0,'attempts':1,'attempt_history':[],'code_hash':fixture_code_hash(),'inputs_hash':digest(FIXTURE),'lease_until_monotonic':time.monotonic()+30,'created_at':now()}
-            self.save(task);return task
-        if action=='stop':
-            task=self.store.get('task:'+command.get('run_id',''))
-            if not task:raise ContractError('RUN_UNKNOWN')
-            task['state']='STOPPED';self.save(task);return task
-        if action=='shutdown':
-            self.handle({'action':'pause'});self.quit.set();return {'state':'CHECKPOINTED'}
-        raise ContractError('CAPABILITY_UNAVAILABLE')
-    def tick(self):
-        if self.store.get('paused',True) or not self.health():return
-        with self.store.transaction():
-            for t in self.tasks():
-                if t['state']!='RUNNING':continue
-                if time.monotonic()>t['lease_until_monotonic']:
-                    t['state']='INTERRUPTED';t['attempt_history'].append({'state':'INTERRUPTED','reason':'LEASE_GAP','at':now()});self.save(t);self.store.set('paused',True);continue
-                if t['code_hash']!=fixture_code_hash() or t['inputs_hash']!=digest(FIXTURE):
-                    t['state']='FAILED_HASH';self.save(t);continue
-                t['lease_until_monotonic']=time.monotonic()+30
-                if t['step']<10:t['step']+=1;self.save(t);continue
-                spec=TaskSpec(task_id=t['task_id'],budget=Budget(ram_bytes=128*1024**2,wall_seconds=10,output_bytes=1024**2))
-                grant=self.manager.reserve_bytes(t['task_id'],'records',1024)
-                result=launch_bounded(self.store.lease,spec,['fixture']).wait()
-                if result['exit_code'] or result['active_processes']!=0:raise ContractError('FIXTURE_PROCESS_FAILED')
-                if json.loads(result['stdout'])['sum']!=14:raise ContractError('FIXTURE_RESULT_INVALID')
-                writer=self.manager.open_artifact(grant,'artifacts/foundation/'+t['task_id']+'.json')
-                try:writer.write(canonical(FIXTURE));manifest=writer.publish()
-                finally:writer.close()
-                t.update(state='COMPLETE',artifact=manifest,process=result,completed_at=now());self.save(t)
-                self.store.commit_event({'event_id':t['task_id'],'kind':'ARTIFACT_REGISTERED','payload':manifest})
+    def __init__(self,store,*,health=None,halt=None,checkpoint=None,stop_run=None):
+        require_live_owner(store.lease,'coordinator')
+        self.store=store;self.health=health;self.halt=halt;self.checkpoint=checkpoint;self.stop_run=stop_run
+        with store._live(),store.conn:
+            store.conn.execute('''CREATE TABLE IF NOT EXISTS control_requests(
+                request_id TEXT PRIMARY KEY,subject TEXT NOT NULL,payload_hash TEXT NOT NULL,
+                generation INTEGER NOT NULL,action TEXT NOT NULL,payload TEXT NOT NULL,receipt TEXT NOT NULL)''')
+            # Every start is paused, including a restart with an old RUNNING record.
+            self._state('research_state','PAUSED')
 
-def serve(project,supervisor_lease):
-    shutdown=project.root_path/'state/runtime/shutdown.json'
-    if shutdown.exists():shutdown.unlink() # Own prior transient stop marker only.
-    with acquire_owner(project,'coordinator') as lease:
-        store=open_store(lease,'coordinator');coordinator=Coordinator(store);pipe=start_role_pipe(lease,{'status','pause','resume','stop','shutdown','fixture','ai-export','ai-import','ai-export-existing','ai-import-inbox'},coordinator.handle,store)
-        atomic_json(project.root_path/'state/runtime/endpoint.json',asdict(pipe.endpoint));watchdog=spawn_service(project.root_path,'watchdog',peer_server=pipe)
-        try:
-            while not coordinator.quit.wait(.2):
-                atomic_json(project.root_path/'state/runtime/heartbeat.json',{'at':now(),'monotonic':time.monotonic(),'generation':lease.generation})
-                try:coordinator.tick()
-                except Exception as exc:
-                    store.set('paused',True);store.set('incident',{'at':now(),'reason':type(exc).__name__})
-        finally:
-            atomic_json(shutdown,{'at':now(),'generation':lease.generation});pipe.close();store.close()
-            try:watchdog.wait(timeout=15)
-            except Exception:pass # Refuse takeover while old watchdog remains alive.
+    def _state(self,key,value):
+        self.store.conn.execute('INSERT INTO state VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(key,canonical(value).decode()))
+
+    def status(self):
+        with self.store._live():
+            return {'research_state':self.store.get_state('research_state') or 'PAUSED',
+                    'broker_state':'NOT_CONFIGURED','strategy_state':'NOT_EVALUATED',
+                    'order_admission':'DISARMED','execution_process':'NOT_ACTIVE',
+                    'generation':self.store.lease.generation,'attempts':self.store.attempts()}
+
+    def require_health(self):
+        if self.health is None: raise RuntimeRefused('HEALTH_UNVERIFIED')
+        result=self.health()
+        if (result.get('status')!='HEALTHY' or not isinstance(result.get('observed_monotonic'),(int,float))
+                or not 0<=time.monotonic()-result['observed_monotonic']<=5):
+            raise RuntimeRefused('HEALTH_UNVERIFIED')
+        return result
+
+    def control(self,decision,action,payload):
+        if action not in CONTROL_ACTIONS: raise RuntimeRefused('COMMAND_DENIED')
+        if not isinstance(payload,dict): raise RuntimeRefused('CONTROL_PAYLOAD_DENIED')
+        if payload:
+            if action=='pause_research' and set(payload)=={'reason'} and isinstance(payload['reason'],str) and 1<=len(payload['reason'])<=256: pass
+            elif action=='stop_research' and set(payload)=={'run_id'}:
+                from .events import uuid
+                uuid(payload['run_id'])
+            else: raise RuntimeRefused('CONTROL_PAYLOAD_DENIED')
+        with self.store._live():
+            binding=(decision.subject_key,decision.payload_hash,decision.target_generation,action,canonical(payload).decode())
+            old=self.store.conn.execute('SELECT subject,payload_hash,generation,action,payload,receipt FROM control_requests WHERE request_id=?',(decision.request_id,)).fetchone()
+            if old:
+                if old[:5]!=binding: raise RuntimeRefused('REQUEST_CONFLICT')
+                return json.loads(old[5])
+            if self.store.conn.execute('SELECT count(*) FROM control_requests').fetchone()[0]>=10000:
+                raise RuntimeRefused('CONTROL_LEDGER_FULL')
+            artifacts=[]
+            if action=='resume_research': self.require_health();state='RUNNING';reason='RESEARCH_RESUMED'
+            else:
+                # Stop verified native children before claiming the effect. A crash
+                # between stop and commit leaves the same conservative pause intent.
+                if action=='stop_research' and payload:
+                    if self.stop_run is None: raise RuntimeRefused('RUN_STOP_UNAVAILABLE')
+                    self.stop_run(payload['run_id'])
+                elif self.halt is not None: self.halt(action)
+                state='STOPPED' if action in {'shutdown','stop_research'} else 'PAUSED'
+                reason={'pause_research':'RESEARCH_PAUSED','stop_research':'RESEARCH_STOPPED','shutdown':'SHUTDOWN_CHECKPOINTED','checkpoint':'CHECKPOINT_PUBLISHED'}[action]
+                if action in {'checkpoint','shutdown'}:
+                    if self.checkpoint is None: raise RuntimeRefused('CHECKPOINT_UNAVAILABLE')
+                    artifacts=self.checkpoint()
+            now=utc_now()
+            receipt={'schema_version':'1','record_type':'ControlReceipt','request_id':decision.request_id,
+                     'action':action,'target':'research','state':'CONFIRMED','evidence_label':'VERIFIED_PASS',
+                     'confirmed':True,'generation':decision.target_generation,'requested_at':now,'observed_at':now,
+                     'exit_code':0,'reason':reason,'artifacts':artifacts}
+            validate_record('control_receipt.v1',receipt,project_root=self.store.root)
+            with self.store.conn:
+                self._state('research_state',state)
+                if action=='pause_research' and payload: self._state('pause_reason',payload['reason'])
+                self.store.conn.execute('INSERT INTO control_requests VALUES(?,?,?,?,?,?,?)',(decision.request_id,*binding,canonical(receipt).decode()))
+            return receipt

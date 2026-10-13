@@ -1,0 +1,208 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1"
+    },
+    "scope": {
+      "const": "DETERMINISTIC_FAKE"
+    },
+    "account_alias": {
+      "type": "string",
+      "pattern": "^fake-[a-z0-9_-]{1,48}$"
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "record_type": {
+      "const": "ExecutionPlan"
+    },
+    "plan_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "kind": {
+      "enum": [
+        "CANCEL",
+        "CLOSE_LONG"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "start_expires_at": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "utc-time"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "economic_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "calendar_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "cap": {
+            "type": "string",
+            "pattern": "^\\d{1,16}(?:\\.\\d{1,16})?$"
+          },
+          "bid": {
+            "type": "string",
+            "pattern": "^\\d{1,12}(?:\\.\\d{1,8})?$"
+          },
+          "ask": {
+            "type": "string",
+            "pattern": "^\\d{1,12}(?:\\.\\d{1,8})?$"
+          },
+          "planned_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "residual_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "symbol",
+          "quantity",
+          "cap",
+          "bid",
+          "ask",
+          "planned_quantity",
+          "residual_quantity"
+        ]
+      },
+      "maxItems": 64
+    },
+    "cancel_orders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "filled_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "intent_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "order_id",
+          "symbol",
+          "filled_quantity",
+          "intent_id"
+        ]
+      },
+      "maxItems": 128
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "intent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 11
+          },
+          "symbol": {
+            "type": "string",
+            "pattern": "^[A-Z]{1,8}$"
+          },
+          "maximum_quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          },
+          "maximum_notional": {
+            "type": "string",
+            "pattern": "^\\d{1,16}(?:\\.\\d{1,16})?$"
+          },
+          "planned_notional": {
+            "type": "string",
+            "pattern": "^\\d{1,16}(?:\\.\\d{1,16})?$"
+          }
+        },
+        "required": [
+          "intent_id",
+          "index",
+          "symbol",
+          "maximum_quantity",
+          "maximum_notional",
+          "planned_notional"
+        ]
+      },
+      "maxItems": 12
+    },
+    "currency": {
+      "const": "USD"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope",
+    "account_alias",
+    "generation",
+    "record_type",
+    "plan_id",
+    "kind",
+    "created_at",
+    "start_expires_at",
+    "deadline",
+    "snapshot_sha256",
+    "economic_sha256",
+    "calendar_sha256",
+    "positions",
+    "cancel_orders",
+    "children",
+    "currency"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

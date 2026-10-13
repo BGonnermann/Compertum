@@ -16,7 +16,7 @@
 - Native Windows 11; Ryzen 7 7700X; RTX 5070 Ti; 64 GB DDR5; plan within 1 TB total storage. Recheck capabilities rather than assume the earlier observations remain current.
 - Prioritize existing OpenAI Pro 20x through March 2027; no API credits, new account permissions, login changes, paid APIs, purchased credits or renewals.
 - Project storage cap is 50 GiB: 15 GiB data, 5 GiB quant models, 5 GiB scratch, 5 GiB records/logs/code, 20 GiB backups. The 1 GiB execution reserve is inside the 5 GiB records/logs/code category, not an additional allocation.
-- One heavy deterministic job or one local inference request; at most 4 CPU threads, 4 GiB research RAM, 2 hours CPU-job wall time/day, 8 AI tasks and 40 AI requests/day. All retries count.
+- One heavy deterministic job or one local inference request; at most 4 CPU threads, 4 GiB research RAM, no daily CPU-job wall-time cap per the 12 October owner amendment, 8 AI tasks and 40 AI requests/day. All retries count.
 - Local AI requests have at most 16,384 input tokens, 2,048 output tokens and 120 seconds; use the exact qualified Strata model identity, not a guessed alias.
 - No unbounded disk writes, arbitrary AI-generated code, credential inheritance, external repository, administrator elevation or power/security-setting changes.
 - M0 starts disarmed and cannot enable any broker mutation, actual protected evaluation, strategy promotion, authenticated market-data fetch or M1 campaign.

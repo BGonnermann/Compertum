@@ -1,0 +1,13 @@
+# Native cooperative GET backend
+
+11 October 2026. **416 matching source/package checks passed, zero failures/errors/skips.** Thirty-nine native transport tests use only a local HTTP server with invented headers. Independent review closed3/3. All149package modules and configuration/schema/lock bytes match. Four additional native lifecycle reproductions agree exactly in both environments.
+
+Requests start asynchronously. Short polls process completion events without waiting for a slow reply. Cancellation closes the request before parent handles and retains callback/buffer memory until Windows confirms handle closure. Uncertain cleanup keeps memory retained and refuses success. Owner release cancels active requests. Total deadline checks precede every network stage and final result publication. Replies require EOF within64KiB, reject duplicate encoding headers, compression, truncation, oversized headers, redirects and non200status. Exact64KiB without EOF is not success. Native no-proxy, no-auth/cookie/redirect and no-retry options are checked before use. Twelve serial requests leave no owned transport resources. HTTP408 produced one observed request.
+
+Review exposed duplicate-header ambiguity and expiry between checks; each was reproduced before correction. An oversized timeout conversion was also repaired. Windows correctly rejected plaintext loopback with secure defaults; only the validated local test endpoint uses plain async mode. The paper TLS branch retains secure defaults. Local HTTP does not establish real TLS, account identity or entitlement. This private backend does not expose an account command or grant financial authority.
+
+Source `b9bb2cb79b651d4c2e30a0efffebf337f5e849b7a46eec44bdb50145205353a3`; wheel `a9a6d1bafa477d686866f2564bcc7fd4bd42780acf3d5c7ca1c537a4e36ce98e`. [Receipt](../artifacts/m5/native_get.json). Detailed evidence `.cache/test-runs/m5-native-get-20261011-01`. Earlier failures retained; verified passing fixture copies archived before removal.
+
+Microsoft references: [callback lifecycle](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpsetstatuscallback), [bounded reads](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpreaddata), [handle closure](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/nf-winhttp-winhttpclosehandle), [retry options](https://learn.microsoft.com/en-us/windows/win32/api/winhttp/ns-winhttp-winhttp_failed_connection_retries).
+
+Next: fixed-origin scoped GET preparation, unknown-account bootstrap and response secrecy, followed by protected provisioning and existing-owner integration before actual account-read authority.

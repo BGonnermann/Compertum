@@ -1,0 +1,17 @@
+# Private native market GET adapter
+
+11 October2026. Authorized offline M5 preparation after action/halt qualification. No actual market/account/credential calls, grants, public command, financial admission, protected prices, dependency change or second journal. Native tests use invented headers and loopback only. Preserve existing paper/order endpoint policy and lifecycle.
+
+One runtime/_winhttp_data.py adapter _OwnedDataGet shares _OwnedHTTP's async callback/poll/deadline/EOF/cap/cleanup lifecycle. Extract shared syntax/header checks and an explicit per-adapter input-validation hook in _winhttp_get.py; the default still permits paper-api.alpaca.markets443TLS or private loopback only. Data adapter permits GET with empty body and a fixed data.alpaca.markets443TLS target, or its explicit loopback test port and test header. Never add the data host to legacy _inputs; _winhttp_order.py and account preflight's exact _OwnedGet check remain unchanged.
+
+Accept only exact revalidated OperationalMarketRequest QUOTE/HISTORY or CurrentActionQuery plus request UUID/request timestamp/page token. Reject ASSET because it belongs to the paper origin. Extract action request reconstruction from CurrentActionPage.request_payload into a pure helper shared by page and adapter; preserve prior artifact bytes. Adapter freezes canonical request bytes before any handles, retains request/plan hashes, and matches the plan project ID against the execution lease under owner scope. Send retained target byte-for-byte; do not reconstruct a second format. Optional action arguments must be absent for a market request. Input errors have fixed codes and never echo body/headers. No arbitrary host/path/feed/operation/body parameter exposed.
+
+Data-only ASCII target bound4096 permits percent-encoded1024character cursors; legacy GET/order limit2048 unchanged. Header names/values remain exact allowlist; normal data endpoint uses APCA fields only, test loopback uses X-Compertum-Test only. HTTP200and400-599 preserve bounded raw body and numeric status; other statuses, redirects, compression and automatic retry/auth fail. Total native monotonic deadline and callback closure remain existing contracts. One outstanding request per execution owner applies across adapters. Revoking the owner cancels requests and destroys sensitive buffers. Low-level native capture is not source entitlement or complete operational evidence.
+
+Checklist:
+- [x] Tests first: exact quote/history/action targets and cursors, wrong project/type/forged origin/feed/params, data-only bound, legacy data-host denial, status/body retention, local cancellation and shared owner occupancy.
+- [x] Small adapter, shared validation seam and action request extraction; no order-policy changes.
+- [x] Native regressions: EOF/cap/overflow/truncation, compression/redirect/auth/no retry, deadlines, owner release, setup/uncertain-close, serial cleanup. Match fresh source/installed tests and retained native semantic results.
+- [x] Independent review maximum3code passes; freeze/build/install, exact package and original action artifact comparisons, storage receipt/checkpoint. Actual operational TLS/auth/read scope, credential reflection/private publication, packet pagination and purpose isolation remain later dependencies.
+
+Design source: bounded independent inspection by /root/paper_contract_review of native GET/order, market/action contracts and tests. Plan preserves existing callback machinery and narrows adapter policy. No new general transport framework.

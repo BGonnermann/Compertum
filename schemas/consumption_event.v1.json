@@ -1,42 +1,15 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "seal_id",
-    "evaluation_id",
-    "sequence",
-    "previous_hash",
-    "inputs_hash",
-    "at",
-    "sha256"
-  ],
-  "properties": {
-    "schema_version": {
-      "const": 1
-    },
-    "seal_id": {
-      "type": "string"
-    },
-    "evaluation_id": {
-      "type": "string"
-    },
-    "sequence": {
-      "type": "integer"
-    },
-    "previous_hash": {
-      "type": "string"
-    },
-    "inputs_hash": {
-      "type": "string"
-    },
-    "at": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "sha256": {
-      "type": "string"
-    }
-  }
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object","additionalProperties":false,
+  "properties":{
+    "schema_version":{"type":"integer","const":1},
+    "status":{"const":"CONSUMED"},
+    "seal_id":{"type":"string","format":"uuid"},
+    "evaluation_id":{"type":"string","format":"uuid"},
+    "created_at":{"type":"string","format":"utc-time"},
+    "inputs":{"type":"object","additionalProperties":false,
+      "properties":{"input_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"protocol_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"shortlist_sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"}},
+      "required":["input_sha256","protocol_sha256","shortlist_sha256"]}
+  },
+  "required":["schema_version","status","seal_id","evaluation_id","created_at","inputs"]
 }

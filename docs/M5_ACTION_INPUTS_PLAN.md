@@ -1,0 +1,19 @@
+# Current corporate-action observations
+
+11 October 2026. Next offline M5 increment after fee calculation. Invented responses only, no external requests, credentials, current protected prices, action application, transport or order admission. One pure module: src/compertum/paper_action_inputs.py. Reuse existing canonical encoding, bounded exact-number response parsing and data/actions.py event classification; preserve the historical 2016-2023 query guard unchanged.
+
+Bind one CurrentActionQuery to the existing immutable OperationalMarketPlan. Fixed GET data.alpaca.markets/v1/corporate-actions, one plan symbol, process start at the first of its 252 history sessions, inclusive process end at its execution session, limit100, sortasc, data_qualityall, regionus. This process window is a bounded observation scope, not effective/ex/pay-date completeness. At most8pages,100records/page,800total records,64KiB/response,1MiB retained envelope/output. No alternate source, feed or arbitrary endpoint.
+
+Each immutable CurrentActionPage retains original raw bytes, query, UUID request ID, optional exact page token, requested/received UTC nanosecond times and status200 or400-599. Fixed request reconstruction, same-session chronology, request-to-receipt at most10seconds and sequential linked pagination. Missing pages, denied requests, malformed/absent terminal token and continuation at the page limit cannot establish a completed query. Never infer terminal pagination from a short page. Preserve raw bytes and hashes through all semantic defects.
+
+A pure qualifier receives query, tuple of pages and declared as_of. Revalidate all objects, enforce collection bounds before work and rebuild derived evidence at result construction. Report terminal page-chain capture separately from action coverage. Classify known events using data/actions.py's existing event parser with the new explicitly operational process profile; historical public entrypoint remains guarded. Preserve unsupported, foreign, incomplete and malformed records as blocking observations, with static error codes and original page/index lineage. Duplicate IDs are explicit duplicate/conflicting evidence, never silent replacement. Include economic and payable dates and whether either matches the session; process_date cannot substitute. Original knowledge timing and asset identity mapping remain unverified.
+
+Responses received after09:25 remain new late evidence; they cannot revise the earlier immutable input. Missing and empty terminal queries still leave ACTION_COVERAGE_UNVERIFIED. Every result remains BLOCKED with native provenance, action coverage, knowledge timing, identity mapping and halt status unverified, and false financial/transport/research authority. No rate or halt-clear claim is added. Known current-day actions can be highlighted, but no action is applied to holdings or ignored to fabricate eligibility.
+
+Checklist:
+- [x] Implement fixed operational query/page bindings and bounded retained evidence.
+- [x] Derive query capture and event/date issues while preserving all actual-coverage gaps.
+- [x] Tests: earlier process/today ex or pay; future effective dates; empty/denied/incomplete pages; duplicate/conflicting IDs; unsupported/malformed/foreign events; missing dates; cutoff+1ns; nonfinite/oversized bodies; token/context/timestamp/constructor tampering; historical guard unchanged; exact replay.
+- [x] Independent review (maximum3code passes); frozen source/installed regression tests and receipt.
+
+Primary contract findings: reports/M5_ACTION_HALT_SOURCES.md. Alpaca documents process-date filtering and no creation-time guarantee. Halt observations are the next separate increment because their snapshot/status/resumption semantics differ. No fresh quote or active/tradable flag substitutes for halt evidence.
