@@ -10,7 +10,7 @@ The daily runtime cap is removed: **27 source and 27 installed-package checks pa
 
 The current repaired release passed **562 distinct matching tests in each source/installed environment**, with zero failures, errors or skips. Both complete environment qualifications passed; Python and all 38 dependencies are unchanged. All 190 installed modules match source.
 
-Fresh M3 campaigns and the audited Final sequence are running in the master folder, with one heavy job at a time and memory checks. **Strata stays off.** The current sequence has not yet established complete M3 acceptance. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
+The fresh source M3 campaign completed all63 outcomes, with no failed or skipped calculations. The installed-package campaign is running; exact paired comparison, all77 audits/reviews and Final checks remain. Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** The current sequence has not yet established complete M3 acceptance. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
 The historical M3 run completed both 63-outcome campaigns with exact mathematical agreement, then stopped after 37 of 77 audits/reviews because cached health had expired. That run remains terminally blocked and preserved. Its earlier combined 819-case component coverage is historical, not fresh coverage of the repaired release. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md) and [health repair](docs/M3_REVIEW_HEALTH_REPAIR.md).
 

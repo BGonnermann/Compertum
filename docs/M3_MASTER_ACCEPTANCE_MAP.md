@@ -8,8 +8,8 @@ U = `.cache/test-runs/m3-master-native-20261013-01`; V = `.cache/test-runs/m3-ma
 | --- | --- | --- |
 | Exact release and source/package origins | `U/release01.json`, both environment manifests/qualifications, `verify-frozen-release.py` | Verified: 485 files, 190 matching modules, unchanged Python and 38 dependencies |
 | Affected regression and refusal controls | `artifacts/m3/review_health_complete_regressions.json` plus pinned command/XML/plan files | Verified: 562 distinct identical IDs per lane; zero failures/errors/skips |
-| Full paired development campaign | `campaign-progress02.jsonl`, all native command/result/export receipts, `pair-outputs01.log` | Running; require 63 completed per lane, exact mathematical bodies, no failed/skipped unit |
-| Controls remain responsive with pending work | `late-prefix02.log` and ordered control samples within each retained command interval | Pending; require paired late-prefix proof, not an aggregate timing without overlap |
+| Full paired development campaign | `campaign-progress02.jsonl`, all native command/result/export receipts, `pair-outputs01.log` | Source63/63 completed with zero failed/skipped; installed-package run and exact paired comparison pending |
+| Controls remain responsive with pending work | `late-prefix02.log` and ordered control samples within each retained command interval | Source:65 pending-work observations, maximum0.245335seconds; paired proof pending. Individual sample timestamps were not recorded |
 | Independent development audit and selection | `audit-progress01.jsonl`, 77 exact outputs and `audit-outputs01.log` | Pending; 72 unit audits, two scorecards, two aggregates, one pair comparison |
 | Immutable shortlist, one consumed Final | `final-freeze01-task.json`, `final-prepare01-task.json`, `final-batch01-task.json` | Pending; derive candidates from actual reviews, consume before price access, one bounded completed native batch |
 | Terminal restart cannot repeat Final | `final-restart01-task.json` | Pending; exact result, repeat/conflicting evaluation refusal and unchanged journal/guard |
