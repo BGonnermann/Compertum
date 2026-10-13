@@ -272,14 +272,17 @@ class ReviewRuns:
         raw=published(self.storage,artifact,16*MIB,read=True)
         return read_bundle(raw,expected_sha256=s['request_sha256'],expected_kind=s['kind'],expected_task_id=s['task_id'],expected_source_run_id=s['source_run_id'],expected_identity=s['identity'])
 
-    def current(self,s):
+    def _current_with_context(self,s):
         context=self._registration(s['kind'],s['task_id'],s['source_run_id']);header,metadata=self.bundle(s)
         raw=self._prepared_request(s,context)
         check(sha(raw)==s['request_sha256'] and context['metadata']==metadata and canonical(context['source']['protocol_seal'])==canonical(header['protocol_seal']))
         expected=expected_environment(self.store,s['source_run_id'])
         for attempt in s['attempts']:
             if attempt.get('native_execution') is not None:check_native(attempt['native_execution'],expected)
-        return header
+        return header,context
+
+    def current(self,s):
+        return self._current_with_context(s)[0]
 
     def prepare(self,task):
         with self.store._live(),self.store.conn:
@@ -363,7 +366,10 @@ class ReviewRuns:
             s=self._load(task);check(s['state']=='RUNNING' and s['owner']==self.owner);self.current(s);result=self._output(s,artifact)
             s['attempts'][-1]['status']='COMPLETED';s.update(state='COMPLETED',artifact=artifact,payload_sha256=result['payload_sha256'],payload_bytes=result['payload_bytes']);self._save(s,'COMPLETED');return s
 
-    def completed(self,task):
+    def _completed_with_context(self,task):
         with self.store._live():
-            s=self._load(task);check(s['state']=='COMPLETED');self.current(s);result=self._output(s,s['artifact'])
-            check(result['payload_sha256']==s['payload_sha256'] and result['payload_bytes']==s['payload_bytes']);return s
+            s=self._load(task);check(s['state']=='COMPLETED');_,context=self._current_with_context(s);result=self._output(s,s['artifact'])
+            check(result['payload_sha256']==s['payload_sha256'] and result['payload_bytes']==s['payload_bytes']);return s,context
+
+    def completed(self,task):
+        return self._completed_with_context(task)[0]

@@ -1,6 +1,6 @@
 # M3 fresh master acceptance map
 
-13 October 2026. This map defines closeout evidence for the currently frozen repaired release; it is not an acceptance receipt. All native phase results remain pending until their actual saved outputs pass verification. Strata stays off.
+13 October 2026. This map records closeout requirements and results for the preserved frozen release. Its paired comparison is terminally blocked after76 successful audits/reviews. A two-module validation repair is now in progress; existing release results are not acceptance of that changed code. Strata stays off.
 
 U = `.cache/test-runs/m3-master-native-20261013-01`; V = `.cache/test-runs/m3-master-runtime-20261013-01`. All paths are under master. Release, environment and 37 execution-input pins are in [the native plan](M3_MASTER_NATIVE_PLAN.md).
 
@@ -10,7 +10,7 @@ U = `.cache/test-runs/m3-master-native-20261013-01`; V = `.cache/test-runs/m3-ma
 | Affected regression and refusal controls | `artifacts/m3/review_health_complete_regressions.json` plus pinned command/XML/plan files | Verified: 562 distinct identical IDs per lane; zero failures/errors/skips |
 | Full paired development campaign | `campaign-progress02.jsonl`, all native command/result/export receipts, `pair-outputs01.log` | Verified: source63/63 and installed63/63; all63 mathematical outputs match, zero failed/skipped,117 accepted chunks and no scan supplements |
 | Controls remain responsive with pending work | `late-prefix02.log` and ordered control samples within each retained command interval | Verified: source65 observations, maximum0.245335seconds; installed66 observations, maximum0.326635seconds. Individual sample timestamps were not recorded |
-| Independent development audit and selection | `audit-progress01.jsonl`, 77 exact outputs and `audit-outputs01.log` | Pending; 72 unit audits, two scorecards, two aggregates, one pair comparison |
+| Independent development audit and selection | `audit-progress01.jsonl`, 77 exact outputs and `audit-outputs01.log` | 76 passed:72 unit audits, two scorecards and two aggregates. Pair comparison blocked at final health check before worker execution; no77-output acceptance |
 | Immutable shortlist, one consumed Final | `final-freeze01-task.json`, `final-prepare01-task.json`, `final-batch01-task.json` | Pending; derive candidates from actual reviews, consume before price access, one bounded completed native batch |
 | Terminal restart cannot repeat Final | `final-restart01-task.json` | Pending; exact result, repeat/conflicting evaluation refusal and unchanged journal/guard |
 | Independent Final audit and actual controls | `final-audit-progress01.jsonl`, five task exports and `final-audit-outputs01.log` | Pending; source pause/resume, both terminal restarts, distinct auditors, exact paired body, original Final unchanged |
@@ -20,7 +20,7 @@ U = `.cache/test-runs/m3-master-native-20261013-01`; V = `.cache/test-runs/m3-ma
 
 The late-prefix proof records individual reply durations, ordering and pending-verification state, with command start/end times. It does not record individual sample timestamps. Report this limitation explicitly.
 
-The current 562-case receipt includes seal/consumption/recovery refusal tests, hand accounting, confidence and policy tests, review contracts, native ownership/restart/health checks, and Final controller/auditor checks. Its exact test IDs are authoritative. Earlier component receipts may supply preserved evidence only with an explicit source-continuity assessment; do not present them as freshly rerun.
+The frozen release's562-case receipt includes seal/consumption/recovery refusal tests, hand accounting, confidence and policy tests, review contracts, native ownership/restart/health checks, and Final controller/auditor checks. Its exact test IDs are authoritative for that release. Earlier component receipts may supply preserved evidence only with an explicit source-continuity assessment; do not present them as freshly rerun. Current repair verification is tracked in [the pair-validation repair](M3_PAIR_VALIDATION_REPAIR.md).
 
 Independent scope review cleared the native sequence. Preserved paired85 math/provenance tests (63 generated-audit plus22 historical-Final-task) and the separate4 publication-failure cases are now bound in artifacts/m3/master_preserved_evidence_continuity.json. All43 checked source/test files match the original archive, both release inventories and current bytes; the publication test has its separate original receipt hash. These cases are absent from current562 and remain historical evidence. No combined historical/current total is claimed. The publication XML hashes were measured during this continuity check; the earlier93-case receipt did not pin those XMLs and no separate command JSON exists.
 

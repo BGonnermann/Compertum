@@ -25,6 +25,9 @@ def reviews_fixture(pair_inputs,monkeypatch):
         contexts[task]=dict(source=source,metadata=canonical(dict(final_state=canonical(source).decode(),history=[],controls=[])),native=[])
     def completed(task):calls.append(task);return deepcopy(aggregates[task])
     reviews.completed=completed;reviews._registration=lambda kind,task,run:deepcopy(contexts[task])
+    reviews._completed_with_context=lambda task:(reviews.completed(task),deepcopy(contexts[task]))
+    import compertum.development_seals as seals
+    monkeypatch.setattr(seals,'check_campaign_seal',lambda store,source:source['protocol_seal'])
     import compertum.clean_registration as registry
     monkeypatch.setattr(registry,'member_registration',lambda *a,**kw:(PairRecord(canonical(meta['pair']),meta['pair_sha256']),'source' if a[2]==request['source_run_id'] else 'wheel'))
     return reviews,request,meta,calls,contexts

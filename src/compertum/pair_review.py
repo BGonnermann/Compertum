@@ -57,6 +57,7 @@ def registration(reviews,task,run):
     """Revalidate lanes sequentially; never retain both complete source histories."""
     from .clean_registration import member_registration
     from .review_bundle import build_bundle
+    from .development_seals import check_campaign_seal
     with reviews.store._live() as guard:
         member=member_registration(reviews.store.conn,guard.project,run,kind='run_id')
         check(member is not None and member[1]=='source');pair,_=member;p=read_pair(pair.content,expected_sha256=pair.sha256)
@@ -64,8 +65,10 @@ def registration(reviews,task,run):
         for lane in ('source','wheel'):
             lane_run=p[lane]['run_id']
             rows=reviews.store.conn.execute("SELECT task_id FROM campaign_reviews WHERE source_run_id=? AND kind='aggregate' LIMIT 2",(lane_run,)).fetchall();check(len(rows)==1)
-            aggregate=reviews.completed(rows[0][0])
-            context=reviews._registration('aggregate',aggregate['task_id'],lane_run);s=context['source'];meta=json.loads(context['metadata'])
+            # Reuse this call's checked context; no evidence survives into a later call.
+            aggregate,context=reviews._completed_with_context(rows[0][0])
+            check(check_campaign_seal(reviews.store,context['source']) is not None)
+            s=context['source'];meta=json.loads(context['metadata'])
             check(s['clean_environment']['pair_sha256']==pair.sha256 and s['clean_environment']['lane']==lane)
             history=[dict(seq=n,body=b,sha256=h,previous_sha256=prev) for n,b,h,prev in reviews.store.conn.execute('SELECT seq,body,sha256,previous_sha256 FROM campaign_review_history WHERE task_id=? ORDER BY seq LIMIT 33',(aggregate['task_id'],))]
             attempt=aggregate['attempts'][-1]

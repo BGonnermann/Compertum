@@ -11,25 +11,26 @@
 - [x] Prepare fresh master runtime identities and an actual nonsparse 1 GiB reserve. Independent admission review cleared 2/3 against all 37 bound inputs.
 - [x] Complete both fresh63-outcome campaigns and verify exact mathematical agreement for all63 outputs. All117 chunks passed without supplemental scan exceptions; paired late-prefix responsiveness passed. Local receipt: artifacts/m3/master_campaign_pair.json.
 - [x] Complete all38 source audits/reviews, including the previously failing aggregate stage on its first fresh attempt. Local receipt: artifacts/m3/master_source_aggregate.json. The historical failure remains preserved.
-- [ ] Finish the installed-package audits and all77-output comparison, generated Final, independent Final audits/restarts and three-ridge exercise. Active terminal session: **48305**; audits are running.
+- [x] Finish both lanes'76 audits/reviews. Session **48305** then ended with exit1 at the paired comparison; no comparison worker ran and Final has not started.
+- [ ] Verify the two-module pair-validation repair, qualify new release identities and complete comparison, generated Final, independent Final audits/restarts and three-ridge exercise. Preserve both blocked runtimes.
 - [ ] Reconcile acceptance with saved evidence, obtain independent closeout review and publish verified status.
 - [ ] Integrate only the mapped 28 M5 retry/opening files, preserving newer Final/health work. Verify source/installed and native checks before implementing the existing market-owner plan.
 
 ## Exact next action
 
-Monitor session48305. `Run-MasterCampaigns01.ps1` completed successfully; `Run-RemainingM3-Memory01.ps1` verified the pair and responsiveness evidence and is running the77 audits/reviews before Final. Both are fresh-only: do not rerun over existing labels. On any failure preserve command/result/state and diagnose before further execution. Keep product, tests, environments and bound helpers frozen while the sequence runs.
+Session48305 has ended. Preserve the blocked comparison task `e09d4e35-c8e2-58c6-a306-2ca439aa805b`; do not resume/reset it or rerun the fresh-only scripts. Both campaigns and76 audits/reviews passed. The repair now reuses each aggregate's validation context within the same call and explicitly rechecks its seal. Source66 distinct checks passed; read-only old/new diagnostics preserve exact outputs and halve repeated scans. The fresh native launch-stress probe passed result acceptance with a final health age of3.306seconds and all children closed. Finish the remaining source/installed checks and unchanged health-refusal tests, then freeze/qualify the repaired release before new full-run admission. Work and receipts are under `.cache/test-runs/m3-pair-validation-repair-20261013-01`; see [repair checklist](M3_PAIR_VALIDATION_REPAIR.md). Historical runtime identities and bound helper files remain frozen.
 
 Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/test-runs/m3-master-runtime-20261013-01` (V). Current progress: `U/campaign-progress02.jsonl`, then `U/remaining-sequence01.jsonl`. See [native plan](M3_MASTER_NATIVE_PLAN.md) for exact commands and pins and [acceptance map](M3_MASTER_ACCEPTANCE_MAP.md) for required evidence.
 
 - New pair SHA: `52a50e72480e35faaabae4b1ec332c4561ab863cd0cb1dd4b0aa5e3bc56857a7`.
 - Execution manifest SHA: `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`.
-- Current regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane).
+- Preceding frozen-release regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane; new two-module repair verification is separate).
 - Source qualification: `U/env-source-qualify03`; installed qualification: `U/env-wheel-qualify01`.
-- Latest published commit before this update: `0c10c2a74b136d305eba3fcb45716da3a8b0573a`.
+- Latest published commit before this update: `3128d6c09e10599c9b558392f813d9e11b4f0170`.
 
 ## Roadmap and remaining authority
 
-M0 accepted. M1 bounded real-data replay verified; full financial input qualification open. M2 synthetic components verified. M3 fresh native closeout is running; full acceptance is not claimed. M4 fake-broker engineering accepted. M5 local integration and actual walkthrough remain. M6 has **0 of 10 actual supervised market sessions**.
+M0 accepted. M1 bounded real-data replay verified; full financial input qualification open. M2 synthetic components verified. M3 paired comparison is blocked after76 successful audits/reviews; repair is in progress and full acceptance is not claimed. M4 fake-broker engineering accepted. M5 local integration and actual walkthrough remain. M6 has **0 of 10 actual supervised market sessions**.
 
 The 28-file M5 integration map is preserved read-only at `C:\Users\bgonn\Desktop\Compertum-development\.cache\test-runs\m3-final-native-20261012-01\next-integration-map01.json`. After it passes, continue [the market-owner plan](M5_MARKET_OWNER_PLAN.md). Do not overwrite master with a whole historical archive. A fresh read-only review verified all28 before/after hashes and both archives, with no health/Final overlap. R requires521 cases per lane (the actual-reserve case is still pending); S requires94, including13 native cases not yet run. Exact compatibility groups are saved in artifacts/m5/master_integration_readiness.json.
 
