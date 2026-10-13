@@ -10,14 +10,14 @@ The daily runtime cap is removed: **27 source and 27 installed-package checks pa
 
 The current Final auditor release passed the same **545 distinct component checks in each environment**, with zero failures, errors or skips. All 483 frozen code/config/test files were copied into master and checked byte for byte. These results belong to the preserved development run. Fresh master verification passed **93 source and93 installed-package checks**, zero failures/errors/skips. See [the consolidation report](reports/MASTER_CONSOLIDATION.md).
 
-The latest M3 native campaign was interrupted after **63/63 source outcomes and 48/63 installed-package outcomes** were verified. The next package attempt lacks a completion receipt. Recovery succeeded after verified passed-test cleanup. The package run is continuing serially; 52/63 outcomes now match the source run exactly. Strata stays off. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md). Remaining comparison, audits and Final tests have not run for this release.
+The latest M3 native campaign was interrupted after **63/63 source outcomes and 48/63 installed-package outcomes** were verified. The next package attempt lacks a completion receipt. Recovery succeeded after verified passed-test cleanup. Both campaigns now have63/63 completed outcomes, with all63 mathematical outputs matching exactly. Independent audits and Final tests are underway. Strata stays off. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md). Full M3 acceptance remains incomplete until those checks finish.
 
 | Milestone | Status |
 | --- | --- |
 | M0: Local foundation and controls | Accepted; preserved acceptance evidence |
 | M1: Trustworthy research inputs | Bounded real-data replay verified; full financial input qualification open |
 | M2: Strategies and mathematical checks | Synthetic components verified; financial qualification open |
-| M3: Protected evaluation and audit | 545 paired component checks passed; native campaign and final acceptance incomplete |
+| M3: Protected evaluation and audit | 545 paired component checks and63/63 native campaign comparison passed; audits/Final acceptance incomplete |
 | M4: Simulated broker | Fake-broker engineering accepted; 662 matching source/package checks |
 | M5: Supervised paper walkthrough | Component verification underway; integration and actual walkthrough pending |
 | M6: Daily supervised operation | Evidence structure implemented; **0 of 10 actual supervised market sessions** |
@@ -41,7 +41,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 3. Complete M3 comparison, audits and Final checks. Publication-failure regression coverage already passed.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
-[Current checklist](docs/CURRENT_CHECKPOINT.md) Â· [Build specification](docs/BUILD_SPEC.md) Â· [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) Â· [M0 acceptance](reports/M0_ACCEPTANCE.md) Â· [M4 acceptance](reports/M4_ACCEPTANCE.md)
+[Current checklist](docs/CURRENT_CHECKPOINT.md) Ã‚Â· [Build specification](docs/BUILD_SPEC.md) Ã‚Â· [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) Ã‚Â· [M0 acceptance](reports/M0_ACCEPTANCE.md) Ã‚Â· [M4 acceptance](reports/M4_ACCEPTANCE.md)
 
 ## Checkpoints and rollback
 
