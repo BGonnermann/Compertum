@@ -37,7 +37,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 ## Next work
 
 1. Master consolidation published and verified; keep pushing verified checkpoints.
-2. Resolve whether the frozen test may finish saving in its historical folder or needs fresh master-only verification; reconcile interrupted M3 attempt49 before retrying.
+2. Owner approved finishing the frozen test in its historical folder. Resume only after verifying recovery and memory headroom. Strata must not be started.
 3. Complete M3 comparison, audits, Final checks and publication-failure coverage.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 

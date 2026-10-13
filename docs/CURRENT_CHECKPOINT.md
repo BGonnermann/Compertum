@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-13 October 2026 ET. Active folder: `C:\Users\bgonn\Desktop\Compertum`. Owner authorized consolidation and GitHub checkpoints. All new edits stay here. Siblings remain preserved; no scheduled run is needed.
+13 October 2026 ET. Active folder: `C:\Users\bgonn\Desktop\Compertum`. Owner authorized consolidation and GitHub checkpoints. All source/helper/document edits stay here. Owner approved the narrow exception for the existing frozen M3 test to finish recording results in its historical runtime/output folders. No scheduled run is needed. Strata must not be started; owner reported an out-of-memory crash.
 
 ## Checklist
 
@@ -31,7 +31,7 @@ U=`.cache/test-runs/m3-final-native-20261012-01`; V=`.cache/test-runs/m3-final-r
 
 Runner session3163 exited1073807364 during package attempt49. Launch timing exists; completion command/result/export receipts are absent. Monitor cell180 completed without launching the remaining sequence. Fresh process inspection found no Python processes. A copied SQLite/WAL snapshot confirms source63 COMPLETED; wheel48 outcomes and49 attempts with the last attempt RUNNING, no completion receipt. Interruption cause and valid recovery remain unresolved. Do not call the completed monitor or rerun the fresh-only launcher.
 
-Runtime records contain path and directory identity checks. Moving/copying them to master does not establish valid recovery. Preserve them while assessing a supported recovery path under the new master-only edit direction. Do not silently resume writes in a sibling or reset IDs.
+Runtime records contain path and directory identity checks. Moving/copying them to master does not establish valid recovery. Preserve them while assessing a supported recovery path under the new master-only edit direction. The owner now approved this existing frozen test continuing in its historical folders. Preserve IDs; new helper edits remain in master.
 
 U/Run-RemainingM302.ps1 and its pinned helpers are reviewed but unrun. Both lanes must complete validly before pair comparison, 77 audits/reviews, Final and three-ridge checks. U/test_final_audit_publication01.py is now integrated in master as tests/test_final_audit_publication.py; four cases passed in source and installed mode. U/next-integration-map01.json describes the 28 staged M5 deltas. The28 M5 deltas remain staged and unintegrated.
 
@@ -41,4 +41,6 @@ M0 accepted; M4 fake-broker engineering accepted. M1 bounded real-data engineeri
 
 Detailed prior checkpoint remains read-only in development. Local consolidation backup/receipts: `backups/master-consolidation-20261013-01` (excluded from Git).
 
-Exact next action: await the owner's choice about allowing the existing frozen runtime to finish saving in development, versus preparing fresh verification wholly in master. This asks for an exception to the new master-only write instruction, not renewed approval for code work. Independent publication-failure regressions are complete and included in the next verified GitHub checkpoint. No numerical retry or ledger reset has occurred.
+Exact next action: independently review the bounded recovery helper, then use normal owner restart/resume to retry only interrupted unit48 as attempt2. All63 source and48 wheel saved outcomes match their last verified exports. Windows boot occurred after the interrupted worker was created, proving that process cannot survive. No successful exit receipt is invented. Host inspection found no Python/Strata/model processes and49 GiB free RAM. Additional helper admission requires16 GiB free physical/commit headroom; it requests pause below12 GiB. Existing4 GiB/4CPU/120s worker limits remain.
+
+Recovery contract: complete the existing paired63-outcome campaign and reviewed audit/Final sequence; preserve all failed/interrupted evidence, prove exact source/package payload agreement, keep numerical/financial gates unchanged. Maximum3 review/repair iterations per coherent change. Evidence namespace in master: `.cache/test-runs/m3-interruption-recovery-20261013-01`.

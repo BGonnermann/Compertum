@@ -6,6 +6,8 @@
 - The owner explicitly authorized updating `https://github.com/BrennanCompertum/Compertum` and keeping it current for rollback. Commit and push meaningful verified checkpoints, documenting pending/failed checks. Preserve history; no force-push, destructive reset or scheduled automation.
 - Older guidance designating `Compertum-development`, preserving master as read-only, prohibiting this publication, or limiting the already approved roadmap engineering to M0 is historical and superseded by later owner instructions.
 - Preserve sibling directories and historical runtime identities. Do not relocate/resume a path-bound runtime as if it were created in master. Never erase failed evidence or reset task/attempt IDs to manufacture success.
+- The owner approved finishing the existing interrupted M3 test in its original `Compertum-development` runtime/output folders. This is a narrow exception for that frozen test's execution records. New source, helper and documentation edits remain in master.
+- The owner reported an out-of-memory crash and explicitly prohibited starting Strata again. Do not launch, restart or auto-start Strata or its model server for this work. Preserve its files/configuration. Check host memory before bounded jobs, keep one heavy job at a time, and pause our work if memory headroom becomes unsafe.
 
 ## Execution
 
