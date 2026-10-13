@@ -10,7 +10,8 @@
 - [x] Qualify both complete environments with unchanged Python and 38 dependencies. Freeze 485 release files and 190 matching source/installed modules. Preserve the old M0 environment, original cache files and corrected SciPy assessment.
 - [x] Prepare fresh master runtime identities and an actual nonsparse 1 GiB reserve. Independent admission review cleared 2/3 against all 37 bound inputs.
 - [x] Complete both fresh63-outcome campaigns and verify exact mathematical agreement for all63 outputs. All117 chunks passed without supplemental scan exceptions; paired late-prefix responsiveness passed. Local receipt: artifacts/m3/master_campaign_pair.json.
-- [ ] Finish all77 audits/reviews, generated Final, independent Final audits/restarts and three-ridge exercise. Active terminal session: **48305**; audits are running.
+- [x] Complete all38 source audits/reviews, including the previously failing aggregate stage on its first fresh attempt. Local receipt: artifacts/m3/master_source_aggregate.json. The historical failure remains preserved.
+- [ ] Finish the installed-package audits and all77-output comparison, generated Final, independent Final audits/restarts and three-ridge exercise. Active terminal session: **48305**; audits are running.
 - [ ] Reconcile acceptance with saved evidence, obtain independent closeout review and publish verified status.
 - [ ] Integrate only the mapped 28 M5 retry/opening files, preserving newer Final/health work. Verify source/installed and native checks before implementing the existing market-owner plan.
 
