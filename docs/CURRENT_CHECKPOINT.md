@@ -9,13 +9,14 @@
 - [x] Reproduce and repair stale review health. Verify 562 distinct matching tests in each source/installed lane, zero failures/errors/skips, with no remaining test children. Preserve failed runs. Details: [repair record](M3_REVIEW_HEALTH_REPAIR.md).
 - [x] Qualify both complete environments with unchanged Python and 38 dependencies. Freeze 485 release files and 190 matching source/installed modules. Preserve the old M0 environment, original cache files and corrected SciPy assessment.
 - [x] Prepare fresh master runtime identities and an actual nonsparse 1 GiB reserve. Independent admission review cleared 2/3 against all 37 bound inputs.
-- [ ] Complete the fresh paired 63-outcome campaigns, exact output comparison, all 77 audits/reviews, generated Final, independent Final audits/restarts and three-ridge exercise. Active terminal session: **48305**. The fresh source campaign completed63/63 outcomes in58 chunks, zero failed/skipped; installed-package execution is next in the same running sequence. Local receipt: artifacts/m3/master_source_campaign.json.
+- [x] Complete both fresh63-outcome campaigns and verify exact mathematical agreement for all63 outputs. All117 chunks passed without supplemental scan exceptions; paired late-prefix responsiveness passed. Local receipt: artifacts/m3/master_campaign_pair.json.
+- [ ] Finish all77 audits/reviews, generated Final, independent Final audits/restarts and three-ridge exercise. Active terminal session: **48305**; audits are running.
 - [ ] Reconcile acceptance with saved evidence, obtain independent closeout review and publish verified status.
 - [ ] Integrate only the mapped 28 M5 retry/opening files, preserving newer Final/health work. Verify source/installed and native checks before implementing the existing market-owner plan.
 
 ## Exact next action
 
-Monitor session48305. It runs `Run-MasterCampaigns01.ps1` and, only after success, `Run-RemainingM3-Memory01.ps1`. Both are fresh-only: do not rerun over existing labels. On any failure preserve command/result/state and diagnose before further execution. Keep product, tests, environments and bound helpers frozen while the sequence runs.
+Monitor session48305. `Run-MasterCampaigns01.ps1` completed successfully; `Run-RemainingM3-Memory01.ps1` verified the pair and responsiveness evidence and is running the77 audits/reviews before Final. Both are fresh-only: do not rerun over existing labels. On any failure preserve command/result/state and diagnose before further execution. Keep product, tests, environments and bound helpers frozen while the sequence runs.
 
 Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/test-runs/m3-master-runtime-20261013-01` (V). Current progress: `U/campaign-progress02.jsonl`, then `U/remaining-sequence01.jsonl`. See [native plan](M3_MASTER_NATIVE_PLAN.md) for exact commands and pins and [acceptance map](M3_MASTER_ACCEPTANCE_MAP.md) for required evidence.
 
@@ -23,7 +24,7 @@ Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/t
 - Execution manifest SHA: `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`.
 - Current regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane).
 - Source qualification: `U/env-source-qualify03`; installed qualification: `U/env-wheel-qualify01`.
-- Latest published commit before this update: `a5e888057c762a8a6759de332044c5f4ebd4fe31`.
+- Latest published commit before this update: `0c10c2a74b136d305eba3fcb45716da3a8b0573a`.
 
 ## Roadmap and remaining authority
 
