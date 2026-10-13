@@ -10,7 +10,8 @@
 - [x] Copy 729 files; all 483 frozen files match. Reversibly archive 24 obsolete code/test/tool files; retain original brief and independent review.
 - [x] Fresh master verification:89 source and89 installed tests pass, zero failures/errors/skips;190 modules match. Duplicate old package metadata repaired; initial61pass/28error receipt retained. Publication review CLEAR1/3; exclusions and six README links checked.
 - [x] Published checkpoint047dce70314671be13d1edeb17ea5324e96848ec to GitHub main; remote read-back matches local. Both prior master staged history and remote cb0759e remain ancestors; reviewed tree unchanged by merge.
-- [ ] Reconcile interrupted M3 package attempt49 before resuming.
+- [x] Reconcile interrupted M3 package attempt49: preserve SQLite/WAL and original attempt; all63 source and48 package outcomes match saved exports. A later Windows boot proves the old worker cannot survive; no successful exit is claimed.
+- [x] Clear native storage admission: archive/hash-verify eight passing basetemps, then remove602 directories/728 files/85 link entries under prior cleanup authorization. Failed evidence/environments/current runtime excluded. Unchanged native scan passed in3.925125seconds; all category/free-disk checks passed. Recovery launch50 and two earlier diagnostics remain failed.
 - [ ] Finish paired campaign,77 audits/reviews, Final/auditor/restart checks and three-ridge exercise.
 - [x] Integrate reviewed publication-failure regressions:4 source and4 installed passes. Total fresh master coverage93 distinct matching cases per environment; no failures/errors/skips. Product source unchanged.
 - [ ] Integrate reviewed 28-file M5 retry/opening deltas, preserving newer Final work; verify and continue accepted roadmap.
@@ -29,7 +30,7 @@ U=`.cache/test-runs/m3-final-native-20261012-01`; V=`.cache/test-runs/m3-final-r
 
 ## Interruption and dependency
 
-Runner session3163 exited1073807364 during package attempt49. Launch timing exists; completion command/result/export receipts are absent. Monitor cell180 completed without launching the remaining sequence. Fresh process inspection found no Python processes. A copied SQLite/WAL snapshot confirms source63 COMPLETED; wheel48 outcomes and49 attempts with the last attempt RUNNING, no completion receipt. Interruption cause and valid recovery remain unresolved. Do not call the completed monitor or rerun the fresh-only launcher.
+Runner session3163 exited1073807364 during package attempt49. Launch timing exists; completion command/result/export receipts are absent. Monitor cell180 completed without launching the remaining sequence. A copied SQLite/WAL snapshot preserved source63 COMPLETED and wheel48 outcomes/49 attempts, with no completion receipt for the last attempt. The cause remains unproved. A later boot established the old worker could not survive. Recovery now succeeded through normal owner restart: unit48 attempt1 is retained as INTERRUPTED/OWNER_RESTART; attempt2 completed with a distinct process/reservation. Do not call the completed monitor or rerun the original fresh-only launcher.
 
 Runtime records contain path and directory identity checks. Moving/copying them to master does not establish valid recovery. Preserve them while assessing a supported recovery path under the new master-only edit direction. The owner now approved this existing frozen test continuing in its historical folders. Preserve IDs; new helper edits remain in master.
 
@@ -41,6 +42,13 @@ M0 accepted; M4 fake-broker engineering accepted. M1 bounded real-data engineeri
 
 Detailed prior checkpoint remains read-only in development. Local consolidation backup/receipts: `backups/master-consolidation-20261013-01` (excluded from Git).
 
-Exact next action: independently review the bounded recovery helper, then use normal owner restart/resume to retry only interrupted unit48 as attempt2. All63 source and48 wheel saved outcomes match their last verified exports. Windows boot occurred after the interrupted worker was created, proving that process cannot survive. No successful exit receipt is invented. Host inspection found no Python/Strata/model processes and49 GiB free RAM. Additional helper admission requires16 GiB free physical/commit headroom; it requests pause below12 GiB. Existing4 GiB/4CPU/120s worker limits remain.
+Exact next action: serial recovery runner is active in exec session17624. As of 2026-10-13T13:22:30.5642019Z, campaign results are source63/package52; every common payload matches through campaign-wheel54. Read its next output and master evidence live-progress.json. It stops at63 or on any failure; do not start a second heavy job. After it finishes, reconcile complete pair outputs before the prepared memory-guarded audit/Final sequence. Do not rerun the fresh-only continuation launcher. Source release recheck passed483files/190modules. Initial one-off shell helper-pin check used the wrong JSON level and emitted errors; the immediately corrected read-only check confirmed both reviewed hashes. The revised continuation checks exact pin inventories and all prior label artifacts (review CLEAR2/3).
+
+Cleanup archive: `backups/m3-interruption-recovery-20261013-01/passing-fixtures01.zip`, SHA-256 `2d4948ef0e12a8a77078642d71d2aad35e0357cc22d15fb7d612ee730aee84ee`. Independent cleanup review CLEAR1/3. Archive, inventory and passing command/XML hashes were verified before and after removal. No failed-test evidence was selected. Next action on a failed recovery command: inspect actual state; do not repeat or overwrite the label.
+
+Recovery holder/driver review cleared1/3; interruption-aware pair checker cleared2/3. Six memory-threshold assertions passed. Host inspection found no Python/Strata/model processes and49 GiB free RAM. Additional helper admission requires16 GiB free physical/commit headroom; it requests pause below12 GiB. Existing4 GiB/4CPU/120s worker limits remain. Recovery launch50 and both failed scan diagnostics remain in the evidence record; none launched a numerical worker.
 
 Recovery contract: complete the existing paired63-outcome campaign and reviewed audit/Final sequence; preserve all failed/interrupted evidence, prove exact source/package payload agreement, keep numerical/financial gates unchanged. Maximum3 review/repair iterations per coherent change. Evidence namespace in master: `.cache/test-runs/m3-interruption-recovery-20261013-01`.
+
+
+Later sequence preparation: three Supervisor drivers and standalone three-ridge helper have additional16/12GiB memory guards, all new files in master. Ten focused guard checks passed. The sequence is prepared, not executed; review and full paired campaign completion are prerequisites.
