@@ -43,7 +43,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 3. The repaired release passed592 tests per environment and both complete environment qualifications. Verify the admitted fresh full M3 run; preserve both earlier blocked runs.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
-[Current checklist](docs/CURRENT_CHECKPOINT.md) Ã‚Â· [Build specification](docs/BUILD_SPEC.md) Ã‚Â· [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) Ã‚Â· [M0 acceptance](reports/M0_ACCEPTANCE.md) Ã‚Â· [M4 acceptance](reports/M4_ACCEPTANCE.md)
+[Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)
 
 ## Checkpoints and rollback
 
