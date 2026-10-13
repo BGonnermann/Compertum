@@ -8,7 +8,7 @@ Updated 13 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.
 
-The current Final auditor release passed the same **545 distinct component checks in each environment**, with zero failures, errors or skips. All 483 frozen code/config/test files were copied into master and checked byte for byte. These results belong to the preserved development run. Fresh master verification passed **89 source and89 installed-package checks**, zero failures/errors/skips. See [the consolidation report](reports/MASTER_CONSOLIDATION.md).
+The current Final auditor release passed the same **545 distinct component checks in each environment**, with zero failures, errors or skips. All 483 frozen code/config/test files were copied into master and checked byte for byte. These results belong to the preserved development run. Fresh master verification passed **93 source and93 installed-package checks**, zero failures/errors/skips. See [the consolidation report](reports/MASTER_CONSOLIDATION.md).
 
 The latest M3 native campaign was interrupted after **63/63 source outcomes and 48/63 installed-package outcomes** were verified. The next package attempt lacks a completion receipt. Remaining comparison, audits and Final tests have not run for this release.
 
@@ -36,8 +36,8 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 
 ## Next work
 
-1. Publish the verified master-folder checkpoint.
-2. Reconcile interrupted M3 attempt49 before retrying. Preserve historical runtime identities.
+1. Master consolidation published and verified; keep pushing verified checkpoints.
+2. Resolve whether the frozen test may finish saving in its historical folder or needs fresh master-only verification; reconcile interrupted M3 attempt49 before retrying.
 3. Complete M3 comparison, audits, Final checks and publication-failure coverage.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
