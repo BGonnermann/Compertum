@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recovery_id",
+    "project_id",
+    "at",
+    "databases",
+    "artifacts",
+    "consumption_guard",
+    "generations",
+    "barrier_id",
+    "pending_messages",
+    "halted",
+    "reserve_bytes",
+    "code_hash",
+    "environment_hash",
+    "config_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "recovery_id": {
+      "type": "string"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "databases": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "barrier_id",
+          "path",
+          "sha256",
+          "schema",
+          "generation",
+          "process_instance_id",
+          "outbox_high_water",
+          "pending_messages",
+          "inbox",
+          "inbox_high_water"
+        ],
+        "properties": {
+          "role": {
+            "enum": [
+              "coordinator",
+              "evaluation",
+              "execution"
+            ]
+          },
+          "barrier_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "schema": {
+            "const": 1
+          },
+          "generation": {
+            "type": "string"
+          },
+          "process_instance_id": {
+            "type": "string"
+          },
+          "outbox_high_water": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending_messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "kind",
+                "payload"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "enum": [
+                    "TASK_STATUS",
+                    "ARTIFACT_REGISTERED",
+                    "BROKER_SIDE_EFFECT"
+                  ]
+                },
+                "payload": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "inbox": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "hash"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string"
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            }
+          },
+          "inbox_high_water": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "artifact_id",
+          "path",
+          "sha256",
+          "bytes",
+          "original_path"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "artifact_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "code_hash": {
+            "type": "string"
+          },
+          "input_hashes": {
+            "type": "array"
+          },
+          "original_path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "consumption_guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verified",
+        "head",
+        "consumed",
+        "reason",
+        "files"
+      ],
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "head": {
+          "type": "object"
+        },
+        "consumed": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "reason": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "schema_version",
+              "artifact_id",
+              "path",
+              "sha256",
+              "bytes"
+            ],
+            "properties": {
+              "schema_version": {
+                "const": 1
+              },
+              "artifact_id": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "code_hash": {
+                "type": "string"
+              },
+              "input_hashes": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      }
+    },
+    "generations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coordinator",
+        "evaluation",
+        "execution"
+      ],
+      "properties": {
+        "coordinator": {
+          "type": "string"
+        },
+        "evaluation": {
+          "type": "string"
+        },
+        "execution": {
+          "type": "string"
+        }
+      }
+    },
+    "barrier_id": {
+      "type": "string"
+    },
+    "pending_messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "kind",
+          "payload",
+          "sender"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "TASK_STATUS",
+              "ARTIFACT_REGISTERED",
+              "BROKER_SIDE_EFFECT"
+            ]
+          },
+          "payload": {
+            "type": "object"
+          },
+          "sender": {
+            "enum": [
+              "coordinator",
+              "evaluation",
+              "execution"
+            ]
+          }
+        }
+      }
+    },
+    "halted": {
+      "const": true
+    },
+    "reserve_bytes": {
+      "type": "integer"
+    },
+    "code_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "environment_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

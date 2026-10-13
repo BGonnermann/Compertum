@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "kind",
+    "role",
+    "budget",
+    "permissions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "OFFLINE_FIXTURE",
+        "AI_PROPOSAL",
+        "AI_QUALIFICATION",
+        "RECOVERY_FIXTURE"
+      ]
+    },
+    "role": {
+      "type": "string"
+    },
+    "input_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "code_hash": {
+      "type": "string"
+    },
+    "expected_schema": {
+      "type": "string"
+    },
+    "deadline_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "development_read",
+          "task_write",
+          "model_proposal",
+          "loopback"
+        ]
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu_threads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "ram_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967296
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483648
+        },
+        "wall_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2700
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "ai_requests": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16384
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2048
+        }
+      },
+      "required": [
+        "cpu_threads",
+        "ram_bytes",
+        "output_bytes",
+        "wall_seconds",
+        "attempts",
+        "ai_requests",
+        "input_tokens",
+        "output_tokens"
+      ]
+    }
+  }
+}

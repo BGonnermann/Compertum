@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compertum"
+version = "0.1.0"
+description = "Supervised M0 engineering foundations, financial capabilities disabled"
+requires-python = "==3.14.7"
+dependencies = ["numpy", "pandas", "scipy", "scikit-learn", "sympy", "pyarrow", "httpx", "jsonschema", "exchange-calendars", "tzdata"]
+
+[project.scripts]
+compertum = "compertum.cli:main"
+
+[dependency-groups]
+dev = ["pytest", "setuptools", "wheel"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+compertum = ["resources/*.json", "resources/*.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

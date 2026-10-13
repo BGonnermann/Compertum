@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "action",
+    "state",
+    "evidence",
+    "at",
+    "exit_code"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "evidence": {
+      "enum": [
+        "VERIFIED_PASS",
+        "VERIFIED_FAIL",
+        "UNVERIFIED",
+        "PENDING_EXTERNAL_TIME",
+        "DIAGNOSTIC_ONLY"
+      ]
+    },
+    "generation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exit_code": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "reason": {
+      "type": "string"
+    },
+    "artifacts": {
+      "type": "array"
+    },
+    "result": {
+      "type": "object"
+    }
+  }
+}
