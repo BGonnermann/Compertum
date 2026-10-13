@@ -20,6 +20,8 @@
 
 Monitor active session63365: `.cache/test-runs/m3-pair-regressions-20261013-01/Run-All01.ps1` runs installed592 then the remaining source505, serially. All87 targeted source cases already passed, including unchanged health-refusal checks. Both fresh source/installed launch-stress probes passed result acceptance and child closure; read-only old/new diagnostics preserve exact outputs and halve repeated scans. The first installed component group passed292. Retain the complete566-ID admission requirement and26 supporting IDs; do not rerun the87 matching source passes. On failure preserve state and diagnose; never restart this fresh-only sequence over existing labels. Then qualify both complete environments, prepare/admit new full-run identities and obtain independent review. Work and receipts are in the repair/regression namespaces; see [repair checklist](M3_PAIR_VALIDATION_REPAIR.md).
 
+After session63365 completes successfully, run the reviewed qualification helper: `.cache/test-runs/m3-pair-native-20261013-01/Run-Qualification01.ps1 -PreparationPinsSha256 21a2b723963464c0e3e811c7b92de3f19896039e7e3dcfd76312442e2b4ab750`. Preparation review cleared2/3; four safety probes passed. Then run guarded storage admission, fresh pair and three-ridge preparation, bind only the new drafts, and review actual37 execution inputs before launching. The historical-support addendum is artifacts/m3/pair_validation_evidence_continuity.json; it adds no fresh regression cases.
+
 Historical session48305 ended after both campaigns and76 audits/reviews passed. Preserve blocked comparison task `e09d4e35-c8e2-58c6-a306-2ca439aa805b` and its bound helper files; never resume/reset/repin them. New helper drafts in `.cache/test-runs/m3-pair-native-20261013-01` are not yet admitted, and their planned runtime does not exist yet. Four inactive old test folders were preserved under master backups with every file/directory/link verified to make room; no failed evidence was deleted.
 
 Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/test-runs/m3-master-runtime-20261013-01` (V). Current progress: `U/campaign-progress02.jsonl`, then `U/remaining-sequence01.jsonl`. See [native plan](M3_MASTER_NATIVE_PLAN.md) for exact commands and pins and [acceptance map](M3_MASTER_ACCEPTANCE_MAP.md) for required evidence.
@@ -28,7 +30,7 @@ Tooling: `.cache/test-runs/m3-master-native-20261013-01` (U). Runtime: `.cache/t
 - Execution manifest SHA: `5892bd9eab5dd6edf194b03153db6748470067519daae84dfaf2621eddb9533f`.
 - Preceding frozen-release regression receipt: `artifacts/m3/review_health_complete_regressions.json` (562 distinct IDs per lane; new two-module repair verification is separate).
 - Source qualification: `U/env-source-qualify03`; installed qualification: `U/env-wheel-qualify01`.
-- Latest published commit before this update: `b92c149982283151d710666466caf8c15d1341ef`.
+- Latest published commit before this update: `c0ae02d9f8952440bab095204e98347d03e5f17c`.
 
 ## Roadmap and remaining authority
 
