@@ -12,12 +12,12 @@ A read-only cProfile diagnostic of the frozen pair measured4.878seconds for curr
 - [x] Identify repeated validation from source and read-only timing evidence.
 - [x] Independently review the minimum correction and evidence-continuity implications. Product review pass1 cleared the two-module correction; an older test fixture was adapted without removing its nine failure cases.
 - [x] Add a meaningful regression, make the targeted correction, retain all seal/input/owner/deadline checks and the five-second freshness rule. Four focused cases passed; the corrected pre-repair fixture retained two expected failures and two already-passing seal-refusal cases.
-- [ ] Verify changed paths, actual pair-scale timing, negative controls and source/installed consistency. Preserve every failure; no rerun until new evidence supports the approach.
+- [x] Verify changed paths, actual pair-scale timing, negative controls and source/installed consistency. Both592-case lanes and complete environment qualifications passed. Preserve every failure separately.
 - [ ] Reconcile frozen identities before new native admission; never reset or repin the blocked runtime. Finish the remaining Final/auditor/three-ridge sequence on valid evidence, then M5 dependencies.
 
 Local evidence: .cache/test-runs/m3-pair-validation-repair-20261013-01/failure-state01.json, blocked-snapshot01, profile-validation01.json and profile-validation01.log. Original command/results remain in m3-master-native-20261013-01. No Strata launch, threshold relaxation, scheduled automation or financial acceptance is included.
 
-## Repair verification in progress
+## Repair verification history
 
 All87 targeted source tests passed:52 component,23 native and12 health cases, zero failures/errors/skips; all child exits were observed. This includes the deliberate5.2second final-validation refusal, lost watchdog, revoked seal and deadline cases. Receipt: artifacts/m3/pair_validation_targeted_source.json. The earlier source component attempt retained51pass/1fail because Windows sandbox access denied a named-pipe operation (CreateFileW error5); the authorized native-access run passed all52. The prior562-per-lane receipt covers the preceding frozen release and is not current paired verification of this repair.
 
@@ -43,3 +43,9 @@ Installed592 and targeted source87 passed; the remaining505 source cases are now
 The source preflight refusal is retained at X/source_components01-command.json, SHA a530da8636f314c1690043a0252727e8a055ab2a82ae1be5e2a891dfe10e5211. No source test process was created. The installed scratch inventory had added9,817 files and5,904 directories. Its21 passed-only basetemps were archived, every file/directory/link checked, and disposable copies removed under the owner's earlier approval. All592 result records, XMLs and original plans remain in place; no failed evidence was removed. The backup archive SHA is c549923f665392d7d229fbf10170038ff734d66d793b436d64b713378b8a6bed, under backups/pair-installed-fixtures-20261013-01. Fresh native storage admission then passed4.042seconds; no scan deadline or budget changed.
 
 Recovery review cleared1/3: source_components02 replaces only the prelaunch-refused label; all16 groups retain505 exact IDs and original486-file pins. Session37737 runs the reviewed recovery script; source-progress02.jsonl is authoritative. Final verification combines those505 with retained87 and installed592, with the refusal explicitly recorded. Qualification pins03 SHA a91ef5e14a26ca416c8102471d12c423aef951c175f8ef8850eb8edaf0f359ad replace the earlier preparation pins only for this evidence mapping; its narrow review cleared1/3. No new full runtime has been admitted or created.
+
+## Current result
+
+Source recovery session37737 and complete-environment qualification session96250 finished with exit0. Both lanes have592 distinct passing IDs, zero test failures/errors/skips and observed child closure. The proof explicitly preserves the earlier source prelaunch refusal. Current proof: artifacts/m3/pair_validation_complete_regressions.json, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7. Release SHA1e53f943d9224f22e772cf9c8188e6865fd27912ec16128a1775fc13a0a712cf binds486 files,190 matching modules and unchanged Python3.14.7/38 dependencies in both qualified environments.
+
+The16 passing source-recovery fixture folders were archived and hash-verified before removing disposable copies; all reports remain. Subsequent full-run preparation stopped at storage-admission01 on STORAGE_SCAN_DEADLINE, before creating the new runtime. The five-second bound remains unchanged. Five additional historical passing basetemps were identified by exact command/XML/plan evidence as enumeration-load contributors; preserve their reports and all failed fixtures. The live cleanup/admission status and exact next action are in CURRENT_CHECKPOINT.md. No new native campaign result is claimed.

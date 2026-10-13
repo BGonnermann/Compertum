@@ -2,7 +2,19 @@
 
 13 October 2026. Work only in `C:\Users\bgonn\Desktop\Compertum`. Strata stays off. Keep one heavy native job at a time, at least 16 GiB physical/commit headroom before launch, and a 12 GiB stop floor. Existing worker limits remain 4 GiB, four CPU threads and 120 seconds. No financial admission or account/order authority is included.
 
-## Checklist
+## Current repaired-release preparation
+
+The sections below retain the preceding blocked run. Its inputs and identities cannot be reused. The new run uses T=`.cache/test-runs/m3-pair-native-20261013-01` and runtime `.cache/test-runs/m3-pair-runtime-20261013-01`.
+
+- Current592 distinct matching tests per lane and both complete environment qualifications passed;486 frozen files and190 matching modules. Release SHA1e53f943d9224f22e772cf9c8188e6865fd27912ec16128a1775fc13a0a712cf.
+- New pair SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342; audit plan SHA0e92010cca1a26f2c3313f1d673a764b2ffe2888abfe9bdea334b03cf98cf501; Final plan SHAcf592bdab612a37274e051534460c83a4a2a429766e7644de3f02dd731edba44.
+- Three-ridge plan SHA f7c65e99f5f634c82be4646471f609fb0e9377c0c67becc2a3b536173899e5bc. Actual1GiB reserve verified; synthetic data and Final recipe unchanged.
+- Exact37 execution-input manifest SHA9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d. Hash and Python/PowerShell syntax checks passed. Independent actual admission review is pending.
+- Native storage admission passed3.708seconds and post-preparation3.277seconds. Sandbox attempts01/02 refused the unchanged five-second bound and remain preserved. No limits were relaxed.
+
+After admission review clears, run T/Run-MasterCampaigns01.ps1 then T/Run-RemainingM3-Memory01.ps1 with the exact manifest SHA as PinsSha256, serially in native Windows execution. Preserve every failed label and inspect actual progress before any recovery. Both runners are fresh-only. Current live state is in CURRENT_CHECKPOINT.md.
+
+## Preceding run checklist
 
 - [x] Preserve the historical 63/63 campaign pair, 37 successful audits/reviews and terminally BLOCKED aggregate. Never reset or repin that old run.
 - [x] Repair stale review health and verify 562 distinct cases in each source/installed lane: 12 focused, 262 component, 70 native and 218 negative/control cases. Zero failures/errors/skips and no remaining children. Receipt: `artifacts/m3/review_health_complete_regressions.json`.
