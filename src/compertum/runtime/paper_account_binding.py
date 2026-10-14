@@ -228,8 +228,14 @@ def handle_binding(owner,subject,value,command):
       _need(owner.db.execute("SELECT count(*) FROM state WHERE key LIKE 'paper_account_alias:%'").fetchone()[0]<32,'PAPER_ACCOUNT_HISTORY_BOUND')
       _put(owner,_ALIAS+alias,dict(version=1,project_id=owner.lease.project_id,account_alias=alias,identity_sha256=identity,first_packet_id=packet,confirmed_at=now.isoformat()),new=True)
      record=dict(record,confirmed_at=now.isoformat());_put(owner,_PREFIX+packet,record)
+     from .paper_opening import record_confirmation_opening
+     record_confirmation_opening(owner,record,manifest,history,reasons,new_alias=mapping is None)
      proposal._context.diagnostic()
    except sqlite3.Error:raise RuntimeRefused('PAPER_ACCOUNT_WRITE_UNVERIFIED') from None
    object.__setattr__(proposal,'_confirmed_at',record['confirmed_at'])
+  else:
+   from .paper_opening import validate_confirmation_opening
+   validate_confirmation_opening(owner,p['account_alias'])
+   proposal._context.diagnostic()
   # A cached confirmation response records history, not current freshness.
   return _public(owner,record,identity='ATTESTATION_RECORDED')

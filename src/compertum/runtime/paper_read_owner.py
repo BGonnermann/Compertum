@@ -201,6 +201,14 @@ class PaperReadOwner:
         _need(self._preflight.diagnostic()['packet_id']==packet_id,'PAPER_PREFLIGHT_UNAVAILABLE')
         return self._preflight
 
+    def opening_history(self,account_alias):
+        from .paper_opening import opening_history
+        return opening_history(self,account_alias)
+
+    def opening(self,packet_id,manifest):
+        from .paper_opening import current_opening
+        return current_opening(self,packet_id,manifest)
+
     def _dispose_get(self):
         if self._get is not None:
             self._get.close();_need(self._get.native_closed,'HTTP_CLEANUP_UNVERIFIED');self._get=None

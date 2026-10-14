@@ -37,7 +37,7 @@ The current encrypted schema supports collection evidence only. This increment p
 - [ ] Native loopback owner/coordinator/restart fixtures with invented credentials and no exposed production fixture switches; exact current-source/installed-package regression/replays.
 - [ ] Independent implementation review, maximum3 passes; retain receipts/checkpoint and continue remaining M5/M6 dependencies.
 
-Exact next action: complete the frozen M3 pair,77audits and Final. Verify/integrate staged retries and opening baseline in dependency order, then implement this integration with fresh storage/RAM admission. No native fixture suites run concurrently with M3. Active source/package Q remain frozen; this document does not change them.
+Exact next action: R and S are verified and independently reviewed. Admit a fresh bounded namespace, write and observe failing immutable-grant/state tests, then implement increment1. Continue owner lifecycle, publication, routing/composition and native paired verification in order. Preserve the terminal M3 failure; no M3 restart or Strata startup.
 
 Inspection references: paper_read_owner.py; paper_read_publication.py; managed.py; runtime/managed_owner.py; runtime/supervisor.py; domain.py; runtime/service_budget.py; runtime/paper_market_collection.py; runtime/paper_market_fresh.py; runtime/paper_market_evidence.py; runtime/paper_market_compose.py. Existing component plans/receipts remain authoritative for exact numerical and privacy limits.
 
@@ -52,3 +52,14 @@ Read-only preparation on 13 October found no missing consequential decision for 
 5. Serial native integration with invented credentials and loopback fixtures. Extend existing paper-read helpers; test actual owner/coordinator restart, publication, composition and cleanup. Preserve account/preflight/service-budget and R/S behavior. Freeze exact IDs, compare source/installed results and obtain independent implementation review, maximum3 passes.
 
 HISTORY/CURRENT_ACTIONS publication is in scope; durable FRESH/composition lineage remains a later required dependency. No actual provider, account or order request is authorized by this plan. Local preparation receipt: artifacts/m5/market_owner_preparation.json.
+
+
+## Integration readiness - 14 October 2026
+
+R is verified and published; corrected S has221 matching fresh source/installed passes and final closeout CLEAR1/3. Publish S, then proceed directly through the five accepted increments above.
+
+A bounded read-only review confirmed the implementation seams. Keep market records separate from account v1; bind the entire grant and give FRESH its own60-second start lifetime around the exact historical plan. Refactor account tick into a separate step so an idle account does not starve market work. Account work remains first; market work must not clear account confirmation or preflight. Existing producers own quota permits and unchanged deadlines.
+
+A closed flag alone is not proof of native cleanup. Retain failed cleanup references and block replacement/checkpoint. Seal terminal collection evidence before disposal, including valid zero-response failures. Keep fresh, reopened history and combined views alive together; public status/compose must be uncached and return only a scanned bounded summary.
+
+Coordinator history lookup must verify both authenticated subjects before injecting the recorded manifest. The published child grant is distinct from the split parent reservation. Persist the manifest before ACK and retain it after failure; never recollect or silently publish another artifact after interruption. Private transfer stays outside public supervisor actions. Detailed review notes: `.cache/test-runs/m5-opening-native-20261014-01/market-owner-design-review01.json`.

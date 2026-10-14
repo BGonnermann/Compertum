@@ -19,14 +19,14 @@ Checklist:
 
 - [x] Close design review, maximum three passes.
 - [x] Admit separate staging from frozen retry R, preserving active Q and R archives.
-- [ ] Write failing tests, then smallest implementation and targeted repair.
-- [ ] Test first confirmation atomicity; exact repeated confirmation; corrupt/missing opening/guard/publication; cash thresholds; foreign holdings/orders; changed account/credentials; stale context during verification; interruption and restart; privacy and fake-broker compatibility.
-- [ ] Independent code review, maximum three passes per review scope; retain every failure.
-- [ ] After M3 ends, integrate verified dependencies and run applicable current-source/installed-package tests, exact replays and native Windows checks in fresh admitted namespaces.
+- [x] Write failing tests, then smallest implementation and targeted repair.
+- [x] Test first confirmation atomicity; exact repeated confirmation; corrupt/missing opening/guard/publication; cash thresholds; foreign holdings/orders; changed account/credentials; stale context during verification; interruption and restart; privacy and fake-broker compatibility.
+- [x] Independent code review, maximum three passes per review scope; retain every failure.
+- [x] After M3 ends, integrate verified dependencies and run applicable current-source/installed-package tests, exact replays and native Windows checks in fresh admitted namespaces.
 
 Verification boundary: pure/in-memory tests may run while M3 is active. Further native filesystem/process/network fixture suites are serialized with M3 because concurrent test directories caused two final storage scan timeouts. No required check is dropped. Native loopback or injected PAPER_TLS tests never prove actual account acceptance. No new spending, actual requests, credentials, publication or unrelated environment changes.
 
-Exact next action: resolve the independent design review, then stage the source under an admitted bounded namespace. Do not edit the active source/package before M3 campaign, audits and Final complete.
+Historical staging instruction: resolve design review and stage separately while M3 remained frozen. This restriction ended with the documented M3 partial closeout.
 
 Design review CLOSED on pass2. Recovery safeguard: new opening creation requires the original execution database and no active-generation pointer, generations directory, restore-operation.json, restore-*.jsonl or aborted-pointer-*.json marker. Inspect only bounded direct state entries and fail closed on unreadable/unexpected types. Recheck inside the confirmation transaction. Normal owner process generation increments alone do not block. Existing restored pins can supply historical provenance only until fresh current confirmation is verified. No attempt-guard advancement or new recovery schema.
 
@@ -34,3 +34,10 @@ Staging admitted at04:51:57UTC: .cache/test-runs/m5-paper-opening-staging-202610
 
 
 Staged code review CLOSED2/3 at 2026-10-12T05:06:54.868715+00:00. Final pure/in-memory run81passed/0failed/error/skip. Retained original failures: missing module; alias compatibility; two fixture-unpack errors and zero-history schema transition; hostile Decimal context2failures; secret-reflection2failures. Repairs preserve64character alias contract, compare zero guard evidence across empty schema initialization, use explicit bounded Decimal context, and scan exact pinned credentials before opening-reference writes and on reads. Native fixtures prepared, not run; positive origin/health in policy tests explicitly injected. Staged archive 0e075259e267c09bb0018001e0d91e420e105190534a1efee6397701b5e908ce; active Q and prior retry R byte-for-byte unchanged. Next action remains finish M3 then dependency integration/native and source/package verification.
+
+
+## Master integration - 14 October 2026
+
+R is independently reviewed and published. Exactly eight S files are integrated in master, preserving newer R/Final/health changes. One new test checks genuine two-process execution-owner restart, exact opening pin/encrypted artifact preservation, historical-only access, refusal of the old live confirmation and zero dispatch. It passed its first targeted native source run; all children closed. The fixture uses invented responses, injected PAPER_TLS and a64KiB reserve, not actual account or full-capacity evidence.
+
+Required final selection:95 opening cases plus126 compatibility cases per source/installed lane. The compatibility suite separately includes a genuine1GiB full-native owner test. Build, both complete environment qualifications and221 fresh cases per lane passed. Final independent closeout CLEAR1/3. Native testing exposed an initially negative-cash diagnostic error; the surgical correction preserves the blocked baseline and positive one-cent threshold. Its failure is retained and all221 cases were rerun. No product files changed outside the eight mapped S files. Local tooling/receipts: `.cache/test-runs/m5-opening-native-20261014-01`.
