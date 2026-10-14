@@ -30,8 +30,10 @@ class _PrivateFreshView:
     def __reduce_ex__(self,protocol):raise RuntimeRefused('PAPER_FRESH_SERIALIZATION_FORBIDDEN')
     @property
     def content(self):
+        return self._capture()[0]
+    def _capture(self):
         with _owner_scope(self._pair._lease):
-            self._pair._context();_need(self._pair._view is self);return self._pair._content_at_use()
+            self._pair._context();_need(self._pair._view is self);return self._pair._capture_at_use()
     def to_payload(self):return json.loads(self.content)
 
 class _MarketFresh:
@@ -50,6 +52,7 @@ class _MarketFresh:
                 self._clock=_test_clock or _utc;self._monotonic=_test_monotonic or time.monotonic
                 self._credential_sha=_sha(protected.ciphertext);self._generation=lease.generation;self._instance=lease.identity.process_instance_id
                 self._closed=False;self._state='READY';self._reason=None;self._pending=None;self._view=None;self._records=[];self._dispatch_times={};self._ids=set();self._attempts=0
+                self._completed_timing=None
                 self._real_started=time.monotonic();self._last_clock=p['created_at'];self._last_mono=None;self._start_mono=self._mono();self._started_at=self._stamp()
                 self._validated_at=self._started_at;self._context_sha=self._binding()
                 self._scan(dict(plan=p,pair_id=pair_id,purpose='OPERATIONAL_ONLY'));self._seal();state.resources.append(self)
@@ -61,7 +64,7 @@ class _MarketFresh:
             generation=self._generation,instance=self._instance,started=self._started_at,mono=self._start_mono,real=self._real_started,clock=id(self._clock),monotonic=id(self._monotonic))))
     def _data_hash(self):
         return _sha(canonical(dict(state=self._state,reason=self._reason,attempts=self._attempts,ids=sorted(self._ids),dispatch=self._dispatch_times,
-            records=[[_sha(req),_sha(raw),_sha(diag),at] for req,raw,diag,at in self._records],validated=self._validated_at,
+            records=[[_sha(req),_sha(raw),_sha(diag),at] for req,raw,diag,at in self._records],validated=self._validated_at,completion=self._completed_timing,
             pending=None if self._pending is None else _sha(self._pending._content))))
     def _state_hash(self):
         return _sha(canonical(dict(data=self._data_hash(),last_clock=self._last_clock,last_mono=self._last_mono)))
@@ -131,9 +134,12 @@ class _MarketFresh:
                 diagnostic=qualify_market_inputs(self._plan,self._observations(),as_of=received).to_payload()
                 self._scan(dict(records=self._wire_records(),diagnostic=diagnostic))
                 validated=self._stamp();self._validated_at=validated;self._records[-1]=(*self._records[-1][:3],validated)
-                if self._mono()-self._start_mono>=20 or time.monotonic()>=self._real_started+20:self._finish('TOTAL_DEADLINE')
+                completed_mono=self._mono();completed_real=time.monotonic()
+                if completed_mono-self._start_mono>=20 or completed_real>=self._real_started+20:self._finish('TOTAL_DEADLINE')
                 elif result.status_code!=200:self._finish('HTTP_REFUSED')
-                elif len(self._records)==2:self._finish(None,'PAIR_COMPLETE')
+                elif len(self._records)==2:
+                    self._completed_timing=dict(monotonic_elapsed_seconds=completed_mono-self._start_mono,native_elapsed_seconds=completed_real-self._real_started)
+                    self._finish(None,'PAIR_COMPLETE')
                 else:self._state='READY';self._seal()
                 return True
             except BaseException as error:
@@ -153,6 +159,8 @@ class _MarketFresh:
             if self._view is None:self._view=_PrivateFreshView(self,_factory=_FACTORY)
             return self._view
     def _content_at_use(self):
+        return self._capture_at_use()[0]
+    def _capture_at_use(self):
         try:
             data_sha=self._data_hash();binding=self._binding();seal=self._state_sha
             records=tuple(self._records);dispatch=dict(self._dispatch_times)
@@ -175,7 +183,8 @@ class _MarketFresh:
             self._scan(value)
             _need(self._binding()==binding and self._data_hash()==data_sha and self._state_sha==seal
                 and self._last_clock==now and self._last_mono==mono,'PAPER_FRESH_EVIDENCE_CHANGED')
-            content=canonical(value);self._seal();return content
+            content=canonical(value);self._seal()
+            return content,dict(elapsed_seconds=elapsed,elapsed_ns=math.ceil(elapsed*10**9),completion=None if self._completed_timing is None else dict(self._completed_timing))
         except _INVALID:raise RuntimeRefused('PAPER_FRESH_INVALID') from None
     def close(self):
         with _MUTEX:

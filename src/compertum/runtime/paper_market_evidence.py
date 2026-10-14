@@ -286,14 +286,21 @@ def publish_market_evidence(manager,grant,protected):
 
 
 class _OpenedMarketEvidence:
-    __slots__=('_lease','_buffer','_context','_identity','_closed','_state')
-    def __init__(self,lease,buffer,entropy,identity,state):self._lease=lease;self._buffer=buffer;self._context=entropy;self._identity=identity;self._closed=False;self._state=state
+    __slots__=('_lease','_buffer','_context','_identity','_closed','_state','_publication','_publication_sha')
+    def __init__(self,lease,buffer,entropy,identity,state,*,manifest=None):
+        self._lease=lease;self._buffer=buffer;self._context=entropy;self._identity=identity;self._closed=False;self._state=state
+        self._publication=canonical(manifest);self._publication_sha=_sha(self._publication)
     def __repr__(self):return '<HistoricalOperationalEvidence private data redacted>'
     def __reduce_ex__(self,protocol):raise RuntimeRefused('MARKET_EVIDENCE_SERIALIZATION_FORBIDDEN')
     def snapshot(self):
         with _owner_scope(self._lease):
             require_live_owner(self._lease,'execution');_need(not self._closed)
             return _validate(_frames(self._buffer,self._context),*self._identity)
+    def publication(self):
+        with _owner_scope(self._lease):
+            require_live_owner(self._lease,'execution');_need(not self._closed and self in self._state.resources)
+            _need(_sha(self._publication)==self._publication_sha)
+            value=strict_json(self._publication);_manifest(value,self._identity[2],self._identity[3]);return value
     def close(self):
         with _MUTEX:
             self._closed=True;_wipe(self._buffer)
@@ -319,7 +326,7 @@ def open_market_evidence(lease,account_alias,collection_id,manifest):
                 _need(len(raw)==manifest['size_bytes'] and hashlib.sha256(raw).hexdigest()==manifest['sha256'])
                 plain=_crypt_evidence(bytearray(raw),entropy,decrypt=True);identity=(state.project.project_id,account_alias,task,collection_id)
                 _validate(_frames(plain,entropy,cipher_size=len(raw)),*identity)
-                private=_OpenedMarketEvidence(lease,plain,entropy,identity,state);state.resources.append(private)
+                private=_OpenedMarketEvidence(lease,plain,entropy,identity,state,manifest=manifest);state.resources.append(private)
         except (ContractError,ValueError,TypeError,KeyError,UnicodeError,RecursionError,OSError):raise RuntimeRefused('MARKET_EVIDENCE_INVALID') from None
         yield private
     finally:

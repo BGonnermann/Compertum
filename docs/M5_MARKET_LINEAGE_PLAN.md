@@ -24,4 +24,8 @@ Validation proceeds from focused schema/capture tests to publication/owner tests
 
 The first increment factors the existing composition capture without changing its public result. A separate strict inert schema binds both original grants, producer instance/generation, history manifest/snapshot, exact FRESH bytes and composed diagnostic. Validation rebuilds request/reply diagnostics and mathematical qualification, including stale-data results. Tests must reject changed originals even when outer hashes are recomputed. Historical producer assertions do not establish native authentication.
 
-Exact next action: finish release07 market-owner aggregate closeout, then implement and test coherent private capture and the inert lineage schema. No durable lineage or M5/M6 acceptance is claimed yet.
+Release07 market-owner closeout is independently CLEAR3/3 and published as `1dfe14fc93ee52d0d39d39a04a4e5a4d2b0e8126`; master, primary GitHub and the requested clone matched.
+
+Capture foundation is verified in both environments:225 matching cases, zero failures/errors/skips, both complete environments qualified,521 frozen inputs/199 modules. Both review regressions were reproduced and corrected; all failing evidence is preserved. The public FRESH/composition shapes are unchanged. Final aggregate review3/3 is CLEAR. See [the foundation report](../reports/M5_MARKET_LINEAGE_FOUNDATION.md).
+
+Exact next action: publish the verified foundation, then complete [original consumption evidence and owner-bound capture](M5_MARKET_CONSUMPTION_PLAN.md). Encryption, reservation/publication and lineage restart/ACK integration remain pending. Each dependency is verified as a bounded increment; none substitutes for complete durable-lineage acceptance.

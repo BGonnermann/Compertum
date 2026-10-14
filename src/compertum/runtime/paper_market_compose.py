@@ -65,11 +65,11 @@ def _history_records(value):
 def _fresh_source(lease,source):
     _need(type(source) is _PrivateFreshView and type(source._pair) is _MarketFresh)
     pair=source._pair;_need(pair._lease is lease and pair.private_snapshot() is source)
-    raw=source.content;v=json.loads(raw)
+    raw,timing=source._capture();v=json.loads(raw)
     _need(v['state']=='PAIR_COMPLETE' and v['diagnostic'] is not None and len(v['records'])==2
           and [r['request']['operation'] for r in v['records']]==['ASSET','QUOTE'])
     _need(all(r['validated_at'] is not None for r in v['records']))
-    return pair,raw,v,pair._binding(),pair._state_sha
+    return pair,raw,v,pair._binding(),pair._state_sha,timing
 
 
 def _observations(plan,records):
@@ -95,12 +95,14 @@ class _PrivateCombinedMarketInputs:
     def __reduce_ex__(self,protocol):raise RuntimeRefused('PAPER_COMPOSITION_SERIALIZATION_FORBIDDEN')
     @property
     def content(self):
+        return self._capture()['combined']
+    def _capture(self):
         try:
             with _owner_scope(self._lease):
                 self._context();binding=self._binding_sha
                 plan,hraw,hv,hm,href,hidentity=_history_source(self._lease,self._state,self._history)
                 _need(hidentity==self._history_identity and _sha(hraw)==self._history_sha and plan.content==self._plan.content)
-                pair,fraw,fv,pbinding,pstate=_fresh_source(self._lease,self._fresh)
+                pair,fraw,fv,pbinding,pstate,timing=_fresh_source(self._lease,self._fresh)
                 _need(pbinding==self._pair_binding and pair._credential_sha==self._credential_sha==hm['credential_sha256']
                       and pair._plan.content==plan.content)
                 observations=_observations(plan,_history_records(hv)+fv['records'])
@@ -117,7 +119,7 @@ class _PrivateCombinedMarketInputs:
                 after=_history_source(self._lease,self._state,self._history)
                 _need(after[1]==hraw and after[5]==hidentity,'PAPER_COMPOSITION_EVIDENCE_CHANGED')
                 pair._context();_need(pair._binding()==pbinding and pair._state_sha==pstate and pair._view is self._fresh,'PAPER_COMPOSITION_EVIDENCE_CHANGED')
-                return content
+                return dict(combined=content,fresh=fraw,timing=timing,history=hraw,history_metadata=hm)
         except _INVALID:raise RuntimeRefused('PAPER_COMPOSITION_INVALID') from None
     def to_payload(self):return json.loads(self.content)
     def close(self):
@@ -132,7 +134,7 @@ def compose_market_inputs(lease,history,fresh):
             require_live_owner(lease,'execution')
             _need(not any(type(r) is _PrivateCombinedMarketInputs and not r._closed for r in state.resources),'PAPER_COMPOSITION_CAPACITY')
             plan,raw,v,meta,reference,identity=_history_source(lease,state,history)
-            pair,_,_,binding,_=_fresh_source(lease,fresh)
+            pair,_,_,binding,_,_=_fresh_source(lease,fresh)
             _need(pair._plan.content==plan.content and pair._credential_sha==meta['credential_sha256'])
             result=_PrivateCombinedMarketInputs(lease,state,history,fresh,plan,identity,_sha(raw),meta['credential_sha256'],binding,_factory=_FACTORY)
             state.resources.append(result);return result

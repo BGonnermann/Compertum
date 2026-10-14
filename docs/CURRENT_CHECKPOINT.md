@@ -4,6 +4,19 @@
 
 ## Checklist
 
+Active lineage foundation: **225 identical cases passed in each source/installed environment**; zero failures/errors/skips, all children closed. Both complete environments qualified; release08 freezes521 files/199 modules. Both real1GiB reserve fixtures are preserved with all bytes and identities unchanged. Aggregate verification passed; its first failed receipt-schema assumption is preserved. Final independent review3/3 is CLEAR. AggregateSHA `e374f67678b19123dc5f9648bfddebd7adb10cfbc271deed31ed659371d37b28`. See [the foundation report](../reports/M5_MARKET_LINEAGE_FOUNDATION.md).
+
+Current checklist:
+
+- [x] Repair owner refusal/cleanup errors and publish verified release07.
+- [x] Implement coherent private capture and strict historical reconstruction.
+- [x] Complete matching225-case source/package checks, environment qualification and evidence preservation.
+- [x] Finish foundation final review; publish this verified checkpoint.
+- [ ] Save original grant consumption evidence and bind capture to owner records.
+- [ ] Add reserved encrypted lineage publication and native ACK/restart verification.
+
+Exact next action: publish the verified foundation, then implement [consumption records and owner-bound capture](M5_MARKET_CONSUMPTION_PLAN.md). No durable lineage or complete M5/M6 acceptance is claimed.
+
 Current repair: **394 matching cases pass in each environment, plus 11 source-backed native connection cases**. Both actual lifecycle tests, full environment qualifications and aggregate verification passed. Release07 freezes 519 inputs and 198 modules. An acknowledged busy-checkpoint reply no longer closes healthy connections; malformed/transport failures still do. Exact barrier-release acknowledgement and snapshot cleanup are enforced. Passing scratch was archived and verified before cleanup; every failed native identity remains preserved. Final independent aggregate review is CLEAR3/3. Next: keep master/GitHub synchronized and implement [durable market-input lineage](M5_MARKET_LINEAGE_PLAN.md). See [the repair report](../reports/M5_MARKET_OWNER_REPAIR.md) and [repair checklist](M5_ERROR_REPAIR.md). The earlier exhausted round below is retained history, not the current action.
 
 - [x] Owner selected private `BGonnermann/Compertum` as the primary repository. Master uses the existing BGonnermann account; old remote retained as `legacy-brennan`. The requested clone is `.cache/checkouts/Compertum-bgonnermann`, with all53 prior commits through `8fb43d609b02351e41df4e6380dc58020cde9792` retained. Only tracked files/history were cloned; runtime evidence and credentials remain in their original locations. Implementation stays in master.
@@ -22,12 +35,12 @@ Current repair: **394 matching cases pass in each environment, plus 11 source-ba
 - [x] Integrate M5 S's eight mapped files and targeted negative-cash correction; verify95 opening and126 compatibility cases per lane. Final closeout CLEAR1/3.
 - [x] Implement market grants/records, collection/publication, FRESH/composition and routing; freeze518files/198modules, build/install offline and qualify both complete environments.
 - [x] Run346 matching component cases per source/installed lane; zero test failures/errors/skips in those six jobs; all children closed.
-- [ ] Complete native market restart verification: source_process04 failed on retained watchdog halt; review3/3 blocked, repair bound exhausted.
-- [ ] Complete aggregate closeout: three attempts failed the unchanged5-second storage scan; preserve evidence and diagnose before further bounded work.
+- [x] Complete native market restart verification in the subsequent authorized repair:394 matching cases per lane; original failed attempts remain preserved.
+- [x] Complete aggregate repair closeout under the unchanged5-second storage scan after verified passing-fixture maintenance.
 
-## Exact next action
+## Historical repair checkpoint, superseded by verified release07
 
-This bounded execution is incomplete. No native test remains running. The next diagnostic must explain the repeated storage-scan deadline and retain native nonhealthy startup responses before any further bounded integration attempt. Do not raise limits, erase the watchdog halt, retry failed runtime identities, or treat the passing component results as full M5 acceptance. Update the test to verify the supported restart/refusal contract, then run fresh source/installed native verification and aggregate closeout.
+The following paragraphs preserve the earlier failed state and its evidence; they are not current instructions. That bounded execution was incomplete. Its next diagnostic was to explain the repeated storage-scan deadline and retain native nonhealthy startup responses before another bounded integration attempt. The later authorized repair above completed that work without raising limits, erasing the watchdog halt or retrying failed runtime identities.
 
 Current partial evidence: `artifacts/m5/market_owner_partial_checkpoint.json`, SHAe837e4cdafd6f77b97f5390be251312799d5d4d4842aed582f14f8b6d94cd3d2. **346 distinct cases pass per lane**:216market +125compatibility +5import/calendar. Each of the six final02 jobs has zero failures/errors/skips and all children closed. Maximum67.836seconds, peak246.254MiB aggregate Job memory. Full environments qualified; unchanged Python3.14.7 and38dependencies. Source/installed modules match exactly. No actual provider/account/order request or Strata startup.
 
