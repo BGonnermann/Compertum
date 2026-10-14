@@ -9,9 +9,10 @@ from .owners import _MUTEX,_owner_scope
 from .paper_preflight import _live as live_owner,_MISSING as _PREFLIGHT_MISSING
 from .paper_input_context import _account_manifest,_account,_final_account
 from . import paper_account_binding as binding
-from .paper_credential_slot import load_paper_slot
+from .paper_credential_slot import load_paper_slot,_slot,_payload as slot_payload
 from .paper_credentials import open_paper_credentials
 from .paper_read_evidence import open_read_evidence
+from .paper_market_lineage_evidence import _published as published_original
 from .paper_opening import _original as original_opening
 from .paper_read_secrecy import _reject_reflections
 
@@ -90,9 +91,16 @@ def _snapshot(owner,subject,packet_id):
     if opening_record is not None:_need(original_opening(owner,value['account_alias'])[0]==opening_record)
     with open_read_evidence(owner.lease,value['account_alias'],packet_id,manifest):pass
     live_owner(owner)
-    _originals(owner,value,manifest,facts,record,alias,opening_record,opening_sources)
     protected=load_paper_slot(owner.lease,value['account_alias'])
     _need(hashlib.sha256(protected.ciphertext).hexdigest()==value['credential_sha256'])
+    # Slot validation decrypts and scans. Finish it before proving original bytes
+    # and rows; the last slot comparison must not invoke those callbacks again.
+    with _owner_scope(owner.lease) as guard:
+        published_original(guard,manifest)
+        if opening_record is not None:published_original(guard,opening_sources[2])
+    _originals(owner,value,manifest,facts,record,alias,opening_record,opening_sources)
+    with _slot(owner.lease) as (guard,path):
+        _need(guard.api.read_regular(path,maximum=16384)==slot_payload(protected),'PAPER_ACCOUNT_CREDENTIAL_CHANGED')
     _need(all(a is b for a,b in zip(_resources(owner),resources)))
     _need(not owner._closed and owner.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
     _need(owner._preflight is preflight and not preflight._closed and preflight._owner is owner)

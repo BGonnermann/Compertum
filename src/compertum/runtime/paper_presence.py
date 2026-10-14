@@ -7,12 +7,14 @@ from compertum.domain import ContractError
 from compertum.events import uuid
 from compertum.paper_contracts import strict_json,timestamp
 from .errors import RuntimeRefused
+from .owners import _owner_scope
 from .paper_preflight import _live,_measure
 from . import paper_account_binding as binding
 from .paper_input_context import _account_manifest,_final_account
-from .paper_credential_slot import load_paper_slot
+from .paper_credential_slot import load_paper_slot,_slot,_payload as slot_payload
 from .paper_credentials import open_paper_credentials
 from .paper_read_evidence import open_read_evidence
+from .paper_market_lineage_evidence import _published as published_original
 from .paper_read_secrecy import _reject_reflections
 
 _FIELDS={'version','record_type','presence_id','request_sha256','project_id','subject_key','account_alias','packet_id',
@@ -139,6 +141,15 @@ class _PresenceOwner:
         _need(self._original_records(p)==original)
         return original
 
+    def _final_originals(self,p,original,protected):
+        # All diagnostic, health and decryption callbacks must already be done.
+        # Compare durable publication/slot bytes without another decryption.
+        with _owner_scope(self.parent.lease) as guard:published_original(guard,original[3])
+        _need(self._original_records(p)==original)
+        with _slot(self.parent.lease) as (guard,path):
+            _need(guard.api.read_regular(path,maximum=16384)==slot_payload(protected),'PAPER_PRESENCE_CREDENTIAL_CHANGED')
+        _need(not self.parent._closed and self.parent.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
+
     def _current(self,p):
         owner=self.parent;_live(owner)
         _need(p['presence_id'] not in self._revoked,self._revoked.get(p['presence_id'],'PAPER_PRESENCE_INVALIDATED'))
@@ -148,10 +159,13 @@ class _PresenceOwner:
         _need(hashlib.sha256(protected.ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
         result=self._receipt(p)
         with open_paper_credentials(owner.lease,protected) as opened:_reject_reflections(canonical(result),tuple(opened.headers().values()))
-        # Final durable reads and health checks precede the final owner clocks.
-        _need(self._originals(p)==original and self._read(p['presence_id'])==(p,None))
-        _need(hashlib.sha256(load_paper_slot(owner.lease,p['account_alias']).ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
-        _live(owner);self._age(p)
+        _need(self._originals(p)==original)
+        protected=load_paper_slot(owner.lease,p['account_alias'])
+        _need(hashlib.sha256(protected.ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
+        _live(owner)
+        self._final_originals(p,original,protected)
+        _need(self._read(p['presence_id'])==(p,None) and p['presence_id'] not in self._revoked)
+        self._age(p)
 
     def _receipt(self,p):
         return dict(version=1,scope='NATIVE_PAPER_PRESENCE_ONLY',status='ACKNOWLEDGEMENT_RECORDED',current_presence='NOT_ASSERTED',
@@ -184,9 +198,10 @@ class _PresenceOwner:
             _need(binding._live(owner,value,manifest)[:2]==(proposal,record))
             _need(self._originals(p)==(value,record,alias,manifest))
             context.diagnostic()
-            _need(hashlib.sha256(load_paper_slot(owner.lease,p['account_alias']).ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
-            _need(self._original_records(p)==(value,record,alias,manifest))
+            protected=load_paper_slot(owner.lease,p['account_alias'])
+            _need(hashlib.sha256(protected.ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
             _live(owner)
+            self._final_originals(p,(value,record,alias,manifest),protected)
             _need(owner._account_proposal is proposal and not proposal._closed and proposal._context is context
                   and owner._preflight is context and not context._closed and context._owner is owner)
             _final_account(context);self._age(p)

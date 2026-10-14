@@ -10,8 +10,12 @@ Current checklist:
 - [x] Complete account-only implementation, matched source/package verification and final review.
 - [x] Publish account14 and verify master/primary GitHub/requested-clone equality: `0bc6758c62fcc94e03c0d5453493af8691e7a7c1`.
 - [x] Repair combined-context integrity;151 matching source/package cases and final review CLEAR3/3.
-- [ ] Publish/synchronize repair15, then reproduce/repair the account/presence prerequisite16.
+- [x] Publish/synchronize repair15: f4bae5b686a4beef8719553e68e2bac48913a8aa. Master, private GitHub main and requested clone match.
+- [x] Repair account/presence integrity16;222 matching source/package cases, complete environments and final review CLEAR2/3.
+- [ ] Publish/synchronize integrity16, then verify the private final-proof interface17 needed by exact native intents.
 - [ ] Continue exact native intent/confirmation, then remaining admission dependencies.
+
+Verified repair16: **222 identical cases passed per environment**, zero failures/errors/skips; all34 jobs closed. Full environment qualifications and aggregate verification passed;544 frozen inputs/209 modules, unchanged Python and38 dependencies. Final review2/3 CLEAR. Aggregate SHA `1a420f02e2dcf30907571a0bc54e2038b3fbfab412522e9c3a9f4817387e7fe3`;275 evidence pins. The12 original failures and all source bytes remain preserved. Only passed temporary copies were archived/verified before cleanup. See [the report](../reports/M5_ACCOUNT_PRESENCE_INTEGRITY.md). Exact next action: publish/synchronize16, then implement and verify the private final-proof interface17 before exact native intent/confirmation. No financial/M5 acceptance;M6 remains0/10.
 
 Verified repair15: **151 identical cases passed per source/installed environment**, zero failures/errors/skips, all28 jobs closed. Offline build/install, both complete environment qualifications and aggregate verification passed;543 frozen inputs/209 modules, unchanged Python and38 dependencies. Final independent review3/3 is **CLEAR**. Aggregate SHA `d3daf070dbb018d9c1009b636ff19bd351c33f75601ef93232164886f2bb0735`;436 evidence pins. Original137/1 stopped source sequence, all preliminary failures and installed pre-process storage refusal remain preserved. Passing-only archives are byte-verified. See [the integrity report](../reports/M5_INPUT_INTEGRITY.md). Exact next action: publish/synchronize this checkpoint, then activate the12 account/presence probes under [repair16](M5_ACCOUNT_PRESENCE_INTEGRITY_PROGRESS.md), before exact native intents. No financial or M5 acceptance;M6 remains0/10.
 
