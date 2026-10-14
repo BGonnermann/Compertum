@@ -15,10 +15,10 @@ Publication is an explicit operation. Status and compose remain read-only. The c
 ## Checklist and acceptance
 
 - [x] Immutable private capture and strict versioned validation. Reconstruct request/reply diagnostics, FRESH age qualification and combined diagnostic. Bind original grants and history publication. Reject context/hash substitution, altered originals, malformed clocks and secret reflection.
-- [ ] Reserved encrypted publication and historical reopening. Keep 32 KiB chunks, the existing 3 MiB ciphertext ceiling and bounded scanned public summaries. Reject ignored writes, corrupt chunks, incorrect manifests and uncertain cleanup. Preserve idempotency and terminal history.
-- [ ] Owner routing and recovery. Explicit publication only; preserve account priority, quotas, original deadlines, one producer, health and checkpoint rules. No new HTTP requests.
-- [ ] Source/package tests, actual native restart/lost-ACK scenario and independent review. Keep collection compatibility and accurate provenance labels. At most three evidence-led repair/review iterations for this increment; preserve failures.
-- [ ] Update checkpoint/README and publish verified implementation to the primary repository.
+- [x] Reserved encrypted publication and historical reopening. Keep 32 KiB chunks, the existing 3 MiB ciphertext ceiling and bounded scanned public summaries. Reject ignored writes, corrupt chunks, incorrect manifests and uncertain cleanup. Preserve idempotency and terminal history.
+- [x] Owner routing and recovery. Explicit publication only; preserve account priority, quotas, original deadlines, one producer, health and checkpoint rules. No new HTTP requests.
+- [x] Source/package tests, actual native restart/lost-ACK scenario and independent review. Keep collection compatibility and accurate provenance labels. At most three evidence-led repair/review iterations for this increment; preserve failures.
+- [x] Update checkpoint/README and publish verified implementation to the primary repository.
 
 Validation proceeds from focused schema/capture tests to publication/owner tests, then frozen source/package regression groups and a bounded native fixture. Tests use invented credentials and loopback data. Keep memory admission, one-heavy-job exclusion, 120-second job deadline and storage budgets unchanged. Stop dependent work for unavailable authority, genuine external blockers or the recorded iteration bound.
 
@@ -31,3 +31,7 @@ Capture foundation is verified in both environments:225 matching cases, zero fai
 Original consumption evidence and owner-bound capture now have291 matching source/package checks, with both full environments qualified. The cleanup defect reproduced in five cases and was corrected; failures remain preserved. Final aggregate review3/3 is CLEAR. See [the consumption report](../reports/M5_MARKET_CONSUMPTION.md).
 
 The private encryption/reopening API now has243 matching source/package checks and full environment qualification; final aggregate review3/3 is CLEAR. See [the encryption report](../reports/M5_MARKET_LINEAGE_ENCRYPTION.md). Exact next action: publish this reviewed checkpoint, then implement durable capture identity, reserved transfer and lineage restart/ACK integration under [the publication plan](M5_MARKET_LINEAGE_PUBLICATION_PLAN.md). Each dependency is verified as a bounded increment; none substitutes for complete durable-lineage acceptance.
+
+## Verified closeout - 14 October 2026
+
+Increment11 completes this contract:696 identical source/package cases per lane, including one full Windows restart/lost-ACK lifecycle each; zero failures, errors or skips. Both full environments qualified and final independent review3/3 is CLEAR. See [the publication report](../reports/M5_MARKET_LINEAGE_PUBLICATION.md). The earlier next-action paragraphs are historical. Current next action: publish this verified checkpoint, synchronize the requested clone, then implement the private input context in [the admission plan](M5_PAPER_ADMISSION_PLAN.md). Publication completion is verified separately by exact remote/local HEAD equality.

@@ -8,6 +8,8 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 ## Current position
 
+Durable market-input publication now has **696 matching passing cases in each source/installed environment**, including the full Windows restart/lost-acknowledgement lifecycle. Both complete environments and aggregate verification passed; final independent review3/3 is CLEAR. Original captures survive restart as historical evidence without restoring freshness or trading authority. The next implementation is native paper admission. See [the publication report](reports/M5_MARKET_LINEAGE_PUBLICATION.md) and [admission plan](docs/M5_PAPER_ADMISSION_PLAN.md).
+
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.
 
 The M3 two-module validation repair passed **592 distinct matching tests in each source/installed environment**, with zero test failures, errors or skips. Both complete environment qualifications passed with unchanged Python and 38 dependencies. That frozen release contains 486 files and 190 matching product modules. Separate storage-preflight refusals are preserved and do not count as passing tests.
@@ -16,11 +18,11 @@ M5 collection retries are now integrated and independently reviewed: **521 match
 
 M5 opening-baseline integration is also verified and independently reviewed: **221 matching fresh cases passed per environment** (95 opening and 126 compatibility checks). Genuine process restart preserves the original baseline without restoring live authority. A discovered negative-cash diagnostic bug was fixed and all cases rerun. That verified release has 502 frozen files and 194 modules. See [the opening integration report](reports/M5_OPENING_INTEGRATION.md).
 
-The market-owner repair has **394 matching passing tests in both source and installed-package environments**, including the real-process restart scenario, plus 11 source-backed native connection checks. Both complete environments and aggregate evidence verification passed. The fix preserves healthy connections after an acknowledged busy-checkpoint reply; broken connections still close. Earlier failed evidence remains preserved. Durable FRESH/composed lineage and the actual walkthrough remain open. See [the repair report](reports/M5_MARKET_OWNER_REPAIR.md).
+The market-owner repair has **394 matching passing tests in both source and installed-package environments**, including the real-process restart scenario, plus 11 source-backed native connection checks. Both complete environments and aggregate evidence verification passed. The fix preserves healthy connections after an acknowledged busy-checkpoint reply; broken connections still close. Earlier failed evidence remains preserved. Subsequent durable-lineage checks are described above; the actual walkthrough remains open. See [the repair report](reports/M5_MARKET_OWNER_REPAIR.md).
 
-The market-input capture foundation has **225 matching passing tests per environment**. It retains one coherent snapshot and reconstructs the original diagnostic from exact bytes. Both complete environments qualified. The subsequent consumption checks are described below; durable encrypted publication remains open. See [the foundation report](reports/M5_MARKET_LINEAGE_FOUNDATION.md).
+The market-input capture foundation has **225 matching passing tests per environment**. It retains one coherent snapshot and reconstructs the original diagnostic from exact bytes. Both complete environments qualified. Subsequent consumption and publication checks build on this foundation. See [the foundation report](reports/M5_MARKET_LINEAGE_FOUNDATION.md).
 
-Original grant consumption and owner-bound capture have **291 matching passing checks per environment**. Consumption commits before collection begins; capture reads its original records from the execution owner. Private encrypted lineage storage/reopening now has **243 matching passing checks per environment** and both complete environments qualified. Durable capture identity, explicit publication routing and native restart/acknowledgement remain next; final encryption aggregate review3/3 is CLEAR. See [the encryption report](reports/M5_MARKET_LINEAGE_ENCRYPTION.md). See [the consumption report](reports/M5_MARKET_CONSUMPTION.md).
+Original grant consumption and owner-bound capture have **291 matching passing checks per environment**. Consumption commits before collection begins; capture reads its original records from the execution owner. Private encrypted lineage storage/reopening has **243 matching passing checks per environment** and both complete environments qualified. Its final aggregate review3/3 is CLEAR. Durable publication and native recovery are covered by the newer696-case inventory above. See [the encryption report](reports/M5_MARKET_LINEAGE_ENCRYPTION.md) and [consumption report](reports/M5_MARKET_CONSUMPTION.md).
 
 The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **All 77 audits/reviews, the Final calculation and its restart checks passed.** The source Final audit passed pause/resume and terminal restart. Four separate three-ridge calculation/audit jobs also passed, with six annual fits and exact source/package outputs. The installed-package audit was interrupted before saving its process-exit receipt and cannot be accepted or retried. M3 remains incomplete. All saved files are preserved, but a failed backup move changed directory identities; the archived runtime cannot resume. See [the interruption report](reports/M3_FINAL_INTERRUPTION.md). Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
@@ -33,7 +35,7 @@ Two earlier M3 runs remain terminally blocked and preserved: the development-fol
 | M2: Strategies and mathematical checks | Synthetic components verified; financial qualification open |
 | M3: Protected evaluation and audit | Repaired campaigns 63/63 each and exactly matched; 77/77 reviews and Final/restart passed; installed Final audit interrupted, acceptance open |
 | M4: Simulated broker | Fake-broker engineering accepted; 662 matching source/package checks |
-| M5: Supervised paper walkthrough | Retries, opening baseline and market-owner checks verified; durable input lineage and actual walkthrough pending |
+| M5: Supervised paper walkthrough | Retries, opening baseline and durable lineage checks verified; native admission and actual walkthrough pending |
 | M6: Daily supervised operation | Evidence structure implemented; **0 of 10 actual supervised market sessions** |
 
 ```mermaid
@@ -53,7 +55,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 1. Master consolidation published and verified; keep pushing verified checkpoints.
 2. M3 partial closeout and independent checks are verified; the interrupted installed Final audit remains blocked. Strata stays off.
 3. M5 retries and opening baseline are verified; original failed evidence remains preserved.
-4. Market-owner repair is independently reviewed and verified. Implement durable FRESH/composed input lineage, preserving failed evidence and current limits.
+4. Durable lineage is verified and independently reviewed. Implement native paper input context, grants, supervision, risk and reconciliation under the admission plan.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)
 

@@ -46,7 +46,7 @@ import compertum.runtime.paper_market_publication as publication
 call=publication.call_owner;lost=[]
 def drop_ack(remote,action,payload):
  result=call(remote,action,payload)
- if mode=='collect' and action=='paper_market_transfer' and payload.get('operation')=='ack' and not lost:
+ if action=='paper_market_transfer' and ((mode=='collect' and payload.get('operation')=='ack') or (mode=='fresh' and payload.get('operation')=='lineage_ack')) and not lost:
   lost.append(True);raise RuntimeRefused('FIXTURE_ACK_REPLY_LOST')
  return result
 publication.call_owner=drop_ack

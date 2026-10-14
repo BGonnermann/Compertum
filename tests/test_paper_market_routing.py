@@ -28,7 +28,7 @@ class Decision:
  subject_key:str
 
 
-@pytest.mark.parametrize('operation',['status','compose'])
+@pytest.mark.parametrize('operation',['status','compose','lineage_status'])
 def test_repeated_public_request_id_always_rechecks_current_market_view(owner,operation):
  o=owner;s=object.__new__(Supervisor);s.store=o.manager.store;s.partial_fixture=False;calls=[]
  with s.store.conn:s.store.conn.execute('CREATE TABLE operator_requests(request_id TEXT PRIMARY KEY,binding TEXT NOT NULL,result TEXT,error TEXT)')

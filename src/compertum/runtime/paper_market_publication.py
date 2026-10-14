@@ -34,6 +34,8 @@ class PaperMarketPublication:
     self._version()
     for key in rows:
      route=self._route(key);self.entries[key]=self._entry(route,phase='RECOVER')
+   from .paper_market_lineage_publication import LineagePublication
+   self._lineage=LineagePublication(self)
 
  def _keys(self):
   rows=self.db.execute('SELECT key FROM state WHERE substr(key,1,?)=? ORDER BY key LIMIT 33',(len(_PREFIX),_PREFIX)).fetchall()
@@ -107,6 +109,7 @@ class PaperMarketPublication:
   with self.manager.store._live():
    _need(_hash(subject),'CONTROL_PAYLOAD_DENIED')
    _need(type(command) is dict and type(command.get('operation')) is str,'CONTROL_PAYLOAD_DENIED')
+   if command['operation'] in {'publish_lineage','lineage_status'}:return self._lineage.handle(subject,command)
    op=command['operation'];keys={'prepare':{'operation','job_id','account_alias','mode','symbol','history_job_id'},
     'authorize':{'operation','job_id','grant_sha256'},'start':{'operation','job_id','grant_sha256'},
     'status':{'operation','job_id'},'cancel':{'operation','job_id'},'compose':{'operation','job_id'}}
@@ -170,13 +173,16 @@ class PaperMarketPublication:
 
  def tick(self):
   with self.manager.store._live():
+   self._lineage.tick()
    ready=[key for key,e in self.entries.items() if e['phase'] not in {'PREPARED','DONE','FAILED'}]
    if not ready:return
    job=ready[self._cursor%len(ready)];self._cursor+=1;e=self.entries[job];route=e['route']
    try:
     if e['phase']=='RECOVER':
      if route['mode']=='FRESH':e['phase']='FAILED';return
-     manifest=self._ledger_manifest(route);route['publication'].update(state='TRANSFERRING',reason=None,manifest=manifest)
+     manifest=self._ledger_manifest(route)
+     if route['publication']['state']=='PUBLISHED':e['phase']='DONE';return
+     route['publication'].update(state='TRANSFERRING',reason=None,manifest=manifest)
      with self.db:self._save(route)
      e['phase']='ACK'
     elif e['phase']=='WAIT':

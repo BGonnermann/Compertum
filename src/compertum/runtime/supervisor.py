@@ -204,7 +204,7 @@ class Supervisor:
     def handle(self,decision,action,payload):
         binding=canonical({'decision':asdict(decision),'action':action,'payload':payload}).decode()
         read_only=(action=='paper_read' and isinstance(payload,dict) and payload.get('operation')=='account_status') or action in {'status','attach'} or (action in {'baseline','final','final_audit','fake_operator','paper_read'} and isinstance(payload,dict) and payload.get('operation')=='status') or (action=='fake_operator' and isinstance(payload,dict) and payload.get('operation') in {'inspect_plan','operation_status'})
-        read_only=read_only or (action=='paper_market_read' and isinstance(payload,dict) and payload.get('operation') in {'status','compose'})
+        read_only=read_only or (action=='paper_market_read' and isinstance(payload,dict) and payload.get('operation') in {'status','compose','lineage_status'})
         with self.store._live():
             old=self.store.conn.execute('SELECT binding,result,error FROM operator_requests WHERE request_id=?',(decision.request_id,)).fetchone()
             if old:

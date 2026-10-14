@@ -15,10 +15,10 @@ Live FRESH already holds the sole opened HISTORY resource. ACK/reconstruction mu
 ## Checklist
 
 - [x] Purpose-separated protection, exact historical reopen and strict manifest/context validation;243 matching source/package cases, full environments qualified. Final aggregate review3/3 is CLEAR.
-- [ ] Durable execution capture identity and coordinator publication route with immutable retention and reservations.
-- [ ] Explicit owner/supervisor operation, bounded transfer and ACK-only recovery.
-- [ ] Focused negative tests, frozen source/package compatibility, actual native restart/lost-ACK fixture and independent review.
-- [ ] Update checkpoint/README, preserve evidence and publish verified checkpoint.
+- [x] Durable execution capture identity and coordinator publication route with immutable retention and reservations.
+- [x] Explicit owner/supervisor operation, bounded transfer and ACK-only recovery.
+- [x] Focused negative tests, frozen source/package compatibility, actual native restart/lost-ACK fixture and independent review.
+- [x] Update checkpoint/README, preserve evidence and publish verified checkpoint.
 
 Required cases include encryption/context/frame tampering, original proof/history substitution, ignored writes, exact retry after age advances, multichunk corruption/replay, publication before route-save failure, lost ACK, both owners recreated, rename without ledger, held-HISTORY capacity and buffer cleanup failure. Capture/publication/recovery must add zero HTTP requests. Use existing120-second/4GiB/fourCPU limits, host16/12GiB gates, one heavy job and unchanged category caps/deadlines. Check storage headroom before full-reserve native tests; current backups are near their20GiB category ceiling. Preserve failed evidence and never change runtime identities to manufacture success.
 
@@ -40,10 +40,14 @@ Native acceptance needs one fresh combined lifecycle fixture per environment, ru
 
 Next implementation11 acceptance checklist (maximum three evidence-led review/repair iterations):
 
-- [ ] Immutable bounded capture/route records with exact retry, ignored-write rollback, restart interruption and no identity reuse or reconstruction of grants.
-- [ ] Explicit authenticated publication and uncached status; one retained transfer; unchanged account-first scheduling, health/credential gates, ordinary producer capacity and checkpoint refusal.
-- [ ] Genuine parent/exact child reservations, strict32KiB transfer, manifest-before-ACK and historical ACK-only recovery after lost reply or both owners restart. No additional HTTP request or changed FRESH grant schema.
-- [ ] Negative/recovery/routing compatibility in identical frozen source/package groups, complete environment qualification, and one admitted native lifecycle fixture per environment within existing resource/storage/RPC limits.
-- [ ] Preserve failures and all source inputs, reconcile exact outcomes, independent final review, update status and synchronize master/GitHub/clone.
+- [x] Immutable bounded capture/route records with exact retry, ignored-write rollback, restart interruption and no identity reuse or reconstruction of grants.
+- [x] Explicit authenticated publication and uncached status; one retained transfer; unchanged account-first scheduling, health/credential gates, ordinary producer capacity and checkpoint refusal.
+- [x] Genuine parent/exact child reservations, strict32KiB transfer, manifest-before-ACK and historical ACK-only recovery after lost reply or both owners restart. No additional HTTP request or changed FRESH grant schema.
+- [x] Negative/recovery/routing compatibility in identical frozen source/package groups, complete environment qualification, and one admitted native lifecycle fixture per environment within existing resource/storage/RPC limits.
+- [x] Preserve failures and all source inputs, reconcile exact outcomes, independent final review, update status and synchronize master/GitHub/clone.
 
 Increment10 maintenance completed before this dependency:46 passed temporary roots are archived and verified; failed fixtures and original reports remain. Production aggregate admission afterward measured scratch3730596600B and backups19983556808B. These are observations, not advance admission for future native fixtures. Recheck before each new job. Actual broker/account/order actions and M5 walkthrough/session acceptance remain outside this local engineering increment.
+
+## Verified closeout - 14 October 2026
+
+Increment11 completes this contract:696 identical source/package cases per lane, including one full Windows restart/lost-ACK lifecycle each; zero failures, errors or skips. Both full environments qualified and final independent review3/3 is CLEAR. See [the publication report](../reports/M5_MARKET_LINEAGE_PUBLICATION.md). The earlier next-action paragraphs are historical. Current next action: publish this verified checkpoint, synchronize the requested clone, then implement the private input context in [the admission plan](M5_PAPER_ADMISSION_PLAN.md). Publication completion is verified separately by exact remote/local HEAD equality.

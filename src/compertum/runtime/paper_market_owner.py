@@ -37,6 +37,8 @@ class _MarketOwner:
   self._active=None;self._producer=None;self._cipher=None;self._cleanup_failed=False
   self._transfer_offset=0;self._last_offset=None
   self._fresh_job=None;self._fresh_view=None;self._history_context=None;self._opened=None;self._combined=None
+  from .paper_market_lineage_transfer import LineageTransfer
+  self._lineage=LineageTransfer(self)
 
  def __repr__(self):return '<PrivateMarketOwner>'
  def __reduce_ex__(self,protocol):raise RuntimeRefused('PAPER_MARKET_PRIVATE_SERIALIZATION_FORBIDDEN')
@@ -141,6 +143,7 @@ class _MarketOwner:
   except RuntimeRefused as error:self._invalidate_fresh(v['grant']['job_id'],error.code);raise
 
  def _capacity(self):
+  self._lineage.require_clear('MARKET_OWNER_CAPACITY')
   _need(self._active is None and self._producer is None and self._cipher is None and not self._cleanup_failed,'MARKET_OWNER_CAPACITY')
 
  def _capture_lineage(self,*,subject,job_id,grant_sha256):
@@ -152,6 +155,7 @@ class _MarketOwner:
   subject=packet['subject_key'];c=packet['command']
   _need(type(subject) is str and re.fullmatch('[0-9a-f]{64}',subject) is not None,'CONTROL_PAYLOAD_DENIED')
   _need(type(c) is dict and type(c.get('operation')) is str,'CONTROL_PAYLOAD_DENIED')
+  if c['operation'] in {'publish_lineage','lineage_status'}:return self._lineage.handle(subject,c)
   op=c['operation'];keys={'prepare':{'operation','job_id','task_id','account_alias','reservation_id','mode','symbol','history'},
    'authorize':{'operation','job_id','grant_sha256'},'start':{'operation','job_id','grant_sha256'},
    'status':{'operation','job_id'},'cancel':{'operation','job_id'},'compose':{'operation','job_id'}}
@@ -264,6 +268,7 @@ class _MarketOwner:
   if error is not None:raise error
 
  def tick(self):
+  self._lineage.tick()
   if self._fresh_job is not None:
    try:self.parent._ready()
    except RuntimeRefused as error:self._stop('INTERRUPTED',error.code)
@@ -285,10 +290,12 @@ class _MarketOwner:
    self._stop('ABORTED',error.code)
 
  def require_checkpoint(self):
+  self._lineage.require_clear('MARKET_CHECKPOINT_BUSY')
   _need(self._active is None and self._producer is None and self._cipher is None and not self._cleanup_failed,'MARKET_CHECKPOINT_BUSY')
 
  def transfer(self,payload):
   _need(type(payload) is dict and type(payload.get('operation')) is str,'MARKET_TRANSFER_INVALID')
+  if payload['operation'] in {'lineage_chunk','lineage_ack'}:return self._lineage.transfer(payload)
   op=payload['operation'];keys={'chunk':{'operation','job_id','offset','sha256'},'ack':{'operation','job_id','manifest'}}
   _need(op in keys and set(payload)==keys[op],'MARKET_TRANSFER_INVALID');uuid(payload['job_id'])
   _need(not self.db.in_transaction,'MARKET_TRANSACTION_OPEN')
@@ -322,6 +329,7 @@ class _MarketOwner:
               grant_sha256=v['grant_sha256'],sha256=e['sha256'],total_bytes=e['size_bytes'],offset=offset,data=base64.b64encode(data).decode())
 
  def close(self):
+  self._lineage.close()
   if self._cleanup_failed:
    self._dispose_producer();self._active=None
   elif self._active is not None or self._fresh_job is not None:self._stop('INTERRUPTED','OWNER_CLOSED')
