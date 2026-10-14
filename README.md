@@ -4,6 +4,8 @@ A supervised research system with reproducible experiments, bounded AI proposals
 
 Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.
 
+**Primary repository: [BGonnermann/Compertum](https://github.com/BGonnermann/Compertum)** (private). Future updates use the BGonnermann account. The previous repository remains a historical reference; the full commit history is preserved.
+
 ## Current position
 
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.

@@ -1,9 +1,11 @@
 # Compertum
 
-## Current owner direction — 13 October 2026
+## Current owner direction — 14 October 2026
 
 - Keep `C:\Users\bgonn\Desktop\Compertum`, the master working folder, and GitHub up to date. The owner clarified that this is a synchronization requirement: an existing valid test need not be restarted solely because its results are written in another folder. Use master for current implementation and avoid unnecessary new desktop checkouts.
-- The owner explicitly authorized updating `https://github.com/BrennanCompertum/Compertum` and keeping it current for rollback. Commit and push meaningful verified checkpoints, documenting pending/failed checks. Preserve history; no force-push, destructive reset or scheduled automation.
+- The owner selected `https://github.com/BGonnermann/Compertum` as the private primary repository on 14 October. Use the existing `BGonnermann` GitHub account for future repository work; verify the active account before publication. Master's `origin` points there. The previous repository remains as `legacy-brennan` for reference; do not publish new changes there.
+- The owner explicitly authorized keeping the primary GitHub repository current for rollback. Commit and push meaningful verified checkpoints, documenting pending/failed checks. Preserve history; no force-push, destructive reset or scheduled automation.
+- The requested local clone is `.cache/checkouts/Compertum-bgonnermann` inside master. It contains Git history and tracked files only. Continue implementation in master; do not copy credentials, environments or path-bound runtime evidence into the clone.
 - Older guidance designating `Compertum-development`, preserving master as read-only, prohibiting this publication, or limiting the already approved roadmap engineering to M0 is historical and superseded by later owner instructions.
 - Preserve sibling directories and historical runtime identities. Do not relocate/resume a path-bound runtime as if it were created in master. Never erase failed evidence or reset task/attempt IDs to manufacture success.
 - The owner approved finishing the existing interrupted M3 test in its original `Compertum-development` runtime/output folders, with master and GitHub kept current. This does not authorize resuming a subsequently blocked test or changing its frozen identities. The fresh master M3 sequence was subsequently closed as BLOCKED after an installed-audit exit receipt was lost. Preserve that terminal history; continue the independent local M5 engineering documented in the checkpoint.
