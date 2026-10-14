@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-13 October 2026. Keep master (`C:\Users\bgonn\Desktop\Compertum`) and GitHub up to date. The owner clarified that synchronization does not require restarting a valid existing test solely because of its folder. The current sequence already runs in master. **Do not start Strata or its model server.** One heavy job at a time; require 16 GiB free physical/commit memory to start and stop below 12 GiB. Worker limits remain 4 GiB, four CPU threads and 120 seconds. Existing storage/category limits remain unchanged.
+13 October 2026. **Paused at the owner's explicit request. Do not resume until asked.** Keep master (`C:\Users\bgonn\Desktop\Compertum`) and GitHub up to date. Synchronization does not require restarting a valid existing test solely because of its folder. The current sequence is in master. **Do not start Strata or its model server.** One heavy job at a time; require 16 GiB free physical/commit memory to start and stop below 12 GiB. Worker limits remain 4 GiB, four CPU threads and 120 seconds. Existing storage/category limits remain unchanged.
 
 ## Checklist
 
@@ -9,7 +9,7 @@
 - [x] Verify the current repair: **592 distinct tests per source/installed lane**, zero test failures/errors/skips, all children exited. Qualify both complete environments with unchanged Python 3.14.7 and 38 dependencies; freeze 486 files and 190 matching modules.
 - [x] Prepare fresh M3 identities and an actual nonsparse 1 GiB reserve. Native storage checks passed in 3.708/3.277 seconds. All 37 execution inputs and script syntax passed; independent admission review cleared on review pass 1 of 3.
 - [x] Finish both 63-outcome campaigns and exact paired output comparison: 120 native chunks, zero failed/skipped calculations; pending-verification control checks passed.
-- [ ] Finish active native session 32591: 77 audits/reviews, generated Final, independent Final audits/restarts and three-ridge exercise.
+- [ ] After owner resume, continue the same native plan from audit 13 of 77; then generated Final, independent Final audits/restarts and three-ridge exercise. Session 32591 is closed.
 - [ ] Reconcile every acceptance requirement, obtain independent closeout review and publish verified status.
 - [ ] Integrate only mapped M5 Râ€™s 20 files; verify 521 exact cases per lane, including the previously deferred real 1 GiB reserve case.
 - [ ] Integrate only mapped M5 Sâ€™s 8 files; verify 94 exact cases per lane, including 13 previously unrun native cases, plus required compatibility checks.
@@ -17,9 +17,13 @@
 
 ## Exact next action
 
-**Monitor session 32591. Do not launch another heavy job or edit frozen source/package/helper inputs.** It is already running `T/Run-MasterCampaigns01.ps1` followed by `T/Run-RemainingM3-Memory01.ps1`, both with PinsSha256 `9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d` and native Windows handle access, without administrator elevation.
+**Wait for the owner to resume. No test processes remain running.** Session 32591 closed at a clean audit boundary: all 12 completed audit commands/results/exports match the fixed plan, exited successfully and recorded Supervisor closure. A native process check found zero processes referencing the current tooling/runtime. Final has not started. Pause receipt: `artifacts/m3/pair_validation_owner_pause.json`, SHA77071979b2001db1d7e0860cded7e362f43141621cefd1eb5f608b6f3c28026c.
 
-Both repaired campaigns completed **63 outcomes each**, in 59 source and 61 installed-package chunks. All 63 payloads match exactly; no calculation failed or was skipped, and all Supervisor exits were observed. Proof: `artifacts/m3/pair_validation_campaign_pair.json` (SHAfd5f68c1ab6dab3b2c280fb63d1c2b92d31bee2136e1ea1eb35d7cb2ebceafb0). It retains 212 startup status errors before each chunk's first successful control reply and zero active-work control errors. Minimum free physical memory was 39.282 GiB; peak worker allocation was 471.184 MiB. The separate coordinator peak was 161,820,672 bytes. Source-only independent review cleared on pass 1 of 3; receipt: `artifacts/m3/pair_validation_source_review.json`. The 77 audits/reviews are now running; Final and final acceptance reconciliation remain pending.
+The pause request allowed `audit-source-audit-20-01` to finish, then deliberately triggered the runner's existing fresh-label refusal before `audit-source-audit-21-01` launched. The enclosing session exit 1 is this intentional pause, not a failed audit or blocked runtime task. Two explicit `*-owner-pause-request.json` records remain in T. Preserve them and the original session output. All 37 execution inputs remain unchanged under PinsSha256 `9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d`.
+
+On owner resume: inspect the saved runtime and completed prefix; preserve the pause markers outside the future launch label prefix; prepare and review a bounded continuation using the same pinned audit plan beginning `source-audit-21`, task `7cc9318a-ec92-5116-90c7-8309e8c3d5ab`. Append only the remaining 65 audit results, then run the still-unstarted Final/auditor/three-ridge stages. **Do not rerun either original fresh-only top-level script or repeat completed tasks.** No automatic wakeup or scheduled resume was created.
+
+Both repaired campaigns completed **63 outcomes each**, in 59 source and 61 installed-package chunks. All 63 payloads match exactly; no calculation failed or was skipped, and all Supervisor exits were observed. Proof: `artifacts/m3/pair_validation_campaign_pair.json` (SHAfd5f68c1ab6dab3b2c280fb63d1c2b92d31bee2136e1ea1eb35d7cb2ebceafb0). It retains 212 startup status errors before each chunk's first successful control reply and zero active-work control errors. Minimum free physical memory was 39.282 GiB; peak worker allocation was 471.184 MiB. The separate coordinator peak was 161,820,672 bytes. Source-only independent review cleared on pass 1 of 3; receipt: `artifacts/m3/pair_validation_source_review.json`. Audits/reviews are paused at 12 of 77 completed; Final and final acceptance reconciliation remain pending.
 
 Pending-verification controls passed: 71 source samples (maximum 0.224847 seconds) and 73 installed samples (maximum 0.229078 seconds). Ordered samples and command intervals are retained; individual sample timestamps were not recorded. Public shutdown/checkpoint of these full fixtures remains unverified.
 
@@ -31,7 +35,7 @@ T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m
 - Current proof: `artifacts/m3/pair_validation_complete_regressions.json`, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7.
 - Fresh pair: SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. Numerical folds/parameters/units/data/Final recipe match the prior fixture; identity-bearing mathematical and trial digests changed with the new runtime/package.
 - Admission review: `T/execution-review01.json`. Actual full-run results and final requirement reconciliation remain required.
-- Latest verified GitHub commit before this checkpoint edit: `6734dae929e373f81128fd7f0ea9cad06db6f994`.
+- Latest verified GitHub commit before this checkpoint edit: `1997cff99d977ca227d5584a8761fc5351414322`.
 
 ## Preserved failures and cleanup
 

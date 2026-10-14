@@ -1,6 +1,6 @@
 # M3 fresh master acceptance map
 
-13 October 2026. Current repaired release: 592 distinct matching tests per source/installed lane, both complete environment qualifications and both 63-outcome campaigns verified. All 63 mathematical payloads match exactly. Session 32591 is now running the 77 audits/reviews; Final and final acceptance reconciliation remain pending. Admission review cleared on pass 1 of 3. Strata stays off.
+13 October 2026. Current repaired release: 592 distinct matching tests per source/installed lane, both complete environment qualifications and both 63-outcome campaigns verified. All 63 mathematical payloads match exactly. **Paused at the owner's request after 12 of 77 audits/reviews completed cleanly.** Session 32591 is closed and no matching test processes remain. Final and final acceptance reconciliation remain pending. Admission review cleared on pass 1 of 3. Strata stays off.
 
 U = `.cache/test-runs/m3-pair-native-20261013-01`; V = `.cache/test-runs/m3-pair-runtime-20261013-01`. All paths are under master. Release, environment and 37 execution-input pins are in [the native plan](M3_MASTER_NATIVE_PLAN.md). Paired campaign proof: `artifacts/m3/pair_validation_campaign_pair.json`.
 
@@ -10,7 +10,7 @@ U = `.cache/test-runs/m3-pair-native-20261013-01`; V = `.cache/test-runs/m3-pair
 | Affected regression and refusal controls | `artifacts/m3/pair_validation_complete_regressions.json` plus pinned command/XML/plan files | Verified: 592 distinct identical IDs per lane; zero test failures/errors/skips; prelaunch refusals preserved separately |
 | Full paired development campaign | `campaign-progress02.jsonl`, all native command/result/export receipts, `pair-outputs01.log` | Verified: source 63/63 and installed 63/63; all 63 payloads match, zero failed/skipped, 120 accepted chunks and no scan supplements |
 | Controls remain responsive with pending work | `late-prefix02.log` and ordered control samples within each retained command interval | Verified: 71 source observations, maximum 0.224847 seconds; 73 installed observations, maximum 0.229078 seconds. Individual sample timestamps were not recorded |
-| Independent development audit and selection | `audit-progress01.jsonl`, 77 exact outputs and `audit-outputs01.log` | Running; all 77 actual outputs remain required before Final |
+| Independent development audit and selection | `audit-progress01.jsonl`, 77 exact outputs and `audit-outputs01.log` | Paused after 12 completed reviews; remaining 65 and final 77-output verification required before Final |
 | Immutable shortlist, one consumed Final | `final-freeze01-task.json`, `final-prepare01-task.json`, `final-batch01-task.json` | Pending; derive candidates from actual reviews, consume before price access, one bounded completed native batch |
 | Terminal restart cannot repeat Final | `final-restart01-task.json` | Pending; exact result, repeat/conflicting evaluation refusal and unchanged journal/guard |
 | Independent Final audit and actual controls | `final-audit-progress01.jsonl`, five task exports and `final-audit-outputs01.log` | Pending; source pause/resume, both terminal restarts, distinct auditors, exact paired body, original Final unchanged |

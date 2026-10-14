@@ -10,7 +10,7 @@ The daily runtime cap is removed: **27 source and 27 installed-package checks pa
 
 The current two-module validation repair passed **592 distinct matching tests in each source/installed environment**, with zero test failures, errors or skips. Both complete environment qualifications passed with unchanged Python and 38 dependencies. The new release contains 486 frozen files and 190 matching product modules. Separate storage-preflight refusals are preserved and do not count as passing tests.
 
-The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. The 77 audits/reviews are running; Final checks remain pending. Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
+The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **Paused at the owner's request after 12 of 77 audits/reviews completed cleanly.** No test processes remain running; Final checks remain pending. Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
 Two earlier M3 runs remain terminally blocked and preserved: the development-folder run stopped after 37 reviews, and the preceding master run after 76. Both reached a stale-health refusal before the blocked worker executed. The repairs preserve the five-second health limit and final seal checks. Earlier component coverage remains historical, not fresh coverage of the repaired release. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md), [health repair](docs/M3_REVIEW_HEALTH_REPAIR.md) and [pair-validation repair](docs/M3_PAIR_VALIDATION_REPAIR.md).
 
@@ -19,7 +19,7 @@ Two earlier M3 runs remain terminally blocked and preserved: the development-fol
 | M0: Local foundation and controls | Accepted; preserved acceptance evidence |
 | M1: Trustworthy research inputs | Bounded real-data replay verified; full financial input qualification open |
 | M2: Strategies and mathematical checks | Synthetic components verified; financial qualification open |
-| M3: Protected evaluation and audit | Repaired campaigns 63/63 each and exactly matched; audits running, Final pending |
+| M3: Protected evaluation and audit | Repaired campaigns 63/63 each and exactly matched; paused after 12/77 reviews, Final pending |
 | M4: Simulated broker | Fake-broker engineering accepted; 662 matching source/package checks |
 | M5: Supervised paper walkthrough | Component verification underway; integration and actual walkthrough pending |
 | M6: Daily supervised operation | Evidence structure implemented; **0 of 10 actual supervised market sessions** |
@@ -39,7 +39,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 ## Next work
 
 1. Master consolidation published and verified; keep pushing verified checkpoints.
-2. Historical recovery is preserved; its failed aggregate cannot resume. Continue the fresh master sequence with memory checks. Strata must not be started.
+2. Wait for the owner to resume. Historical recovery is preserved; its failed aggregate cannot resume. The current master sequence has a clean 12-review prefix and a recorded continuation point. Strata must not be started.
 3. The repaired release passed 592 tests per environment, both complete environment qualifications and the paired campaigns. Finish its 77 reviews and Final checks; preserve both earlier blocked runs.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
