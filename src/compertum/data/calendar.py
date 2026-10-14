@@ -4,7 +4,6 @@ from datetime import date,datetime,time,timedelta,timezone
 from functools import lru_cache
 import re
 from zoneinfo import ZoneInfo
-import exchange_calendars as xc
 from .errors import DataError
 
 NY=ZoneInfo('America/New_York')
@@ -25,6 +24,7 @@ def utc_time(value):
 
 @lru_cache(maxsize=4)
 def _calendar(year):
+    import exchange_calendars as xc
     return xc.get_calendar('XNYS',start=f'{year-1}-01-01',end=f'{year+1}-12-31')
 
 @dataclass(frozen=True)

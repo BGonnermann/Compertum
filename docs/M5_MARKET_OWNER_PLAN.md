@@ -27,8 +27,8 @@ The current encrypted schema supports collection evidence only. This increment p
 ## Verification and sequence
 
 - [x] Bounded source-backed dependency review; existing signatures and routing/publication seams identified.
-- [ ] Implement/test immutable grants and strict state records, then owner lifecycle.
-- [ ] Implement/test coordinator routing, transfer and genuine publication; preserve failure evidence.
+- [x] Implement/test immutable grants and strict state records, then owner lifecycle.
+- [x] Implement/test coordinator routing, transfer and genuine publication; preserve failure evidence.
 - [ ] Test cross-subject/project/alias/mode/credential/grant substitutions, expiry, repeated starts and both process restarts.
 - [ ] Test account/market scope isolation, exact fixed origins, queue priority/quotas/startup fence and WAITING deadlines through actual producer permits.
 - [ ] Test health loss, cancellation, uncertain cleanup, checkpoint refusal and replacement prevention.
@@ -37,7 +37,7 @@ The current encrypted schema supports collection evidence only. This increment p
 - [ ] Native loopback owner/coordinator/restart fixtures with invented credentials and no exposed production fixture switches; exact current-source/installed-package regression/replays.
 - [ ] Independent implementation review, maximum3 passes; retain receipts/checkpoint and continue remaining M5/M6 dependencies.
 
-Exact next action: R and S are verified. Increments1-4 are implemented and independently reviewed with341 current-source passes. Add genuine authenticated RPC/process-restart fixtures, then freeze/build/qualify and compare exact source/installed results. Preserve the terminal M3 failure; no M3 restart or Strata startup.
+Exact next action: current346 component cases pass in both complete qualified environments; native restart and aggregate closeout failed. Diagnose the retained-watchdog-halt path with complete startup observations and the storage-scan deadline, preserving every failed identity and unchanged limits. Native review3/3 and the current repair bound are exhausted. A further bounded repair must not erase the halt or treat component passes as integration acceptance. See reports/M5_MARKET_OWNER_PROGRESS.md. No M3 restart, provider/account/order request or Strata startup.
 
 Inspection references: paper_read_owner.py; paper_read_publication.py; managed.py; runtime/managed_owner.py; runtime/supervisor.py; domain.py; runtime/service_budget.py; runtime/paper_market_collection.py; runtime/paper_market_fresh.py; runtime/paper_market_evidence.py; runtime/paper_market_compose.py. Existing component plans/receipts remain authoritative for exact numerical and privacy limits.
 
@@ -64,6 +64,6 @@ A closed flag alone is not proof of native cleanup. Retain failed cleanup refere
 
 Coordinator history lookup must verify both authenticated subjects before injecting the recorded manifest. The published child grant is distinct from the split parent reservation. Persist the manifest before ACK and retain it after failure; never recollect or silently publish another artifact after interruption. Private transfer stays outside public supervisor actions. Detailed review notes: `.cache/test-runs/m5-opening-native-20261014-01/market-owner-design-review01.json`.
 
-Collection-only source checkpoint: strict grants and records plus the cooperative collection lifecycle pass271 distinct source checks, including five actual WinHTTP loopback cases. Independent reviews CLEAR3/3,2/3,2/3 respectively. Installed-package verification is pending. See `reports/M5_MARKET_OWNER_PROGRESS.md`; the detailed receipt lists the original failed checks and one unavailable preliminary passing test-source revision. Next implement opaque transfer/coordinator publication, then FRESH/composition and authenticated routing, followed by native process restart and paired verification. Do not mark the combined lifecycle checklist complete before FRESH is connected.
+Historical collection-only source checkpoint: strict grants and records plus the cooperative collection lifecycle passed271 distinct source checks, including five actual WinHTTP loopback cases. Component reviews were CLEAR3/3,2/3,2/3. Installed verification was pending at that checkpoint. Transfer/publication, FRESH/composition and routing have since been implemented and covered by the current346 paired component cases; native process restart and aggregate closeout remain incomplete as recorded below. The disclosed unavailable preliminary passing test-source revision stays excluded from acceptance.
 
-Current routing/composition source checkpoint:341 distinct passes, zero failures/errors/skips,514files/198modules. Encrypted transfer/publication, FRESH reuse of the published history plan and authenticated uncached status/compose are implemented. Component reviews are clear; actual process/RPC and installed-package verification remain pending, so the full integration checklist stays open. See reports/M5_MARKET_OWNER_PROGRESS.md and artifacts/m5/market_owner_routing_source_checkpoint.json.
+Historical routing/composition source checkpoint:341 passes,514files/198modules. The latest release has518files/198modules and346 matching source/installed component passes, including the calendar import correction. Both complete environments qualify. Real-process verification failed third-generation healthy admission because a watchdog halt is retained; aggregate closeout failed its5-second storage scan three times. This remains a partial checkpoint. Exact evidence and next actions are in reports/M5_MARKET_OWNER_PROGRESS.md and docs/CURRENT_CHECKPOINT.md.
