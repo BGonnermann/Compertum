@@ -18,7 +18,7 @@
 
 **Monitor session 32591. Do not launch another heavy job or edit frozen source/package/helper inputs.** It is already running `T/Run-MasterCampaigns01.ps1` followed by `T/Run-RemainingM3-Memory01.ps1`, both with PinsSha256 `9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d` and native Windows handle access, without administrator elevation.
 
-The repaired source campaign completed all **63 outcomes in 59 native chunks**, with zero failed/skipped calculations and all Supervisor exits observed. Source-only proof: `artifacts/m3/pair_validation_source_campaign.json`. It retains 89 startup control errors before work began and zero active-work control errors. The installed-package campaign is now running; exact paired comparison and audits remain pending.
+The repaired source campaign completed all **63 outcomes in 59 native chunks**, with zero failed/skipped calculations and all Supervisor exits observed. Source-only proof: `artifacts/m3/pair_validation_source_campaign.json`. It retains 89 startup control errors before work began and zero active-work control errors. Independent read-only review of all 177 pinned records, native unit exits and history continuity cleared on pass 1 of 3; receipt: `artifacts/m3/pair_validation_source_review.json`. The installed-package campaign is now running; exact paired comparison and audits remain pending.
 
 T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m3-pair-runtime-20261013-01`. Read `T/campaign-progress02.jsonl`, then `T/remaining-sequence01.jsonl` for current progress. These runners are fresh-only: **never restart over existing labels or progress**. On failure, preserve receipts and inspect the actual saved state before preparing a targeted recovery.
 
@@ -26,7 +26,7 @@ T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m
 - Current proof: `artifacts/m3/pair_validation_complete_regressions.json`, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7.
 - Fresh pair: SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. Numerical folds/parameters/units/data/Final recipe match the prior fixture; identity-bearing mathematical and trial digests changed with the new runtime/package.
 - Admission review: `T/execution-review01.json`. Actual full-run results and final requirement reconciliation remain required.
-- Latest verified GitHub commit before this checkpoint edit: `9be99f7c0e5aacdc8b076d7ccb5ee92dd6d7fa02`.
+- Latest verified GitHub commit before this checkpoint edit: `08246257d84de886bb5722fbcada440545168eee`.
 
 ## Preserved failures and cleanup
 
