@@ -10,11 +10,11 @@ Old records without consumption evidence stay readable. They cannot satisfy the 
 
 Checklist:
 
-- [ ] Strict bounded consumption schema and immutable storage, with atomic consumption before construction.
-- [ ] Internal owner-bound capture and historical reconstruction with exact original proofs.
-- [ ] Regression tests for clock boundaries/delays, ignored writes/rollback, constructor failure, repeated start, substitutions, missing proofs and restart.
-- [ ] Frozen source/package compatibility checks, independent review and verified publication checkpoint.
+- [x] Strict bounded consumption schema and immutable storage, with atomic consumption before construction.
+- [x] Internal owner-bound capture and historical reconstruction with exact original proofs.
+- [x] Regression tests for clock boundaries/delays, ignored writes/rollback, constructor failure, repeated start, substitutions, missing proofs and restart.
+- [x] Frozen source/package compatibility checks and final independent review3/3 CLEAR; publish this verified checkpoint.
 
 Use the existing native test runner: exact frozen selections, 120-second jobs, 4 GiB memory, four CPUs, one heavy job, host admission16 GiB/stop12 GiB, current category caps. Preserve every failed case and exact source iteration. At most three evidence-led review/repair iterations for this increment. Encryption, coordinator reservation/publication, chunk transfer and lost-ACK integration follow this dependency and are not accepted by these checks.
 
-Exact next action: finish and publish the foundation's paired closeout, then reproduce the missing consumption contract with focused tests before implementation.
+Exact next action: publish the independently reviewed291-case paired checkpoint, then proceed to [encrypted publication and recovery](M5_MARKET_LINEAGE_PUBLICATION_PLAN.md). The initial45 missing-feature failures and five reproduced cleanup regressions remain preserved. Both full environments qualified; release09 binds525 inputs/201 modules.

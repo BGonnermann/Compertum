@@ -14,7 +14,7 @@ Publication is an explicit operation. Status and compose remain read-only. The c
 
 ## Checklist and acceptance
 
-- [ ] Immutable private capture and strict versioned validation. Reconstruct request/reply diagnostics, FRESH age qualification and combined diagnostic. Bind original grants and history publication. Reject context/hash substitution, altered originals, malformed clocks and secret reflection.
+- [x] Immutable private capture and strict versioned validation. Reconstruct request/reply diagnostics, FRESH age qualification and combined diagnostic. Bind original grants and history publication. Reject context/hash substitution, altered originals, malformed clocks and secret reflection.
 - [ ] Reserved encrypted publication and historical reopening. Keep 32 KiB chunks, the existing 3 MiB ciphertext ceiling and bounded scanned public summaries. Reject ignored writes, corrupt chunks, incorrect manifests and uncertain cleanup. Preserve idempotency and terminal history.
 - [ ] Owner routing and recovery. Explicit publication only; preserve account priority, quotas, original deadlines, one producer, health and checkpoint rules. No new HTTP requests.
 - [ ] Source/package tests, actual native restart/lost-ACK scenario and independent review. Keep collection compatibility and accurate provenance labels. At most three evidence-led repair/review iterations for this increment; preserve failures.
@@ -28,4 +28,6 @@ Release07 market-owner closeout is independently CLEAR3/3 and published as `1dfe
 
 Capture foundation is verified in both environments:225 matching cases, zero failures/errors/skips, both complete environments qualified,521 frozen inputs/199 modules. Both review regressions were reproduced and corrected; all failing evidence is preserved. The public FRESH/composition shapes are unchanged. Final aggregate review3/3 is CLEAR. See [the foundation report](../reports/M5_MARKET_LINEAGE_FOUNDATION.md).
 
-Exact next action: publish the verified foundation, then complete [original consumption evidence and owner-bound capture](M5_MARKET_CONSUMPTION_PLAN.md). Encryption, reservation/publication and lineage restart/ACK integration remain pending. Each dependency is verified as a bounded increment; none substitutes for complete durable-lineage acceptance.
+Original consumption evidence and owner-bound capture now have291 matching source/package checks, with both full environments qualified. The cleanup defect reproduced in five cases and was corrected; failures remain preserved. Final aggregate review3/3 is CLEAR. See [the consumption report](../reports/M5_MARKET_CONSUMPTION.md).
+
+Exact next action: publish the verified consumption checkpoint, then implement [encrypted publication and recovery](M5_MARKET_LINEAGE_PUBLICATION_PLAN.md). Encryption, reservation/publication and lineage restart/ACK integration remain pending. Each dependency is verified as a bounded increment; none substitutes for complete durable-lineage acceptance.

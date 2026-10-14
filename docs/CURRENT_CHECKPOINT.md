@@ -4,18 +4,20 @@
 
 ## Checklist
 
-Active lineage foundation: **225 identical cases passed in each source/installed environment**; zero failures/errors/skips, all children closed. Both complete environments qualified; release08 freezes521 files/199 modules. Both real1GiB reserve fixtures are preserved with all bytes and identities unchanged. Aggregate verification passed; its first failed receipt-schema assumption is preserved. Final independent review3/3 is CLEAR. AggregateSHA `e374f67678b19123dc5f9648bfddebd7adb10cfbc271deed31ed659371d37b28`. See [the foundation report](../reports/M5_MARKET_LINEAGE_FOUNDATION.md).
+Verified lineage foundation: **225 identical cases passed in each source/installed environment**; zero failures/errors/skips, all children closed. Both complete environments qualified; release08 freezes521 files/199 modules. Both real1GiB reserve fixtures are preserved with all bytes and identities unchanged. Aggregate verification passed; its first failed receipt-schema assumption is preserved. Final independent review3/3 is CLEAR. AggregateSHA `e374f67678b19123dc5f9648bfddebd7adb10cfbc271deed31ed659371d37b28`. Published `3a0481b3441a79a091a4978fa297475a9e05fbd1`; master, primary GitHub and requested clone matched. See [the foundation report](../reports/M5_MARKET_LINEAGE_FOUNDATION.md).
+
+Consumption increment verified in both environments: **291 matching cases per lane**, zero failures/errors/skips and all children closed. Release09 binds525 inputs/201 modules; both complete environments qualified. Original consumption commits atomically with the consumed job, and owner-bound capture resolves/rechecks its original records. Five reproduced cleanup regressions are corrected. Review2/3 is CLEAR; final aggregate review3/3 is CLEAR. AggregateSHA `19b5bea29cc05ae58ddf27ff3e9e45abc350140ae41d6f93fb7a0e1eb9e1ec94`. See [the consumption report](../reports/M5_MARKET_CONSUMPTION.md). No actual provider/account/order request or Strata startup.
 
 Current checklist:
 
 - [x] Repair owner refusal/cleanup errors and publish verified release07.
 - [x] Implement coherent private capture and strict historical reconstruction.
 - [x] Complete matching225-case source/package checks, environment qualification and evidence preservation.
-- [x] Finish foundation final review; publish this verified checkpoint.
-- [ ] Save original grant consumption evidence and bind capture to owner records.
+- [x] Finish foundation final review and publish verified checkpoint.
+- [x] Save original grant consumption evidence and bind capture to owner records;291 matching checks per lane.
 - [ ] Add reserved encrypted lineage publication and native ACK/restart verification.
 
-Exact next action: publish the verified foundation, then implement [consumption records and owner-bound capture](M5_MARKET_CONSUMPTION_PLAN.md). No durable lineage or complete M5/M6 acceptance is claimed.
+Exact next action: publish the verified consumption checkpoint, then implement [encrypted publication and recovery](M5_MARKET_LINEAGE_PUBLICATION_PLAN.md). The source/package evidence is complete; full durable lineage and M5/M6 acceptance remain open.
 
 Current repair: **394 matching cases pass in each environment, plus 11 source-backed native connection cases**. Both actual lifecycle tests, full environment qualifications and aggregate verification passed. Release07 freezes 519 inputs and 198 modules. An acknowledged busy-checkpoint reply no longer closes healthy connections; malformed/transport failures still do. Exact barrier-release acknowledgement and snapshot cleanup are enforced. Passing scratch was archived and verified before cleanup; every failed native identity remains preserved. Final independent aggregate review is CLEAR3/3. Next: keep master/GitHub synchronized and implement [durable market-input lineage](M5_MARKET_LINEAGE_PLAN.md). See [the repair report](../reports/M5_MARKET_OWNER_REPAIR.md) and [repair checklist](M5_ERROR_REPAIR.md). The earlier exhausted round below is retained history, not the current action.
 

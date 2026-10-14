@@ -12,8 +12,9 @@ from .owners import _owner_scope
 from .paper_credential_slot import load_paper_slot,_coordinator_records
 from .paper_credentials import open_paper_credentials
 from .paper_read_secrecy import _reject_reflections
-from .paper_market_grants import build_grant,initial_record
+from .paper_market_grants import build_grant,initial_record,MarketGrant
 from .paper_market_records import MarketRecords
+from .paper_market_consumption import ConsumptionRecords,build_consumption
 from .paper_market_collection import _MarketCollection
 from .paper_market_evidence import protect_market_evidence,open_market_evidence
 from .paper_market_fresh import _MarketFresh
@@ -31,7 +32,8 @@ def _now():return datetime.fromtimestamp(time.time(),timezone.utc).isoformat()
 class _MarketOwner:
  def __init__(self,parent):
   self.parent=parent;self.lease=parent.lease;self.db=parent.db
-  self.records=MarketRecords(self.db,self.lease.project_id);self.records.interrupt_unfinished()
+  self.records=MarketRecords(self.db,self.lease.project_id);self.consumptions=ConsumptionRecords(self.records)
+  self.records.interrupt_unfinished()
   self._active=None;self._producer=None;self._cipher=None;self._cleanup_failed=False
   self._transfer_offset=0;self._last_offset=None
   self._fresh_job=None;self._fresh_view=None;self._history_context=None;self._opened=None;self._combined=None
@@ -141,6 +143,10 @@ class _MarketOwner:
  def _capacity(self):
   _need(self._active is None and self._producer is None and self._cipher is None and not self._cleanup_failed,'MARKET_OWNER_CAPACITY')
 
+ def _capture_lineage(self,*,subject,job_id,grant_sha256):
+  from .paper_market_lineage_owner import capture_owner_lineage
+  return capture_owner_lineage(self,subject=subject,job_id=job_id,grant_sha256=grant_sha256)
+
  def handle(self,packet):
   _need(type(packet) is dict and set(packet)=={'subject_key','command'},'CONTROL_PAYLOAD_DENIED')
   subject=packet['subject_key'];c=packet['command']
@@ -168,8 +174,11 @@ class _MarketOwner:
    with self.db:v['state']='GRANTED';self.records.write(v)
   else:
    _need(v['state']=='GRANTED','MARKET_GRANT_REQUIRED');self._capacity()
-   with self.db:v.update(state='RUNNING',consumed=True);self.records.write(v)
-   _need(not self.db.in_transaction and self.records.read(c['job_id'])==v,'MARKET_WRITE_UNVERIFIED')
+   proof=build_consumption(MarketGrant(canonical(v['grant'])),consumed_at=_now(),monotonic_at=time.monotonic())
+   with self.db:
+    v.update(state='RUNNING',consumed=True);self.records.write(v);self.consumptions.write(proof)
+   _need(not self.db.in_transaction and self.records.read(c['job_id'])==v
+         and self.consumptions.read(c['job_id'])==proof,'MARKET_WRITE_UNVERIFIED')
    self._active=c['job_id'];g=v['grant']
    try:
     if g['mode']=='FRESH':
