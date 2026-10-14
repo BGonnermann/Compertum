@@ -26,10 +26,20 @@ class RemoteStore:
         with _remote_scope(self.remote):
             try: yield
             finally:
-                if self.barrier is not None:
-                    try: call_owner(self.remote,'checkpoint',{'operation':'end','barrier_id':self.barrier})
-                    finally: self.barrier=None
-                if self.conn is not None: self.conn.close();self.conn=None
+                try:
+                    if self.barrier is not None:
+                        try:
+                            result=call_owner(self.remote,'checkpoint',{'operation':'end','barrier_id':self.barrier})
+                            if result!={'status':'BARRIER_RELEASED'}:raise RuntimeRefused('BARRIER_RELEASE_UNVERIFIED')
+                        except BaseException:
+                            # A refused release leaves cleanup uncertain even
+                            # when its transport exchange was acknowledged.
+                            self.remote.close();raise
+                        finally: self.barrier=None
+                finally:
+                    if self.conn is not None:
+                        try: self.conn.close()
+                        finally: self.conn=None
 
     def checkpoint(self,barrier_id,destination,*,maximum_bytes):
         result=call_owner(self.remote,'checkpoint',{'operation':'snapshot','barrier_id':barrier_id,

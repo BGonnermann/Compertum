@@ -26,6 +26,10 @@ from .ipc import (PeerRegistration, PipeDescriptor, ScopedCapability, authorize_
 _REMOTES = weakref.WeakKeyDictionary()
 
 
+class _OwnerReplyRefused(RuntimeRefused):
+    """A validated, acknowledged owner reply; the transport remains usable."""
+
+
 def _commands(value):
     if (not isinstance(value, list) or not 1 <= len(value) <= 16
             or any(not isinstance(x, str) for x in value) or len(set(value)) != len(value)
@@ -254,6 +258,10 @@ def _remote_scope(endpoint):
         try:
             verify_peer(endpoint.descriptor.registration, _observation(endpoint.api, endpoint.process))
             yield
+        except _OwnerReplyRefused:
+            # Recovery can hold several nested owner scopes. A domain refusal
+            # acknowledged on one channel must not retire those healthy peers.
+            raise
         except BaseException:
             endpoint.close(); raise
 

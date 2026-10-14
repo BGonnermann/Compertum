@@ -4,6 +4,8 @@
 
 ## Checklist
 
+Current repair: **394 matching cases pass in each environment, plus 11 source-backed native connection cases**. Both actual lifecycle tests, full environment qualifications and aggregate verification passed. Release07 freezes 519 inputs and 198 modules. An acknowledged busy-checkpoint reply no longer closes healthy connections; malformed/transport failures still do. Exact barrier-release acknowledgement and snapshot cleanup are enforced. Passing scratch was archived and verified before cleanup; every failed native identity remains preserved. Final independent aggregate review is CLEAR3/3. Next: keep master/GitHub synchronized and implement [durable market-input lineage](M5_MARKET_LINEAGE_PLAN.md). See [the repair report](../reports/M5_MARKET_OWNER_REPAIR.md) and [repair checklist](M5_ERROR_REPAIR.md). The earlier exhausted round below is retained history, not the current action.
+
 - [x] Owner selected private `BGonnermann/Compertum` as the primary repository. Master uses the existing BGonnermann account; old remote retained as `legacy-brennan`. The requested clone is `.cache/checkouts/Compertum-bgonnermann`, with all53 prior commits through `8fb43d609b02351e41df4e6380dc58020cde9792` retained. Only tracked files/history were cloned; runtime evidence and credentials remain in their original locations. Implementation stays in master.
 
 - [x] Consolidate master and publish rollback checkpoints.

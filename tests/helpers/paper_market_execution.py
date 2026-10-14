@@ -17,7 +17,7 @@ assert set(fixture)=={'port','kind'} and fixture['kind']=='invented-native-marke
 base=datetime.fromisoformat('2023-11-24T14:00:00+00:00').timestamp();started=time.monotonic();offset=0
 
 def elapsed():
- return time.monotonic()-started+offset+(31 if (root/'advance-market-age.fixture').exists() else 0)
+ return time.monotonic()-started+offset+(31 if root.with_name(root.name+'-advance-market-age.fixture').exists() else 0)
 def now():return datetime.fromtimestamp(base+elapsed(),timezone.utc).isoformat()
 
 original_init=paper_read_owner.PaperReadOwner.__init__

@@ -4,7 +4,7 @@ import hmac
 import ctypes as c
 import time
 from ._windows import HANDLE,DWORD,BOOL
-from .owner_channel import _remote_scope,_record,_dump,_session
+from .owner_channel import _remote_scope,_record,_dump,_session,_OwnerReplyRefused
 from .owners import _owner_scope
 from ._pipes import deadline_after
 from .errors import RuntimeRefused
@@ -28,7 +28,7 @@ def call_owner(remote,action,payload,*,timeout=5):
     # The authenticated reply was acknowledged and the sequence advanced.
     # A domain refusal is not a broken transport; malformed/unacknowledged
     # exchanges still raise inside _remote_scope and retire the channel.
-    if refused is not None:raise RuntimeRefused(refused)
+    if refused is not None:raise _OwnerReplyRefused(refused)
     return obj['result']
 
 

@@ -29,15 +29,15 @@ The current encrypted schema supports collection evidence only. This increment p
 - [x] Bounded source-backed dependency review; existing signatures and routing/publication seams identified.
 - [x] Implement/test immutable grants and strict state records, then owner lifecycle.
 - [x] Implement/test coordinator routing, transfer and genuine publication; preserve failure evidence.
-- [ ] Test cross-subject/project/alias/mode/credential/grant substitutions, expiry, repeated starts and both process restarts.
-- [ ] Test account/market scope isolation, exact fixed origins, queue priority/quotas/startup fence and WAITING deadlines through actual producer permits.
-- [ ] Test health loss, cancellation, uncertain cleanup, checkpoint refusal and replacement prevention.
-- [ ] Test corrupt/replayed chunks, publication mismatch, interrupted publication/ACK, no implicit recollection and exact idempotency.
-- [ ] Test frozen-plan reuse after09:25, late-history refusal, stale fresh data, source mismatch and historical reopening without renewed authority.
-- [ ] Native loopback owner/coordinator/restart fixtures with invented credentials and no exposed production fixture switches; exact current-source/installed-package regression/replays.
-- [ ] Independent implementation review, maximum3 passes; retain receipts/checkpoint and continue remaining M5/M6 dependencies.
+- [x] Test cross-subject/project/alias/mode/credential/grant substitutions, expiry, repeated starts and both process restarts.
+- [x] Test account/market scope isolation, exact fixed origins, queue priority/quotas/startup fence and WAITING deadlines through actual producer permits.
+- [x] Test health loss, cancellation, uncertain cleanup, checkpoint refusal and replacement prevention.
+- [x] Test corrupt/replayed chunks, publication mismatch, interrupted publication/ACK, no implicit recollection and exact idempotency.
+- [x] Test frozen-plan reuse after09:25, late-history refusal, stale fresh data, source mismatch and historical reopening without renewed authority.
+- [x] Native loopback owner/coordinator/restart fixtures with invented credentials and no exposed production fixture switches; exact current-source/installed-package regression/replays.
+- [x] Independent implementation review, maximum3 passes; retain receipts/checkpoint and continue remaining M5/M6 dependencies.
 
-Exact next action: current346 component cases pass in both complete qualified environments; native restart and aggregate closeout failed. Diagnose the retained-watchdog-halt path with complete startup observations and the storage-scan deadline, preserving every failed identity and unchanged limits. Native review3/3 and the current repair bound are exhausted. A further bounded repair must not erase the halt or treat component passes as integration acceptance. See reports/M5_MARKET_OWNER_PROGRESS.md. No M3 restart, provider/account/order request or Strata startup.
+Historical failed round before the owner resumed repair: current346 component cases pass in both complete qualified environments; native restart and aggregate closeout failed. Diagnose the retained-watchdog-halt path with complete startup observations and the storage-scan deadline, preserving every failed identity and unchanged limits. Native review3/3 and the current repair bound are exhausted. A further bounded repair must not erase the halt or treat component passes as integration acceptance. See reports/M5_MARKET_OWNER_PROGRESS.md. No M3 restart, provider/account/order request or Strata startup.
 
 Inspection references: paper_read_owner.py; paper_read_publication.py; managed.py; runtime/managed_owner.py; runtime/supervisor.py; domain.py; runtime/service_budget.py; runtime/paper_market_collection.py; runtime/paper_market_fresh.py; runtime/paper_market_evidence.py; runtime/paper_market_compose.py. Existing component plans/receipts remain authoritative for exact numerical and privacy limits.
 
@@ -67,3 +67,7 @@ Coordinator history lookup must verify both authenticated subjects before inject
 Historical collection-only source checkpoint: strict grants and records plus the cooperative collection lifecycle passed271 distinct source checks, including five actual WinHTTP loopback cases. Component reviews were CLEAR3/3,2/3,2/3. Installed verification was pending at that checkpoint. Transfer/publication, FRESH/composition and routing have since been implemented and covered by the current346 paired component cases; native process restart and aggregate closeout remain incomplete as recorded below. The disclosed unavailable preliminary passing test-source revision stays excluded from acceptance.
 
 Historical routing/composition source checkpoint:341 passes,514files/198modules. The latest release has518files/198modules and346 matching source/installed component passes, including the calendar import correction. Both complete environments qualify. Real-process verification failed third-generation healthy admission because a watchdog halt is retained; aggregate closeout failed its5-second storage scan three times. This remains a partial checkpoint. Exact evidence and next actions are in reports/M5_MARKET_OWNER_PROGRESS.md and docs/CURRENT_CHECKPOINT.md.
+
+## Verified repair closeout - 14 October 2026
+
+Release07 now passes 394 matching cases in both complete qualified environments, including the actual controlled-deadline restart scenario. Eleven additional native owner-channel cases use source-backed helpers. Zero accepted failures/errors/skips; all children closed. Aggregate verification passed under unchanged limits and independent review is CLEAR3/3. All earlier failed evidence is preserved. See reports/M5_MARKET_OWNER_REPAIR.md. Exact next action: execute docs/M5_MARKET_LINEAGE_PLAN.md. This closes the current market-owner engineering group, not full M5 or M6 acceptance.
