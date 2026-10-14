@@ -52,6 +52,7 @@ class PaperReadOwner:
         if reserve.lease is not store.lease or health.lease is not store.lease:raise RuntimeRefused('OWNER_UNVERIFIED')
         self.store=store;self.reserve=reserve;self.health=health;self.lease=store.lease;self.db=store.conn
         self._preflight=None;self._read_provenance=[];self._account_proposal=None
+        self._market=None
         self._active=None;self._packet=None;self._get=None;self._cipher=None;self._closed=False;self._transfer_offset=0;self._last_offset=None
         with _owner_scope(self.lease) as guard,store._live(),self.db:
             if any(type(r) is PaperReadOwner and not r._closed for r in guard.resources):raise RuntimeRefused('READ_OWNER_CAPACITY')
@@ -68,6 +69,11 @@ class PaperReadOwner:
                 if value['state'] in {'PREPARED','GRANTED','RUNNING','EVIDENCE_READY'}:
                     value.update(state='INTERRUPTED',reason='OWNER_RESTARTED');self._write(value)
             guard.resources.append(self);self._guard=guard
+        try:
+            with _owner_scope(self.lease),store._live():
+                if self.db.execute("SELECT 1 FROM state WHERE key='paper_market_owner_version' OR substr(key,1,17)='paper_market_job:' LIMIT 1").fetchone():
+                    self._market_helper()
+        except BaseException:self.close();raise
 
     def __repr__(self):return '<PaperReadOwner private state redacted>'
     def __reduce_ex__(self,protocol):raise RuntimeRefused('PAPER_READ_PRIVATE_SERIALIZATION_FORBIDDEN')
@@ -242,7 +248,24 @@ class PaperReadOwner:
             if self._packet.status()['state'] in {'READY','PENDING'}:self._packet.finish_failed()
         self._finish(value)
 
+    def _market_helper(self):
+        if self._market is None:
+            from .paper_market_owner import _MarketOwner
+            self._market=_MarketOwner(self)
+        return self._market
+
+    def market_handle(self,packet):
+        with _owner_scope(self.lease),self.store._live():
+            _need(not self._closed,'READ_OWNER_CLOSED')
+            return self._market_helper().handle(packet)
+
     def tick(self):
+        with _owner_scope(self.lease),self.store._live():
+            if self._closed:return
+            self._tick_account()
+            if self._market is not None:self._market.tick()
+
+    def _tick_account(self):
         with _owner_scope(self.lease),self.store._live():
             if self._closed or self._active is None:return
             value=self._read(self._active)
@@ -304,12 +327,14 @@ class PaperReadOwner:
                         sha256=e['sha256'],total_bytes=e['size_bytes'],offset=offset,data=base64.b64encode(data).decode())
 
     def require_checkpoint(self):
+        if self._market is not None:self._market.require_checkpoint()
         _need(self._active is None and self._get is None and self._cipher is None,'READ_CHECKPOINT_BUSY')
 
     def close(self):
         with _MUTEX:
             cancel_producer(self)
             if self._closed:return
+            if self._market is not None:self._market.close()
             self._closed=True;self._clear_preflight();self._read_provenance=[]
             try:self._dispose_get()
             finally:

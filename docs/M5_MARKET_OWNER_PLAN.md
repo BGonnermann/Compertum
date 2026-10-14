@@ -56,10 +56,12 @@ HISTORY/CURRENT_ACTIONS publication is in scope; durable FRESH/composition linea
 
 ## Integration readiness - 14 October 2026
 
-R is verified and published; corrected S has221 matching fresh source/installed passes and final closeout CLEAR1/3. Publish S, then proceed directly through the five accepted increments above.
+R and S are verified and published; corrected S has221 matching fresh source/installed passes and final closeout CLEAR1/3. Continue the five accepted increments above.
 
 A bounded read-only review confirmed the implementation seams. Keep market records separate from account v1; bind the entire grant and give FRESH its own60-second start lifetime around the exact historical plan. Refactor account tick into a separate step so an idle account does not starve market work. Account work remains first; market work must not clear account confirmation or preflight. Existing producers own quota permits and unchanged deadlines.
 
 A closed flag alone is not proof of native cleanup. Retain failed cleanup references and block replacement/checkpoint. Seal terminal collection evidence before disposal, including valid zero-response failures. Keep fresh, reopened history and combined views alive together; public status/compose must be uncached and return only a scanned bounded summary.
 
 Coordinator history lookup must verify both authenticated subjects before injecting the recorded manifest. The published child grant is distinct from the split parent reservation. Persist the manifest before ACK and retain it after failure; never recollect or silently publish another artifact after interruption. Private transfer stays outside public supervisor actions. Detailed review notes: `.cache/test-runs/m5-opening-native-20261014-01/market-owner-design-review01.json`.
+
+Collection-only source checkpoint: strict grants and records plus the cooperative collection lifecycle pass271 distinct source checks, including five actual WinHTTP loopback cases. Independent reviews CLEAR3/3,2/3,2/3 respectively. Installed-package verification is pending. See `reports/M5_MARKET_OWNER_PROGRESS.md`; the detailed receipt lists the original failed checks and one unavailable preliminary passing test-source revision. Next implement opaque transfer/coordinator publication, then FRESH/composition and authenticated routing, followed by native process restart and paired verification. Do not mark the combined lifecycle checklist complete before FRESH is connected.
