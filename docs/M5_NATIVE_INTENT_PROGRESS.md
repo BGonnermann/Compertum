@@ -4,8 +4,9 @@
 
 ## Dependency order
 
-- [ ] Finish and publish presence increment13 with matching source/package evidence and final review.
-- [ ] Add the account-only private input context required by cancellation. Verify its original evidence, current identity and freshness independently of market quotes or strategy conditions.
+- [x] Finish and publish presence increment13 (`4bc4bce`), 314 matching cases per lane and final review CLEAR4/4.
+- [x] Add the account-only private input context required by cancellation:306 matched source/package cases, zero failures/errors/skips, full environment checks and final review CLEAR3/3.
+- [ ] Repair the corresponding older combined-context integrity gaps under M5_INPUT_INTEGRITY_PROGRESS.md before exact records.
 - [ ] Add immutable exact intent and confirmation records using native presence and the appropriate private input context.
 - [ ] Complete matching source/package checks, review, evidence preservation and GitHub synchronization for each bounded increment.
 - [ ] Continue ownership/economic/risk readers, then consumption, dispatch and reconciliation under the admission plan.
@@ -43,4 +44,4 @@ The start deadline is no later than original creation+60seconds, bound presence 
 
 All results remain BLOCKED with transport/financial authority false while required ownership/risk/consumption producers are missing. Preserve `PaperIntentJournal`, `PAPER_PREPARATION` identities and fake authority as their existing distinct types. The later actual-write record must update shared guard/history/recovery contracts together; that is outside this record-only increment.
 
-Exact next action after presence publication: freeze and implement the account-only context acceptance inventory, then exact native intent/confirmation. Use the existing120second/4GiB/fourCPU/16process job limits,16/12GiB host gates, five-second storage scan and50GiB category budget. One heavy job, primary writer, one independent reviewer and at most three review/repair iterations per bounded increment. No Strata or scheduled work.
+Exact next action: publish the verified account-only checkpoint, reproduce/repair combined-context integrity, then implement exact native intent/confirmation. Use the existing120second/4GiB/fourCPU/16process job limits,16/12GiB host gates, five-second storage scan and50GiB category budget. One heavy job, primary writer, one independent reviewer and at most three review/repair iterations per bounded increment. No Strata or scheduled work.

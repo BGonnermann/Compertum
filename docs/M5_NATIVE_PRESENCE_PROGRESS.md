@@ -25,7 +25,7 @@ Use existing120second/4GiB/fourCPU/16process jobs,16/12GiB host gates, five-seco
 - [x] Reproduce missing behavior, then implement the frozen requirements.
 - [x] Implement presence with checked persistence, authentication and lifetime invalidation.
 - [x] Verify source/package compatibility and native routing construction where storage permits; final review CLEAR4/4.
-- [ ] Publish/synchronize the verified checkpoint; local publication receipt records the exact commit.
+- [x] Publish/synchronize as `4bc4bce3c47d4650f33b060a3f01e94f35dd5053`; master, primary GitHub and requested clone match.
 - [ ] Continue exact immutable intent/confirmation and its account-only cancellation input dependency.
 
 N=`.cache/test-runs/m5-presence-20261014-13`. The earlier304-case pair, offline wheel and complete environment proofs passed, but final review3 found a late callback gap; that BLOCKED verdict and the test-only aggregate remain. Nine focused probes reproduced8 failures/1 pass; their first correction passed9/9. An additional test using the actual durable health-halt callback then reproduced premature receipt commit. All such callbacks now finish before receipt insertion; only durable readbacks and pure validity checks follow it. No failed evidence was removed.

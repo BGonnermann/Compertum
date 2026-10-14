@@ -8,6 +8,8 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 ## Current position
 
+Account-only inputs have **306 identical passing cases per source/installed environment**, zero failures/errors/skips, both complete environment checks and verified aggregate evidence. Corrupt opening artifacts and history now refuse permanently while valid nonempty history remains readable. Final independent review3/3 is CLEAR. See [the account-context report](reports/M5_ACCOUNT_CONTEXT.md). Next: reproduce/repair the corresponding older combined-context gaps, then exact native intent/confirmation.
+
 Native operator presence is verified with **314 identical passing cases per source/installed environment**, zero failures/errors/skips, both complete environment checks and final independent review CLEAR4/4. The repair prevents a refused acknowledgement from being committed by a health-halt callback. Presence expires permanently and grants no broker authority. See [the presence report](reports/M5_NATIVE_PRESENCE.md). Next: account-only inputs and exact native intent/confirmation.
 
 The private account/market input context has **255 matching passing cases per source/installed environment**, zero failures/errors/skips, complete environment qualification and verified aggregate evidence. It binds original observations and permanently refuses invalidated contexts. Final independent review3/3 is CLEAR; all order admission remains blocked. See [the input-context report](reports/M5_INPUT_CONTEXT.md).
@@ -59,7 +61,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 1. Master consolidation published and verified; keep pushing verified checkpoints.
 2. M3 partial closeout and independent checks are verified; the interrupted installed Final audit remains blocked. Strata stays off.
 3. M5 retries and opening baseline are verified; original failed evidence remains preserved.
-4. Durable lineage, the private input context and native presence are verified and independently reviewed. Continue account-only inputs, exact plans, risk and reconciliation under the admission plan.
+4. Durable lineage, the private input context and native presence are verified and independently reviewed. Account-only inputs passed paired verification and final review. Repair combined-context integrity, then continue exact plans, risk and reconciliation under the admission plan.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)
 
