@@ -5,8 +5,9 @@
 ## Checklist
 
 - [x] Independent design audit identified concrete reuse and no missing owner decision.
-- [ ] Finish account-only aggregate review and publication.
+- [x] Finish account-only14 review and publication (`0bc6758`).
 - [ ] Reproduce and repair the shared corruption paths in the existing combined context under [integrity repair15](M5_INPUT_INTEGRITY_PROGRESS.md).
+- [ ] Repair the analogous account-only/presence callback gaps under [the targeted prerequisite](M5_ACCOUNT_PRESENCE_INTEGRITY_PROGRESS.md).
 - [ ] Freeze failing tests for exact terms, immutable intent/confirmation and permanent invalidation.
 - [ ] Implement the minimal owner component and authenticated routing; verify targeted repairs.
 - [ ] Verify identical source/package inventories, complete environments and aggregate evidence; independent final review and publication.
@@ -32,4 +33,6 @@ Do not initialize `PaperIntentJournal`, append an attempt guard, modify fake/pre
 
 Cover purpose/term validation; subject/account/input/presence substitutions; CANCEL without market; exact confirmation and conflicts; historical duplicates; age/expiry/service-gap boundaries and nonrevival; owner/context restart/replacement; corrupt/partial schema and ignored writes; mutation during callbacks; actual durable health-halt callbacks; private bounded output; zero HTTP/quota/attempt effects; matching native allowlists and uncached inspection. Pin code, tests and helpers before every run. Final review checks the actual paired evidence, not planned counts.
 
-Exact next action: close account-only increment14, complete the targeted combined-context integrity repair, then activate the intent acceptance tests before changing its product code.
+Exact next action: close combined-context integrity15, reproduce/repair the analogous account-only and presence gaps, then activate exact-intent acceptance tests before changing its product code.
+
+Bounded integration audit confirmed owner lifecycle hooks, Supervisor ACTIONS/dispatch/uncached inspection, both native allowlists and domain capability must change together. Presence binds subject/account/credentials/generation but may precede a newer account packet; packet IDs need not match. Apply account-only CANCEL and combined fresh-quote/liquidity inputs for CLOSE_LONG; neither inherits strategy qualification or the09:35 entry window. Proposed targets/quantities remain unqualified until ownership/risk readers exist. Preserve context replacement as permanent invalidation, historical duplicate receipts and zero journal/attempt/HTTP effects. No missing owner decision was found.

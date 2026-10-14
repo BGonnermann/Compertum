@@ -8,11 +8,12 @@ Verified increment14: [account-only private inputs](M5_ACCOUNT_CONTEXT_PROGRESS.
 
 Current checklist:
 - [x] Complete account-only implementation, matched source/package verification and final review.
-- [ ] Publish this verified checkpoint and verify master/primary GitHub/requested-clone equality.
-- [ ] Reproduce and repair the older combined-context integrity gaps under [repair15](M5_INPUT_INTEGRITY_PROGRESS.md).
+- [x] Publish account14 and verify master/primary GitHub/requested-clone equality: `0bc6758c62fcc94e03c0d5453493af8691e7a7c1`.
+- [x] Repair combined-context integrity;151 matching source/package cases and final review CLEAR3/3.
+- [ ] Publish/synchronize repair15, then reproduce/repair the account/presence prerequisite16.
 - [ ] Continue exact native intent/confirmation, then remaining admission dependencies.
 
-Exact next action: commit/push the reviewed checkpoint, synchronize the requested clone and save `artifacts/m5/account_published.json`; then archive/verify only passed installed14 fixtures and activate the eight integrity probes. No heavy job is running. No broker authority is added.
+Verified repair15: **151 identical cases passed per source/installed environment**, zero failures/errors/skips, all28 jobs closed. Offline build/install, both complete environment qualifications and aggregate verification passed;543 frozen inputs/209 modules, unchanged Python and38 dependencies. Final independent review3/3 is **CLEAR**. Aggregate SHA `d3daf070dbb018d9c1009b636ff19bd351c33f75601ef93232164886f2bb0735`;436 evidence pins. Original137/1 stopped source sequence, all preliminary failures and installed pre-process storage refusal remain preserved. Passing-only archives are byte-verified. See [the integrity report](../reports/M5_INPUT_INTEGRITY.md). Exact next action: publish/synchronize this checkpoint, then activate the12 account/presence probes under [repair16](M5_ACCOUNT_PRESENCE_INTEGRITY_PROGRESS.md), before exact native intents. No financial or M5 acceptance;M6 remains0/10.
 
 Verified increment13: [native operator presence](M5_NATIVE_PRESENCE_PROGRESS.md). **314 identical cases passed per source/installed lane**, zero failures/errors/skips, all 26 jobs closed. Offline build/install, both complete environment checks and aggregate verification passed; Python and dependencies are unchanged. Aggregate SHA `9069d3d20f44d3372cbd9ac0aa90ede08298e98426b22bc0497425f9d7562694`; evidence map has 490 pins. Final review4/4 is CLEAR. Exact next action: publish/synchronize this checkpoint, then archive/verify the passed disposable13b fixtures before the next increment. Earlier304-case review-blocked evidence and failed fixtures remain preserved. The local `artifacts/m5/presence_published.json` receipt will record publication equality. Account-only test drafts and bounded verification/maintenance helpers are prepared in `.cache/test-runs/m5-account-context-20261014-14`; they have not run or changed product code. Continue [account-only inputs and exact intents](M5_NATIVE_INTENT_PROGRESS.md). No broker dispatch or actual account authority is added.
 

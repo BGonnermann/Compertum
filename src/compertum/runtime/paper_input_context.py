@@ -11,11 +11,12 @@ from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope
 from .paper_preflight import _live as live_owner,_measure
 from . import paper_account_binding as binding
-from .paper_credential_slot import _coordinator_records,load_paper_slot
+from .paper_credential_slot import _coordinator_records,load_paper_slot,_slot,_payload as slot_payload
 from .paper_credentials import open_paper_credentials
 from .paper_read_secrecy import _reject_reflections
-from .paper_read_evidence import _path as read_path
-from .paper_market_lineage_evidence import open_market_lineage
+from .paper_read_evidence import _path as read_path,open_read_evidence
+from .paper_opening import _original as original_opening
+from .paper_market_lineage_evidence import open_market_lineage,_published as published_original
 from .paper_market_compose import _observations,_history_records
 
 _FACTORY=object()
@@ -70,8 +71,11 @@ def _account(owner,preflight,value,manifest):
 
 
 def _current_market(market,fresh):
+    # Account health/credentials can refuse observation without disposing the
+    # borrowed historical market resources. Only market evidence faults own that
+    # invalidation below.
+    market._fresh_current(fresh)
     try:
-        market._fresh_current(fresh)
         _need(market._producer is market._fresh_view._pair and market._combined._fresh is market._fresh_view)
         _need(market._combined._history is market._opened)
         return market._combined.to_payload()
@@ -79,12 +83,22 @@ def _current_market(market,fresh):
         market._invalidate_fresh(fresh['grant']['job_id'],error.code);raise
 
 
-def _final_live(owner,preflight,market,observations,diagnostic):
-    """All artifact/ledger reads and secrecy callbacks precede these clocks."""
+def _opening_sources(owner,opening):
+    if opening is None:return None
+    reference=opening['reference'];packet=reference['first_packet_id'];value=owner._read(packet)
+    manifest=_account_manifest(owner,value);_need(manifest==reference['manifest'])
+    return value,binding._stored(owner,packet),manifest
+
+
+def _final_live(owner,preflight,market):
+    """Live callbacks precede final original records and pure clocks."""
     live_owner(owner);producer=market._producer;producer._context()
     protected=load_paper_slot(owner.lease,producer._plan.to_payload()['account_alias'])
     _need(hashlib.sha256(protected.ciphertext).hexdigest()==preflight._credential_sha==producer._credential_sha)
     _need(owner.health.status()['verified'] is True,'EXECUTION_HEALTH_UNVERIFIED')
+
+
+def _final_clocks(preflight,market,producer,observations,diagnostic):
     _final_account(preflight)
     try:_final_market(producer,observations,diagnostic)
     except RuntimeRefused as error:
@@ -129,6 +143,7 @@ def _snapshot(owner,subject,packet_id,fresh_job_id,capture_id):
     manifest=_account_manifest(owner,value)
     facts,p,record,proposal,opening_record,confirmation,opening,reference,reasons=_account(owner,preflight,value,manifest)
     alias_record=binding._alias(owner,g['account_alias'],facts['identity_sha256'])
+    opening_sources=_opening_sources(owner,opening_record)
     producer=market._producer;view=market._fresh_view;held=market._opened;combined=market._combined
     composition=_current_market(market,fresh)
     try:
@@ -142,7 +157,8 @@ def _snapshot(owner,subject,packet_id,fresh_job_id,capture_id):
             proofs=original['consumption']
             _need(proofs['fresh']==market.consumptions.read(fresh_job_id) and proofs['history']==market.consumptions.read(g['history']['job_id']))
             prior=market.records.read(g['history']['job_id'])
-            observations=_observations(producer._plan,_history_records(held.snapshot()['collection'])+producer._wire_records())
+            history_snapshot=held.snapshot()
+            observations=_observations(producer._plan,_history_records(history_snapshot['collection'])+producer._wire_records())
     except RuntimeRefused as error:
         market._invalidate_fresh(fresh_job_id,error.code);raise
     # Historical diagnostic age is deliberately not compared with current age.
@@ -164,22 +180,53 @@ def _snapshot(owner,subject,packet_id,fresh_job_id,capture_id):
     _need(preflight._account_id.encode() not in raw,'PAPER_READ_PRIVATE_ID_REFLECTION')
     # No diagnostic escapes a clock/credential/identity change during verification.
     _current_market(market,fresh);preflight.diagnostic()
+    if opening_record is not None:_need(original_opening(owner,g['account_alias'])[0]==opening_record)
+    with open_read_evidence(owner.lease,g['account_alias'],packet_id,manifest):pass
+    try:
+        market._lineage._route(capture,capture['manifest'])
+        with open_market_lineage(market,account_alias=g['account_alias'],capture_id=capture_id,manifest=capture['manifest']) as opened:
+            _need(opened.snapshot()==snapshot)
+    except RuntimeRefused as error:
+        market._invalidate_fresh(fresh_job_id,error.code);raise
+    _final_live(owner,preflight,market)
+    protected=load_paper_slot(owner.lease,g['account_alias'])
+    _need(hashlib.sha256(protected.ciphertext).hexdigest()==preflight._credential_sha==producer._credential_sha)
+    # These manifests were resolved and decrypted above. Recheck their durable
+    # publication bytes without another decryption or secrecy callback.
+    with _owner_scope(owner.lease) as guard:
+        published_original(guard,manifest)
+        if opening_record is not None:published_original(guard,opening_sources[2])
+        market._lineage._route(capture,capture['manifest'])
+        published_original(guard,capture['manifest']);published_original(guard,prior['manifest'])
+    producer._context();combined._context()
+    _need(held.publication()==prior['manifest'] and held.snapshot()==history_snapshot)
+    _need(view._pair is producer and producer._view is view and combined._fresh is view and combined._history is held)
+    _need(producer._wire_records()==inner['fresh']['records'])
+    history=binding._history(owner)
+    _need(history['status'] in {'VERIFIED_ZERO_PRE_SCHEMA','VERIFIED_HISTORY'},'PAPER_INPUT_HISTORY_UNVERIFIED')
+    _need(_sha(history)==facts['history_sha256'])
     _need(owner._preflight is preflight and owner._market is market and owner._account_proposal is proposal)
     _need(market._producer is producer and market._fresh_view is view and market._opened is held and market._combined is combined)
     _need(owner._read(packet_id)==value and _account_manifest(owner,value)==manifest)
     _need(binding._stored(owner,packet_id)==record and binding._state(owner,'paper_opening:'+g['account_alias'])==opening_record)
     _need(binding._alias(owner,g['account_alias'],facts['identity_sha256'])==alias_record)
-    _need(_sha(binding._history(owner))==facts['history_sha256'])
+    _need(_opening_sources(owner,opening_record)==opening_sources)
     if proposal is not None:
         _need(not proposal._closed and proposal._context is preflight and proposal.content==canonical(facts)
               and proposal._confirmed_at==record['confirmed_at'])
     _need(market.records.read(fresh_job_id)==fresh and market.records.read(g['history']['job_id'])==prior)
     _need(market._lineage.records.read(capture_id)==capture and market.consumptions.read(fresh_job_id)==proofs['fresh']
           and market.consumptions.read(g['history']['job_id'])==proofs['history'])
-    _final_live(owner,preflight,market,observations,diagnostic)
+    with _slot(owner.lease) as (guard,path):
+        _need(guard.api.read_regular(path,maximum=16384)==slot_payload(protected),'PAPER_INPUT_CREDENTIAL_CHANGED')
+    _need(not owner._closed and owner.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
+    _final_clocks(preflight,market,producer,observations,diagnostic)
     _need(owner._preflight is preflight and not preflight._closed and owner._account_proposal is proposal
-          and owner._market is market and market._producer is producer and market._fresh_view is view and market._opened is held)
-    stable=dict(account=value,manifest=manifest,facts=facts,confirmation=record,alias=alias_record,opening=opening_record,fresh=fresh,capture=capture,history=prior,consumption=proofs)
+          and owner._market is market and market._producer is producer and market._fresh_view is view and market._opened is held
+          and market._combined is combined and not producer._closed and not combined._closed and not held._closed
+          and producer in producer._owner_state.resources and combined in combined._state.resources and held in held._state.resources)
+    stable=dict(account=value,manifest=manifest,facts=facts,confirmation=record,alias=alias_record,opening=opening_record,
+                opening_sources=opening_sources,fresh=fresh,capture=capture,history=prior,consumption=proofs)
     identities=(preflight,proposal,market,producer,view,held,combined)
     return result,_sha(stable),identities
 
