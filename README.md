@@ -8,6 +8,8 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 ## Current position
 
+The private account/market input context has **255 matching passing cases per source/installed environment**, zero failures/errors/skips, complete environment qualification and verified aggregate evidence. It binds original observations and permanently refuses invalidated contexts. Final independent review3/3 is CLEAR; all order admission remains blocked. See [the input-context report](reports/M5_INPUT_CONTEXT.md).
+
 Durable market-input publication now has **696 matching passing cases in each source/installed environment**, including the full Windows restart/lost-acknowledgement lifecycle. Both complete environments and aggregate verification passed; final independent review3/3 is CLEAR. Original captures survive restart as historical evidence without restoring freshness or trading authority. The next implementation is native paper admission. See [the publication report](reports/M5_MARKET_LINEAGE_PUBLICATION.md) and [admission plan](docs/M5_PAPER_ADMISSION_PLAN.md).
 
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.
@@ -55,7 +57,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 1. Master consolidation published and verified; keep pushing verified checkpoints.
 2. M3 partial closeout and independent checks are verified; the interrupted installed Final audit remains blocked. Strata stays off.
 3. M5 retries and opening baseline are verified; original failed evidence remains preserved.
-4. Durable lineage is verified and independently reviewed. Implement native paper input context, grants, supervision, risk and reconciliation under the admission plan.
+4. Durable lineage and the private input context are verified and independently reviewed. Continue native presence, exact plans, risk and reconciliation under the admission plan.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)
 

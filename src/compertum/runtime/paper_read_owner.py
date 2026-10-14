@@ -52,7 +52,7 @@ class PaperReadOwner:
         if reserve.lease is not store.lease or health.lease is not store.lease:raise RuntimeRefused('OWNER_UNVERIFIED')
         self.store=store;self.reserve=reserve;self.health=health;self.lease=store.lease;self.db=store.conn
         self._preflight=None;self._read_provenance=[];self._account_proposal=None
-        self._market=None
+        self._market=None;self._input_context=None
         self._active=None;self._packet=None;self._get=None;self._cipher=None;self._closed=False;self._transfer_offset=0;self._last_offset=None
         with _owner_scope(self.lease) as guard,store._live(),self.db:
             if any(type(r) is PaperReadOwner and not r._closed for r in guard.resources):raise RuntimeRefused('READ_OWNER_CAPACITY')
@@ -198,6 +198,7 @@ class PaperReadOwner:
         return self._public(value)
 
     def _clear_preflight(self):
+        if self._input_context is not None:self._input_context.close();self._input_context=None
         if self._account_proposal is not None:self._account_proposal.close();self._account_proposal=None
         if self._preflight is not None:self._preflight.close();self._preflight=None
 
@@ -210,6 +211,10 @@ class PaperReadOwner:
     def opening_history(self,account_alias):
         from .paper_opening import opening_history
         return opening_history(self,account_alias)
+
+    def input_context(self,*,subject,packet_id,fresh_job_id,capture_id):
+        from .paper_input_context import input_context
+        return input_context(self,subject=subject,packet_id=packet_id,fresh_job_id=fresh_job_id,capture_id=capture_id)
 
     def opening(self,packet_id,manifest):
         from .paper_opening import current_opening
