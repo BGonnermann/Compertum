@@ -1,6 +1,6 @@
 """Private execution-owned market exchange; no grants, publication or packet driver."""
 from dataclasses import dataclass
-import json
+import json,time
 from compertum.data.encoding import canonical
 from compertum.domain import ContractError
 from compertum.paper_market_inputs import MarketObservation,OperationalMarketRequest,_ns,_sha
@@ -51,6 +51,9 @@ class _PreparedMarketExchange:
     _transport:object
     _dispatch_origin:object
     _reply:object
+    _dispatch_commit_ns:object
+    _commit_deadline_ns:object
+    _native_sha256:str
 
     def __init__(self,*,_factory=None,**fields):
         _need(_factory is _FACTORY,'PAPER_MARKET_UNQUALIFIED_CONTEXT')
@@ -70,6 +73,7 @@ class _PreparedMarketExchange:
             _need(p['project_id']==lease.project_id==protected.project_id and p['account_alias']==protected.account_alias)
             _need(_sha(protected.ciphertext)==self._credential_sha256 and lease.generation==self._owner_generation and lease.identity.process_instance_id==self._owner_instance)
             _need(self._binding_sha256==_binding(content,plan.content,self._credential_sha256,self._owner_generation,self._owner_instance))
+            _need(self._native_signature()==self._native_sha256)
             return json.loads(content),target
         except _INVALID:raise RuntimeRefused('PAPER_MARKET_CONTEXT_MISMATCH') from None
 
@@ -79,6 +83,45 @@ class _PreparedMarketExchange:
             self._verify(self._lease,self._protected)
             return self._content
 
+    def _native_signature(self):
+        _need(self._dispatch_commit_ns is None or type(self._dispatch_commit_ns) is int and 0<=self._dispatch_commit_ns<=2**63-1)
+        return _sha(canonical(dict(binding=self._binding_sha256,transport=None if self._transport is None else id(self._transport),
+                                  origin=self._dispatch_origin,committed_ns=self._dispatch_commit_ns,commit_deadline_ns=self._commit_deadline_ns)))
+
+    def _seal_native(self):object.__setattr__(self,'_native_sha256',self._native_signature())
+
+    def _observe_native(self,transport,stage):
+        request,target=self._verify(self._lease,self._protected)
+        _need(self._started and type(transport) is _OwnedDataGet and transport._lease is self._lease)
+        _need(transport._request_bytes==self._content and transport._request_sha256==_sha(self._content)
+              and transport._plan_sha256==_sha(self._plan_bytes) and transport._method=='GET' and transport._wire_path==target
+              and transport._origin==transport._data_origin==self._dispatch_origin)
+        if stage=='INITIALIZED':
+            _need(self._transport is None and self._dispatch_commit_ns is None)
+            object.__setattr__(self,'_transport',transport)
+        else:
+            _need(stage=='COMMITTED' and self._transport is transport and self._dispatch_commit_ns is None)
+            # Conservative evidence: SendRequest may begin immediately after this.
+            transport._check_deadline()
+            observed=time.monotonic_ns()
+            _need(self._commit_deadline_ns is None or observed<self._commit_deadline_ns,'HTTP_DEADLINE_EXCEEDED')
+            object.__setattr__(self,'_dispatch_commit_ns',observed)
+        self._seal_native()
+
+    def _native_evidence(self):
+        # Closure revokes reply access but must not erase dispatch/cleanup facts.
+        with _owner_scope(self._lease):
+            require_live_owner(self._lease,'execution')
+            _need(self._native_signature()==self._native_sha256)
+            _need(self._owner_generation==self._lease.generation and self._owner_instance==self._lease.identity.process_instance_id)
+            _need(self._binding_sha256==_binding(self._content,self._plan_bytes,self._credential_sha256,self._owner_generation,self._owner_instance))
+            t=self._transport
+            if t is not None:
+                asset=json.loads(self._content).get('operation')=='ASSET'
+                _need(type(t) is (_OwnedAssetGet if asset else _OwnedDataGet) and t._lease is self._lease and t._request_bytes==self._content)
+                _need(t._origin==self._dispatch_origin and type(t.native_closed) is bool)
+            return dict(dispatch_committed_ns=self._dispatch_commit_ns,native_closed=t is None or t.native_closed,
+                        observed_status=None if t is None else t.status_code)
     def _observation(self,raw,status,received_at):
         if type(self._request) is OperationalMarketRequest:return MarketObservation(self._request,raw,status,received_at)
         rid,at,token=self._action
@@ -144,28 +187,32 @@ def prepare_market_exchange(lease,protected,request,*,action_request_id=None,act
             credential=_sha(protected.ciphertext);generation=lease.generation;instance=lease.identity.process_instance_id
             x=_PreparedMarketExchange(_factory=_FACTORY,_lease=lease,_state=state,_protected=protected,_request=request,_action=action,
                 _content=content,_plan_bytes=plan.content,_credential_sha256=credential,_owner_generation=generation,_owner_instance=instance,
-                _binding_sha256=_binding(content,plan.content,credential,generation,instance),_closed=False,_started=False,_transport=None,_dispatch_origin=None,_reply=None)
-            state.resources.append(x);return x
+                _binding_sha256=_binding(content,plan.content,credential,generation,instance),_closed=False,_started=False,_transport=None,_dispatch_origin=None,_reply=None,_dispatch_commit_ns=None,_commit_deadline_ns=None)
+            x._seal_native();state.resources.append(x);return x
         except _INVALID:raise RuntimeRefused('PAPER_MARKET_REQUEST_INVALID') from None
 
 
-def start_market_exchange(exchange,*,timeout=10,_test_port=None,_deadline_at=None,_pre_send=None,_permit=None):
+def start_market_exchange(exchange,*,timeout=10,_test_port=None,_deadline_at=None,_pre_send=None,_permit=None,_commit_deadline_ns=None):
     _need(type(exchange) is _PreparedMarketExchange)
     with _owner_scope(exchange._lease):
         try:
             wire,_=exchange._verify(exchange._lease,exchange._protected)
             _need(not exchange._started and exchange._reply is None,'PAPER_MARKET_ALREADY_USED')
+            _need(_commit_deadline_ns is None or type(_commit_deadline_ns) is int and 0<=_commit_deadline_ns<=2**63-1)
+            object.__setattr__(exchange,'_commit_deadline_ns',_commit_deadline_ns);exchange._seal_native()
             object.__setattr__(exchange,'_started',True)
             _need(_test_port is None or type(_test_port) is int and 1<=_test_port<=65535)
             asset=wire.get('operation')=='ASSET'
             origin=(('paper-api.alpaca.markets' if asset else 'data.alpaca.markets'),443,True) if _test_port is None else ('127.0.0.1',_test_port,False)
+            object.__setattr__(exchange,'_dispatch_origin',origin);exchange._seal_native()
             with open_paper_credentials(exchange._lease,exchange._protected) as opened:
                 headers=opened.headers() if _test_port is None else {'X-Compertum-Test':'synthetic'}
                 rid,at,token=exchange._action
                 options=dict(request=exchange._request,headers=headers,timeout=timeout,_test_port=_test_port,_deadline_at=_deadline_at,_pre_send=_pre_send,_permit=_permit)
                 if asset:transport=_OwnedAssetGet(exchange._lease,**options)
-                else:transport=_OwnedDataGet(exchange._lease,**options,action_request_id=rid,action_requested_at=at,action_page_token=token)
-            object.__setattr__(exchange,'_transport',transport);object.__setattr__(exchange,'_dispatch_origin',origin)
+                else:transport=_OwnedDataGet(exchange._lease,**options,action_request_id=rid,action_requested_at=at,action_page_token=token,_native_observer=exchange._observe_native)
+            if asset:object.__setattr__(exchange,'_transport',transport);exchange._seal_native()
+            else:_need(exchange._transport is transport)
             return transport
         except BaseException:
             exchange.close();raise
@@ -178,7 +225,7 @@ def _provenance(exchange,result,raw,status,target):
         return 'UNVERIFIED','UNVERIFIED'
     asset=json.loads(exchange._content).get('operation')=='ASSET'
     _need(type(t) is (_OwnedAssetGet if asset else _OwnedDataGet) and t._lease is exchange._lease and t.native_closed
-          and t._result is result and result is not None and result.body==raw and result.status_code==status)
+          and t._result is result and result is not None and result.body==raw and result.status_code==status and t.retry_after==result.retry_after)
     _need(t._request_bytes==exchange._content and t._request_sha256==_sha(exchange._content)
           and t._plan_sha256==_sha(exchange._plan_bytes) and t._method=='GET' and t._wire_path==target==(t._asset_target if asset else t._data_target)
           and t._origin==(t._asset_origin if asset else t._data_origin)==exchange._dispatch_origin)

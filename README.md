@@ -8,7 +8,9 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 The daily runtime cap is removed: **27 source and 27 installed-package checks passed**. Per-job deadlines and CPU, memory and storage limits remain.
 
-The current two-module validation repair passed **592 distinct matching tests in each source/installed environment**, with zero test failures, errors or skips. Both complete environment qualifications passed with unchanged Python and 38 dependencies. The new release contains 486 frozen files and 190 matching product modules. Separate storage-preflight refusals are preserved and do not count as passing tests.
+The M3 two-module validation repair passed **592 distinct matching tests in each source/installed environment**, with zero test failures, errors or skips. Both complete environment qualifications passed with unchanged Python and 38 dependencies. That frozen release contains 486 files and 190 matching product modules. Separate storage-preflight refusals are preserved and do not count as passing tests.
+
+M5 collection retries are now integrated and independently reviewed: **521 matching required cases passed per environment**, including real non-sparse 1 GiB reserve creation and reopening. Source results combine 520 checks with explicit unchanged-code continuity and one fresh corrected test; all 521 installed checks ran against the final test release. The current release has 496 frozen files and 192 product modules. Both complete environments qualified. See [the retry integration report](reports/M5_RETRY_INTEGRATION.md).
 
 The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **All 77 audits/reviews, the Final calculation and its restart checks passed.** The source Final audit passed pause/resume and terminal restart. Four separate three-ridge calculation/audit jobs also passed, with six annual fits and exact source/package outputs. The installed-package audit was interrupted before saving its process-exit receipt and cannot be accepted or retried. M3 remains incomplete. All saved files are preserved, but a failed backup move changed directory identities; the archived runtime cannot resume. See [the interruption report](reports/M3_FINAL_INTERRUPTION.md). Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
@@ -40,7 +42,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 
 1. Master consolidation published and verified; keep pushing verified checkpoints.
 2. M3 partial closeout and independent checks are verified; the interrupted installed Final audit remains blocked. Strata stays off.
-3. Integrate and verify the prepared M5 retry changes (521 cases per environment), then opening changes (94 plus compatibility checks).
+3. M5 retries are verified. Integrate opening changes, add a genuine process-restart check, and verify the original 94 cases plus that check and 126 compatibility cases in each environment.
 4. Continue the accepted market-owner engineering plan.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)

@@ -33,12 +33,13 @@ def _wire(request, request_id, requested_at, page_token):
 
 class _OwnedDataGet(_OwnedHTTP):
     def __init__(self, lease, *, request, headers, timeout=10, _test_port=None,
-                 action_request_id=None, action_requested_at=None, action_page_token=None, _deadline_at=None, _pre_send=None,_permit=None):
+                 action_request_id=None, action_requested_at=None, action_page_token=None, _deadline_at=None, _pre_send=None,_permit=None,_native_observer=None):
         with _owner_scope(lease) as state:
             require_live_owner(lease, 'execution')
             plan, raw, target = _wire(request, action_request_id, action_requested_at, action_page_token)
             _need(plan.to_payload()['project_id'] == state.project.project_id)
             _need(_pre_send is None or callable(_pre_send));self._pre_send=_pre_send
+            _need(_native_observer is None or callable(_native_observer));self._native_observer=_native_observer
             _need(_test_port is None or type(_test_port) is int and 1 <= _test_port <= 65535)
             self._source_request=request
             self._request_bytes, self._request_sha256 = raw, _sha(raw)
@@ -47,6 +48,12 @@ class _OwnedDataGet(_OwnedHTTP):
             host, port, secure = self._data_origin
             super().__init__(lease, host=host, port=port, secure=secure, path=target,
                              headers=headers, timeout=timeout, method='GET', body=b'', _deadline_at=_deadline_at,_permit=_permit)
+
+    def _native_initialized(self):
+        if self._native_observer is not None:self._native_observer(self,'INITIALIZED')
+
+    def _send_committed(self):
+        if self._native_observer is not None:self._native_observer(self,'COMMITTED')
 
     def _before_send(self):
         if self._pre_send is not None:self._pre_send()

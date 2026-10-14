@@ -51,8 +51,17 @@ def finish(c):
  raise AssertionError('collection poll did not complete')
 
 def run(c):
- while c.status()['state']=='READY':c.dispatch();finish(c)
+ deadline=time.monotonic()+15
+ while c.status()['state']=='READY':
+  assert time.monotonic()<deadline
+  if c.dispatch()=='WAITING':time.sleep(.003)
+  else:finish(c)
  return c.private_snapshot().to_payload()
+
+def retained_replies(payload):
+ if payload['version']==1:return payload['records']
+ assert payload['version']==2
+ return [dict(a['reply'],request=a['request'],dispatched_at=a['pre_send_at']) for a in payload['attempt_chain'] if a['reply'] is not None]
 
 @pytest.mark.parametrize('mode',['HISTORY','CURRENT_ACTIONS'])
 def test_eight_pages_preserve_exact_bytes_cursors_and_release_exchanges(owner,credentials,mode):
@@ -92,8 +101,8 @@ def test_terminal_incomplete_preserves_safe_pages_without_retry(owner,credential
  with pages(bodies,statuses) as (port,seen):
   c=collection(owner,credentials,port,mode);p=run(c)
   assert p['state']=='INCOMPLETE' and not p['complete_by_cutoff'] and len(seen)==len(bodies)
-  assert len(p['records'])==(1 if failure in ('secret','malformed') else len(bodies))
-  assert p['records'][0]['body_utf8'].encode()==bodies[0]
+  assert len(retained_replies(p))==(1 if failure in ('secret','malformed') else len(bodies))
+  assert retained_replies(p)[0]['body_utf8'].encode()==bodies[0]
   assert KEY not in json.dumps(p) and SECRET not in json.dumps(p)
   with pytest.raises(RuntimeRefused):c.dispatch()
   assert len(seen)==len(bodies) and not _PENDING
@@ -107,8 +116,8 @@ def test_validation_after_cutoff_keeps_late_evidence(owner,credentials,monkeypat
  monkeypatch.setattr(module,'qualify_market_inputs',late)
  with pages([body('HISTORY')]) as (port,_):
   c=collection(owner,credentials,port,clock=clock);c.dispatch();clock.at='2026-10-09T13:24:59.500000000Z';finish(c);p=c.private_snapshot().to_payload()
-  assert p['state']=='INCOMPLETE' and p['reason']=='INFORMATION_CUTOFF' and len(p['records'])==1
-  assert p['records'][0]['validated_at']==clock.at and not p['complete_by_cutoff']
+  assert p['state']=='INCOMPLETE' and p['reason']=='INFORMATION_CUTOFF' and len(retained_replies(p))==1
+  assert retained_replies(p)[0]['validated_at']==clock.at and not p['complete_by_cutoff']
 
 @pytest.mark.parametrize('at,ok',[('2026-10-09T13:25:00Z',True),('2026-10-09T13:25:00.000000001Z',False)])
 def test_receipt_and_validation_exact_cutoff(owner,credentials,at,ok):
@@ -128,7 +137,7 @@ def test_clock_and_total_deadline_block_next_dispatch(owner,credentials,change):
   elif change=='wrong_day':clock.at='2026-10-12T13:20:00Z'
   else:clock.at='2026-10-09T13:25:00Z'
   with pytest.raises(RuntimeRefused):c.dispatch()
-  assert c.status()['state']=='INCOMPLETE' and len(c.private_snapshot().to_payload()['records'])==1 and len(seen)==1
+  assert c.status()['state']=='INCOMPLETE' and len(retained_replies(c.private_snapshot().to_payload()))==1 and len(seen)==1
 
 
 def test_capacity_pending_cancel_revocation_and_private_snapshot(owner,credentials):
@@ -155,6 +164,7 @@ def test_uncertain_cleanup_remains_explicit_and_recoverable(owner,credentials,mo
    patch.setattr(t._closing,'wait',lambda _:False)
    with pytest.raises(RuntimeRefused,match='HTTP_CLEANUP_UNVERIFIED'):c.cancel()
    assert not t.native_closed and _PENDING
+   p=c.private_snapshot().to_payload();assert p['reason']=='NATIVE_CLEANUP_UNVERIFIED' and p['attempt_chain'][0]['native_closed'] is False
   c.close();assert t.native_closed and not _PENDING
 
 @pytest.mark.parametrize('change',['plan','envelope','collection_id','mode'])
@@ -243,7 +253,7 @@ def test_review_generated_reflection_is_not_retained_and_safe_records_survive(ow
  with pages([body('HISTORY')]) as (port,_):
   c=collection(owner,protected,port);c.dispatch();finish(c)
   assert c._aggregate is None
-  p=c.private_snapshot().to_payload();assert p['state']=='INCOMPLETE' and len(p['records'])==1
+  p=c.private_snapshot().to_payload();assert p['state']=='INCOMPLETE' and len(retained_replies(p))==1
   assert 'HISTORY_ROWS_MISSING' not in c.private_snapshot().content.decode()
 
 

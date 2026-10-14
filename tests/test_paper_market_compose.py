@@ -78,6 +78,7 @@ def test_reopened_prior_generation_does_not_restore_authority(tmp_path):
  import os,subprocess
  from compertum.runtime.identity import resolve_project
  from compertum.runtime.paper_credential_slot import load_paper_slot
+ from compertum.storage import open_journal_reserve
  from test_fixture_processes import fixture_module
  code="""
 from pathlib import Path
@@ -91,14 +92,17 @@ from compertum.runtime.paper_credentials import seal_paper_credentials
 from compertum.runtime.paper_credential_slot import provision_paper_slot
 from compertum.runtime.paper_market_evidence import protect_market_evidence,publish_market_evidence
 from compertum.config import load_config
-from compertum.storage import StorageManager,reserve_runtime_paths
+from compertum.storage import StorageManager,reserve_runtime_paths,create_journal_reserve
 root=Path(sys.argv[1]);project=resolve_project(root);c=acquire_owner(project,'coordinator');e=acquire_owner(project,'execution')
 try:
  config=root/'config.toml';config.write_bytes(Path('config/default.toml').read_bytes());m=StorageManager(c,load_config(config,root));reserve_runtime_paths(m)
+ reserve=create_journal_reserve(e);allocation=reserve.receipt()
+ assert allocation['capacity_bytes']==allocation['unused_bytes']==1073741824
+ assert allocation['allocated_bytes']>=1073741824 and allocation['sparse'] is False
  credential=seal_paper_credentials(e,'paper-primary',bytearray(f.f.KEY.encode()),bytearray(f.f.SECRET.encode()));provision_paper_slot(e,credential)
  collection=f.history(e,credential);sealed=protect_market_evidence(e,collection.private_snapshot(),task_id=str(uuid4()))
  grant=m.reserve_bytes(sealed.task_id,'records',len(sealed.ciphertext));r=publish_market_evidence(m,grant,sealed)
- print(json.dumps(dict(collection_id=sealed.collection_id,manifest=r,producer_generation=e.generation)))
+ print(json.dumps(dict(collection_id=sealed.collection_id,manifest=r,producer_generation=e.generation,reserve=allocation)))
 finally:release_owner(e);release_owner(c)
 """
  child=fixture_module().python_process(['-B','-c',code,str(tmp_path)],env={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','PYTHONPATH','PYTHONDONTWRITEBYTECODE','PYTHONNOUSERSITE'}},stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
@@ -108,6 +112,10 @@ finally:release_owner(e);release_owner(c)
  assert all(k not in out for k in (f.KEY,f.SECRET))
  result=json.loads(out);e=acquire_owner(resolve_project(tmp_path),'execution')
  try:
+  reserve=open_journal_reserve(e);reopened=reserve.receipt()
+  assert {k:v for k,v in reopened.items() if k!='allocated_bytes'}=={k:v for k,v in result['reserve'].items() if k!='allocated_bytes'}
+  assert reopened['allocated_bytes']>=1073741824
+  assert (tmp_path/'state/execution-reserve.bin').stat().st_size==1073741824
   credential=load_paper_slot(e,'paper-primary');p,_=fresh(e,credential)
   with open_market_evidence(e,'paper-primary',result['collection_id'],result['manifest']) as opened:
    value=compose_market_inputs(e,opened,p.private_snapshot()).to_payload()
@@ -198,10 +206,22 @@ def test_cross_source_duplicate_request_id_refused(owner,credentials,monkeypatch
  with pytest.raises(RuntimeRefused):compose_market_inputs(owner,c.private_snapshot(),p.private_snapshot()).to_payload()
 
 
-def test_combined_original_envelope_limit_is_unchanged(owner,credentials):
- c=history(owner,credentials,padding=True);p,_=fresh(owner,credentials,padding=True)
- assert c.status()['state']=='PAGINATION_COMPLETE' and p.status()['state']=='PAIR_COMPLETE'
- with pytest.raises(RuntimeRefused):compose_market_inputs(owner,c.private_snapshot(),p.private_snapshot()).to_payload()
+def test_combined_original_envelope_limit_is_unchanged(owner,credentials,monkeypatch):
+ # Legacy-size compatibility fixture: original v1 histories remain readable.
+ # Current pre-dispatch worst-case reservation is tested separately, unmodified.
+ import compertum.runtime.paper_market_collection as producer
+ with monkeypatch.context() as patch:
+  patch.setattr(producer,'can_retain_attempt',lambda plan,chain:len(chain)<8 and len(canonical(dict(plan=plan.to_payload(),attempt_chain=chain)))<=1048576)
+  c=history(owner,credentials,padding=True)
+ p,_=fresh(owner,credentials,padding=True);h=c.private_snapshot().to_payload();fv=p.private_snapshot().to_payload()
+ assert h['version']==1 and len(h['records'])==8 and c.status()['state']=='PAGINATION_COMPLETE' and p.status()['state']=='PAIR_COMPLETE'
+ assert len(canonical(dict(plan=h['plan'],records=h['records'])))<=1048576
+ def envelope(records):
+  responses=[dict(request=r['request'],body_utf8=r['body_utf8'],status=r['diagnostic']['status'],received_at=r['diagnostic']['received_at']) for r in records]
+  return canonical(dict(plan=h['plan'],responses=responses))
+ assert len(envelope(h['records']))<=1048576<len(envelope(h['records']+fv['records']))
+ combined=compose_market_inputs(owner,c.private_snapshot(),p.private_snapshot())
+ with pytest.raises(RuntimeRefused,match='^PAPER_COMPOSITION_INVALID$'):combined.to_payload()
 
 
 def test_review_forged_live_source_cannot_revive_closed_history(owner,credentials):

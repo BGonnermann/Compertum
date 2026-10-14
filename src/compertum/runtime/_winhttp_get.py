@@ -110,6 +110,7 @@ class _OwnedHTTP:
             self._check_deadline()
             if len(_PENDING)>=4 or any(v._lease is lease for v in _PENDING.values()):raise RuntimeRefused('HTTP_BUSY')
             self._wire_body_sha256=hashlib.sha256(body).hexdigest()
+            self._native_initialized()
             from .service_budget import native_permit,cancel_native
             self._admission=native_permit(self,_permit)
             try:self._api=_API()
@@ -143,10 +144,16 @@ class _OwnedHTTP:
                 from .service_budget import commit_native
                 commit_native(self._admission)
                 self._check_deadline()
+                self._send_committed()
+                self._check_deadline()
                 _checked(self._api.SendRequest(self._request,self._headers,len(header),self._upload if body else None,len(body),len(body),id(self)))
             except BaseException:
                 self.close()
                 raise
+
+    def _native_initialized(self):pass
+
+    def _send_committed(self):pass
 
     def _before_send(self):pass
 

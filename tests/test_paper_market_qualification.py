@@ -143,12 +143,12 @@ def test_native_result_or_context_substitution_cannot_gain_provenance(owner,cred
 def test_pinned_envelope_is_preserved_before_fixture_tls_refusal(owner,credentials,monkeypatch):
  import compertum.runtime._winhttp_get as native
  import compertum.runtime.paper_market_qualification as module
- real=module._OwnedDataGet;seen=[]
+ real=module._OwnedDataGet.__init__;seen=[]
  class Boundary(Exception):pass
  monkeypatch.setattr(native,'_API',lambda:(_ for _ in ()).throw(Boundary()))
- def capture(*a,**kw):
-  assert kw['headers']=={'APCA-API-KEY-ID':KEY,'APCA-API-SECRET-KEY':SECRET};seen.append(True);return real(*a,**kw)
- monkeypatch.setattr(module,'_OwnedDataGet',capture)
+ def capture(self,*a,**kw):
+  assert kw['headers']=={'APCA-API-KEY-ID':KEY,'APCA-API-SECRET-KEY':SECRET};seen.append(True);return real(self,*a,**kw)
+ monkeypatch.setattr(module._OwnedDataGet,'__init__',capture)
  x=prepared(owner,credentials)
  with pytest.raises(RuntimeRefused,match='HTTP_FIXTURE_QUEUE_TLS_FORBIDDEN'):start_market_exchange(x)
  assert seen==[True] and x._closed

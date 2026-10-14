@@ -94,7 +94,7 @@ def _cursor(raw,mode,symbol):
         _need(sum(map(len,groups.values()))<=100)
     return _token(b['next_page_token'])
 
-def _validate(frames,project,alias,task,collection):
+def _validate_v1(frames,project,alias,task,collection):
     _context(project,alias,task,collection);_need(type(frames) is list and len(frames)==2)
     meta=strict_json(frames[0]);v=_snapshot(frames[1])
     _need(type(meta) is dict and set(meta)=={'version','record_type','purpose','project_id','account_alias','task_id','collection_id','execution_generation','credential_sha256','snapshot_sha256'})
@@ -165,6 +165,58 @@ def _validate(frames,project,alias,task,collection):
         elif v['reason']=='INFORMATION_CUTOFF':_need(n>0 and _ns(last_valid)>cutoff)
         if n==0:_need(v['reason'] in ('CANCELLED','DISPATCH_FAILED','TOTAL_DEADLINE','REPLY_REFUSED'))
     return dict(metadata=meta,collection=v,use='HISTORICAL_ONLY',purpose='OPERATIONAL_ONLY',freshness='NOT_RESTORED',
+                provenance='HISTORICAL_PRODUCER_ASSERTION',transport_authorized=False,financial_accepted=False,research_eligible=False)
+
+
+def _validate(frames,project,alias,task,collection):
+    _need(type(frames) is list and len(frames)==2)
+    value=_snapshot(frames[1]);_need(type(value) is dict and type(value.get('version')) is int)
+    if value['version']==1:return _validate_v1(frames,project,alias,task,collection)
+    _need(value['version']==2)
+    try:return _validate_v2(frames,project,alias,task,collection,value)
+    except (ContractError,ValueError,TypeError,KeyError,UnicodeError,RecursionError,AttributeError,OverflowError):
+        raise RuntimeRefused('MARKET_EVIDENCE_INVALID') from None
+
+
+def _validate_v2(frames,project,alias,task,collection,v):
+    from .paper_market_attempts import validate_attempt_chain
+    _context(project,alias,task,collection);meta=strict_json(frames[0])
+    _need(type(meta) is dict and set(meta)=={'version','record_type','purpose','project_id','account_alias','task_id','collection_id','execution_generation','credential_sha256','snapshot_sha256'})
+    _need(type(meta['version']) is int and meta['version']==1 and meta['record_type']=='PrivateMarketEvidence' and meta['purpose']=='OPERATIONAL_ONLY')
+    _need((meta['project_id'],meta['account_alias'],meta['task_id'],meta['collection_id'])==(project,alias,task,collection))
+    _need(type(meta['execution_generation']) is int and meta['execution_generation']>0 and meta['snapshot_sha256']==_sha(frames[1]))
+    _need(type(meta['credential_sha256']) is str and re.fullmatch('[0-9a-f]{64}',meta['credential_sha256']) is not None)
+    _need(set(v)=={'version','record_type','purpose','collection_id','mode','plan','started_at','validated_at','state','reason','attempts',
+        'attempt_chain','selected_requests','started_monotonic_ns','deadline_monotonic_ns','aggregate','aggregate_error','complete_by_cutoff',
+        'native_provenance','clock_basis','research_eligible','financial_accepted','transport_authorized'})
+    _need(v['record_type']=='PrivateOperationalCollection' and v['purpose']=='OPERATIONAL_ONLY' and v['collection_id']==collection)
+    _need(all(v[k] is False for k in ('research_eligible','financial_accepted','transport_authorized')))
+    plan=OperationalMarketPlan(canonical(v['plan']));p=plan.to_payload()
+    _need((p['project_id'],p['account_alias'])==(project,alias))
+    projection=validate_attempt_chain(plan,mode=v['mode'],chain=v['attempt_chain'],selected_requests=v['selected_requests'],started_at=v['started_at'],
+        started_ns=v['started_monotonic_ns'],deadline_ns=v['deadline_monotonic_ns'],clock_basis=v['clock_basis'])
+    chain=v['attempt_chain'];rows=projection['records']
+    _need(type(v['attempts']) is int and v['attempts']==len(chain))
+    _need(v['validated_at']==projection['validated_at'] and v['native_provenance']==projection['native_provenance'])
+    _need(v['aggregate_error'] is None)
+    _need((v['aggregate'] is None and projection['aggregate'] is None) or projection['aggregate'] is not None and canonical(v['aggregate'])==projection['aggregate'])
+    if v['state']=='PAGINATION_COMPLETE':
+        _need(len(rows)>0 and v['reason'] is None and v['complete_by_cutoff'] is True and v['aggregate'] is not None)
+        _need(projection['last_outcome']=='SELECTED' and projection['next_cursor'] is None and _ns(v['validated_at'])<=_ns(p['history_cutoff_at']))
+    else:
+        _need(v['state']=='INCOMPLETE' and v['complete_by_cutoff'] is False)
+        reason=v['reason'];_need(type(reason) is str)
+        waiting={'CANCELLED','TOTAL_DEADLINE','INFORMATION_CUTOFF','RETENTION_LIMIT','DISPATCH_FAILED'}
+        if not chain:_need(reason in waiting)
+        elif projection['last_outcome']=='TERMINAL':
+            final_reason=chain[-1]['terminal_reason']
+            expected={'HTTP_STATUS_NOT_RETRYABLE':'HTTP_REFUSED','PAGE_ATTEMPT_LIMIT':'HTTP_REFUSED','TASK_DEADLINE':'TOTAL_DEADLINE',
+                      'RETRY_EXCEEDS_DEADLINE':'HTTP_REFUSED','TOTAL_ATTEMPT_LIMIT':'PAGE_LIMIT'}.get(final_reason,final_reason)
+            _need(reason==expected)
+        else:
+            _need(reason in waiting or reason=='PAGE_LIMIT' and len(chain)==8 and projection['last_outcome']=='SELECTED' and projection['next_cursor'] is not None)
+            if projection['last_outcome']=='SELECTED':_need(projection['next_cursor'] is not None)
+    return dict(metadata=meta,collection=v,selected_records=rows,use='HISTORICAL_ONLY',purpose='OPERATIONAL_ONLY',freshness='NOT_RESTORED',
                 provenance='HISTORICAL_PRODUCER_ASSERTION',transport_authorized=False,financial_accepted=False,research_eligible=False)
 
 def protect_market_evidence(lease,snapshot,*,task_id):

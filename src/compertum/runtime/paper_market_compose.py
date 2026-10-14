@@ -8,6 +8,7 @@ from .owners import _MUTEX,_owner_scope,require_live_owner
 from .paper_credentials import open_paper_credentials
 from .paper_market_collection import _PrivateCollectionSnapshot,_MarketCollection,_scan_generated
 from .paper_market_evidence import _OpenedMarketEvidence
+from .paper_market_attempts import validate_attempt_chain
 from .paper_market_fresh import _PrivateFreshView,_MarketFresh
 
 _FACTORY=object()
@@ -23,12 +24,7 @@ def _history_source(lease,state,source):
         c=source._collection
         _need(type(c) is _MarketCollection and c._lease is lease and c._owner_state is state and c in state.resources and not c._closed)
         _need(c.private_snapshot() is source);raw=source.content;v=json.loads(raw)
-        provenances={json.loads(r[2])['transport_provenance'] for r in c._records}
-        expected=dict(version=1,record_type='PrivateOperationalCollection',purpose='OPERATIONAL_ONLY',collection_id=c._collection_id,mode=c._mode,
-            plan=c._plan.to_payload(),started_at=c._started_at,validated_at=c._validated_at,state=c._state,reason=c._reason,
-            attempts=c._attempts,records=c._wire_records(),aggregate=None if c._aggregate is None else json.loads(c._aggregate),aggregate_error=c._aggregate_error,
-            complete_by_cutoff=c._complete_by_cutoff,native_provenance=next(iter(provenances)) if len(provenances)==1 else 'UNVERIFIED',
-            clock_basis='SYNTHETIC_FIXTURE' if c._port is not None else 'LOCAL_CLOCK',research_eligible=False,financial_accepted=False,transport_authorized=False)
+        expected=c._snapshot_value()
         _need(canonical(expected)==raw,'PAPER_COMPOSITION_EVIDENCE_CHANGED')
         meta=dict(project_id=lease.project_id,account_alias=c._protected.account_alias,collection_id=c._collection_id,
                   execution_generation=c._generation,credential_sha256=c._credential_sha,snapshot_sha256=_sha(raw))
@@ -43,8 +39,9 @@ def _history_source(lease,state,source):
     _need(v['mode']=='HISTORY' and v['state']=='PAGINATION_COMPLETE' and v['complete_by_cutoff'] is True and v['aggregate'] is not None)
     _need(v['collection_id']==meta['collection_id'] and pp['project_id']==lease.project_id==meta['project_id']
           and pp['account_alias']==meta['account_alias'] and _sha(raw)==meta['snapshot_sha256'])
-    _need(0<len(v['records'])<=8 and _ns(v['validated_at'])<=cutoff)
-    for r in v['records']:
+    records=_history_records(v)
+    _need(0<len(records)<=8 and _ns(v['validated_at'])<=cutoff)
+    for r in records:
         _need(r['request']['operation']=='HISTORY' and r['validated_at'] is not None
               and _ns(r['diagnostic']['received_at'])<=_ns(r['validated_at'])<=cutoff)
     reference=dict(collection_id=meta['collection_id'],snapshot_sha256=_sha(raw),producer_generation=meta['execution_generation'],
@@ -52,6 +49,17 @@ def _history_source(lease,state,source):
                    task_id=meta.get('task_id'),validated_at=v['validated_at'])
     identity=_sha(canonical(dict(metadata=meta,reference=reference)))
     return plan,raw,v,meta,reference,identity
+
+
+def _history_records(value):
+    if value['version']==1:return value['records']
+    _need(value['version']==2)
+    plan=OperationalMarketPlan(canonical(value['plan']))
+    projection=validate_attempt_chain(plan,mode=value['mode'],chain=value['attempt_chain'],selected_requests=value['selected_requests'],
+        started_at=value['started_at'],started_ns=value['started_monotonic_ns'],deadline_ns=value['deadline_monotonic_ns'],clock_basis=value['clock_basis'])
+    _need(projection['aggregate']==canonical(value['aggregate']) and projection['validated_at']==value['validated_at']
+          and projection['native_provenance']==value['native_provenance'])
+    return projection['records']
 
 
 def _fresh_source(lease,source):
@@ -95,7 +103,7 @@ class _PrivateCombinedMarketInputs:
                 pair,fraw,fv,pbinding,pstate=_fresh_source(self._lease,self._fresh)
                 _need(pbinding==self._pair_binding and pair._credential_sha==self._credential_sha==hm['credential_sha256']
                       and pair._plan.content==plan.content)
-                observations=_observations(plan,hv['records']+fv['records'])
+                observations=_observations(plan,_history_records(hv)+fv['records'])
                 diagnostic=qualify_market_inputs(plan,observations,as_of=fv['age_basis_at']).to_payload()
                 value=dict(version=1,record_type='PrivateCombinedMarketInputs',purpose='OPERATIONAL_ONLY',plan_sha256=plan.sha256,
                     execution_generation=self._lease.generation,history=href,

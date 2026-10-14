@@ -172,8 +172,8 @@ def test_real_collection_shapes_roundtrip_without_upgrade(evidence,monkeypatch,m
   result=p.snapshot();assert result['collection']==snapshot and result['freshness']=='NOT_RESTORED'
  if case=='complete':assert snapshot['state']=='PAGINATION_COMPLETE'
  else:assert snapshot['state']=='INCOMPLETE'
- if case=='null_final':assert snapshot['aggregate'] is None and snapshot['records'][-1]['validated_at'] is None
- if case.endswith('zero'):assert snapshot['records']==[] and len(seen)==0
+ if case=='null_final':assert snapshot['aggregate'] is None and f.retained_replies(snapshot)[-1]['validated_at'] is None
+ if case.endswith('zero'):assert f.retained_replies(snapshot)==[] and len(seen)==0
 
 
 def test_framing_maximum_and_authenticated_cipher_length():

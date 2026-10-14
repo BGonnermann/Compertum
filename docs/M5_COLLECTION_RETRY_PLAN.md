@@ -22,11 +22,11 @@
 
 ## Checklist in dependency order
 
-- [ ] Red tests and pure retry decision: exact1/4second boundaries, status whitelist, three-attempt cap, normalized Retry-After, clock reversal/overflow, expired original deadline. Decision grants no dispatch authority.
-- [ ] Collection attempt records and cooperative waiting: fail/fail/success, unique attempt identities/stable page identity, unchanged cursor, cancellation and queue delays, cleanup before retry, total-eight cap and capacity refusal. Preserve failed bodies after secrecy qualification.
-- [ ] Version2 encrypted evidence validator and selected page projection; preserve v1 reader bytes and checks. Update composition to use only the validated successful projection while binding full original attempt evidence.
-- [ ] Native local responses and encrypted reopen reproduce selected aggregate; malformed metadata/body, uncertain cleanup and substitution remain terminal. No real data/account credentials.
-- [ ] Independent review, frozen source/package regression identities and exact replays; retain errors and resource receipts; update roadmap/checkpoint before continuing.
+- [x] Red tests and pure retry decision: exact1/4second boundaries, status whitelist, three-attempt cap, normalized Retry-After, clock reversal/overflow, expired original deadline. Decision grants no dispatch authority.
+- [x] Collection attempt records and cooperative waiting: fail/fail/success, unique attempt identities/stable page identity, unchanged cursor, cancellation and queue delays, cleanup before retry, total-eight cap and capacity refusal. Preserve failed bodies after secrecy qualification.
+- [x] Version2 encrypted evidence validator and selected page projection; preserve v1 reader bytes and checks. Update composition to use only the validated successful projection while binding full original attempt evidence.
+- [x] Native local responses and encrypted reopen reproduce selected aggregate; malformed metadata/body, uncertain cleanup and substitution remain terminal. No real data/account credentials.
+- [x] Independent review, frozen source/package regression identities and exact replays; retain errors and resource receipts; update roadmap/checkpoint before continuing.
 
 ## Files and validation
 
@@ -54,3 +54,8 @@ Native isolated fixture admission 2026-10-12T04:19:51.417703+00:00:16MiB separat
 ## Native staging checkpoint
 
 2026-10-12T04:42:27.193556+00:00:520selected checks passed, zero failures/errors/skips;13new native retry/cleanup/capacity cases;1preexisting actual1GiB subprocess test deferred until frozen M3ends. Native cleanup review CLOSED2/3 after direct-close regression reproduced and repaired. Exact staged source archive 23f3f18dd4384318588dfca3b47021ab11f645d08cea65bf82fa8c59aa0c0670. Active Q remains unchanged. Staged receipt artifacts/m5/collection_retry_staged.json; exact archive/file inventory .cache/test-runs/m5-collection-retry-staging-20261012-01/staged-source10.json. No installed-package/current-product acceptance yet. Further native fixture suites will run serially with M3 to avoid disk-scan contention.
+
+
+## Master integration — 14 October 2026
+
+Exactly 20 mapped files were integrated, preserving newer Final and health changes. The deferred reserve test was corrected: its original metadata reservation did not allocate the claimed 1 GiB. Final verification has 521 matching IDs per environment, including physical non-sparse 1 GiB creation and reopening. Source520 uses explicit unchanged-product/other-function continuity; the corrected source case and all installed521 passed freshly. Failed predecessor assertions remain preserved. Both complete environments qualified, with unchanged Python and38 dependencies. No product threshold changed, no actual provider/account request and no Strata startup. Independent closeout review cleared on pass 1 of 3; details are in `reports/M5_RETRY_INTEGRATION.md` and `artifacts/m5/master_retry_verified.json`.
