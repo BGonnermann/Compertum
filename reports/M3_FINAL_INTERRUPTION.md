@@ -11,7 +11,7 @@
 - The source Final auditor passed its intended pause/resume sequence. Its first attempt has the expected exit 125; its second attempt completed successfully. The saved audit output passed independent mathematical inspection.
 - The consumed Final, its published frame and seal/consumption journals remain unchanged.
 
-The generated Final selected `momentum-h01`, `momentum-h05` and `momentum-h21`, with 502 scoring sessions and zero ML model fits. The separate three-ridge exercise remains necessary to test six annual ML fits. These inputs have partial training from 2023, three of twelve stocks, simulated availability and unverified zero fees. They do not establish financial qualification.
+The generated Final selected `momentum-h01`, `momentum-h05` and `momentum-h21`, with 502 scoring sessions and zero ML model fits. The separate three-ridge exercise subsequently verified six annual ML fits. These inputs have partial training from 2023, three of twelve stocks, simulated availability and unverified zero fees. They do not establish financial qualification.
 
 ## Interrupted installed audit
 
@@ -27,6 +27,20 @@ Local evidence:
 
 The first inspection helper failed while formatting a Windows extended-length path. The corrected read-only inspection passed under a fresh command label. This was a reporting error, not a runtime or test mutation; both command receipts remain.
 
-## Remaining work
+## Closeout and remaining work
 
-Use supported recovery only to close the lost attempt as blocked. Preserve all existing evidence. Verify any independent remaining component without claiming that it clears the missing installed audit. Reconcile the dependency order before changing the frozen package for M5. Actual paper-account actions and M6 sessions remain outside this engineering evidence.
+Supported recovery completed through the authenticated control route in 0.0344 seconds. The helper exited cleanly in 7.6063 seconds. It preserved the original three history rows, appended exactly OWNER_RESTART and EXIT_OBSERVED, kept the one attempt blocked, and verified both the empty partial file and absent final destination. The reservation changed only from OPEN to ABANDONED. Source audit history and original Final evidence remained unchanged. The source auditor's terminal restart then passed.
+
+Four independent three-ridge jobs passed, with six annual fits and exact source/package calculation and audit outputs. Jobs took 15.857 to 26.166 seconds, with peak worker allocation 563.441 MiB under unchanged 120-second, 4 GiB and four-CPU limits. The first producer attempt failed before calculation because its helper compared JSON lists directly with Python tuples. Canonical bytes were identical. A separately reviewed helper corrected only that comparison; the original failed command, native exit and original 37 frozen inputs remain preserved. This numerical result does not replace the missing installed Final audit.
+
+All three selected momentum candidates fail the annual excess, confidence bound, period excess and stress excess gates. The one-day candidate also fails holding-interval and Sharpe gates. Their annual mean excess values are approximately -15.76%, -7.68% and -4.60%; annual confidence lower bounds are -17.16%, -8.52% and -5.91%. No candidate is promoted.
+
+Reconciled evidence is in `artifacts/m3/pair_validation_partial_closeout.json`. Its separate provenance addendum pins the repaired helper/wrapper, diagnostic and retained failures. The first closure admission also exceeded the unchanged five-second storage scan before any runtime launch; a fresh-label second admission passed.
+
+Independent partial-closeout review cleared on pass 2 of 3.
+
+The preservation move failed its directory-identity requirement. PowerShell Move-Item recreated all 183 directories while moving the 282 original files. Read-only comparison verified every file byte, size, attribute and file ID, all 465 relative paths, and no missing or added entries. The new location is `backups/m3-interrupted-runtime-20261014-01/runtime`; the original prefix was `.cache/test-runs/m3-pair-runtime-20261013-01`. The historical project/root identities remain in the before manifest and original receipts, but cannot be restored by moving this tree back. It is preserved evidence only and must never be opened as a runtime.
+
+`artifacts/m3/pair_validation_runtime_preservation.json` records CONTENT_PRESERVED_DIRECTORY_IDENTITY_LOST and the failed original check. The separately reviewed reconciliation exited 0 with no timeout, memory stop or namespace overflow. File preservation passed; identity-preserving relocation failed. This reclassified scratch usage into backups and freed no physical disk space.
+
+Integrate and verify independent M5 R and S changes. Complete M3 acceptance and actual paper-account/M6 authority remain open.

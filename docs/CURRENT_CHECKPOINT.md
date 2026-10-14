@@ -10,22 +10,23 @@
 - [x] Complete and verify all 77 development audits/reviews, including 72 independent calculation audits.
 - [x] Complete Final freeze, consume-before-price-access, one bounded batch and restart refusal checks.
 - [x] Verify source Final auditor pause/resume, preserving its intended exit-125 attempt.
-- [ ] Close the lost installed audit through authenticated recover only. Preserve history, partial output, reservation and original Final. Its full paired audit gate remains blocked.
-- [ ] Verify independent source terminal restart and separately admitted three-ridge computation/audit. Do not report paired Final-audit acceptance.
-- [ ] Record independent closeout review, unresolved M3 gate and exact evidence before changing the frozen source/package.
+- [x] Close the lost installed audit through authenticated recover only. Attempt1 is BLOCKED; history/partial/source audit/Final preserved; no retry allowed.
+- [x] Verify independent source terminal restart and four separate three-ridge jobs. Six annual fits, exact source/package calculation/audit outputs,15.857-26.166seconds/job, peak563.441MiB. Paired Final-audit acceptance remains blocked.
+- [x] Record independent partial closeout review CLEAR2/3. Full M3 remains blocked; the separate provenance addendum pins repaired helpers and preserved failures.
+- [x] Reconcile the failed preservation move: all 282 files unchanged, all 183 directory IDs changed. Content verified and retained; archived runtime cannot resume.
 - [ ] Integrate only M5 R's 20 mapped files; verify 521 exact cases per lane, including real 1 GiB reserve.
 - [ ] Integrate only M5 S's eight mapped files; verify 94 exact cases per lane and required compatibility checks.
 - [ ] Complete the accepted five-increment market-owner engineering plan after R/S verification.
 
 ## Exact next action
 
-Review and execute `T/close-lost-final-audit01.py` with the unchanged installed environment. It keeps research paused and calls authenticated `final_audit recover`; no register/step/resume. Verify the two append-only recovery transitions, unchanged attempt/history prefix/source audit/Final, expected OPEN-to-ABANDONED reservation transition, retained partial bytes and clean owner shutdown. Then run the independent source terminal-restart check and separately admitted numerical jobs under unchanged limits. Do not restart original fresh-only runners, alter their pins or fabricate their missing progress rows.
+Integrate only R's 20 mapped files in master, freeze new source/package identities, then run the exact 521 cases in both environments. Use a fresh admitted M5 namespace and serial 120-second/4GiB/four-CPU jobs. Preserve the actual 1GiB test reserve requirement. R must pass before S integration.
 
 Independent scope review confirms R then S can proceed after honest closure and preservation of this failed M3 run. Their local component work does not require financial M3 acceptance. Complete useful frozen-release checks first. This dependency adjustment does not clear the missing installed audit or authorize account/order actions.
 
 ## Verified interruption evidence
 
-T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m3-pair-runtime-20261013-01`.
+T = `.cache/test-runs/m3-pair-native-20261013-01`; original runtime prefix = `.cache/test-runs/m3-pair-runtime-20261013-01`. Its files now reside at `backups/m3-interrupted-runtime-20261014-01/runtime`. The preservation move failed its directory-identity requirement: all 282 files retain exact bytes and file IDs, but all 183 directory IDs changed. Read-only reconciliation passed with no missing paths; the historical runtime cannot be restored or resumed from this copy. Original receipts retain their original paths/identities. `artifacts/m3/pair_validation_runtime_preservation.json` records the mapping, failure and current storage admission. No physical disk space was freed.
 
 Session 70191 is gone. It last saved installed-auditor readiness around 00:47 Eastern. Native process census at 06:43 found zero current test processes. Read-only inspection found wheel task `7a7c07e2-bf8c-580e-8579-e9070bf103a2` recorded RUNNING with one bound attempt and no exit receipt. Native identity observation verified the original worker absent. Absence proves closure, not success. Existing product behavior makes this attempt terminally BLOCKED after supported recovery.
 
@@ -41,7 +42,7 @@ Generated Final selected momentum-h01/h05/h21, with 502 scoring sessions and zer
 - Complete77-output verifier: `T/audit-outputs01-command.json`, SHAbdb4af26995bb10883fea8ca85d6f27000a4b6736cfd4b6ee268d4ce3b248588; logSHAbd164a2cdaa0a771dd9e1009444fbea34252b587cb78e5ea727e750fd5bae5d1. Exit0; peakworker505.359MiB/coordinator51.008MiB.
 - Original37pins file SHA9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d; pairSHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342.
 - Owner pause and its original12-audit prefix remain preserved in `artifacts/m3/pair_validation_owner_pause.json`. Both pause markers were renamed with verified hashes before the authorized continuation. Original session32591 exit1 was the deliberate pause boundary. No automation exists for resuming this work.
-- Latest verified GitHub commit before this checkpoint edit: `1e27abf35580ceca6cf962a9fd3b847e6faea96f`.
+- Latest verified GitHub commit before this checkpoint edit: `8da4c3f1e91274adc02721f27af4638e9988e160`.
 
 ## Resource and authority limits
 
