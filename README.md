@@ -14,7 +14,7 @@ M5 collection retries are now integrated and independently reviewed: **521 match
 
 M5 opening-baseline integration is also verified and independently reviewed: **221 matching fresh cases passed per environment** (95 opening and 126 compatibility checks). Genuine process restart preserves the original baseline without restoring live authority. A discovered negative-cash diagnostic bug was fixed and all cases rerun. That verified release has 502 frozen files and 194 modules. See [the opening integration report](reports/M5_OPENING_INTEGRATION.md).
 
-The next market-owner increment has **271 passing source checks** and clear independent reviews. It adds strict grants, durable job records and the private collection lifecycle. Publication, fresh-input composition, public routing and installed-package verification remain in progress. See [the engineering checkpoint](reports/M5_MARKET_OWNER_PROGRESS.md).
+The market-owner integration has **341 passing source checks** and clear component reviews. It now connects collection, encrypted publication, fresh-input composition and authenticated public routing. Real process/RPC integration and installed-package verification remain pending. See [the engineering checkpoint](reports/M5_MARKET_OWNER_PROGRESS.md).
 
 The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **All 77 audits/reviews, the Final calculation and its restart checks passed.** The source Final audit passed pause/resume and terminal restart. Four separate three-ridge calculation/audit jobs also passed, with six annual fits and exact source/package outputs. The installed-package audit was interrupted before saving its process-exit receipt and cannot be accepted or retried. M3 remains incomplete. All saved files are preserved, but a failed backup move changed directory identities; the archived runtime cannot resume. See [the interruption report](reports/M3_FINAL_INTERRUPTION.md). Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
@@ -47,7 +47,7 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 1. Master consolidation published and verified; keep pushing verified checkpoints.
 2. M3 partial closeout and independent checks are verified; the interrupted installed Final audit remains blocked. Strata stays off.
 3. M5 retries and opening baseline are verified; original failed evidence remains preserved.
-4. Continue the accepted market-owner plan: grants, owner lifecycle, evidence publication, routing/composition, then paired native verification.
+4. Complete market-owner process/RPC fixtures and paired native verification; its341-case source checkpoint is verified.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)
 

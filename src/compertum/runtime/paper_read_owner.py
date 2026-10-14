@@ -259,6 +259,11 @@ class PaperReadOwner:
             _need(not self._closed,'READ_OWNER_CLOSED')
             return self._market_helper().handle(packet)
 
+    def market_transfer(self,payload):
+        with _owner_scope(self.lease),self.store._live():
+            _need(not self._closed,'READ_OWNER_CLOSED')
+            return self._market_helper().transfer(payload)
+
     def tick(self):
         with _owner_scope(self.lease),self.store._live():
             if self._closed:return

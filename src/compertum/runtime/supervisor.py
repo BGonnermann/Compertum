@@ -20,7 +20,7 @@ from compertum.persistence import open_store,checked_path
 from compertum.storage import StorageManager,reserve_runtime_paths
 from compertum.events import canonical,uuid
 
-ACTIONS=CONTROL_ACTIONS|frozenset({'status','foundation.check','attach','ai.export','ai.import','baseline','final','final_audit','fake_operator','paper_read'})
+ACTIONS=CONTROL_ACTIONS|frozenset({'status','foundation.check','attach','ai.export','ai.import','baseline','final','final_audit','fake_operator','paper_read','paper_market_read'})
 
 
 def discover(root):
@@ -44,7 +44,7 @@ class Supervisor:
         self.config=config;self.project=resolve_project(config.project_root);self.leases=[];self.jobs=[]
         self.partial_fixture=_partial_fixture
         if _partial_fixture and '.cache' not in config.project_root.parts: raise RuntimeRefused('FIXTURE_ROOT_DENIED')
-        self.self_job=None;self.limits=None;self.health=None;self.last_poll=0;self.shutdown=False;self.fixtures=None;self.research=None;self.final=None;self.final_audit=None;self.paper_reads=None
+        self.self_job=None;self.limits=None;self.health=None;self.last_poll=0;self.shutdown=False;self.fixtures=None;self.research=None;self.final=None;self.final_audit=None;self.paper_reads=None;self.paper_market_reads=None
         try:
             self.self_job,self.limits=constrain_coordinator()
             self.supervisor=acquire_owner(self.project,'supervisor');self.leases.append(self.supervisor)
@@ -204,6 +204,7 @@ class Supervisor:
     def handle(self,decision,action,payload):
         binding=canonical({'decision':asdict(decision),'action':action,'payload':payload}).decode()
         read_only=(action=='paper_read' and isinstance(payload,dict) and payload.get('operation')=='account_status') or action in {'status','attach'} or (action in {'baseline','final','final_audit','fake_operator','paper_read'} and isinstance(payload,dict) and payload.get('operation')=='status') or (action=='fake_operator' and isinstance(payload,dict) and payload.get('operation') in {'inspect_plan','operation_status'})
+        read_only=read_only or (action=='paper_market_read' and isinstance(payload,dict) and payload.get('operation') in {'status','compose'})
         with self.store._live():
             old=self.store.conn.execute('SELECT binding,result,error FROM operator_requests WHERE request_id=?',(decision.request_id,)).fetchone()
             if old:
@@ -232,6 +233,12 @@ class Supervisor:
                 from .paper_read_publication import PaperReadPublication
                 self.paper_reads=PaperReadPublication(self.storage,self.execution.remote)
             return self.paper_reads.handle(decision.subject_key,payload)
+        if action=='paper_market_read':
+            if self.partial_fixture:raise RuntimeRefused('EXECUTION_UNAVAILABLE')
+            if self.paper_market_reads is None:
+                from .paper_market_publication import PaperMarketPublication
+                self.paper_market_reads=PaperMarketPublication(self.storage,self.execution.remote)
+            return self.paper_market_reads.handle(decision.subject_key,payload)
         if action=='fake_operator':
             if self.partial_fixture:raise RuntimeRefused('EXECUTION_UNAVAILABLE')
             # Native operator identity comes from serve_control_once, never payload.
@@ -289,6 +296,7 @@ class Supervisor:
                     if self.final is not None:self.final.tick()
                     if self.final_audit is not None:self.final_audit.tick()
                 if self.paper_reads is not None:self.paper_reads.tick()
+                if self.paper_market_reads is not None:self.paper_market_reads.tick()
                 try: serve_control_once(self.endpoint,self.handle,timeout=.1)
                 except RuntimeRefused as error:
                     if error.code not in {'PIPE_DEADLINE_EXCEEDED','PIPE_EOF','REPLY_ACK_DENIED'} and not disconnected(error): raise

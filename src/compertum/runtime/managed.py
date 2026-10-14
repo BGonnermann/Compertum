@@ -22,7 +22,7 @@ def launch_owner(supervisor,role,*,expect_execution=True):
     require_live_owner(supervisor,'supervisor')
     if type(expect_execution) is not bool:raise RuntimeRefused('OWNER_LAUNCH_DENIED')
     if role not in {'watchdog','evaluation','execution'}: raise RuntimeRefused('OWNER_LAUNCH_DENIED')
-    commands=frozenset({'status','checkpoint','synthetic_protocol'} if role=='evaluation' else {'status','checkpoint','owner_heartbeat','fake_operator','paper_read','paper_read_transfer'} if role=='execution' else {'status','checkpoint','owner_heartbeat'})
+    commands=frozenset({'status','checkpoint','synthetic_protocol'} if role=='evaluation' else {'status','checkpoint','owner_heartbeat','fake_operator','paper_read','paper_read_transfer','paper_market_read','paper_market_transfer'} if role=='execution' else {'status','checkpoint','owner_heartbeat'})
     with _owner_scope(supervisor) as guard:
         offer=prepare_owner_channel(supervisor,role=role,allowed_commands=commands)
         api=JobAPI();job=api._handle(api.CreateJobObjectW(None,None),'CreateJobObjectW')

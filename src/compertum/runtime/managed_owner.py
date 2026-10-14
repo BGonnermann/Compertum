@@ -93,7 +93,7 @@ def main():
     if role not in {'watchdog','evaluation','execution'}: raise RuntimeRefused('OWNER_LAUNCH_DENIED')
     lease=acquire_owner(project,role);monitor=None;mutual=None;authority=None;paper_reads=None
     try:
-        endpoint=start_role_pipe(lease,frozenset({'status','checkpoint','synthetic_protocol'} if role=='evaluation' else {'status','checkpoint','owner_heartbeat','fake_operator','paper_read','paper_read_transfer'} if role=='execution' else {'status','checkpoint','owner_heartbeat'}))
+        endpoint=start_role_pipe(lease,frozenset({'status','checkpoint','synthetic_protocol'} if role=='evaluation' else {'status','checkpoint','owner_heartbeat','fake_operator','paper_read','paper_read_transfer','paper_market_read','paper_market_transfer'} if role=='execution' else {'status','checkpoint','owner_heartbeat'}))
         channel=receive_owner_channel(int(sys.argv[1]),expected_supervisor=_registration(public['supervisor']),endpoint=endpoint)
         if role=='watchdog':
             expected=public.get('expect_execution',True)
@@ -118,12 +118,14 @@ def main():
                         state=mutual.status()
                         return {'status':'HEALTHY' if mutual.reason is None else 'RESEARCH_BLOCKED','reason':mutual.reason,'generation':lease.generation,'role':role,'reserve':capacity,'startup':_STARTUP_PROOF,'mutual':state,'heartbeat':mutual.receipt(healthy=capacity is not None)}
                     return {'status':'HEALTHY','generation':lease.generation,'role':role,'reserve':None,'startup':_STARTUP_PROOF}
-                if action in {'paper_read','paper_read_transfer'} and role=='execution':
+                if action in {'paper_read','paper_read_transfer','paper_market_read','paper_market_transfer'} and role=='execution':
                     if barrier is not None:raise RuntimeRefused('BARRIER_HELD')
                     if paper_reads is None:
                         from .paper_read_owner import PaperReadOwner
                         paper_reads=PaperReadOwner(store,reserve,mutual)
-                    return paper_reads.handle(payload) if action=='paper_read' else paper_reads.transfer(payload)
+                    handlers={'paper_read':paper_reads.handle,'paper_read_transfer':paper_reads.transfer,
+                              'paper_market_read':paper_reads.market_handle,'paper_market_transfer':paper_reads.market_transfer}
+                    return handlers[action](payload)
                 if action=='fake_operator' and role=='execution':
                     if barrier is not None:raise RuntimeRefused('BARRIER_HELD')
                     if authority is None:
