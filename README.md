@@ -2,7 +2,7 @@
 
 A supervised research system with reproducible experiments, bounded AI proposals, independent audits, and controlled paper-trading development.
 
-Updated 13 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.
+Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.
 
 ## Current position
 
@@ -10,7 +10,7 @@ The daily runtime cap is removed: **27 source and 27 installed-package checks pa
 
 The current two-module validation repair passed **592 distinct matching tests in each source/installed environment**, with zero test failures, errors or skips. Both complete environment qualifications passed with unchanged Python and 38 dependencies. The new release contains 486 frozen files and 190 matching product modules. Separate storage-preflight refusals are preserved and do not count as passing tests.
 
-The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **All 38 source audits/reviews have passed; installed-package audits are running.** This continues the same frozen plan after the owner-requested pause, with the original completed results preserved. Final checks remain pending. Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
+The repaired M3 release completed **63 of 63 calculations in each campaign**, with all 63 source and installed-package outputs matching exactly. Across 120 native chunks, no calculation failed or was skipped. Controls also responded during pending output verification. **All 77 audits/reviews, the Final calculation and its restart checks passed.** The source Final audit also passed its pause/resume sequence. The installed-package audit was interrupted before saving its process-exit receipt and cannot be accepted or retried. M3 remains incomplete; all evidence is preserved. See [the interruption report](reports/M3_FINAL_INTERRUPTION.md). Work stays in master, with one heavy job at a time and memory checks. **Strata stays off.** Complete M3 acceptance remains open. See [the live checkpoint](docs/CURRENT_CHECKPOINT.md) and [required acceptance evidence](docs/M3_MASTER_ACCEPTANCE_MAP.md).
 
 Two earlier M3 runs remain terminally blocked and preserved: the development-folder run stopped after 37 reviews, and the preceding master run after 76. Both reached a stale-health refusal before the blocked worker executed. The repairs preserve the five-second health limit and final seal checks. Earlier component coverage remains historical, not fresh coverage of the repaired release. See [the recovery report](reports/M3_INTERRUPTION_RECOVERY.md), [health repair](docs/M3_REVIEW_HEALTH_REPAIR.md) and [pair-validation repair](docs/M3_PAIR_VALIDATION_REPAIR.md).
 
@@ -19,7 +19,7 @@ Two earlier M3 runs remain terminally blocked and preserved: the development-fol
 | M0: Local foundation and controls | Accepted; preserved acceptance evidence |
 | M1: Trustworthy research inputs | Bounded real-data replay verified; full financial input qualification open |
 | M2: Strategies and mathematical checks | Synthetic components verified; financial qualification open |
-| M3: Protected evaluation and audit | Repaired campaigns 63/63 each and exactly matched; 38/77 reviews passed; installed reviews running, Final pending |
+| M3: Protected evaluation and audit | Repaired campaigns 63/63 each and exactly matched; 77/77 reviews and Final/restart passed; installed Final audit interrupted, acceptance open |
 | M4: Simulated broker | Fake-broker engineering accepted; 662 matching source/package checks |
 | M5: Supervised paper walkthrough | Component verification underway; integration and actual walkthrough pending |
 | M6: Daily supervised operation | Evidence structure implemented; **0 of 10 actual supervised market sessions** |
@@ -39,8 +39,8 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 ## Next work
 
 1. Master consolidation published and verified; keep pushing verified checkpoints.
-2. Wait for the owner to resume. Historical recovery is preserved; its failed aggregate cannot resume. The current master sequence has a clean 12-review prefix and a recorded continuation point. Strata must not be started.
-3. The repaired release passed 592 tests per environment, both complete environment qualifications and the paired campaigns. Finish its 77 reviews and Final checks; preserve both earlier blocked runs.
+2. Work has resumed. Preserve the interrupted installed Final audit and use supported closure only. Strata must not be started.
+3. Verify the remaining independent M3 components and record the missing installed audit separately. Keep all earlier blocked runs.
 4. Integrate the prepared M5 retry/opening changes and continue the accepted engineering gates.
 
 [Current checklist](docs/CURRENT_CHECKPOINT.md) | [Build specification](docs/BUILD_SPEC.md) | [Cap removal](reports/DAILY_RUNTIME_CAP_REMOVAL.md) | [M0 acceptance](reports/M0_ACCEPTANCE.md) | [M4 acceptance](reports/M4_ACCEPTANCE.md)

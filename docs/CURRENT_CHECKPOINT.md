@@ -1,44 +1,51 @@
 # Current Compertum checkpoint
 
-14 October 2026. **Owner resumed work. Continuing the same frozen M3 plan after the saved clean pause.** Keep master (`C:\Users\bgonn\Desktop\Compertum`) and GitHub up to date. Synchronization does not require restarting a valid existing test solely because of its folder. The current sequence is in master. **Do not start Strata or its model server.** One heavy job at a time; require 16 GiB free physical/commit memory to start and stop below 12 GiB. Worker limits remain 4 GiB, four CPU threads and 120 seconds. Existing storage/category limits remain unchanged.
+14 October 2026. Work resumed. **The M3 Final passed, but its installed-package independent audit lost its exit receipt. It cannot be accepted or retried.** The cause of the interruption is unknown. No current test process was found. Use supported closure only, preserve the failed attempt and continue genuinely independent work. Master and GitHub remain the working/published checkpoints. **Do not start Strata.**
 
 ## Checklist
 
-- [x] Consolidate master, preserve historical work and publish rollback checkpoints.
-- [x] Repair review-health and duplicate pair validation without weakening freshness, seal or resource checks.
-- [x] Verify the current repair: **592 distinct tests per source/installed lane**, zero test failures/errors/skips, all children exited. Qualify both complete environments with unchanged Python 3.14.7 and 38 dependencies; freeze 486 files and 190 matching modules.
-- [x] Prepare fresh M3 identities and an actual nonsparse 1 GiB reserve. Native storage checks passed in 3.708/3.277 seconds. All 37 execution inputs and script syntax passed; independent admission review cleared on review pass 1 of 3.
-- [x] Finish both 63-outcome campaigns and exact paired output comparison: 120 native chunks, zero failed/skipped calculations; pending-verification control checks passed.
-- [x] Continue through all 38 source audits/reviews after the owner resume: 36 calculation audits, one scorecard and one aggregate, all passed and closed.
-- [ ] Finish the 38 installed audits/reviews and one paired comparison; then generated Final, independent Final audits/restarts and three-ridge exercise. Session 70191 is running.
-- [ ] Reconcile every acceptance requirement, obtain independent closeout review and publish verified status.
-- [ ] Integrate only mapped M5 R's 20 files; verify 521 exact cases per lane, including the previously deferred real 1 GiB reserve case.
-- [ ] Integrate only mapped M5 S's 8 files; verify 94 exact cases per lane, including 13 previously unrun native cases, plus required compatibility checks.
-- [ ] Complete the existing five-increment market-owner plan after R/S verification. Keep actual financial/account/order and supervised-session gates separate.
+- [x] Consolidate master and publish rollback checkpoints.
+- [x] Verify repaired release: 592 distinct matching source/installed tests; zero test failures/errors/skips. Both complete environments qualified; unchanged Python and 38 dependencies; 486 frozen files and 190 matching modules.
+- [x] Complete both 63-outcome campaigns in 120 native chunks, with exact mathematical payloads and zero failed/skipped calculations.
+- [x] Complete and verify all 77 development audits/reviews, including 72 independent calculation audits.
+- [x] Complete Final freeze, consume-before-price-access, one bounded batch and restart refusal checks.
+- [x] Verify source Final auditor pause/resume, preserving its intended exit-125 attempt.
+- [ ] Close the lost installed audit through authenticated recover only. Preserve history, partial output, reservation and original Final. Its full paired audit gate remains blocked.
+- [ ] Verify independent source terminal restart and separately admitted three-ridge computation/audit. Do not report paired Final-audit acceptance.
+- [ ] Record independent closeout review, unresolved M3 gate and exact evidence before changing the frozen source/package.
+- [ ] Integrate only M5 R's 20 mapped files; verify 521 exact cases per lane, including real 1 GiB reserve.
+- [ ] Integrate only M5 S's eight mapped files; verify 94 exact cases per lane and required compatibility checks.
+- [ ] Complete the accepted five-increment market-owner engineering plan after R/S verification.
 
 ## Exact next action
 
-**Monitor continuation session 70191: all 38 source audits/reviews passed, and installed-package audits are running.** Their 114 command/result/export hashes and 38 published artifact hashes were checked against the exact ordered plan. Source proof: `artifacts/m3/pair_validation_source_audits.json`, SHAd73cfdfe67cc5f54c852b526d81b73c3e35ee577f888e4b87524471cf5207296. Minimum free physical memory across these source audits was 40.618 GiB; peak worker memory was 505.063 MiB, separate from the 50.438 MiB coordinator peak. The final 77-output verifier remains required before Final. Continuation admission review cleared on pass 1 of 3. The owner's current instruction authorizes continuation. A fresh native read-only check verified the fixed release, all 12 completed audit commands/results/exports and the absence of every remaining audit task or Final dispatch. Native memory admission observed at least 43.206 GiB free physical and 72.136 GiB available commit memory. Storage scan passed in 4.554 seconds under the unchanged five-second deadline and category limits.
+Review and execute `T/close-lost-final-audit01.py` with the unchanged installed environment. It keeps research paused and calls authenticated `final_audit recover`; no register/step/resume. Verify the two append-only recovery transitions, unchanged attempt/history prefix/source audit/Final, expected OPEN-to-ABANDONED reservation transition, retained partial bytes and clean owner shutdown. Then run the independent source terminal-restart check and separately admitted numerical jobs under unchanged limits. Do not restart original fresh-only runners, alter their pins or fabricate their missing progress rows.
 
-The continuation began with `source-audit-21`, task `7cc9318a-ec92-5116-90c7-8309e8c3d5ab`. Active continuation: `T/Resume-M3-AfterOwnerPause01.ps1`, under `T/resume-pins01.json`, SHAf0b1271cb3a3ea0d2f3e688adf0cbf8839742bc8326edb6c35c7c20aae63dc35. It verifies the exact 12-row prefix, preserves both pause markers by a hash-checked same-folder rename, then appends the remaining 65 results and runs the still-unstarted Final/auditor/three-ridge stages. It reuses the original drivers, interpreters, task identities and limits. No automatic wakeup or scheduled resume was created. The read-only results script `T/summarize-completed-sequence01.py` is prepared for after the sequence finishes; its bounded preparation review cleared on pass 2 of 3 (`T/closeout-summary-review01.json`). Actual results and independent closeout review remain required.
+Independent scope review confirms R then S can proceed after honest closure and preservation of this failed M3 run. Their local component work does not require financial M3 acceptance. Complete useful frozen-release checks first. This dependency adjustment does not clear the missing installed audit or authorize account/order actions.
 
-All 37 original execution inputs remain unchanged under PinsSha256 `9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d`. Do not restart either original fresh-only top-level script or repeat completed tasks. Review receipt: `T/resume-review01.json`, SHA5e00ed4253618356aff11b1510faefd21b9f6b9b52271ce2524fd836b7c36be5. The fresh launch admission passed again; `T/owner-resume01-start.json` records the verified preservation of both pause markers. Monitor session 70191 and append-only progress. New read-only proofs: `T/resume-release01-*`, `T/resume-prefix01-*`, `T/resume-admission01-*`.
+## Verified interruption evidence
 
-Historical pause receipt: `artifacts/m3/pair_validation_owner_pause.json`, SHA77071979b2001db1d7e0860cded7e362f43141621cefd1eb5f608b6f3c28026c. It records 12 completed audits, Supervisor closure and zero matching processes. Original session 32591 exit 1 was the deliberate fresh-label refusal before audit 13 launched, not a failed audit or blocked runtime task. Preserve its records.
+T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m3-pair-runtime-20261013-01`.
 
-Both repaired campaigns completed **63 outcomes each**, in 59 source and 61 installed-package chunks. All 63 payloads match exactly; no calculation failed or was skipped, and all Supervisor exits were observed. Proof: `artifacts/m3/pair_validation_campaign_pair.json` (SHAfd5f68c1ab6dab3b2c280fb63d1c2b92d31bee2136e1ea1eb35d7cb2ebceafb0). It retains 212 startup status errors before each chunk's first successful control reply and zero active-work control errors. Minimum free physical memory was 39.282 GiB; peak worker allocation was 471.184 MiB. The separate coordinator peak was 161,820,672 bytes. Source-only independent review cleared on pass 1 of 3; receipt: `artifacts/m3/pair_validation_source_review.json`. Audits/reviews reached 38 of 77 at the completed source boundary; installed work, Final and final acceptance reconciliation remain pending.
+Session 70191 is gone. It last saved installed-auditor readiness around 00:47 Eastern. Native process census at 06:43 found zero current test processes. Read-only inspection found wheel task `7a7c07e2-bf8c-580e-8579-e9070bf103a2` recorded RUNNING with one bound attempt and no exit receipt. Native identity observation verified the original worker absent. Absence proves closure, not success. Existing product behavior makes this attempt terminally BLOCKED after supported recovery.
 
-Pending-verification controls passed: 71 source samples (maximum 0.224847 seconds) and 73 installed samples (maximum 0.229078 seconds). Ordered samples and command intervals are retained; individual sample timestamps were not recorded. Public shutdown/checkpoint of these full fixtures remains unverified.
+`artifacts/m3/pair_validation_final_interruption.json` verifies all four Final stages, source pause/resume and mathematical output, original Final frame/journals/guard, and all 37 execution-input pins. Verification command `T/final-interruption-evidence01-command.json` exited 0 without timeout/overflow. Initial read-only inspection had a Windows path-formatting error; corrected inspection02 passed and both records remain. See [the interruption report](../reports/M3_FINAL_INTERRUPTION.md).
 
-Independent paired-campaign review cleared on pass 1 of 3, including all 360 pinned records, both verifier proofs, control classification, memory figures and current roadmap claims. Receipt: `artifacts/m3/pair_validation_campaign_review.json`. This clears the campaign evidence, not the remaining M3 acceptance gates.
+Generated Final selected momentum-h01/h05/h21, with 502 scoring sessions and zero ML fits. Three-ridge coverage remains separate. Partial training from 2023, three stocks, simulated availability and unverified zero fees prohibit financial acceptance.
 
-T = `.cache/test-runs/m3-pair-native-20261013-01`; runtime = `.cache/test-runs/m3-pair-runtime-20261013-01`. Read `T/campaign-progress02.jsonl`, then `T/remaining-sequence01.jsonl` for current progress. These runners are fresh-only: **never restart over existing labels or progress**. On failure, preserve receipts and inspect the actual saved state before preparing a targeted recovery.
+## Preserved verified receipts
 
-- Current release: `T/release01.json`, SHA1e53f943d9224f22e772cf9c8188e6865fd27912ec16128a1775fc13a0a712cf.
-- Current proof: `artifacts/m3/pair_validation_complete_regressions.json`, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7.
-- Fresh pair: SHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342. Numerical folds/parameters/units/data/Final recipe match the prior fixture; identity-bearing mathematical and trial digests changed with the new runtime/package.
-- Admission review: `T/execution-review01.json`. Actual full-run results and final requirement reconciliation remain required.
-- Latest verified GitHub commit before this checkpoint edit: `9e2eb66ae9db9a7477c90a4aced4ee8b1fff6556`.
+- Release: `T/release01.json`, SHA1e53f943d9224f22e772cf9c8188e6865fd27912ec16128a1775fc13a0a712cf.
+- Regressions: `artifacts/m3/pair_validation_complete_regressions.json`, SHA39b7059683e5d790e09c8ca3955d6254e7f5712ffe74e11ad4089f8b7106fce7.
+- Paired campaigns: `artifacts/m3/pair_validation_campaign_pair.json`, SHAfd5f68c1ab6dab3b2c280fb63d1c2b92d31bee2136e1ea1eb35d7cb2ebceafb0. Source63/59chunks, installed63/61chunks; 212 startup status errors and zero active-work control errors. Minimum free physical memory39.282GiB. Independent review CLEAR1/3.
+- Complete77-output verifier: `T/audit-outputs01-command.json`, SHAbdb4af26995bb10883fea8ca85d6f27000a4b6736cfd4b6ee268d4ce3b248588; logSHAbd164a2cdaa0a771dd9e1009444fbea34252b587cb78e5ea727e750fd5bae5d1. Exit0; peakworker505.359MiB/coordinator51.008MiB.
+- Original37pins file SHA9d3067ee80645a5c02d350ff5432a253eac973b1b5ad9d98b32ad09a956fe02d; pairSHAfefacc888816772da9bd13c0a72cef842d28467387b9244d88fb8ad204dbb342.
+- Owner pause and its original12-audit prefix remain preserved in `artifacts/m3/pair_validation_owner_pause.json`. Both pause markers were renamed with verified hashes before the authorized continuation. Original session32591 exit1 was the deliberate pause boundary. No automation exists for resuming this work.
+- Latest verified GitHub commit before this checkpoint edit: `1e27abf35580ceca6cf962a9fd3b847e6faea96f`.
+
+## Resource and authority limits
+
+One heavy job at a time. Host admission16GiB free physical/commit; stop below12GiB. Workers4GiB/fourCPU/120seconds. Keep scratch5GiB, project50GiB and50GiB free-space floor. Do not change interpreter, lock, numerical thresholds or financial gates. Preserve failed evidence; remove only proven passing temporary fixtures after verified archival under existing owner authorization. Secrets, environments, runtime databases, datasets, detailed local evidence and backups stay out of Git.
 
 ## Preserved failures and cleanup
 
