@@ -8,6 +8,8 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 ## Current position
 
+Private final input proofs are verified with **277 identical passing cases per source/installed environment**, zero failures/errors/skips, both complete environment checks and final aggregate review CLEAR. Grouped proofs check original account, market and presence evidence after callbacks finish and preserve caller transactions. See [the proof report](reports/M5_INPUT_PROOFS.md). Next: exact native intent and confirmation records.
+
 Account and presence integrity is verified with **222 identical passing cases per source/installed environment**, zero failures/errors/skips, complete environment checks and final review CLEAR2/3. Late validation callbacks cannot hide changed originals or revoked presence; invalid acknowledgements are refused before insertion. See [the integrity report](reports/M5_ACCOUNT_PRESENCE_INTEGRITY.md). Next: exact native intent and confirmation records.
 
 Combined-input integrity is verified with **151 identical passing cases per source/installed environment**, zero failures/errors/skips, complete environment checks and final review CLEAR3/3. Original evidence is rechecked after callbacks; account-health refusal preserves borrowed historical data. See [the integrity report](reports/M5_INPUT_INTEGRITY.md). Account/presence callback repair is now verified above.

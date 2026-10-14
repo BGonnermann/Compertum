@@ -7,6 +7,7 @@ from compertum.domain import ContractError
 from compertum.events import uuid
 from compertum.paper_contracts import strict_json,timestamp
 from .errors import RuntimeRefused
+from .paper_final_proof import _final_proof
 from .owners import _owner_scope
 from .paper_preflight import _live,_measure
 from . import paper_account_binding as binding
@@ -163,9 +164,50 @@ class _PresenceOwner:
         protected=load_paper_slot(owner.lease,p['account_alias'])
         _need(hashlib.sha256(protected.ciphertext).hexdigest()==p['credential_sha256'],'PAPER_PRESENCE_CREDENTIAL_CHANGED')
         _live(owner)
-        self._final_originals(p,original,protected)
-        _need(self._read(p['presence_id'])==(p,None) and p['presence_id'] not in self._revoked)
-        self._age(p)
+        def final():
+            self._final_originals(p,original,protected)
+            _need(self._read(p['presence_id'])==(p,None) and p['presence_id'] not in self._revoked)
+        def finish():
+            _need(self.db is owner.db,'PAPER_PRESENCE_OWNER_REPLACED')
+            _need(not owner._closed and owner.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
+            _need(p['component_id']==self.instance and self._issued.get(p['presence_id'])==_sha(p),'PAPER_PRESENCE_OWNER_REPLACED')
+            _need(p['owner_generation']==owner.lease.generation and p['owner_instance']==owner.lease.identity.process_instance_id,'PAPER_PRESENCE_OWNER_REPLACED')
+            _need(p['presence_id'] not in self._revoked,'PAPER_PRESENCE_INVALIDATED')
+            self._age(p)
+        final();finish()
+        return final,finish
+
+    def _invalidate_proof(self,p,reason):
+        ident=p['presence_id'];self._revoked.setdefault(ident,reason)
+        try:
+            # Preserve caller work. Sticky local invalidation is immediate;
+            # normal inspection can persist it after the caller rolls back.
+            if not self.db.in_transaction:self._revoke(p,self._revoked[ident])
+        except RuntimeRefused as error:self._reason=self._reason or error.code
+        except _INVALID:self._reason=self._reason or 'PAPER_PRESENCE_STATE_CORRUPT'
+
+    def _prepare_proof(self,*,subject,presence_id):
+        try:
+            _need(not self._closed,'PAPER_PRESENCE_CLOSED');_hash(subject);uuid(presence_id)
+            _need(not self.db.in_transaction,'PAPER_PRESENCE_TRANSACTION_OPEN');self._schema()
+            p,reason=self._read(presence_id)
+            # Bad callers cannot revoke another authenticated subject's receipt.
+            _need(p['subject_key']==subject,'READ_OPERATOR_CHANGED')
+            try:
+                _need(reason is None,reason or 'PAPER_PRESENCE_INVALIDATED')
+                final,finish=self._current(p)
+                def check():
+                    self._schema();final()
+                return _final_proof(self.parent,check,finish,lambda code:self._invalidate_proof(p,code),p)
+            except RuntimeRefused as error:
+                self._invalidate_proof(p,error.code);raise
+        except RuntimeRefused as error:
+            if error.code in {'PAPER_PRESENCE_STATE_CORRUPT','PAPER_PRESENCE_WRITE_UNVERIFIED'}:
+                self._reason=self._reason or error.code
+            raise
+        except _INVALID:
+            self._reason=self._reason or 'PAPER_PRESENCE_STATE_CORRUPT'
+            raise RuntimeRefused(self._reason) from None
 
     def _receipt(self,p):
         return dict(version=1,scope='NATIVE_PAPER_PRESENCE_ONLY',status='ACKNOWLEDGEMENT_RECORDED',current_presence='NOT_ASSERTED',

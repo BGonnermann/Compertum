@@ -8,6 +8,7 @@ from compertum.events import uuid
 from compertum.paper_contracts import strict_json,timestamp
 from compertum.paper_market_inputs import qualify_market_inputs,_ns,_day
 from .errors import RuntimeRefused
+from .paper_final_proof import _final_proof
 from .owners import _MUTEX,_owner_scope
 from .paper_preflight import _live as live_owner,_measure
 from . import paper_account_binding as binding
@@ -193,42 +194,45 @@ def _snapshot(owner,subject,packet_id,fresh_job_id,capture_id):
     _need(hashlib.sha256(protected.ciphertext).hexdigest()==preflight._credential_sha==producer._credential_sha)
     # These manifests were resolved and decrypted above. Recheck their durable
     # publication bytes without another decryption or secrecy callback.
-    with _owner_scope(owner.lease) as guard:
-        published_original(guard,manifest)
-        if opening_record is not None:published_original(guard,opening_sources[2])
-        market._lineage._route(capture,capture['manifest'])
-        published_original(guard,capture['manifest']);published_original(guard,prior['manifest'])
-    producer._context();combined._context()
-    _need(held.publication()==prior['manifest'] and held.snapshot()==history_snapshot)
-    _need(view._pair is producer and producer._view is view and combined._fresh is view and combined._history is held)
-    _need(producer._wire_records()==inner['fresh']['records'])
-    history=binding._history(owner)
-    _need(history['status'] in {'VERIFIED_ZERO_PRE_SCHEMA','VERIFIED_HISTORY'},'PAPER_INPUT_HISTORY_UNVERIFIED')
-    _need(_sha(history)==facts['history_sha256'])
-    _need(owner._preflight is preflight and owner._market is market and owner._account_proposal is proposal)
-    _need(market._producer is producer and market._fresh_view is view and market._opened is held and market._combined is combined)
-    _need(owner._read(packet_id)==value and _account_manifest(owner,value)==manifest)
-    _need(binding._stored(owner,packet_id)==record and binding._state(owner,'paper_opening:'+g['account_alias'])==opening_record)
-    _need(binding._alias(owner,g['account_alias'],facts['identity_sha256'])==alias_record)
-    _need(_opening_sources(owner,opening_record)==opening_sources)
-    if proposal is not None:
-        _need(not proposal._closed and proposal._context is preflight and proposal.content==canonical(facts)
-              and proposal._confirmed_at==record['confirmed_at'])
-    _need(market.records.read(fresh_job_id)==fresh and market.records.read(g['history']['job_id'])==prior)
-    _need(market._lineage.records.read(capture_id)==capture and market.consumptions.read(fresh_job_id)==proofs['fresh']
-          and market.consumptions.read(g['history']['job_id'])==proofs['history'])
-    with _slot(owner.lease) as (guard,path):
-        _need(guard.api.read_regular(path,maximum=16384)==slot_payload(protected),'PAPER_INPUT_CREDENTIAL_CHANGED')
-    _need(not owner._closed and owner.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
-    _final_clocks(preflight,market,producer,observations,diagnostic)
-    _need(owner._preflight is preflight and not preflight._closed and owner._account_proposal is proposal
-          and owner._market is market and market._producer is producer and market._fresh_view is view and market._opened is held
-          and market._combined is combined and not producer._closed and not combined._closed and not held._closed
-          and producer in producer._owner_state.resources and combined in combined._state.resources and held in held._state.resources)
+    def final():
+        with _owner_scope(owner.lease) as guard:
+            published_original(guard,manifest)
+            if opening_record is not None:published_original(guard,opening_sources[2])
+            market._lineage._route(capture,capture['manifest'])
+            published_original(guard,capture['manifest']);published_original(guard,prior['manifest'])
+        producer._context();combined._context()
+        _need(held.publication()==prior['manifest'] and held.snapshot()==history_snapshot)
+        _need(view._pair is producer and producer._view is view and combined._fresh is view and combined._history is held)
+        _need(producer._wire_records()==inner['fresh']['records'])
+        history=binding._history(owner)
+        _need(history['status'] in {'VERIFIED_ZERO_PRE_SCHEMA','VERIFIED_HISTORY'},'PAPER_INPUT_HISTORY_UNVERIFIED')
+        _need(_sha(history)==facts['history_sha256'])
+        _need(owner._preflight is preflight and owner._market is market and owner._account_proposal is proposal)
+        _need(market._producer is producer and market._fresh_view is view and market._opened is held and market._combined is combined)
+        _need(owner._read(packet_id)==value and _account_manifest(owner,value)==manifest)
+        _need(binding._stored(owner,packet_id)==record and binding._state(owner,'paper_opening:'+g['account_alias'])==opening_record)
+        _need(binding._alias(owner,g['account_alias'],facts['identity_sha256'])==alias_record)
+        _need(_opening_sources(owner,opening_record)==opening_sources)
+        if proposal is not None:
+            _need(not proposal._closed and proposal._context is preflight and proposal.content==canonical(facts)
+                  and proposal._confirmed_at==record['confirmed_at'])
+        _need(market.records.read(fresh_job_id)==fresh and market.records.read(g['history']['job_id'])==prior)
+        _need(market._lineage.records.read(capture_id)==capture and market.consumptions.read(fresh_job_id)==proofs['fresh']
+              and market.consumptions.read(g['history']['job_id'])==proofs['history'])
+        with _slot(owner.lease) as (guard,path):
+            _need(guard.api.read_regular(path,maximum=16384)==slot_payload(protected),'PAPER_INPUT_CREDENTIAL_CHANGED')
+    def finish():
+        _need(not owner._closed and owner.health.reason is None,'EXECUTION_HEALTH_UNVERIFIED')
+        _final_clocks(preflight,market,producer,observations,diagnostic)
+        _need(owner._preflight is preflight and not preflight._closed and owner._account_proposal is proposal
+              and owner._market is market and market._producer is producer and market._fresh_view is view and market._opened is held
+              and market._combined is combined and not producer._closed and not combined._closed and not held._closed
+              and producer in producer._owner_state.resources and combined in combined._state.resources and held in held._state.resources)
+    final();finish()
     stable=dict(account=value,manifest=manifest,facts=facts,confirmation=record,alias=alias_record,opening=opening_record,
                 opening_sources=opening_sources,fresh=fresh,capture=capture,history=prior,consumption=proofs)
     identities=(preflight,proposal,market,producer,view,held,combined)
-    return result,_sha(stable),identities
+    return result,_sha(stable),identities,final,finish
 
 
 @dataclass(frozen=True,slots=True,repr=False,init=False)
@@ -251,13 +255,39 @@ class _PaperInputContext:
     def close(self):
         with _MUTEX:
             object.__setattr__(self,'_closed',True);object.__setattr__(self,'_owner',None);object.__setattr__(self,'_identities',())
+    def _prepare_proof(self):
+        owner=self._owner;_need(not self._closed and owner is not None,'PAPER_FINAL_PROOF_CONTEXT_UNAVAILABLE')
+        try:
+            with _owner_scope(owner.lease),owner.store._live():
+                _need(owner._input_context is self)
+                resources=(owner.store,owner.reserve,owner.health,owner.lease,owner.db)
+                result,pin,identities,final,finish=_snapshot(owner,self._subject,self._packet,self._fresh,self._capture)
+                def identity():
+                    _need(not self._closed and self._owner is owner and owner._input_context is self)
+                    _need(all(a is b for a,b in zip(resources,(owner.store,owner.reserve,owner.health,owner.lease,owner.db))))
+                    _need(self._generation==owner.lease.generation and self._instance==owner.lease.identity.process_instance_id)
+                    _need(pin==self._binding and len(identities)==len(self._identities)
+                          and all(a is b for a,b in zip(identities,self._identities)))
+                    _need(owner._market is identities[2] and owner._market.parent is owner and owner._market.lease is owner.lease)
+                def check():
+                    identity();final()
+                def last():
+                    identity();finish()
+                    _need(not self._closed and self._owner is owner and owner._input_context is self)
+                check();last()
+                return _final_proof(owner,check,last,lambda reason:self.close(),result)
+        except RuntimeRefused:
+            self.close();raise
+        except _INVALID:
+            self.close();raise RuntimeRefused('PAPER_FINAL_PROOF_CONTEXT_INVALID') from None
+
     def diagnostic(self):
         owner=self._owner;_need(not self._closed and owner is not None,'PAPER_INPUT_CONTEXT_UNAVAILABLE')
         try:
             with _owner_scope(owner.lease),owner.store._live():
                 _need(not self._closed and self._owner is owner and owner._input_context is self)
                 _need(self._generation==owner.lease.generation and self._instance==owner.lease.identity.process_instance_id)
-                result,binding_hash,identities=_snapshot(owner,self._subject,self._packet,self._fresh,self._capture)
+                result,binding_hash,identities,_,_=_snapshot(owner,self._subject,self._packet,self._fresh,self._capture)
                 _need(not self._closed and self._owner is owner and owner._input_context is self)
                 _need(binding_hash==self._binding and len(identities)==len(self._identities) and all(a is b for a,b in zip(identities,self._identities)))
                 return result
@@ -272,7 +302,7 @@ def input_context(owner,*,subject,packet_id,fresh_job_id,capture_id):
         with _owner_scope(owner.lease),owner.store._live():
             _need(type(subject) is str and re.fullmatch('[0-9a-f]{64}',subject) is not None)
             for ident in (packet_id,fresh_job_id,capture_id):uuid(ident)
-            _,binding_hash,identities=_snapshot(owner,subject,packet_id,fresh_job_id,capture_id)
+            _,binding_hash,identities,_,_=_snapshot(owner,subject,packet_id,fresh_job_id,capture_id)
             result=_PaperInputContext(_factory=_FACTORY,_owner=owner,_subject=subject,_packet=packet_id,_fresh=fresh_job_id,
                 _capture=capture_id,_generation=owner.lease.generation,_instance=owner.lease.identity.process_instance_id,
                 _binding=binding_hash,_identities=identities,_closed=False)
