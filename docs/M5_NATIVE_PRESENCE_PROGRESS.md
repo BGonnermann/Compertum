@@ -20,10 +20,22 @@ Use existing120second/4GiB/fourCPU/16process jobs,16/12GiB host gates, five-seco
 
 ## Checklist
 
-- [ ] Finish and publish increment12 first; do not mutate its frozen source during checks.
-- [ ] Finalize native presence records/API and exact initial cases; reproduce missing behavior.
-- [ ] Implement presence with checked persistence, authentication and lifetime invalidation.
-- [ ] Verify source/package compatibility and real native routing where storage permits; review and publish.
+- [x] Publish increment12 as `c52a693a7b7498e59a46a2e0ce92cf06b68df346`; master, primary GitHub and requested clone matched.
+- [x] Finalize presence-only design and initial24-case inventory with an independent design review.
+- [x] Reproduce missing behavior, then implement the frozen requirements.
+- [x] Implement presence with checked persistence, authentication and lifetime invalidation.
+- [x] Verify source/package compatibility and native routing construction where storage permits; final review CLEAR4/4.
+- [ ] Publish/synchronize the verified checkpoint; local publication receipt records the exact commit.
 - [ ] Continue exact immutable intent/confirmation and its account-only cancellation input dependency.
 
-Exact next action: complete increment12 aggregate/final review/publication, then freeze native presence acceptance tests. This file records a design, not implemented behavior or milestone acceptance.
+N=`.cache/test-runs/m5-presence-20261014-13`. The earlier304-case pair, offline wheel and complete environment proofs passed, but final review3 found a late callback gap; that BLOCKED verdict and the test-only aggregate remain. Nine focused probes reproduced8 failures/1 pass; their first correction passed9/9. An additional test using the actual durable health-halt callback then reproduced premature receipt commit. All such callbacks now finish before receipt insertion; only durable readbacks and pure validity checks follow it. No failed evidence was removed.
+
+Final inventory13b has 59 presence cases plus 255 compatibility cases: **314 identical passing cases per lane**, 539 files/208 modules. All 26 jobs closed with zero failures/errors/skips. Offline build/install, both complete environment checks and aggregate verification passed. Plan SHA `123e3ae3f8daea26bdee7824eb6bc6b0d6d11a8a49e32d104c9f4394c4a2e4c3`; group-map SHA `9155aeea44e5cbeb7f339f3d96ca4a32eee0a80db6a270eab6c740cdb091258e`. Final review4/4 is CLEAR. Aggregate SHA `9069d3d20f44d3372cbd9ac0aa90ede08298e98426b22bc0497425f9d7562694`. Exact next action: publish/synchronize, then archive/verify passed13b disposable scratch and continue account-only inputs/exact intents. Preserve every13/13b receipt.
+
+The26 passing disposable roots from the earlier304-case pair were archived and byte-verified before authorized removal: `backups/m5-presence-passing-fixtures-20261014-13/passing-fixtures13.zip`, SHA `a0b91cc1da0494a1a6de41c5bf55c34bf8bedc8da063e24fdf08c297b2ab632f`,35,861,462bytes;8,054files/3,876directories/282links. All failed fixtures, reports, sources, wheels and full environment proofs remain. A mistyped plan hash was refused before native admission; `review-helper-guard13.json` preserves it, and the corrected fresh label used the exact verified hash.
+
+Storage maintenance: all24 final increment12 temporary fixture roots were archived and hash-checked, then removed under the owner's passed-test cleanup authorization. Archive `backups/m5-input-passing-fixtures-20261014-12/passing-fixtures12.zip` SHA `06e3b0326cce5895e49f8e62691ca00eeb48608e5f93ce9eb6ca83ea77f44e15` retains6,704 files,3,206 directories and234 link records. Original test/source/environment/failed evidence remains. No full-reserve runtime or failed fixture was selected. N's maintenance plan, archive verification and cleanup receipts retain the exact selection and hashes. The offline maintenance census did not admit runtime work; the subsequent test runner uses the unchanged five-second production scan.
+
+## Final-review correction
+
+Review3/3 found a concrete late-account-diagnostic callback gap after the earlier fixes. Its BLOCKED verdict is preserved. The owner explicitly requires continuous in-scope repair and verification without routine permission stops; the default three-round skill budget was explicitly extended once, to four rounds, for this specific reproduction/correction and final validation. This disclosed change did not reset prior failures or expand features or authority. Final preflight-scan health, object-lifetime and 30-second age regressions were reproduced and repaired. Fresh paired tests/package/environment proofs passed, and review4/4 is CLEAR. The `presence_record` probe establishes refusal before INSERT, not execution of its corruption trigger.

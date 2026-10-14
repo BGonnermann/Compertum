@@ -52,7 +52,7 @@ class PaperReadOwner:
         if reserve.lease is not store.lease or health.lease is not store.lease:raise RuntimeRefused('OWNER_UNVERIFIED')
         self.store=store;self.reserve=reserve;self.health=health;self.lease=store.lease;self.db=store.conn
         self._preflight=None;self._read_provenance=[];self._account_proposal=None
-        self._market=None;self._input_context=None
+        self._market=None;self._input_context=None;self._presence=None
         self._active=None;self._packet=None;self._get=None;self._cipher=None;self._closed=False;self._transfer_offset=0;self._last_offset=None
         with _owner_scope(self.lease) as guard,store._live(),self.db:
             if any(type(r) is PaperReadOwner and not r._closed for r in guard.resources):raise RuntimeRefused('READ_OWNER_CAPACITY')
@@ -269,11 +269,20 @@ class PaperReadOwner:
             _need(not self._closed,'READ_OWNER_CLOSED')
             return self._market_helper().transfer(payload)
 
+    def presence_handle(self,packet):
+        with _owner_scope(self.lease),self.store._live():
+            _need(not self._closed,'READ_OWNER_CLOSED')
+            if self._presence is None:
+                from .paper_presence import _PresenceOwner
+                self._presence=_PresenceOwner(self)
+            return self._presence.handle(packet)
+
     def tick(self):
         with _owner_scope(self.lease),self.store._live():
             if self._closed:return
             self._tick_account()
             if self._market is not None:self._market.tick()
+            if self._presence is not None:self._presence.tick()
 
     def _tick_account(self):
         with _owner_scope(self.lease),self.store._live():
@@ -345,6 +354,7 @@ class PaperReadOwner:
             cancel_producer(self)
             if self._closed:return
             if self._market is not None:self._market.close()
+            if self._presence is not None:self._presence.close()
             self._closed=True;self._clear_preflight();self._read_provenance=[]
             try:self._dispose_get()
             finally:
