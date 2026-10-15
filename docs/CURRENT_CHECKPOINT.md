@@ -2,7 +2,27 @@
 
 14 October 2026. Work resumed. **The M3 Final passed, but its installed-package independent audit lost its exit receipt. It cannot be accepted or retried.** The cause of the interruption is unknown. No current test process was found. Use supported closure only, preserve the failed attempt and continue genuinely independent work. Master and GitHub remain the working/published checkpoints. **Do not start Strata.**
 
-## Checklist
+## Active checkpoint
+
+14 October2026. Original release18 is verified; storage repair and the remaining local implementation continue.
+
+Original release18 intent and confirmation checks are verified:393 identical source/installed cases,39 closed jobs per environment and0 failures/errors/skips. All106 formerly pending installed cases passed against the unchanged original package. Final independent review3 is CLEAR_ORIGINAL_RELEASE18. Aggregate SHA62601bca9b1606171ad3bbfd926a550ce6bd642f7249fccde9915e4409d7922d binds1027 evidence pins. The repaired scanner separately passed32 source checks; installed scanner qualification and full-master one-CPU128MiB/five-second operating qualification remain open. The owner approved three additional native-reader review rounds,4–6, using existing GCC and unchanged limits.
+
+Checklist:
+
+- [x] Finish all106 original installed cases without changing the original package or frozen tests.
+- [x] Audit393 matching cases per lane,78 closed jobs, both original environments and preserved failures; independent original-release review3 CLEAR.
+- [x] Repair and review scanner integrity;32 affected source cases passed. Preserve all failed code variants and native timing probes.
+- [x] Obtain owner approval for native scanner rounds4–6; carry used rounds1–3 forward.
+- [ ] Publish this original-release and partial-scanner checkpoint; synchronize master, primary GitHub and the existing clone.
+- [ ] Implement and qualify the native reader, including unchanged one-CPU128MiB/five-second full-master scans and paired scanner tests.
+- [ ] Continue ownership/accounting, risk, durable dispatch/recovery and the integrated local rehearsal.
+
+The106 continuation is closed: session10026 exited0, seven jobs passed and all children closed. Bridge SHA5e814838de6e929704a83665396b4c9b99a5f6965395f57c2e4ad420923f7287; final original-release aggregate artifacts/m5/native_intents_pair_verified.json is cleared. Original source archive/wheel and213 installed modules remain unchanged. Four CPUs are the child-test Job limit; the parent admission process is not affinity capped. Current scanner paired qualification and full-master watchdog qualification are false. A full52-root preservation preflight exceeded the backup allowance and made no archive/deletion; a separate two-passed-root preflight fits, but its archive/cleanup helpers are only prepared and unexecuted.
+
+Exact next action: publish this scoped checkpoint, then freeze the native-reader ABI/source/compiler/binary and validation commands under docs/STORAGE_NATIVE_PROPOSAL.md. Use existing GCC16.1.0, no installation or spending, rounds4–6 only. The separately prepared offline build namespace m5-storage-build-20261014-01 has not run. Preserve failed evidence, original M3 terminal history and every limit; keep Strata off. Actual broker actions remain outside scope.
+
+## Earlier partial checkpoint, superseded
 
 Increment18 is implemented but **not fully verified**. Source:393 passed,0 failed/errors/skips in39 closed jobs. Installed:287 passed,0 failed/errors/skips in32 closed jobs;106 cases in seven groups remain. All116 new intent cases passed in both environments. The third installed continuation stopped before creating a process at STORAGE_SCAN_DEADLINE. All three refusal receipts and all failed preliminary evidence remain. Two verified historical passing test roots were archived and removed, but the subsequent three unchanged five-second production scans still refused. No further test was launched. The partial evidence audit passed and pins896 inputs: `artifacts/m5/native_intents_partial_storage_blocked.json`, SHA `dcc2e45b9263b582bd4473ec5d75ee0c4732742a93f66f3740d0a955abc45edf`. This is an incomplete checkpoint, not final acceptance.
 

@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import shutil
 import struct
+from queue import Queue,Empty,Full
+from threading import Event,Thread
 import time
 from uuid import uuid4
 from .config import _DEFAULTS
@@ -31,48 +33,117 @@ def category(path):
     return {'data':'data','models':'models','.cache':'scratch','.venv':'scratch','.venv-repro':'scratch','backups':'backups'}.get(part,'records')
 
 
+def _directory_rows(data):
+    """Parse bounded FILE_FULL_DIR_INFORMATION rows before releasing path locks."""
+    rows=[];offset=0
+    while offset<len(data):
+        if len(data)-offset<68:raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
+        row=struct.unpack_from('<IIqqqqqqIII',data,offset)
+        step,_,_,_,_,_,length,allocated,attributes,name_length,_=row
+        end=offset+68+name_length
+        if (length<0 or allocated<0 or not name_length or name_length%2 or end>len(data)
+                or step and (step%8 or step<68+name_length or offset+step>=len(data))
+                or not step and len(data)-end>=8):raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
+        try:name=data[offset+68:end].decode('utf-16-le')
+        except UnicodeError:raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED') from None
+        if name not in ('.','..'):rows.append((name,length,allocated,attributes))
+        if not step:break
+        offset+=step
+    return rows
+
+
 def sample_storage(project,*,volume_probe=None):
     """Enumerate native AllocationSize in directory batches, without following links."""
     api=WindowsAPI(); native=c.WinDLL('ntdll',use_last_error=True)
     query=native.NtQueryDirectoryFile
     query.restype=c.c_int32
     query.argtypes=[HANDLE,HANDLE,HANDLE,HANDLE,c.POINTER(IOStatus),HANDLE,DWORD,c.c_int32,c.c_ubyte,HANDLE,c.c_ubyte]
-    started=time.monotonic(); root=project.root_path; resolved_root=root.resolve(); pending=[(str(root),'',None)]; files={}; totals=dict.fromkeys(CAPS,0); reparse=[]
-    # Reuse the native batch buffer; most fixture directories return only a few rows.
-    buffer=c.create_string_buffer(65536); status=IOStatus()
-    while pending:
-        if time.monotonic()-started>5: raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
-        directory,prefix,inherited_category=pending.pop()
-        if volume_probe is not None: volume_probe()
-        with api.open_directory(directory) as handle:
-            restart=True
-            while True:
-                if volume_probe is not None: volume_probe()
-                result=query(handle.get(),None,None,None,c.byref(status),buffer,len(buffer),2,False,None,restart)
-                restart=False
-                if result & 0xffffffff==0x80000006: break
-                if result!=0 or not 0<status.information<=len(buffer): raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
-                data=buffer[:status.information];offset=0
-                while offset<status.information:
-                    row=struct.unpack_from('<IIqqqqqqIII',data,offset)
-                    next_offset,_,_,_,_,_,length,allocated,attributes,name_length,_=row
-                    name=data[offset+68:offset+68+name_length].decode('utf-16-le')
-                    if name not in ('.','..'):
-                        relative=prefix+name;file_category=inherited_category or category(name)
-                        if attributes&0x400:
-                            path=Path(directory)/name; target=path.resolve()
-                            if not target.is_relative_to(resolved_root): raise RuntimeRefused('STORAGE_REPARSE_ESCAPE')
-                            reparse.append(relative)  # Target is inventoried through its ordinary in-root path.
-                            charged=max(length,allocated)
-                            files[relative]={'size':length,'allocated':allocated,'charged':charged}
-                            totals[file_category]+=charged
-                        elif attributes&0x10: pending.append((os.path.join(directory,name),relative+'/',file_category))
-                        else:
-                            charged=max(length,allocated)
-                            files[relative]={'size':length,'allocated':allocated,'charged':charged}
-                            totals[file_category]+=charged
-                    if not next_offset: break
-                    offset+=next_offset
+    started=time.monotonic(); root=project.root_path; resolved_root=root.resolve(); files={}; totals=dict.fromkeys(CAPS,0); reparse=[]
+    tasks=Queue();results=Queue(maxsize=4);worker_errors=Queue(maxsize=4);stop=Event();workers=[]
+    tasks.put((str(root),'',None));outstanding=1
+    def deadline():
+        if time.monotonic()-started>5:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
+    def send(message):
+        while not stop.is_set():
+            try:results.put(message,timeout=.025);return True
+            except Full:pass
+        return False
+    def read_directories():
+        # Each reader owns one buffer and at most one non-delete-shared handle.
+        def read(handle,restart):
+            deadline()
+            result=query(handle.get(),None,None,None,c.byref(status),buffer,len(buffer),2,False,None,restart)
+            if result & 0xffffffff==0x80000006:return None
+            if result!=0 or not 0<status.information<=len(buffer):raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
+            return _directory_rows(buffer[:status.information])
+        try:
+            buffer=c.create_string_buffer(65536);status=IOStatus()
+            while not stop.is_set():
+                try:task=tasks.get(timeout=.025)
+                except Empty:continue
+                deadline()
+                with api.open_directory(task[0]) as handle:
+                    data=read(handle,True)
+                    if data is None:
+                        if not send(('done',task,None,None)):return
+                    while data is not None and not stop.is_set():
+                        # One bounded lookahead folds completion into the final batch.
+                        # This avoids a second caller handoff for each small directory.
+                        following=read(handle,False)
+                        acknowledged=Event() if any(row[3]&0x400 for row in data) else None
+                        if not send(('last' if following is None else 'batch',task,data,acknowledged)):return
+                        # Ordinary copied metadata needs no path access at merge time.
+                        # Reparse batches retain their path lock through caller validation.
+                        while acknowledged is not None and not acknowledged.wait(.025):
+                            if stop.is_set():return
+                        data=following
+        except BaseException as error:
+            worker_errors.put_nowait(error)
+            send(('error',None,error,None))
+    try:
+        deadline()
+        for index in range(4):
+            worker=Thread(target=read_directories,name=f'CompertumStorageScan-{index}')
+            worker.start();workers.append(worker)
+        while outstanding:
+            deadline()
+            if volume_probe is not None:volume_probe()
+            deadline()
+            try:kind,task,data,acknowledged=results.get(timeout=.025)
+            except Empty:continue
+            if kind=='error':raise data
+            if kind=='done':outstanding-=1;continue
+            directory,prefix,inherited_category=task
+            try:
+                for name,length,allocated,attributes in data:
+                    relative=prefix+name;file_category=inherited_category or category(name)
+                    if attributes&0x400:
+                        path=Path(directory)/name; target=path.resolve()
+                        if not target.is_relative_to(resolved_root): raise RuntimeRefused('STORAGE_REPARSE_ESCAPE')
+                        reparse.append(relative)  # Target is inventoried through its ordinary in-root path.
+                    elif attributes&0x10:
+                        tasks.put((os.path.join(directory,name),relative+'/',file_category));outstanding+=1
+                        continue
+                    charged=max(length,allocated)
+                    files[relative]={'size':length,'allocated':allocated,'charged':charged}
+                    totals[file_category]+=charged
+            finally:
+                if acknowledged is not None:acknowledged.set()
+            if kind=='last':outstanding-=1
+    finally:
+        stop.set()
+        # Native synchronous I/O cannot be cancelled by a Future. Join actual readers;
+        # any slow teardown is included in the final deadline, never a partial success.
+        cleanup_error=None
+        for worker in workers:
+            while worker.is_alive():
+                worker.join(.025)
+                if volume_probe is not None:
+                    try:volume_probe()
+                    except BaseException as error:
+                        cleanup_error=error;volume_probe=None
+        if cleanup_error is not None:raise cleanup_error
+        if not worker_errors.empty():raise worker_errors.get_nowait()
     completed=time.monotonic()
     if completed-started>5: raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
     return {'project_id':project.project_id,'categories':totals,'total_bytes':sum(totals.values()),
