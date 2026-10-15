@@ -4,6 +4,18 @@
 
 ## Active checkpoint
 
+15 October 2026. The investigation of old test folders is closed, and **maintenance remains blocked**. The [decision record](FIXTURE_CONSOLIDATION_GATES.md) describes readable file properties for all 1,827 selected entries. Compressed contents and separate file-property records measure 1,161,181 bytes. All 320 backup links were readable, and the unchanged coordinator database contained zero space reservations. File-access audit rules could not be read for any selected entry. Of 1,669 workspace links, 31 old `current` links remained access-denied even when the check requested zero access rights. No incoming dependency was found among the other 1,638 links, but the missing targets leave that finding incomplete.
+
+- [x] Preserve both failed inspections and the final diagnostic, which could not verify capacity. Every process exited and no children remained.
+- [x] Measure directory disk use and additional file streams without changing the product scanner or file permissions.
+- [x] Check the four reports written after the main count: the inspection caused a measured scratch overage of at least **310,888 bytes**. Stop further scratch writes and requested-clone updates.
+- [x] Withdraw the 1.75 MiB backup proposal because it does not fit. Describe a smaller 1.5 MiB allowance for later review, without reserving space.
+- [ ] Obtain the owner's choice about missing file properties, a way to read the 31 denied link records without changing them, and a decision about maintenance that writes no additional scratch files.
+
+Exact next action: resolve those owner and access decisions before preparing a separately reviewed execution procedure. No backup was created and no folder was extracted, moved or removed. Ordinary work remains blocked. No reader test, additional scanner experiment or Strata start occurred. Scanner attempts 1 through 12 remain used. The 34 reader19 draft tests remain unexecuted, M5 requirements 2 through 5 remain open, and M6 remains at zero of ten actual sessions. Detailed private evidence remains in the three `m5-fixture-consolidation-gates-20261015-01` through `-03` folders and `artifacts/m5/fixture_gate_*` files. Documentation publication remains authorized; the requested clone waits for sufficient scratch capacity.
+
+## Initial fixture plan, preceding gate resolution
+
 15 October 2026. The owner accepted preparing a precise historical-fixture consolidation plan. Preparation has produced a concrete four-root passed-only candidate: 718 directories, 1,098 files and 11 links; measured compressed streams total1,067,977 bytes, with a proposed1.75MiB complete batch ceiling. No archive, move, removal or further scanner experiment occurred. See [the exact plan, evidence and execution gates](FIXTURE_CONSOLIDATION_PLAN.md).
 
 - [x] Classify retained whole-job receipts and conservative individual-case proposals; preserve all failed/ambiguous roots.

@@ -2,6 +2,8 @@
 
 15 October 2026. **Preparation only; execution is not ready.** Four closed, wholly passing test roots are the recommended first batch. They contain 718 directories, 1,098 files and 11 links. Their measured compressed streams total 1,067,977 bytes. This is a small, concrete preservation candidate; it does not establish that consolidation will restore the five-second storage scan.
 
+The later [preservation and maintenance report](FIXTURE_CONSOLIDATION_GATES.md) replaces this initial plan's capacity findings and next action. It retains both inspection failures, records readable file properties and identifies 31 link records that Windows will not let the inspection read. The inspection reports put temporary test storage at least 310,888 bytes over its limit. The original 1.75 MiB backup proposal does not fit; a smaller 1.5 MiB allowance is only a proposal for later review. Maintenance stays blocked until the owner and access decisions are resolved. No execution procedure, backup or removal is authorized.
+
 The owner accepted preparing this plan while preserving failure evidence. No archive, move, removal, runtime restart or additional scanner experiment was performed. Scanner rounds 1 through 12 remain used. Resource limits and the Strata prohibition are unchanged.
 
 ## Preparation and verification
