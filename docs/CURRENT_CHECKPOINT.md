@@ -4,9 +4,9 @@
 
 ## Active checkpoint
 
-15 October 2026. The owner authorized removing the 31 old test shortcuts if they are no longer needed. **Removal is prepared but awaits separate administrator approval.** All 31 link reads fail both inside and outside Codex's restriction, and all 31 deletion-right checks fail. The process runs as `HOLMES\bgonn` without administrator rights. The eight parent folders are owned by `Holmes\CodexSandboxOffline`, with read and execute access only for `HOLMES\bgonn`.
+15 October 2026. The owner authorized removing the 31 old test shortcuts and explicitly approved an administrator run. **Windows canceled the administrator launch before cleanup started.** No link has been removed. The prepared scripts remain unchanged and independently reviewed. The written approval is saved in `artifacts/m5/old_test_link_cleanup_owner_approval.json`; the failed launch is retained in `artifacts/m5/old_test_link_cleanup_launch_failed01.json`.
 
-The local procedure is `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE.md`. It permits only those 31 shortcuts, saves the original link records, refuses unexpected targets, removes no target folders and changes no permissions. No link has been removed. Exact next action: obtain approval for one administrator run of the independently reviewed procedure. Preserve the scratch overage, stopped clone updates, original failed evidence and all other storage restrictions. See [the explanation and current cleanup status](FIXTURE_CONSOLIDATION_GATES.md).
+The local procedure is `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE.md`. It permits only those 31 shortcuts, saves the original link records, refuses unexpected targets, removes no target folders and changes no permissions. Exact next action: determine whether the owner canceled the Windows prompt or no prompt appeared, then complete the already authorized Windows elevation. Do not launch duplicate cleanup processes or ask again for the written authorization already granted. Preserve the scratch overage, stopped clone updates, original failed evidence and all other storage restrictions. See [the explanation and current cleanup status](FIXTURE_CONSOLIDATION_GATES.md).
 
 ## Prior storage investigation
 
