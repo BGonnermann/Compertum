@@ -4,6 +4,18 @@
 
 ## Active checkpoint
 
+15 October 2026. **The four-folder storage procedure is prepared for review. No archive or original-folder removal has run.** The owner selected historical evidence copies, accepting that they do not recreate missing Windows audit rules, original file identities or a runnable environment. See [the exact execution procedure and approval gates](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md).
+
+The fresh bounded inspection rechecked all 1,827 selected entries, including 1,098 file hashes and 11 raw link records. All 1,638 retained master links were readable, with zero incoming dependencies or unresolved chains. Outside-master incoming links remain unproved and must be addressed at removal approval. The one actual coordinator database had zero reservation rows and stayed unchanged. The real 1 GiB execution reserve remains fully allocated and protected.
+
+Capacity measurement is now complete. Scratch remains exactly 310,888 bytes over its 5 GiB limit. The proposed 1.5 MiB complete backup allowance fits with 129,056 bytes left. The full simultaneous budget also holds 8 MiB for preparation, 2 MiB for publication and 16 MiB for both later execution stages under records; it uses no future deletion credit. The selected ordinary files alone account for 9,612,976 charged bytes, but any post-removal capacity or production timing result remains unverified.
+
+The read-only native Job exited with code 0 in 26.2857867 seconds, with a 43,622,400-byte peak, observed exit and zero children. Fresh verification checked 463 frozen inputs, including 217 source and 217 installed program files, plus 65 original reports and 112 receipt fingerprints. Six in-memory budget boundary checks passed, zero failed or skipped. No product tests ran: zero passed, failed or skipped cases. Private evidence is `artifacts/m5/fixture-execution-preparation-20261015-01/`; the reusable read-only check is `tools/verify_fixture_execution_preparation.py`.
+
+Exact next action: review the procedure and approve or reject its one-time exception for maintenance that adds no scratch files, together with archive-only Stage A. The archive helper must then pass independent code review before writes. Stage A stops with the four originals intact; Stage B needs separate removal approval against actual verified copies. Ordinary admission, reader19 and requested-clone updates remain stopped. No new scanner experiment or administrator authority is included. Strata remains off; M5 requirements 2 through 5 and all ten actual M6 sessions remain open.
+
+## Completed 31-link cleanup
+
 15 October 2026. **The approved administrator cleanup removed exactly 31 old test shortcuts. All 31 target folders remain unchanged.** A separate live check confirmed every link is absent and every target retains its original identifier and properties. No target folder, saved evidence, permission or enabled Windows privilege was changed. The original link records and each removal intent were saved before removal.
 
 The cleanup process exited with code 0 in 0.480002 seconds under its fifteen-second deadline. Fresh verification matched 65 original reports, 112 original receipt fingerprints, 43 inspection evidence fingerprints, and all 217 source plus 217 installed program files. No product tests ran: zero passed, failed or skipped cases. This is cleanup verification, not milestone acceptance.
@@ -12,7 +24,7 @@ The first canceled administrator request and both later preflight failures remai
 
 Private completion evidence is `artifacts/m5/old_test_link_cleanup_completed_verified.json`, SHA-256 `a0fd42a3006479fff67accf9202eeb5482e50766bc4ac096c762007801fd8251`. The exact procedure is `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE_V4.md`. Do not repeat the cleanup. See [the explanation and remaining decisions](FIXTURE_CONSOLIDATION_GATES.md).
 
-Exact next action: obtain the owner's preservation choice for the four separate folders, verify capacity, and decide the proposed bounded maintenance exception before preparing their execution procedure. This link-only cleanup clears the 31 denied entries from the earlier inventory. It does not qualify current capacity or authorize that consolidation. No full storage scan or scratch write occurred. Keep ordinary admission and requested-clone updates stopped; preserve the earlier measured scratch overage, all failed evidence and the original runtime identities. Strata remains off. Scanner attempts 1 through 12 remain used, the 34 reader19 drafts remain unexecuted, M5 requirements 2 through 5 remain open, and M6 remains at zero of ten actual sessions.
+This cleanup cleared the 31 denied entries from the earlier inventory. It did not authorize consolidation or restore ordinary admission. The later preparation above now records the owner's preservation choice and complete capacity measurements. All failed evidence and original runtime identities remain preserved. Scanner attempts 1 through 12 remain used, the 34 reader19 drafts remain unexecuted, M5 requirements 2 through 5 remain open, and M6 remains at zero of ten actual sessions.
 
 ## Prior storage investigation, before link cleanup
 

@@ -1,6 +1,6 @@
 # Decisions needed before combining old test folders
 
-15 October 2026. **The separate 31-link cleanup is complete. Broader maintenance remains blocked.** This report explains what was checked, what remains unknown, and which owner decisions are needed before the four-folder [consolidation plan](FIXTURE_CONSOLIDATION_PLAN.md) can proceed. No execution procedure for that consolidation is ready.
+15 October 2026. **The separate 31-link cleanup is complete, and the four-folder execution procedure is prepared for review.** The [current procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) records the owner's historical-copy choice, fresh complete capacity/reservation measurements, all 1,638 retained master links and the proposed maintenance exception. No archive or original-folder removal has run. This report preserves the earlier investigation and its failures.
 
 No compressed backup was created. No folder was moved, extracted or removed. File permissions and program code were not changed. Strata remains off. The twelve scanner experiment attempts remain used.
 
@@ -38,7 +38,7 @@ The proposed backup contains the earlier measured compressed file contents and a
 | `m3-pair-validation-repair-20261013-01/source_green01-pytest` | 23,812 | 13,682 | 37,494 |
 | Total | 1,067,977 | 93,204 | 1,161,181 |
 
-The owner must choose whether to keep the originals until complete restoration is proved, or accept these copies as historical evidence with the missing properties listed above. Accepting historical copies would not authorize running an extracted environment or removing the originals. Removal still needs a separately reviewed procedure and approval. Failed, mixed, unmapped and parent test evidence, along with files that reserve disk space, stays protected.
+The owner subsequently selected historical evidence copies with the restoration limits explained above. This choice does not authorize running an extracted environment or removing the originals. The current procedure carries that decision forward. Failed, mixed, unmapped and parent test evidence, along with files that reserve disk space, stays protected.
 
 ## Which retained links could break, original inspection and later resolution
 
@@ -80,7 +80,7 @@ This is a proposed size limit, not reserved space or proof of restoration. A lat
 
 ## Why maintenance remains blocked
 
-The current decision is **do not start broader maintenance**. The separate 31-link cleanup is complete. The preservation choice, current capacity and proposed maintenance exception must still be resolved before the four-folder execution procedure is prepared. The cleanup's successful exit does not qualify storage capacity.
+The current decision is **do not execute broader maintenance before review and approval**. The separate 31-link cleanup and fresh procedure preparation are complete. The preservation choice and measurement barriers are resolved within master. Scratch still exceeds its limit, so the procedure proposes a one-time exception allowing no scratch growth. That exception and archive-only Stage A require approval; removal remains a later separate decision.
 
 The proposed one-time maintenance exception would keep research and broker work stopped. It would add no scratch files, write bounded receipts under records, keep backup growth within the proposed 1.5 MiB allowance, and record the starting scratch overage honestly. Scratch use would fall only after separately approved removal. Ordinary work would remain blocked while any storage group exceeds its limit.
 
@@ -96,4 +96,4 @@ Private evidence remains in the three `.cache/test-runs/m5-fixture-consolidation
 
 Each bounded inspection used one CPU and a 128 MiB memory limit enforced by Windows. All exits were observed and no child processes remained. The final deadline was reduced to 75 seconds. The separate 31-link check also exited normally but retained all 31 access failures. No product tests ran: zero passed, failed or skipped test cases. These are inspection results, not milestone acceptance. The 34 reader19 test drafts remain unexecuted; the remaining M5 requirements and all ten actual M6 sessions remain open.
 
-The next required decisions are the owner's preservation choice and approval or rejection of the proposed one-time maintenance exception, together with verified current capacity. The denied-link issue has been resolved by the separately approved cleanup above. No further complete inspection, backup or removal is covered by this closeout. The four-folder execution procedure waits for the remaining decisions and verified capacity. Documentation publication remains authorized; the requested clone waits for sufficient scratch capacity.
+The new owner request authorized a fresh bounded preparation after this closeout. Its [execution procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) now supplies complete measurements and the accepted preservation policy. Review and approve or reject its one-time maintenance exception and archive-only Stage A. The archive helper needs independent review before writes, and the actual verified copies must be presented before separate removal approval. Outside-master link coverage remains a stated limit at that later approval. Documentation publication remains authorized; ordinary work and the requested clone wait for actual storage admission.

@@ -2,7 +2,7 @@
 
 15 October 2026. **Preparation only; execution is not ready.** Four closed, wholly passing test roots are the recommended first batch. They contain 718 directories, 1,098 files and 11 links. Their measured compressed streams total 1,067,977 bytes. This is a small, concrete preservation candidate; it does not establish that consolidation will restore the five-second storage scan.
 
-The later [preservation and maintenance report](FIXTURE_CONSOLIDATION_GATES.md) replaces this initial plan's capacity findings and next action. It retains both inspection failures, records readable file properties and identifies 31 link records that Windows will not let the inspection read. The inspection reports put temporary test storage at least 310,888 bytes over its limit. The original 1.75 MiB backup proposal does not fit; a smaller 1.5 MiB allowance is only a proposal for later review. Maintenance stays blocked until the owner and access decisions are resolved. No execution procedure, backup or removal is authorized.
+The later [execution procedure for review](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) replaces this initial plan's capacity findings and next action. The owner selected historical evidence copies. The 31 denied links were separately removed with their targets preserved. A fresh bounded inspection has complete master-only link, allocation and reservation evidence. Scratch remains 310,888 bytes over its limit. The complete 1.5 MiB backup proposal fits, but the one-time maintenance exception and archive execution still require approval. No archive or original-folder removal is authorized by this initial plan.
 
 The owner accepted preparing this plan while preserving failure evidence. No archive, move, removal, runtime restart or additional scanner experiment was performed. Scanner rounds 1 through 12 remain used. Resource limits and the Strata prohibition are unchanged.
 
@@ -64,7 +64,7 @@ Before removal, qualify a preservation format for all required metadata without 
 
 Retained incoming links also need review. Preserve their exact target strings and descriptors, identify any target that would disappear, and record the consequence. Do not retarget a `current` link or erase a failed fixture to make a later scan pass. Do not extract a verification copy under master: that would add directories and identities rather than reduce traversal.
 
-## Capacity and operating gates
+## Original capacity and operating gates, superseded by the procedure
 
 Current backup headroom is **unknown**: the selected inspection refused `BACKUP_REPARSE_NEEDS_SEPARATE_REVIEW` before producing a capacity summary. Earlier roughly 5 MiB observations are historical, not current capacity. Qualify backup link charges without following targets, all category charges, outstanding reservations, the total 50 GiB budget and the 50 GiB free-space floor before any write. Keep category ceilings: backups 20 GiB, scratch 5 GiB, records 5 GiB, data 15 GiB and models 5 GiB. Retain 16/12 GiB host admission/stop, one heavy job, per-job limits and fresh checked namespaces.
 
