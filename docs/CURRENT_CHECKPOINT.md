@@ -4,6 +4,23 @@
 
 ## Active checkpoint
 
+15 October 2026. The broader native traversal experiment is closed without a qualified replacement. Rounds 1 through 12 are used. The aligned round12 prototype matched two complete small inventories, then reached the unchanged five-second deadline after 83,623 files. All 23,749 opened handles closed; peak native Job memory was60,919,808 bytes. No prototype was promoted or installed. The 217 source/installed payload files and 326 historical native evidence pins are unchanged. See [the complete experiment report](../reports/M5_NATIVE_BATCH_EXPERIMENT.md).
+
+- [x] Finish the original106 installed cases, with393 matching cases per lane and no failures/errors/skips.
+- [x] Freeze and preserve the broader experiment, reproduce its alignment defect and add an explicit compile-time alignment assertion privately.
+- [x] Match complete src/tests inventories and caller-thread callbacks in the aligned candidate.
+- [x] Preserve the full-master timing refusal and audit all eight native Jobs, five exact archives and94 evidence pins.
+- [ ] Restore reliable actual storage admission. The approved experiment did not qualify and its three additional rounds are used.
+- [ ] Run the34 reader19 cases and complete M5 local gates2 through5 after admission qualifies.
+
+Exact next action: publish this independently reviewed documentation closeout and keep admission blocked. No round13, compiler, test or equivalent scan is covered by this exhausted extension. Further work needs a concrete owner decision about the preservation/operating approach. Historical fixture copies account for substantial directory work, but failed fixtures remain outside passed-only cleanup authority. No consolidation, move or deletion of failed copies is authorized or prepared for execution. Do not relax limits, exclude files, reopen terminal M3 or start Strata.
+
+The private audit is `.cache/test-runs/m5-native-batch-20261015-10/batch12-blocked-audit.json`, SHA `46aa5ebf603bf05184c241afd00e19b1d225839a6f00abdcda6e7a8897b918ce`. It confirms34 unchanged syntax-valid private reader case IDs, zero executed reader cases and no reader implementation. Maintenance08 remains unexecuted. The ignored `artifacts/m5/native_storage_batch12_published.json` receipt records publication review and master/GitHub/clone equality. M5/financial acceptance remains open; M6 remains0/10 actual sessions.
+
+## Previous scanner checkpoints, superseded
+
+15 October 2026. The owner approved the broader native scanning experiment and continuation after verification. Use [the bounded batch plan](STORAGE_BATCH_PLAN.md), at most rounds 10 through 12, carrying all nine used rounds. Every limit stays unchanged. Begin with frozen interface probes and a private C traversal prototype; qualify complete actual-limit scans before ordinary implementation resumes. Current product admission remains blocked. The prior closeout below is preserved history.
+
 15 October 2026. The approved storage investigation is closed and **current admission remains blocked**. Scanner rounds 1 through 9 are used. The private candidates in rounds 7, 8 and 9 each reached the unchanged five-second deadline. No prototype was promoted; all 217 source/installed payload files and 326 historical native evidence pins remain unchanged. See [the investigation report](../reports/M5_STORAGE_COST_EXTENSION.md).
 
 The final partial profile visited 102,561 files. Directory opens consumed 2.543 seconds. Caching checked native function pointers reduced repeated module/procedure lookups from 78,732 each to two each, but scanning still did not finish. This identifies the largest observed cost; it does not explain the earlier timing variation or establish a complete inventory. All eight native investigation Jobs closed with zero active children. The closure audit verified three exact input archives and 66 investigation evidence pins. No new product tests ran in this extension; one private missing-interface probe failed as expected against the unchanged original API before the candidate scan.

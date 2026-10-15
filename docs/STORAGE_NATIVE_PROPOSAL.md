@@ -31,3 +31,8 @@ Post-publication status:24b0a5c is published and synchronized. Maintenance07 pre
 No private candidate was promoted, installed or source-controlled. The qualified product's 217 source/installed payload files and all 326 historical evidence pins remain unchanged. Eight investigation Jobs closed; no reader case ran. All limits, failed fixtures and Strata restrictions remain intact. See [the full measurements and closure audit](../reports/M5_STORAGE_COST_EXTENSION.md).
 
 The next proposed scope is a broader native batch-walker experiment under a new bounded owner decision. It would move more traversal work into C while preserving exact inventory/allocation, held-parent and reparse validation, strict rows, original caller-thread callbacks and checked closure. This is an unproven performance hypothesis. No round 10 or equivalent new launch is authorized by the closed extension. Full source/package, complete-environment and repeated actual-watchdog qualification remain mandatory before reader19 or the M5 local finish plan resumes.
+
+
+## Broader experiment closeout
+
+15 October2026. The owner approved the broader C traversal experiment with unchanged limits. Rounds10 through12 are now used. Round10 prelaunch review found a missing final callback probe. Round11 corrected it and built privately, but its first comparison refused a misaligned native buffer. The aligned round12 build matched two complete small inventories and caller-thread callbacks, then timed out on master after83,623 files. No candidate was promoted. See [the complete report](../reports/M5_NATIVE_BATCH_EXPERIMENT.md). Product source/package bytes and all limits remain unchanged; no reader case ran. No additional scan/repair round is covered by the exhausted extension.
