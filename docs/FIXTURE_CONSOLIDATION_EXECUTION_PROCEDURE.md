@@ -1,6 +1,8 @@
 # Preserve four passed test folders and recover scratch capacity
 
-15 October 2026. **Ready for review. Execution is not authorized.** The owner selected historical evidence copies. The fresh inspection resolved the earlier unreadable-link, metadata-choice and reservation questions within master. Scratch still exceeds its 5 GiB limit by 310,888 bytes. This procedure proposes a one-time maintenance exception that adds no scratch files. It does not raise a storage limit or restore ordinary admission.
+15 October 2026. **Stage A is complete and independently verified. All originals remain intact. Stage B removal is not authorized.** The owner approved the one-time maintenance exception with no new scratch files, followed by helper review, archive creation and verification. The [completion report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) records eight payload files and an index using 1,179,648 charged bytes within the 1.5 MiB maximum. All 1,827 original entries remain unchanged. Do not rerun Stage A into the existing destination.
+
+The preparation measurements below describe the reviewed proposal. Its approved bytes had SHA-256 `1bcc8d42524a45514c6f17e9ebd09fdb0aac5bbcd29954b1d17159c7b0ea37a8` at commit `793e8a68ca8eaff152852f8fabe44d29531ff2b1`. The completed stage retained the historical-copy limits and every separate removal requirement. Scratch still exceeds its 5 GiB limit by 310,888 bytes. The exception did not raise any storage limit or restore ordinary admission.
 
 Use master at `C:\Users\bgonn\Desktop\Compertum`. All relative paths below are inside master. Keep Strata off, credentials untouched, new spending at zero, and the requested clone stopped. Preserve every failed, mixed or unmapped fixture, parent receipt, source release, actual environment, runtime identity and reserve. No old runtime may be resumed from these historical copies.
 
@@ -97,4 +99,4 @@ Run from master with the existing interpreter. This command reads saved evidence
 
 Six in-memory boundary checks passed, with zero failures or skips. These check that a one-byte backup/records shortage, an outstanding backup reservation, incomplete measurements or insufficient free space refuses the proposal. They are preparation checks, not product tests. Product test counts remain zero passed, failed and skipped.
 
-Review the exact preservation limits, master-only dependency scope, simultaneous physical budget, one-time admission exception, executable-helper review requirement, Stage A stop and separate Stage B approval. No archive, original removal or further complete inspection is authorized by this document.
+The owner approved and completed Stage A after independent helper review. Review its actual preservation receipt before any separate Stage B decision. The historical-copy limits, master-only dependency scope, simultaneous budget and separate removal gate still apply. This document authorizes no rerun, original removal or later production check.

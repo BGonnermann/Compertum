@@ -1,10 +1,10 @@
 # Test fixture consolidation plan
 
-15 October 2026. **Preparation only; execution is not ready.** Four closed, wholly passing test roots are the recommended first batch. They contain 718 directories, 1,098 files and 11 links. Their measured compressed streams total 1,067,977 bytes. This is a small, concrete preservation candidate; it does not establish that consolidation will restore the five-second storage scan.
+15 October 2026. **This initial plan is retained as history. The later owner-approved archive stage is complete.** Four closed, wholly passing test roots contain 718 directories, 1,098 files and 11 links. Their original compressed content streams total 1,067,977 bytes. The [verified archive report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) records eight payload files and an index using 1,179,648 charged bytes, with all originals intact.
 
-The later [execution procedure for review](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) replaces this initial plan's capacity findings and next action. The owner selected historical evidence copies. The 31 denied links were separately removed with their targets preserved. A fresh bounded inspection has complete master-only link, allocation and reservation evidence. Scratch remains 310,888 bytes over its limit. The complete 1.5 MiB backup proposal fits, but the one-time maintenance exception and archive execution still require approval. No archive or original-folder removal is authorized by this initial plan.
+The [execution procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) supersedes this plan's older capacity proposals and next action. The owner selected historical evidence copies and approved maintenance with no new scratch files. Fresh complete checks found no incoming dependency among 1,638 retained master links and zero coordinator reservations. Scratch remains 310,888 bytes over its limit. Removal still requires separate approval against the actual verified copies and the master-only incoming-link scope.
 
-The owner accepted preparing this plan while preserving failure evidence. No archive, move, removal, runtime restart or additional scanner experiment was performed. Scanner rounds 1 through 12 remain used. Resource limits and the Strata prohibition are unchanged.
+This initial planning task created no archive or removal. The later archive stage removed zero files and did not restore ordinary admission. Scanner rounds 1 through 12 remain used. Resource limits and the Strata prohibition are unchanged.
 
 ## Preparation and verification
 

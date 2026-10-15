@@ -1,8 +1,8 @@
-# Decisions needed before combining old test folders
+# Test-folder preservation decisions and history
 
-15 October 2026. **The separate 31-link cleanup is complete, and the four-folder execution procedure is prepared for review.** The [current procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) records the owner's historical-copy choice, fresh complete capacity/reservation measurements, all 1,638 retained master links and the proposed maintenance exception. No archive or original-folder removal has run. This report preserves the earlier investigation and its failures.
+15 October 2026. **Archive-only Stage A is complete. Eight backup files and their index passed independent verification; all four original folders remain unchanged.** The owner approved maintenance with no new scratch files, and the helper passed independent source review before execution. See [the actual archive report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) and [the procedure retaining separate removal approval](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md).
 
-No compressed backup was created. No folder was moved, extracted or removed. File permissions and program code were not changed. Strata remains off. The twelve scanner experiment attempts remain used.
+The new complete snapshot found all 1,638 retained master links readable, zero incoming dependencies inside master and zero coordinator reservations. The copies use 1,179,648 charged bytes within the 1.5 MiB ceiling. Scratch remains 310,888 bytes over its limit, so ordinary work and requested-clone updates remain stopped. No original was removed, no permission changed and Strata remains off. Incoming links outside master remain unproved. The sections below preserve earlier investigation results and failures; their older measurements are historical.
 
 ## Owner-approved link cleanup, completed
 
