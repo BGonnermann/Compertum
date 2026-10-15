@@ -4,6 +4,12 @@
 
 ## Active checkpoint
 
+15 October 2026. The owner authorized removing the 31 old test shortcuts if they are no longer needed. **Removal is prepared but awaits separate administrator approval.** All 31 link reads fail both inside and outside Codex's restriction, and all 31 deletion-right checks fail. The process runs as `HOLMES\bgonn` without administrator rights. The eight parent folders are owned by `Holmes\CodexSandboxOffline`, with read and execute access only for `HOLMES\bgonn`.
+
+The local procedure is `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE.md`. It permits only those 31 shortcuts, saves the original link records, refuses unexpected targets, removes no target folders and changes no permissions. No link has been removed. Exact next action: obtain approval for one administrator run of the independently reviewed procedure. Preserve the scratch overage, stopped clone updates, original failed evidence and all other storage restrictions. See [the explanation and current cleanup status](FIXTURE_CONSOLIDATION_GATES.md).
+
+## Prior storage investigation
+
 15 October 2026. The investigation of old test folders is closed, and **maintenance remains blocked**. The [decision record](FIXTURE_CONSOLIDATION_GATES.md) describes readable file properties for all 1,827 selected entries. Compressed contents and separate file-property records measure 1,161,181 bytes. All 320 backup links were readable, and the unchanged coordinator database contained zero space reservations. File-access audit rules could not be read for any selected entry. Of 1,669 workspace links, 31 old `current` links remained access-denied even when the check requested zero access rights. No incoming dependency was found among the other 1,638 links, but the missing targets leave that finding incomplete.
 
 - [x] Preserve both failed inspections and the final diagnostic, which could not verify capacity. Every process exited and no children remained.

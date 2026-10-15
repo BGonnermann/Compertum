@@ -4,6 +4,16 @@
 
 No compressed backup was created. No folder was moved, extracted or removed. File permissions and program code were not changed. Strata remains off. The twelve scanner experiment attempts remain used.
 
+## Owner-approved link cleanup, awaiting administrator approval
+
+The owner has now authorized removing the 31 old test links if they are no longer needed. That permission covers those exact shortcuts, not their target folders or the separate four-folder consolidation.
+
+The access failure is now explained. Read-only checks failed for all 31 links both inside and outside Codex's restriction. A separate check requested deletion rights without deleting anything; all 31 requests also failed. The process runs as `HOLMES\bgonn` without administrator rights. All eight parent test folders are owned by `Holmes\CodexSandboxOffline` and explicitly give `HOLMES\bgonn` read and execute access only. Broader Codex access does not override those Windows permissions.
+
+A narrow cleanup is prepared locally in `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE.md`. It requires an administrator process, which the owner's instructions require approval for separately. It changes no ownership, file permissions or enabled Windows privileges. Before removing anything, it must prove that all 31 entries are symbolic links pointing to numbered test folders beside their own shortcuts and save their original link records. It removes each link directly through a checked handle, without recursive removal, and checks that the target remains unchanged.
+
+No cleanup has run. The remaining approval is for one administrator run of that exact procedure, after independent review. If any link or target differs from the expected pattern, the procedure stops before removal. Removing these shortcuts would clear those 31 unreadable entries from later checks; it would not by itself prove that storage capacity is sufficient.
+
 ## What the backup can preserve
 
 The four selected folders come from completed, passing test runs. They contain 718 directories, 1,098 files and 11 links. Fresh checks matched all 1,827 entries against the earlier records, including file contents, Windows file identifiers, attributes, creation times and modification times.
