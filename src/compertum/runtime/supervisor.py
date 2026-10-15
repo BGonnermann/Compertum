@@ -20,7 +20,7 @@ from compertum.persistence import open_store,checked_path
 from compertum.storage import StorageManager,reserve_runtime_paths
 from compertum.events import canonical,uuid
 
-ACTIONS=CONTROL_ACTIONS|frozenset({'status','foundation.check','attach','ai.export','ai.import','baseline','final','final_audit','fake_operator','paper_read','paper_market_read','paper_presence'})
+ACTIONS=CONTROL_ACTIONS|frozenset({'status','foundation.check','attach','ai.export','ai.import','baseline','final','final_audit','fake_operator','paper_read','paper_market_read','paper_presence','paper_intent'})
 
 
 def discover(root):
@@ -205,7 +205,7 @@ class Supervisor:
         binding=canonical({'decision':asdict(decision),'action':action,'payload':payload}).decode()
         read_only=(action=='paper_read' and isinstance(payload,dict) and payload.get('operation')=='account_status') or action in {'status','attach'} or (action in {'baseline','final','final_audit','fake_operator','paper_read'} and isinstance(payload,dict) and payload.get('operation')=='status') or (action=='fake_operator' and isinstance(payload,dict) and payload.get('operation') in {'inspect_plan','operation_status'})
         read_only=read_only or (action=='paper_market_read' and isinstance(payload,dict) and payload.get('operation') in {'status','compose','lineage_status'})
-        read_only=read_only or (action=='paper_presence' and isinstance(payload,dict) and payload.get('operation')=='inspect')
+        read_only=read_only or (action in {'paper_presence','paper_intent'} and isinstance(payload,dict) and payload.get('operation')=='inspect')
         with self.store._live():
             old=self.store.conn.execute('SELECT binding,result,error FROM operator_requests WHERE request_id=?',(decision.request_id,)).fetchone()
             if old:
@@ -244,9 +244,9 @@ class Supervisor:
             if self.partial_fixture:raise RuntimeRefused('EXECUTION_UNAVAILABLE')
             # Native operator identity comes from serve_control_once, never payload.
             return call_owner(self.execution.remote,'fake_operator',dict(request_id=decision.request_id,subject_key=decision.subject_key,command=payload))
-        if action=='paper_presence':
+        if action in {'paper_presence','paper_intent'}:
             if self.partial_fixture:raise RuntimeRefused('EXECUTION_UNAVAILABLE')
-            return call_owner(self.execution.remote,'paper_presence',dict(request_id=decision.request_id,subject_key=decision.subject_key,command=payload))
+            return call_owner(self.execution.remote,action,dict(request_id=decision.request_id,subject_key=decision.subject_key,command=payload))
         if action=='foundation.check': return self.fixture_control(decision,payload)
         if action=='final_audit':
             from compertum.data.errors import DataError

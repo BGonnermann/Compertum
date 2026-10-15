@@ -2,7 +2,26 @@
 
 14 October 2026. Required local dependency after durable market lineage. The owner's autonomous engineering direction covers implementation and simulated verification. It does not grant actual account access or approve any concrete broker write.
 
-## Outcome
+## Approved local finish line — 14 October 2026
+
+The owner approved this continuous finish plan in “Summarize Compertum completion” and authorized forwarding it to the active implementation chat. The primary agent remains the sole writer in master. Stop after a verified integrated local rehearsal, before actual paper orders, cancellations or closes. Existing read-only permission is unchanged. M3 and financial-qualification gaps remain explicit; a permitted `ENGINEERING_FIXTURE` does not require a profitable strategy.
+
+| Gate | Required behavior | Acceptance evidence |
+| --- | --- | --- |
+| 1. Exact intents | Close increment18 and publish the verified checkpoint | Frozen393 matching source/package cases, complete environments, aggregate review, synchronized master/GitHub/clone |
+| 2. Ownership and accounting | Preserve the first opening; reconcile owned orders/positions, fills/events, supported cash/fees and remaining quantities; block unexplained activity | Reader19 is a prerequisite only. Freeze cases for each missing producer and the composed reconciliation before implementation |
+| 3. Risk and admission | Use original current inputs, native presence and exact confirmation; retain existing exposure limits and operation windows | Eligible fixture admitted only after every required producer; stale, oversized, unauthorized and ambiguous cases refuse |
+| 4. Durable dispatch and recovery | Disjoint actual-write records, consume before dispatch, stable client IDs, duplicate prevention and conservative uncertain-result reconciliation | Exact crash boundaries before/after request, acknowledgement and local commit; no replay after restart or older restore |
+| 5. Integrated local rehearsal | Operator plan/confirm, controlled loopback submission, ledger, halt, restart with holdings/open orders, cancellation and bounded closing | Installed package plus required real Windows lifecycle/recovery evidence; finish with resolved fixture orders, zero fixture holdings, reconciled ledger and disarmed admission |
+| 6. Actual paper walkthrough | Present concrete readiness and remaining actual-account/data gates | Separate scoped owner approval before any actual paper order, cancellation or close; outside this local execution scope |
+
+Freeze each bounded increment's exact test IDs, commands, input hashes and gate mapping before execution. Reuse valid unchanged evidence; rerun affected checks. Broaden a passing suite only for a changed shared contract, concrete defect or missing acceptance behavior. Keep at most three evidence-led review/repair rounds per increment and carry counters forward. Storage/admission refusals are infrastructure findings, not reasons to repeat unchanged launches. Never reopen a closed gate without relevant changes or invalid evidence. Report exact nonoverlapping pass/fail/error/skip counts and gate status. No M6 extensions, unrelated refactors, Strata, services, real broker actions or changes to financial/resource limits.
+
+Current checklist: gate1 is blocked by the production storage scan after393 source/287 installed passes, with106 installed cases pending; gates2–5 remain open; gate6 requires later scoped approval. Existing proof17 is closed and remains valid while its inputs are unchanged. The current393-case inventory and commands are preserved in `.cache/test-runs/m5-native-intent-20261014-18/groups-final18c.json`, `installed-continuation18c.json` and the pinned execution helpers. Next, freeze only the reader19 and affected compatibility inventory after increment18 publication and actual storage admission.
+
+## Admission requirements
+
+The bounded gate2/4 design audit identified four missing additions. Native actual-write records need a third strict kind, separate from fake execution and inert `PAPER_PREPARATION`; update record classification, guard/recovery validation and fake-history filters together. Qualified native order/fill/event history must bind client and broker IDs, cumulative quantities, event coverage and supported fees/cash changes to the immutable opening. Existing fake-journal deduplication and decimal-ledger arithmetic are reusable patterns, not native ownership evidence. The native journal must durably consume before dispatch and recover conservatively if a crash occurs between guard append, SQLite commit, request or acknowledgement. Finally, the exact order transport needs its own producer binding: `service_budget` currently binds GET producers only, and its rate permit confers no trade authority. `PaperIntentJournal.consume()` remains expressly unauthorized. Closing requires separately journaled serial children with freshly reconciled residual quantities. Cover these behaviors in the frozen gate inventories; do not treat reader19 alone as completed accounting.
 
 Before any paper write, the existing execution owner must resolve the exact operator plan, current account/market observations, account confirmation/opening, supervision, ownership and economic reconciliation. It must derive risk results from those records, consume the exact grant durably and retain a stable client identity before dispatch. Reopening historical evidence, a caller-provided boolean or a fake execution session cannot supply current authority.
 

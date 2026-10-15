@@ -47,3 +47,18 @@ All results remain BLOCKED with transport/financial authority false while requir
 Exact next action: publish the verified account-only checkpoint, reproduce/repair combined-context integrity, then implement exact native intent/confirmation. Use the existing120second/4GiB/fourCPU/16process job limits,16/12GiB host gates, five-second storage scan and50GiB category budget. One heavy job, primary writer, one independent reviewer and at most three review/repair iterations per bounded increment. No Strata or scheduled work.
 
 Integrity15 and account/presence16 are verified. Latest16 pair:222 cases per environment, zero failures/errors/skips, complete environments and final review2/3 CLEAR. Next local implementation is the exact native record component; ownership/risk and actual actions remain separate downstream gates.
+
+
+## Current partial checkpoint
+
+Increment18 is implemented but **not fully verified**. Source:393 passed,0 failed/errors/skips in39 closed jobs. Installed:287 passed,0 failed/errors/skips in32 closed jobs;106 cases in seven groups remain. All116 new intent cases passed in both environments. The third installed continuation stopped before creating a process at STORAGE_SCAN_DEADLINE. All three refusal receipts and all failed preliminary evidence remain. Two verified historical passing test roots were archived and removed, but the subsequent three unchanged five-second production scans still refused. No further test was launched. The partial evidence audit passed and pins896 inputs: `artifacts/m5/native_intents_partial_storage_blocked.json`, SHA `dcc2e45b9263b582bd4473ec5d75ee0c4732742a93f66f3740d0a955abc45edf`. This is an incomplete checkpoint, not final acceptance.
+
+Current checklist:
+- [x] Implement exact intents/confirmations and repair reproduced integrity defects; implementation review2 CLEAR.
+- [x] Complete393 source checks,287 installed checks, offline build/install and both full environment qualifications.
+- [x] Diagnose and preserve three infrastructure refusals; byte-verify passing-only archives and retain failed roots.
+- [ ] Review/publish this explicitly partial checkpoint; full increment18 review remains pending.
+- [ ] Restore production storage admission without weakening limits, then finish only the106 remaining installed cases if frozen inputs are unchanged.
+- [ ] Complete ownership/accounting, risk, durable dispatch/recovery and the integrated local rehearsal under M5_PAPER_ADMISSION_PLAN.md. Reader19 is only a prerequisite to full accounting.
+
+Exact next action: resolve the measured storage-admission blocker before another native job. Latest offline cost profile is diagnostic only:104,546 files,163,941,696 bytes scratch headroom and5,695,520 bytes backup headroom. A copied instrumented scan took8.902seconds; its instrumentation overhead means this is not the production scan duration. Production independently refused three times at its unchanged five-second limit. Do not repeat unchanged launches, raise limits, discard failed evidence or reopen M3's terminal failed audit. Any production scanner change needs a new input identity and affected requalification. Prepared groups-final18d.json and installed-continuation18d.json preserve287 completed cases and the exact seven remaining groups; they have not run. Full aggregate helpers18c/18d must not be used to claim success from the refused scans. Strata remains off; no actual broker action is authorized.

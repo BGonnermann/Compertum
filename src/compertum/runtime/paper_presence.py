@@ -78,7 +78,10 @@ class _PresenceOwner:
             _need(reason is None or type(reason) is str and re.fullmatch('[A-Z][A-Z0-9_]{0,95}',reason) is not None)
             if ident in self._issued:_need(self._issued[ident]==pin)
             if ident in self._revoked and reason is not None:_need(reason==self._revoked[ident])
-            if reason is not None and ident in self._issued:self._revoked[ident]=reason
+            # A read during another component's transaction may observe a
+            # mutation that will roll back. Its proof invalidator records the
+            # failure after rollback; never retain that transient row value.
+            if reason is not None and ident in self._issued and not self.db.in_transaction:self._revoked[ident]=reason
             return p,reason
         except (RuntimeRefused,*_INVALID):raise RuntimeRefused('PAPER_PRESENCE_STATE_CORRUPT') from None
 

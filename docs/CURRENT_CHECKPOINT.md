@@ -4,6 +4,18 @@
 
 ## Checklist
 
+Increment18 is implemented but **not fully verified**. Source:393 passed,0 failed/errors/skips in39 closed jobs. Installed:287 passed,0 failed/errors/skips in32 closed jobs;106 cases in seven groups remain. All116 new intent cases passed in both environments. The third installed continuation stopped before creating a process at STORAGE_SCAN_DEADLINE. All three refusal receipts and all failed preliminary evidence remain. Two verified historical passing test roots were archived and removed, but the subsequent three unchanged five-second production scans still refused. No further test was launched. The partial evidence audit passed and pins896 inputs: `artifacts/m5/native_intents_partial_storage_blocked.json`, SHA `dcc2e45b9263b582bd4473ec5d75ee0c4732742a93f66f3740d0a955abc45edf`. This is an incomplete checkpoint, not final acceptance.
+
+Current checklist:
+- [x] Implement exact intents/confirmations and repair reproduced integrity defects; implementation review2 CLEAR.
+- [x] Complete393 source checks,287 installed checks, offline build/install and both full environment qualifications.
+- [x] Diagnose and preserve three infrastructure refusals; byte-verify passing-only archives and retain failed roots.
+- [ ] Review/publish this explicitly partial checkpoint; full increment18 review remains pending.
+- [ ] Restore production storage admission without weakening limits, then finish only the106 remaining installed cases if frozen inputs are unchanged.
+- [ ] Complete ownership/accounting, risk, durable dispatch/recovery and the integrated local rehearsal under M5_PAPER_ADMISSION_PLAN.md. Reader19 is only a prerequisite to full accounting.
+
+Exact next action: resolve the measured storage-admission blocker before another native job. Latest offline cost profile is diagnostic only:104,546 files,163,941,696 bytes scratch headroom and5,695,520 bytes backup headroom. A copied instrumented scan took8.902seconds; its instrumentation overhead means this is not the production scan duration. Production independently refused three times at its unchanged five-second limit. Do not repeat unchanged launches, raise limits, discard failed evidence or reopen M3's terminal failed audit. Any production scanner change needs a new input identity and affected requalification. Prepared groups-final18d.json and installed-continuation18d.json preserve287 completed cases and the exact seven remaining groups; they have not run. Full aggregate helpers18c/18d must not be used to claim success from the refused scans. Strata remains off; no actual broker action is authorized.
+
 Verified increment14: [account-only private inputs](M5_ACCOUNT_CONTEXT_PROGRESS.md). **306 identical source/installed cases passed**, zero failures/errors/skips, all24 jobs closed. Both complete environments and aggregate verification passed;542 inputs/209 modules, unchanged Python and38 dependencies. Final independent review3/3 is **CLEAR**. Aggregate SHA `c927d7aadcb89ba7eb7f39a1495b9c5b774e995463c37f8aa263d63e4f8a159e`;251 evidence pins. Failed preliminary tests and the installed pre-process storage refusal remain preserved. Fourteen passed temporary roots were archived and byte-verified before checked cleanup. See [the complete report](../reports/M5_ACCOUNT_CONTEXT.md).
 
 Current checklist:
@@ -14,8 +26,9 @@ Current checklist:
 - [x] Repair account/presence integrity16;222 matching source/package cases, complete environments and final review CLEAR2/3.
 - [x] Publish/synchronize integrity16: 1f490d6637a118e1915be50388072a464c45046b; master, primary GitHub and requested clone match.
 - [x] Implement and verify private final proofs17:277 matching source/package cases, zero failures/errors/skips;46 closed jobs, complete environments and final aggregate review CLEAR. Aggregate SHA `ddefe3a8d6b74d2bdfe365e62c5f935288a13f4290b48b6e55c7e2e1b937be6d`. All failed evidence and the pre-process storage refusal are preserved.
-- [ ] Publish/synchronize proofs17, then exact native records.
-- [ ] Continue exact native intent/confirmation, then remaining admission dependencies.
+- [x] Publish/synchronize proofs17: `1bd00dd3f5bdc5c12eb353d0e86cf4bef555eab1`; master, primary GitHub and requested clone match. Final review1 CLEAR;277 matching cases and653 evidence pins.
+- [ ] Finish increment18 and the approved local rehearsal gates above. Older active-session descriptions are superseded by the storage-blocked checkpoint.
+
 
 Verified repair16: **222 identical cases passed per environment**, zero failures/errors/skips; all34 jobs closed. Full environment qualifications and aggregate verification passed;544 frozen inputs/209 modules, unchanged Python and38 dependencies. Final review2/3 CLEAR. Aggregate SHA `1a420f02e2dcf30907571a0bc54e2038b3fbfab412522e9c3a9f4817387e7fe3`;275 evidence pins. The12 original failures and all source bytes remain preserved. Only passed temporary copies were archived/verified before cleanup. See [the report](../reports/M5_ACCOUNT_PRESENCE_INTEGRITY.md). Exact next action: preserve the closed passing installed16 fixtures, then run the39 frozen missing-interface probes for17 and implement their private final checks. No financial/M5 acceptance;M6 remains0/10.
 
