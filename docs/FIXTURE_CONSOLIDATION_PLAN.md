@@ -1,10 +1,10 @@
 # Test fixture consolidation plan
 
-15 October 2026. **This initial plan is retained as history. The later owner-approved archive stage is complete.** Four closed, wholly passing test roots contain 718 directories, 1,098 files and 11 links. Their original compressed content streams total 1,067,977 bytes. The [verified archive report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) records eight payload files and an index using 1,179,648 charged bytes, with all originals intact.
+15 October 2026. **This initial plan is history. Copies are verified; the subsequent approved removal preflight refused before deletion.** Four wholly passing test roots contain 718 directories, 1,098 files and 11 links. Their eight backup files and index charge 1,179,648 bytes. All 1,827 originals and all copies remain unchanged. See [the archive report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) and [the later preflight refusal](../reports/FIXTURE_REMOVAL_PREFLIGHT.md).
 
-The [execution procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) supersedes this plan's older capacity proposals and next action. The owner selected historical evidence copies and approved maintenance with no new scratch files. Fresh complete checks found no incoming dependency among 1,638 retained master links and zero coordinator reservations. Scratch remains 310,888 bytes over its limit. Removal still requires separate approval against the actual verified copies and the master-only incoming-link scope.
+The owner accepted the historical-copy limits and master-only link scope and approved removal. The complete inspection passed, but the helper's extra time-margin condition stopped the attempt. No automatic retry or production admission check occurred. Scratch remains 310,888 bytes over its limit, and the existing watchdog stop remains preserved. Ordinary work and clone updates stay stopped.
 
-This initial planning task created no archive or removal. The later archive stage removed zero files and did not restore ordinary admission. Scanner rounds 1 through 12 remain used. Resource limits and the Strata prohibition are unchanged.
+The [execution procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md) supersedes this initial plan's older capacity proposals. The [recovery proposal](FIXTURE_REMOVAL_RECOVERY_PROPOSAL.md) asks only for one additional bounded attempt and its records/review allowance. It does not re-open the accepted four-folder choice or authorize execution. Scanner rounds 1 through 12 remain used; resource limits and the Strata prohibition are unchanged.
 
 ## Preparation and verification
 

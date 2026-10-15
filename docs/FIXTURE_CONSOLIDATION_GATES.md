@@ -1,8 +1,10 @@
 # Test-folder preservation decisions and history
 
-15 October 2026. **Archive-only Stage A is complete. Eight backup files and their index passed independent verification; all four original folders remain unchanged.** The owner approved maintenance with no new scratch files, and the helper passed independent source review before execution. See [the actual archive report](../reports/FIXTURE_ARCHIVE_STAGE_A.md) and [the procedure retaining separate removal approval](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md).
+15 October 2026. **The copies are verified, but the first approved removal preflight stopped before deleting anything.** The full inspection took 60.834 seconds and triggered the helper's additional 60-second start requirement. Independent verification proves all four originals, their 1,827 entries and the nine backup files unchanged. See [the refusal report](../reports/FIXTURE_REMOVAL_PREFLIGHT.md).
 
-The new complete snapshot found all 1,638 retained master links readable, zero incoming dependencies inside master and zero coordinator reservations. The copies use 1,179,648 charged bytes within the 1.5 MiB ceiling. Scratch remains 310,888 bytes over its limit, so ordinary work and requested-clone updates remain stopped. No original was removed, no permission changed and Strata remains off. Incoming links outside master remain unproved. The sections below preserve earlier investigation results and failures; their older measurements are historical.
+The owner has accepted the historical-copy limits and master-only incoming-link scope. Fresh checks found all 1,638 retained master links readable, no incoming dependencies inside master and no actual reservation rows. Scratch remains 310,888 bytes over its limit. The existing watchdog stop remains preserved, and the one later production check has not run. Ordinary work and clone updates stay stopped.
+
+A [bounded recovery proposal](FIXTURE_REMOVAL_RECOVERY_PROPOSAL.md) requests one additional attempt and 8 MiB more cumulative execution records while preserving every failed record and all operating limits. It needs a new retry decision under the [existing procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md). The sections below retain earlier investigation results and failures as history.
 
 ## Owner-approved link cleanup, completed
 
