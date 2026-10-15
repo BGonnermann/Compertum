@@ -10,7 +10,7 @@ Current checklist:
 - [x] Implement exact intents/confirmations and repair reproduced integrity defects; implementation review2 CLEAR.
 - [x] Complete393 source checks,287 installed checks, offline build/install and both full environment qualifications.
 - [x] Diagnose and preserve three infrastructure refusals; byte-verify passing-only archives and retain failed roots.
-- [ ] Review/publish this explicitly partial checkpoint; full increment18 review remains pending.
+- [x] Independently review and publish the partial checkpoint: 1b63360b1ebd6e440ae99b436e78bf4b768aa4ad. Master, primary GitHub and requested clone matched cleanly; partial-publication review1 is CLEAR_FOR_PARTIAL_PUBLICATION. Full increment18 acceptance remains pending.
 - [ ] Restore production storage admission without weakening limits, then finish only the106 remaining installed cases if frozen inputs are unchanged.
 - [ ] Complete ownership/accounting, risk, durable dispatch/recovery and the integrated local rehearsal under M5_PAPER_ADMISSION_PLAN.md. Reader19 is only a prerequisite to full accounting.
 

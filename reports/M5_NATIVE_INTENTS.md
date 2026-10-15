@@ -30,7 +30,7 @@ The subsequent three production scans still refused. No further test was launche
 
 ## Remaining gate
 
-Increment18 is incomplete. Full393/393 paired verification, final aggregate acceptance and the integrated local rehearsal have not passed. Publication of this partial checkpoint requires a separately scoped independent report review; it does not satisfy full acceptance. Resolve storage admission with changed evidence before another native job. Preserve frozen inputs and completed receipts; if production code changes, qualify the new identity and affected checks.
+Increment18 is incomplete. Full393/393 paired verification, final aggregate acceptance and the integrated local rehearsal have not passed. Scoped independent review1 returned CLEAR_FOR_PARTIAL_PUBLICATION. The partial checkpoint was published as 1b63360b1ebd6e440ae99b436e78bf4b768aa4ad; master, primary GitHub and the requested clone matched cleanly. The local receipt is artifacts/m5/native_intents_partial_published.json. This does not satisfy full acceptance. Resolve storage admission with changed evidence before another native job. Preserve frozen inputs and completed receipts; if production code changes, qualify the new identity and affected checks.
 
 Tests use native Windows stores, leases and DPAPI with invented account origins, clocks and reserve capacity. Managed-owner routing startup is simulated. No full-reserve lifecycle or actual broker session is claimed by this component. Strata was not started.
 
