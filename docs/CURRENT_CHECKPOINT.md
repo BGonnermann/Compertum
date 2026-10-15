@@ -4,6 +4,18 @@
 
 ## Active checkpoint
 
+15 October 2026. The owner accepted preparing a precise historical-fixture consolidation plan. Preparation has produced a concrete four-root passed-only candidate: 718 directories, 1,098 files and 11 links; measured compressed streams total1,067,977 bytes, with a proposed1.75MiB complete batch ceiling. No archive, move, removal or further scanner experiment occurred. See [the exact plan, evidence and execution gates](FIXTURE_CONSOLIDATION_PLAN.md).
+
+- [x] Classify retained whole-job receipts and conservative individual-case proposals; preserve all failed/ambiguous roots.
+- [x] Retain65 selected-tree measurements, exact file/link/identity manifests and bounded compressed-size counts.
+- [x] Reconcile234 frozen inputs and217 unchanged source/installed product payload files after the job closed.
+- [x] Preserve the final backup-capacity refusal: exit1,17.400211seconds,41,570,304-byte peak, observed exit and zero remaining children. The measurements completed; the overall inspection did not pass. Backup headroom is unknown.
+- [x] Complete independent final plan review3/3: CLEAR_FOR_PLAN_DOCUMENTATION_PUBLICATION;65 report hashes and112 receipt pins independently reconciled. Publication status is recorded in the ignored receipt below.
+
+Exact next action: resolve the concrete metadata, capacity and bounded maintenance-admission gates in the reviewed plan before preparing a separate execution procedure. Actual consolidation is outside this completed preparation scope. The ignored `artifacts/m5/fixture_consolidation_plan_published.json` receipt records publication and master/GitHub/clone equality. Resolve metadata preservation, incoming links, complete capacity/reservations and the distinct bounded maintenance-admission decision before preparing any removal. Current production admission remains blocked; scanner rounds1 through12 remain used. Reader19 is34 private drafts, zero executed; M5 gates2 through5 remain open andM6 remains0/10 actual sessions. Strata stays off. Private plan evidence is `.cache/test-runs/m5-fixture-consolidation-plan-20261015-01/plan-evidence.json`, SHA76012ef210139e1b37c4f182b49ccded8d2aa38eaad1810c9a8b91e33f67a3a7.
+
+## Broader experiment closeout, preceding this plan
+
 15 October 2026. The broader native traversal experiment is closed without a qualified replacement. Rounds 1 through 12 are used. The aligned round12 prototype matched two complete small inventories, then reached the unchanged five-second deadline after 83,623 files. All 23,749 opened handles closed; peak native Job memory was60,919,808 bytes. No prototype was promoted or installed. The 217 source/installed payload files and 326 historical native evidence pins are unchanged. See [the complete experiment report](../reports/M5_NATIVE_BATCH_EXPERIMENT.md).
 
 - [x] Finish the original106 installed cases, with393 matching cases per lane and no failures/errors/skips.

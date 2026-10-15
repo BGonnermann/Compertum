@@ -2,7 +2,7 @@
 
 A supervised research system with reproducible experiments, bounded AI proposals, independent audits, and controlled paper-trading development.
 
-Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.
+Updated 15 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.
 
 **Primary repository: [BGonnermann/Compertum](https://github.com/BGonnermann/Compertum)** (private). Future updates use the BGonnermann account. The previous repository remains a historical reference; the full commit history is preserved.
 
@@ -11,6 +11,8 @@ Updated 14 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 Original intent release18 is verified:393 matching cases per environment, including all106 formerly pending installed cases; final original-release review3 CLEAR. The native storage scanner separately passed43 matching source/package cases,18 C boundary cases, both complete environment checks and three full-master scans within the unchanged five-second/one-CPU/128MiB limits. Times:4.566,4.948,4.930seconds; the last uses the original watchdog volume callback. Final native review6 is CLEAR. Scan headroom is narrow; preserve closed passing scratch before further fixture growth. See [intent verification](reports/M5_NATIVE_INTENTS.md), [native storage evidence](reports/M5_NATIVE_STORAGE.md) and [the current checkpoint](docs/CURRENT_CHECKPOINT.md). Ownership/accounting, risk, durable dispatch/recovery and the local rehearsal remain open. M6 is0/10 actual supervised sessions.
 
 Current storage admission remains blocked after the broader native experiment used rounds10 through12. The aligned private candidate matched two small inventories, then timed out after83,623 files. All23,749 handles closed under the unchanged one-CPU/128MiB/five-second watchdog; no prototype entered the product. Product code is unchanged. Reader19 remains34 private cases, zero executed and no implementation; M5 local gates2 through5 remain open. No failed fixture was removed. See [the measured experiment and unresolved decision](reports/M5_NATIVE_BATCH_EXPERIMENT.md).
+
+A concrete [fixture consolidation plan](docs/FIXTURE_CONSOLIDATION_PLAN.md) now identifies four wholly passing test roots containing718 directories,1,098 files and11 links. Measured compressed streams total1,067,977 bytes. All65 selected-tree measurements and234 input pins were reconciled; the overall inspection refused at its final backup-link check, so current backup headroom is unknown. No archive or removal occurred. Metadata preservation, link dependencies and bounded maintenance admission still need resolution before execution. Storage is not fixed.
 
 Private final input proofs are verified with **277 identical passing cases per source/installed environment**, zero failures/errors/skips, both complete environment checks and final aggregate review CLEAR. Grouped proofs check original account, market and presence evidence after callbacks finish and preserve caller transactions. See [the proof report](reports/M5_INPUT_PROOFS.md). Next: exact native intent and confirmation records.
 
