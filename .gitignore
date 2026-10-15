@@ -11,6 +11,7 @@ __pycache__/
 .coverage.*
 htmlcov/
 *.egg-info/
+src/compertum/_native/*.dll
 build/
 dist/
 

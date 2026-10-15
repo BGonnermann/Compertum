@@ -16,20 +16,20 @@ def readers():
     return [t for t in threading.enumerate() if t.name.startswith('CompertumStorageScan-')]
 
 
-def test_native_reads_overlap_but_volume_callbacks_stay_on_caller(tmp_path,monkeypatch):
+def test_native_reads_and_volume_callbacks_stay_on_caller(tmp_path,monkeypatch):
     for i in range(12):
         p=tmp_path/str(i);p.mkdir();(p/'one.bin').write_bytes(b'x')
     project=resolve_project(tmp_path)
     caller=threading.get_ident();seen=set();callbacks=[]
-    original=storage.WindowsAPI.open_directory
+    original=storage.Directory
     @contextmanager
-    def opened(self,path,**kwargs):
+    def opened(path,buffer=None):
         seen.add(threading.get_ident())
-        with original(self,path,**kwargs) as handle:yield handle
-    monkeypatch.setattr(storage.WindowsAPI,'open_directory',opened)
+        with original(path,buffer) as handle:yield handle
+    monkeypatch.setattr(storage,'Directory',opened)
     observed=storage.sample_storage(project,volume_probe=lambda:callbacks.append(threading.get_ident()))
     assert len(observed['files'])==12
-    assert 1<len(seen)<=4 and caller not in seen
+    assert seen=={caller}
     assert callbacks and set(callbacks)=={caller}
     assert not readers()
 
@@ -53,14 +53,14 @@ def test_directory_lock_survives_until_reparse_validation(tmp_path,monkeypatch):
 @pytest.mark.parametrize('failure',['native','callback','deadline'])
 def test_failure_closes_every_reader_and_directory(tmp_path,monkeypatch,failure):
     for i in range(12):(tmp_path/str(i)).mkdir()
-    project=resolve_project(tmp_path);handles=[];original=storage.WindowsAPI.open_directory
+    project=resolve_project(tmp_path);handles=[];original=storage.Directory
     @contextmanager
-    def opened(self,path,**kwargs):
-        with original(self,path,**kwargs) as handle:
+    def opened(path,buffer=None):
+        with original(path,buffer) as handle:
             handles.append(handle)
             if failure=='native':raise RuntimeRefused('INJECTED_NATIVE_FAILURE')
             yield handle
-    monkeypatch.setattr(storage.WindowsAPI,'open_directory',opened)
+    monkeypatch.setattr(storage,'Directory',opened)
     calls=0;clock=storage.time.monotonic;start=clock()
     def probe():
         nonlocal calls
@@ -75,18 +75,14 @@ def test_failure_closes_every_reader_and_directory(tmp_path,monkeypatch,failure)
 
 
 def test_final_directory_close_failure_never_reports_complete(tmp_path,monkeypatch):
-    project=resolve_project(tmp_path);original=storage.WindowsAPI.open_directory
-    original_event=storage.Event;events=[];handles=[]
-    def event():
-        value=original_event();events.append(value);return value
+    project=resolve_project(tmp_path);original=storage.Directory
+    handles=[]
     @contextmanager
-    def opened(self,path,**kwargs):
-        with original(self,path,**kwargs) as handle:
+    def opened(path,buffer=None):
+        with original(path,buffer) as handle:
             handles.append(handle);yield handle
-        assert events[0].wait(2),'caller did not start teardown'
         raise RuntimeRefused('INJECTED_DIRECTORY_CLOSE_FAILURE')
-    monkeypatch.setattr(storage,'Event',event)
-    monkeypatch.setattr(storage.WindowsAPI,'open_directory',opened)
+    monkeypatch.setattr(storage,'Directory',opened)
     with pytest.raises(RuntimeRefused,match='INJECTED_DIRECTORY_CLOSE_FAILURE'):
         storage.sample_storage(project)
     assert handles and all(h.closed for h in handles) and not readers()
@@ -105,16 +101,8 @@ def test_malformed_native_rows_refuse_before_inventory(tmp_path,monkeypatch,dama
     elif damage=='unaligned_step':struct.pack_into('<I',data,0,69)
     elif damage=='oversized_step':struct.pack_into('<I',data,0,80)
     else:struct.pack_into('<q',data,48,-1)
-    original=storage.c.WinDLL;calls=0
-    def query(handle,event,apc,context,status,buffer,length,kind,single,name,restart):
-        nonlocal calls
-        calls+=1
-        if calls>1:return -2147483642
-        storage.c.memmove(buffer,bytes(data),len(data))
-        storage.c.cast(status,storage.c.POINTER(storage.IOStatus)).contents.information=len(data)
-        return 0
-    def load(name,**kwargs):
-        return SimpleNamespace(NtQueryDirectoryFile=query) if name=='ntdll' else original(name,**kwargs)
-    monkeypatch.setattr(storage.c,'WinDLL',load)
+    from compertum._native_storage import Directory
+    def read(self):return bytes(data)
+    monkeypatch.setattr(Directory,'read',read)
     with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):storage.sample_storage(project)
     assert not readers()

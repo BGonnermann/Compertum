@@ -1,0 +1,26 @@
+{
+  "abi": 1,
+  "platform": "win_amd64",
+  "compiler_sha256": "efd1fdc2a5213ffab95d29e4bffd496b370ec845b3f56904667af24b3de9ba82",
+  "compiler_version": "gcc.exe (MinGW-W64 x86_64-ucrt-mcf-seh, built by Brecht Sanders, r1) 16.1.0\r\nCopyright (C) 2026 Free Software Foundation, Inc.\r\nThis is free software; see the source for copying conditions.  There is NO\r\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\r\n\r\n",
+  "command": [
+    "C:\\Users\\bgonn\\AppData\\Local\\Microsoft\\WinGet\\Packages\\BrechtSanders.WinLibs.MCF.UCRT_Microsoft.Winget.Source_8wekyb3d8bbwe\\mingw64\\bin\\gcc.exe",
+    "-std=c11",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-shared",
+    "-static-libgcc",
+    "-Wl,--no-insert-timestamp",
+    "-Wl,--dynamicbase",
+    "-Wl,--nxcompat",
+    "storage_scan.c",
+    "-o",
+    "storage_scan.dll"
+  ],
+  "files": {
+    "storage_scan.c": "8cc036f4e2282a84fda138b76fed589d207236dad8bdd594b57245f9a2562478",
+    "storage_scan.dll": "78e69409c1064da95f82efafe0fd470bf021913a028a7f1afbf7f051c51c5d62"
+  }
+}

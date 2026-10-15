@@ -17,10 +17,14 @@ Checklist:
 
 Use at most three repair/review rounds. Keep original18 review counters and all failed receipts. New scanner bytes cannot be attributed to earlier source/package checks. The preliminary probes are diagnostics; full acceptance requires native bounded jobs and review. Current category headroom after the initial scans is163,282,064 bytes scratch and5,695,520 bytes backups. Do not remove failed evidence, raise limits, start Strata or perform broker actions.
 
-Exact next action: finish independent scanner review and freeze the affected native inventory and original-package continuation bridge before those workloads run.
+This initial Python checklist is historical. The original106 continuation is now closed and verified; the current native results follow below.
 
 ## Current approved continuation
 
 Original release18 intent and confirmation checks are verified:393 identical source/installed cases,39 closed jobs per environment and0 failures/errors/skips. All106 formerly pending installed cases passed against the unchanged original package. Final independent review3 is CLEAR_ORIGINAL_RELEASE18. Aggregate SHA62601bca9b1606171ad3bbfd926a550ce6bd642f7249fccde9915e4409d7922d binds1027 evidence pins. The repaired scanner separately passed32 source checks; installed scanner qualification and full-master one-CPU128MiB/five-second operating qualification remain open. The owner approved three additional native-reader review rounds,4–6, using existing GCC and unchanged limits.
 
 The first three Python review rounds are used. Native rounds4–6 are separately owner-approved. Full-master timing remains unqualified; do not repeat unchanged probes. The393/393 result is the original intent release, not the changed scanner. Prepare the native ABI and frozen compiler/build inputs, then verify the new identity against actual limits. No compiler/runtime installation is authorized.
+
+Current native verification supersedes the preceding timing status:43 identical source/installed cases and18 C boundary cases passed; both complete environments passed. Final full-master scans passed at4.566,4.948,4.930seconds in actual one-CPU128MiB Jobs, including the original volume callback. Every category/time/memory/CPU limit is unchanged. Aggregate SHAeb08494998a4dcd395c08e6a0423f790d76a3a7b0ab4c3ea7b8de36e61e4c58e binds326 evidence pins and576 frozen inputs. Independent review4 was BLOCKED by a reproduced DLL-link gap; review5 cleared the repair. Final review6 is CLEAR. No cleanup occurred. See [the complete native report](../reports/M5_NATIVE_STORAGE.md).
+
+Exact next action: finish review6 and publish/synchronize the native checkpoint. Then preserve closed passing scratch through a checked byte-verified archive before further M5 fixture growth. Continue native ownership/accounting without reopening M3's terminal audit or starting Strata.

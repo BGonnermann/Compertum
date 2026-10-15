@@ -55,13 +55,12 @@ def test_multi_batch_directory_and_empty_siblings_have_exact_inventory(tmp_path)
 def test_native_batch_invalid_returned_size_refuses(tmp_path,monkeypatch,returned_bytes):
  import compertum.storage as storage
  from types import SimpleNamespace
- real_load=storage.c.WinDLL
- def invalid_query(handle,event,apc,context,status,buffer,length,kind,single,name,restart):
-  storage.c.cast(status,storage.c.POINTER(storage.IOStatus)).contents.information=returned_bytes
-  return 0
- def load(name,**kwargs):
-  if name=='ntdll':return SimpleNamespace(NtQueryDirectoryFile=invalid_query)
-  return real_load(name,**kwargs)
- monkeypatch.setattr(storage.c,'WinDLL',load)
+ import compertum._native_storage as reader
+ real=reader._library()
+ def invalid_open(path,buffer,length,result):
+  code=real.cs_open_read(path,buffer,length,result)
+  reader.c.cast(result,reader.c.POINTER(reader.Result)).contents.bytes=returned_bytes
+  return code
+ monkeypatch.setattr(reader,'_library',lambda:SimpleNamespace(cs_open_read=invalid_open,cs_next=real.cs_next,cs_close=real.cs_close))
  with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):
   sample_storage(resolve_project(tmp_path))

@@ -4,23 +4,23 @@
 
 ## Active checkpoint
 
-14 October2026. Original release18 is verified; storage repair and the remaining local implementation continue.
+14 October 2026. Original intent release18 is verified: **393 matching cases per environment**, including all106 formerly pending installed cases; zero failures/errors/skips. All78 jobs closed. Independent original-release review3 CLEAR; aggregate SHA62601bca9b1606171ad3bbfd926a550ce6bd642f7249fccde9915e4409d7922d binds1027 pins. Published and synchronized master/primary GitHub/requested clone at140403c8e0e827935fc2f0563f9e3f43caa30787.
 
-Original release18 intent and confirmation checks are verified:393 identical source/installed cases,39 closed jobs per environment and0 failures/errors/skips. All106 formerly pending installed cases passed against the unchanged original package. Final independent review3 is CLEAR_ORIGINAL_RELEASE18. Aggregate SHA62601bca9b1606171ad3bbfd926a550ce6bd642f7249fccde9915e4409d7922d binds1027 evidence pins. The repaired scanner separately passed32 source checks; installed scanner qualification and full-master one-CPU128MiB/five-second operating qualification remain open. The owner approved three additional native-reader review rounds,4–6, using existing GCC and unchanged limits.
+Native scanner qualification and final independent review6 are complete: **43 matching source/installed cases**,18 C boundary cases, both complete environments and three actual one-CPU128MiB full-master scans passed at4.566,4.948,4.930seconds. The last uses the original watchdog volume callback. All eight component jobs and the separate aggregate audit closed with zero active children. Python3.14.7 and38 dependencies are unchanged. Parent admission is not affinity capped; child test jobs have four CPUs. This is storage engineering verification, not a full managed session on master or milestone/financial acceptance.
+
+Aggregate `artifacts/m5/native_storage_pair_verified.json`, SHAeb08494998a4dcd395c08e6a0423f790d76a3a7b0ab4c3ea7b8de36e61e4c58e, binds326 evidence pins,576 frozen inputs and217 package payload files. Source archive SHA6273bff6b4d29c0b4e22de32bb9e5652af3425ac5c70013019ebabf8646555cf; wheel SHA1b4f48710b0e3b337f7c9ba45b198d632238725fee8ba9993cfa31e171a56199. Native C/DLL/manifest are covered by the Python hash anchor and both full environment checks. See [the complete native report](../reports/M5_NATIVE_STORAGE.md).
 
 Checklist:
 
-- [x] Finish all106 original installed cases without changing the original package or frozen tests.
-- [x] Audit393 matching cases per lane,78 closed jobs, both original environments and preserved failures; independent original-release review3 CLEAR.
-- [x] Repair and review scanner integrity;32 affected source cases passed. Preserve all failed code variants and native timing probes.
-- [x] Obtain owner approval for native scanner rounds4–6; carry used rounds1–3 forward.
-- [ ] Publish this original-release and partial-scanner checkpoint; synchronize master, primary GitHub and the existing clone.
-- [ ] Implement and qualify the native reader, including unchanged one-CPU128MiB/five-second full-master scans and paired scanner tests.
-- [ ] Continue ownership/accounting, risk, durable dispatch/recovery and the integrated local rehearsal.
+- [x] Finish and independently verify the original106 continuation.
+- [x] Qualify the new native scanner in source and installed environments with every limit unchanged.
+- [ ] Finish native final review6, then publish/synchronize the cleared checkpoint.
+- [ ] Preserve closed passing scanner fixture roots through a small checked archive; verify every byte/link before removal.
+- [ ] Complete native ownership/economic accounting, risk/admission, durable dispatch/recovery and the integrated local rehearsal under M5_PAPER_ADMISSION_PLAN.md.
 
-The106 continuation is closed: session10026 exited0, seven jobs passed and all children closed. Bridge SHA5e814838de6e929704a83665396b4c9b99a5f6965395f57c2e4ad420923f7287; final original-release aggregate artifacts/m5/native_intents_pair_verified.json is cleared. Original source archive/wheel and213 installed modules remain unchanged. Four CPUs are the child-test Job limit; the parent admission process is not affinity capped. Current scanner paired qualification and full-master watchdog qualification are false. A full52-root preservation preflight exceeded the backup allowance and made no archive/deletion; a separate two-passed-root preflight fits, but its archive/cleanup helpers are only prepared and unexecuted.
+Rounds1–3 remain used; the owner approved native rounds4–6 only. Review4 was BLOCKED by a reproduced DLL-reparse lock gap; review5 cleared its file-identity repair. The final variant uses FileAttributeTagInfo with the same directory/reparse checks. Earlier failures, prelaunch refusals and all failed roots remain. Two direct-script environment checks refused the outside helper origin and briefly overlapped; corrected inline checks ran serially and passed unchanged requirements. No cleanup occurred in this increment. Full history is in the report and private receipts.
 
-Exact next action: publish this scoped checkpoint, then freeze the native-reader ABI/source/compiler/binary and validation commands under docs/STORAGE_NATIVE_PROPOSAL.md. Use existing GCC16.1.0, no installation or spending, rounds4–6 only. The separately prepared offline build namespace m5-storage-build-20261014-01 has not run. Preserve failed evidence, original M3 terminal history and every limit; keep Strata off. Actual broker actions remain outside scope.
+Exact next action: publish/synchronize the cleared native checkpoint. Then prepare a small archive of closed passing scanner fixture roots, independently verify bytes/links before checked removal, and continue native ownership/accounting under docs/M5_NATIVE_PORTFOLIO_PROGRESS.md. The five-second timing margin is narrow; scratch is near its unchanged5GiB cap. Preserve passing scratch before substantial fixture growth. Earlier maintenance04 helpers and the Python-only build namespace m5-storage-build-20261014-01 remain unexecuted. Keep Strata off, retain original M3 terminal history and every limit, and perform no actual broker action. M5/financial qualification remains open; M6 is0/10 actual sessions.
 
 ## Earlier partial checkpoint, superseded
 

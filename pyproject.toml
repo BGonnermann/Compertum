@@ -21,6 +21,10 @@ dev = ["pytest", "setuptools", "wheel"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+namespaces = false
+
+[tool.setuptools.package-data]
+compertum = ["_native/storage_scan.c", "_native/storage_scan.dll", "_native/storage_scan.json"]
 
 [tool.setuptools.data-files]
 "share/compertum" = ["uv.lock"]

@@ -7,10 +7,9 @@ import os
 from pathlib import Path
 import shutil
 import struct
-from queue import Queue,Empty,Full
-from threading import Event,Thread
 import time
 from uuid import uuid4
+from ._native_storage import Directory
 from .config import _DEFAULTS
 from .events import uuid,canonical
 from .persistence import checked_path,open_store
@@ -53,99 +52,38 @@ def _directory_rows(data):
 
 
 def sample_storage(project,*,volume_probe=None):
-    """Enumerate native AllocationSize in directory batches, without following links."""
-    api=WindowsAPI(); native=c.WinDLL('ntdll',use_last_error=True)
-    query=native.NtQueryDirectoryFile
-    query.restype=c.c_int32
-    query.argtypes=[HANDLE,HANDLE,HANDLE,HANDLE,c.POINTER(IOStatus),HANDLE,DWORD,c.c_int32,c.c_ubyte,HANDLE,c.c_ubyte]
-    started=time.monotonic(); root=project.root_path; resolved_root=root.resolve(); files={}; totals=dict.fromkeys(CAPS,0); reparse=[]
-    tasks=Queue();results=Queue(maxsize=4);worker_errors=Queue(maxsize=4);stop=Event();workers=[]
-    tasks.put((str(root),'',None));outstanding=1
+    """Enumerate every native AllocationSize without following links."""
+    started=time.monotonic();root=project.root_path;resolved_root=root.resolve()
+    files={};totals=dict.fromkeys(CAPS,0);reparse=[]
+    tasks=[(str(root),'',None)];buffer=c.create_string_buffer(65536)
     def deadline():
         if time.monotonic()-started>5:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
-    def send(message):
-        while not stop.is_set():
-            try:results.put(message,timeout=.025);return True
-            except Full:pass
-        return False
-    def read_directories():
-        # Each reader owns one buffer and at most one non-delete-shared handle.
-        def read(handle,restart):
-            deadline()
-            result=query(handle.get(),None,None,None,c.byref(status),buffer,len(buffer),2,False,None,restart)
-            if result & 0xffffffff==0x80000006:return None
-            if result!=0 or not 0<status.information<=len(buffer):raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
-            return _directory_rows(buffer[:status.information])
-        try:
-            buffer=c.create_string_buffer(65536);status=IOStatus()
-            while not stop.is_set():
-                try:task=tasks.get(timeout=.025)
-                except Empty:continue
-                deadline()
-                with api.open_directory(task[0]) as handle:
-                    data=read(handle,True)
-                    if data is None:
-                        if not send(('done',task,None,None)):return
-                    while data is not None and not stop.is_set():
-                        # One bounded lookahead folds completion into the final batch.
-                        # This avoids a second caller handoff for each small directory.
-                        following=read(handle,False)
-                        acknowledged=Event() if any(row[3]&0x400 for row in data) else None
-                        if not send(('last' if following is None else 'batch',task,data,acknowledged)):return
-                        # Ordinary copied metadata needs no path access at merge time.
-                        # Reparse batches retain their path lock through caller validation.
-                        while acknowledged is not None and not acknowledged.wait(.025):
-                            if stop.is_set():return
-                        data=following
-        except BaseException as error:
-            worker_errors.put_nowait(error)
-            send(('error',None,error,None))
-    try:
+    def probe():
         deadline()
-        for index in range(4):
-            worker=Thread(target=read_directories,name=f'CompertumStorageScan-{index}')
-            worker.start();workers.append(worker)
-        while outstanding:
-            deadline()
-            if volume_probe is not None:volume_probe()
-            deadline()
-            try:kind,task,data,acknowledged=results.get(timeout=.025)
-            except Empty:continue
-            if kind=='error':raise data
-            if kind=='done':outstanding-=1;continue
-            directory,prefix,inherited_category=task
-            try:
-                for name,length,allocated,attributes in data:
+        if volume_probe is not None:volume_probe()
+        deadline()
+    while tasks:
+        probe()
+        directory,prefix,inherited_category=tasks.pop()
+        with Directory(directory,buffer) as handle:
+            while True:
+                probe();data=handle.read();deadline()
+                if data is None:break
+                for name,length,allocated,attributes in _directory_rows(data):
                     relative=prefix+name;file_category=inherited_category or category(name)
                     if attributes&0x400:
-                        path=Path(directory)/name; target=path.resolve()
-                        if not target.is_relative_to(resolved_root): raise RuntimeRefused('STORAGE_REPARSE_ESCAPE')
-                        reparse.append(relative)  # Target is inventoried through its ordinary in-root path.
+                        path=Path(directory)/name;target=path.resolve()
+                        if not target.is_relative_to(resolved_root):raise RuntimeRefused('STORAGE_REPARSE_ESCAPE')
+                        reparse.append(relative)
                     elif attributes&0x10:
-                        tasks.put((os.path.join(directory,name),relative+'/',file_category));outstanding+=1
-                        continue
+                        tasks.append((os.path.join(directory,name),relative+'/',file_category));continue
                     charged=max(length,allocated)
                     files[relative]={'size':length,'allocated':allocated,'charged':charged}
                     totals[file_category]+=charged
-            finally:
-                if acknowledged is not None:acknowledged.set()
-            if kind=='last':outstanding-=1
-    finally:
-        stop.set()
-        # Native synchronous I/O cannot be cancelled by a Future. Join actual readers;
-        # any slow teardown is included in the final deadline, never a partial success.
-        cleanup_error=None
-        for worker in workers:
-            while worker.is_alive():
-                worker.join(.025)
-                if volume_probe is not None:
-                    try:volume_probe()
-                    except BaseException as error:
-                        cleanup_error=error;volume_probe=None
-        if cleanup_error is not None:raise cleanup_error
-        if not worker_errors.empty():raise worker_errors.get_nowait()
+        # Checked native closure is part of the five-second scan.
+        probe()
     completed=time.monotonic()
-    if completed-started>5: raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
+    if completed-started>5:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
     return {'project_id':project.project_id,'categories':totals,'total_bytes':sum(totals.values()),
             'free_bytes':shutil.disk_usage(root).free,'files':files,'reparse_paths':reparse,
             'started_monotonic':started,'completed_monotonic':completed,'scan_seconds':completed-started}
