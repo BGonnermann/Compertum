@@ -1,20 +1,22 @@
 # Decisions needed before combining old test folders
 
-15 October 2026. **The maintenance work cannot start. No execution procedure is ready.** This report explains what was checked, what remains unknown, and which owner decisions are needed before the four-folder [consolidation plan](FIXTURE_CONSOLIDATION_PLAN.md) can proceed.
+15 October 2026. **The separate 31-link cleanup is complete. Broader maintenance remains blocked.** This report explains what was checked, what remains unknown, and which owner decisions are needed before the four-folder [consolidation plan](FIXTURE_CONSOLIDATION_PLAN.md) can proceed. No execution procedure for that consolidation is ready.
 
 No compressed backup was created. No folder was moved, extracted or removed. File permissions and program code were not changed. Strata remains off. The twelve scanner experiment attempts remain used.
 
-## Owner-approved link cleanup, waiting for Windows elevation
+## Owner-approved link cleanup, completed
 
 The owner has now authorized removing the 31 old test links if they are no longer needed. That permission covers those exact shortcuts, not their target folders or the separate four-folder consolidation.
 
 The access failure is now explained. Read-only checks failed for all 31 links both inside and outside Codex's restriction. A separate check requested deletion rights without deleting anything; all 31 requests also failed. The process runs as `HOLMES\bgonn` without administrator rights. All eight parent test folders are owned by `Holmes\CodexSandboxOffline` and explicitly give `HOLMES\bgonn` read and execute access only. Broader Codex access does not override those Windows permissions.
 
-A narrow cleanup is prepared locally in `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE.md`. The owner explicitly approved running it as administrator. It changes no ownership, file permissions or enabled Windows privileges. Before removing anything, it must prove that all 31 entries are symbolic links pointing to numbered test folders beside their own shortcuts and save their original link records. It removes each link directly through a checked handle, without recursive removal, and checks that the target remains unchanged.
+A narrow cleanup ran under the owner's explicit administrator approval. The final procedure is `artifacts/m5/OLD_TEST_LINK_CLEANUP_PROCEDURE_V4.md`. Before removing anything, the unchanged removal helper proved that all 31 entries were symbolic links pointing to numbered test folders beside their own shortcuts. It saved their identifiers, exact targets and original Windows link records, then saved each removal intent before removing that link through its checked handle. It used no recursive removal and changed no ownership, file permissions or enabled Windows privileges.
 
-No cleanup has run. The independent review cleared the exact procedure, but Windows canceled the administrator launch before starting it. The returned error was "The operation was canceled by the user." That message alone does not establish whether a prompt appeared or was deliberately canceled. The written permission remains recorded; completing Windows' approval step requires owner interaction. No cleanup process receipt or result was created, and no duplicate was launched.
+The first Windows approval request was canceled. The second administrator shell exited without a saved preflight exception or child receipt. A read-only check found that its process check rejected an idle web server serving the separate Vesper website folder. Round 3 permitted only that exact process, with fixed identity, command fingerprint, memory and recent CPU limits, but stopped before cleanup because PowerShell converted the saved timestamp into a date value. The owner approved one additional review round. Round 4 corrected that literal comparison, passed independent review and completed. Every earlier launch, review and failed preflight record remains saved. The unrelated server was not stopped or changed.
 
-If any link or target differs from the expected pattern, the procedure stops before removal. Removing these shortcuts would clear those 31 unreadable entries from later checks; it would not by itself prove that storage capacity is sufficient.
+Exactly 31 links were removed. All 31 target folders existed and remained unchanged. The process exited with code 0 in 0.480002 seconds under its fifteen-second deadline. A separate live check verified every link absent and every target identifier and recorded property unchanged. It also matched 65 original reports, 112 original receipt fingerprints, 43 inspection evidence fingerprints and all 217 source plus 217 installed program files. No product tests ran: zero passed, failed or skipped cases.
+
+The private completion record is `artifacts/m5/old_test_link_cleanup_completed_verified.json`, SHA-256 `a0fd42a3006479fff67accf9202eeb5482e50766bc4ac096c762007801fd8251`. The original link manifest, per-link journal, result and process exit record are retained beside it. Do not rerun the cleanup. It clears those specific denied entries from the earlier inventory; no complete storage scan or scratch write occurred, and current capacity remains unqualified. No backup or four-folder consolidation was performed.
 
 ## What the backup can preserve
 
@@ -38,13 +40,13 @@ The proposed backup contains the earlier measured compressed file contents and a
 
 The owner must choose whether to keep the originals until complete restoration is proved, or accept these copies as historical evidence with the missing properties listed above. Accepting historical copies would not authorize running an extracted environment or removing the originals. Removal still needs a separately reviewed procedure and approval. Failed, mixed, unmapped and parent test evidence, along with files that reserve disk space, stays protected.
 
-## Which retained links could break
+## Which retained links could break, original inspection and later resolution
 
 The inspection counted 1,669 Windows links without reading the contents of their targets. It read the stored targets and link data for 1,638 links. For each readable link, it checked every intermediate target against the four selected folders. No incoming dependency was found among those 1,638 links.
 
 The other 31 are old pytest `current` links. Windows refused access to their stored link data. A final check requested zero access rights, without changing permissions or enabling privileges. All 31 still returned `CreateFileW:5`, meaning access denied. That check exited normally in 0.4196186 seconds under a ten-second deadline, but all 31 metadata reads failed. Exact paths are retained in `artifacts/m5/fixture_gate_link_followup.json`.
 
-Their unknown targets could still depend on the selected folders. Links outside the master folder were not inspected either. The zero count from readable links therefore does not justify removing anything. No `current` link was changed. Changing permissions on failed test evidence is not an accepted remedy. Further inspection needs an owner-approved way to read those link records without changing them, or verified observations supplied by the owner.
+At inspection time, those unknown targets left the dependency check incomplete. The later approved cleanup read and preserved all 31 original link records, confirmed their numbered sibling targets and removed only the shortcuts. Their target folders remain intact. This resolves those 31 denied entries. Links outside the master folder were not inspected, and no later complete inventory was taken. The original zero count among readable links remains a historical observation, not authority to remove the four selected folders. File permissions on failed test evidence remain unchanged.
 
 All 320 links inside `backups/` were readable. Windows reported zero primary data length and allocation, with no additional named streams. Their targets were not counted again. This resolves the backup-link error that stopped the earlier preparation, while preserving its failed receipt.
 
@@ -78,7 +80,7 @@ This is a proposed size limit, not reserved space or proof of restoration. A lat
 
 ## Why maintenance remains blocked
 
-The current decision is **do not start maintenance**. The preservation choice, unknown link targets and insufficient scratch capacity must be resolved before an execution procedure is prepared. A diagnostic program exiting with code zero does not resolve those problems.
+The current decision is **do not start broader maintenance**. The separate 31-link cleanup is complete. The preservation choice, current capacity and proposed maintenance exception must still be resolved before the four-folder execution procedure is prepared. The cleanup's successful exit does not qualify storage capacity.
 
 The proposed one-time maintenance exception would keep research and broker work stopped. It would add no scratch files, write bounded receipts under records, keep backup growth within the proposed 1.5 MiB allowance, and record the starting scratch overage honestly. Scratch use would fall only after separately approved removal. Ordinary work would remain blocked while any storage group exceeds its limit.
 
@@ -94,4 +96,4 @@ Private evidence remains in the three `.cache/test-runs/m5-fixture-consolidation
 
 Each bounded inspection used one CPU and a 128 MiB memory limit enforced by Windows. All exits were observed and no child processes remained. The final deadline was reduced to 75 seconds. The separate 31-link check also exited normally but retained all 31 access failures. No product tests ran: zero passed, failed or skipped test cases. These are inspection results, not milestone acceptance. The 34 reader19 test drafts remain unexecuted; the remaining M5 requirements and all ten actual M6 sessions remain open.
 
-The next required decisions are the owner's preservation choice, a way to read the 31 denied link records without changing them, and approval or rejection of the proposed one-time maintenance exception. No further complete inspection, backup or removal is covered by this closeout. The execution procedure waits for those decisions and verified capacity. Documentation publication remains authorized; the requested clone waits for sufficient scratch capacity.
+The next required decisions are the owner's preservation choice and approval or rejection of the proposed one-time maintenance exception, together with verified current capacity. The denied-link issue has been resolved by the separately approved cleanup above. No further complete inspection, backup or removal is covered by this closeout. The four-folder execution procedure waits for the remaining decisions and verified capacity. Documentation publication remains authorized; the requested clone waits for sufficient scratch capacity.
