@@ -1,12 +1,12 @@
 # Native ownership and economic observations
 
-14 October2026. Next accepted local engineering dependency after exact intents18. Implementation has not started. No actual account request, broker write, financial qualification or order authority is included.
+14 October2026. Next accepted local engineering dependency after exact intents18. Implementation has not started. Thirty-four private acceptance drafts are syntax-checked; no reader case has executed because initial storage admission exceeded five seconds. No actual account request, broker write, financial qualification or order authority is included.
 
 ## Checklist
 
 - [x] Independent bounded design audit: existing opening/account/history readers support a small read-only increment; no missing owner decision.
-- [ ] Finish paired verification, final review and publication of18 before changing frozen product inputs.
-- [ ] Define a private reader over the intent's original retained input context and immutable opening/history references; freeze precise regression cases.
+- [x] Finish393-case paired verification, final review and publication of18 at140403c; separately qualify/publish native storage at24b0a5c.
+- [x] Define a private reader over the intent's original retained input context and immutable opening/history references; freeze34 initial regression drafts privately.
 - [ ] Implement, repair, verify matching source/package cases and complete environments, then review and publish.
 - [ ] Continue the separately defined actual-write history, risk and consumption dependencies; unknown producers remain blocking.
 
@@ -35,7 +35,7 @@ Nonempty native history cannot yet be reconciled. Actual-write records, authenti
 
 API direction from the follow-up audit: a private `_portfolio_context(context)` factory accepts only the genuine current account-only or combined input context. It borrows that exact object, retaining owner/slot/generation/binding checks; its close releases only its own references. Intent integration later passes the retained `_issued[intent_id][1]` context. No new public control is needed. A confirmed account-only context with zero observations is the positive fixture; CANCEL remains a nonempty/unattributed-target case. Operator-intent confirmation is a later independent admission gate, so read-only portfolio diagnostics may precede it. Compose portfolio durable checks with the original input proof while preserving its original pure lifetime/health tail and single-use identity; do not validate a proof and then perform later portfolio I/O. The exact private composition mechanism still needs focused design/tests before implementation.
 
-Exact next action: complete18's393-case paired closeout, inspect actual storage headroom, then freeze this reader's API and tests against the current source. This plan is engineering preparation, not verified implementation or milestone acceptance.
+Exact next action: freeze this reader's API and precise tests against the current published source, then implement. Source and installed original18 have393 matching passing cases; all106 continuation cases are complete. Native storage is separately qualified and published. This plan is engineering preparation, not verified reader implementation or milestone acceptance.
 
 ## Reviewed proof composition
 
@@ -50,4 +50,6 @@ Freeze decisive probes for original proof/resource identity and duplicate/reuse 
 Factory qualification also requires the execution owner's database to be its current store connection. Retain that exact connection on the wrapper for pending-transaction checks even after owner-field replacement. Diagnostics expose reference hashes, counts and explicit observation statuses; raw account identifiers, credentials, cash balances and journal bodies remain private. A matching opening cash observation does not clear the separate ownership, economic-coverage, fee/action, risk or consumption requirements. Classify fake-session-only history as nonempty local evidence even though the older account-history helper excludes that table from its `empty` flag.
 
 
-Current dependency:increment18 has393 source and287 installed passing cases, with106 installed cases blocked by production storage admission. Reader implementation has not begun. The owner approved continuation through full ownership/accounting and integrated local rehearsal; this empty-opening reader alone will not close gate2. Preserve the seven pending18 groups and resolve infrastructure admission before starting native verification.
+Storage and original18 dependencies are closed. Maintenance07 preserves the five passed scanner roots in a byte/link verified archive and leaves every failed fixture untouched. The post-cleanup actual watchdog scan passed in4.586seconds with all limits unchanged. Reader19 uses a fresh checked128MiB namespace; request only a justified bounded growth allowance (initially64MiB for small serial groups), enforce both allowance and absolute ceiling, and preserve the five-second storage scan. The owner approved continuation through full ownership/accounting and integrated local rehearsal; this empty-opening reader alone will not close gate2.
+
+Current infrastructure status supersedes the preceding successful admission observation: red01 refused before child creation; maintenance08 refused its initial scan before backup writes; an own-process one-CPU diagnostic also exceeded five seconds. Maintenance08 round1 cleared only the preservation procedure for four passed18 roots (1004files/507directories/35links; measured archive2691734 bytes, executable3MiB bound); it did not authorize bypassing failed admission. No archive08 or cleanup08 ran. The frozen34 draft IDs, hashes and original target paths are in `inventory19-frozen-probes.json`; draft bytes are in `draft-tests` and `frozen-reader-probes19.zip` under this increment's private scratch. Native rounds1–6 are used, extension approval7–9 pending. Reader19 implementation reviews used:0/3. Resolve the storage blocker before restoring/running these drafts or starting implementation; do not count a prelaunch refusal as a failed or passing reader test.
