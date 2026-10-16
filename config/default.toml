@@ -7,7 +7,7 @@ new_spending_usd = "0.00"
 total_bytes = 53687091200
 data_bytes = 16106127360
 models_bytes = 5368709120
-scratch_bytes = 5368709120
+scratch_bytes = 10737418240
 records_bytes = 5368709120
 backups_bytes = 21474836480
 execution_reserve_bytes = 1073741824
@@ -43,8 +43,10 @@ heartbeat_seconds = 5
 missing_heartbeat_seconds = 15
 task_lease_seconds = 30
 volume_monitor_seconds = 1
-project_monitor_seconds = 5
-recovery_barrier_seconds = 30
+project_monitor_seconds = 35
+storage_scan_seconds = 30
+control_request_seconds = 300
+recovery_barrier_seconds = 240
 
 [paths]
 state = "state"

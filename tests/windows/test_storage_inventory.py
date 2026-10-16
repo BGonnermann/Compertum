@@ -26,7 +26,7 @@ def test_nested_inventory_counts_every_file_in_its_root_category(tmp_path):
 
 def test_directory_batches_still_enforce_deadline(tmp_path,monkeypatch):
  import compertum.storage as storage
- values=iter((0,6));monkeypatch.setattr(storage.time,'monotonic',lambda:next(values))
+ values=iter((0,storage.SCAN_SECONDS+1));monkeypatch.setattr(storage.time,'monotonic',lambda:next(values))
  with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_DEADLINE'):sample_storage(resolve_project(tmp_path))
 
 def test_multi_batch_directory_and_empty_siblings_have_exact_inventory(tmp_path):

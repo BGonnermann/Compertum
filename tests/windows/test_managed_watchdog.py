@@ -42,13 +42,13 @@ def test_grant_committed_during_scan_is_not_false_unaccounted_growth(tmp_path,mo
     try:
         manager=StorageManager(coordinator,load_config(tmp_path/'config.toml',tmp_path));reserve_runtime_paths(manager)
         monitor=owner_module.StorageMonitor(watchdog,project);monitor.tick();monitor.last_scan=0
-        actual=owner_module.sample_storage
+        actual=owner_module.iter_storage
         def concurrent_publication(*args,**kwargs):
             task_id=str(uuid4());writer=manager.open_artifact(manager.reserve_bytes(task_id,'records',128),f'artifacts/runs/{task_id}/concurrent.bin')
             try: writer.write(b'admitted during scan');writer.publish()
             finally: writer.close()
-            return actual(*args,**kwargs)
-        monkeypatch.setattr(owner_module,'sample_storage',concurrent_publication)
+            return (yield from actual(*args,**kwargs))
+        monkeypatch.setattr(owner_module,'iter_storage',concurrent_publication)
         monitor.tick()
         assert monitor.reason is None
         assert not (tmp_path/'state/watchdog/halt.json').exists()

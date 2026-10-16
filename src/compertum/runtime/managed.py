@@ -71,7 +71,8 @@ def launch_owner(supervisor,role,*,expect_execution=True):
             handle.startup_evidence=startup_evidence;handle._startup_plan_raw=startup_binding.raw
             remote=offer.accept(process.get())
             from .owner_rpc import call_owner
-            observed=call_owner(remote,'status',{}).get('startup')
+            # First-time reserve creation includes a complete storage census.
+            observed=call_owner(remote,'status',{},timeout=35).get('startup')
             expected={'schema':'observed-python-startup-v1','pid':info.pid,'plan_sha256':startup_evidence['plan_sha256']}
             from .startup_record import validate_proof
             from compertum.data.errors import DataError

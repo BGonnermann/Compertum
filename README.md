@@ -1,5 +1,13 @@
 # Compertum
 
+16 October 2026. **Workload limits are adjusted and the blocked private portfolio reader is verified.** Complete storage scans have 30 seconds and yield to heartbeat work; inventory freshness is 35 seconds. Recovery has a shared 240-second deadline. Authenticated commands allow 300 seconds, with five-second authentication and reply acknowledgement. The current task has 4 GiB temporary space inside a 10 GiB scratch category; the 50 GiB total and 1 GiB emergency reserve remain unchanged.
+
+The reader passed **64 identical source/installed cases**, zero failures/errors/skips, with both final environments byte-verified and independent reader review clear. Installed native three-owner recovery also passed. The full final capacity census passed with 29.567 GiB allocated, including 8.492 GiB scratch, and 187.673 GiB physical disk free. Backups still have only 522,272 bytes of category headroom. Strata remains off; the original installed environment, saved master stop and terminal M3 audit history remain preserved.
+
+See [timers, storage and future capacity](reports/RESOURCE_TIMERS_AND_STORAGE.md), [the reader verification](reports/M5_PRIVATE_PORTFOLIO_CONTEXT.md), and [the current checkpoint](docs/CURRENT_CHECKPOINT.md). M5 requirements 2-5 remain open; M6 remains 0/10 actual sessions.
+
+## Earlier preparation and results
+
 16 October 2026. **The preview resource check is fixed and independently reviewed.
 One complete capacity census ran and refused the requested 1 GiB scratch hold.**
 The hold exceeds remaining scratch capacity by **1,063,722,952 bytes**. All 31
@@ -16,7 +24,9 @@ Updated 15 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.**
 
 **Primary repository: [BGonnermann/Compertum](https://github.com/BGonnermann/Compertum)** (private). Future updates use the BGonnermann account. The previous repository remains a historical reference; the full commit history is preserved.
 
-## Current position
+## Historical position before the 16 October resource change
+
+The results and next actions below are preserved history. The dated update above and the current checkpoint supersede their storage limits and reader19 status.
 
 Original intent release18 is verified:393 matching cases per environment, including all106 formerly pending installed cases; final original-release review3 CLEAR. The native storage scanner separately passed43 matching source/package cases,18 C boundary cases, both complete environment checks and three full-master scans within the unchanged five-second/one-CPU/128MiB limits. Times:4.566,4.948,4.930seconds; the last uses the original watchdog volume callback. Final native review6 is CLEAR. Scan headroom is narrow; preserve closed passing scratch before further fixture growth. See [intent verification](reports/M5_NATIVE_INTENTS.md), [native storage evidence](reports/M5_NATIVE_STORAGE.md) and [the current checkpoint](docs/CURRENT_CHECKPOINT.md). Ownership/accounting, risk, durable dispatch/recovery and the local rehearsal remain open. M6 is0/10 actual supervised sessions.
 
@@ -30,7 +40,7 @@ All 217 source and 217 installed program files, prior failed receipts, backups, 
 
 Preparation follow-up: the worker is on hold and confirmed that no native Job started. Unapplied integration and regression drafts now select 61 cases per lane. The preservation receipt exists. Complete isolated dependency payloads require at least 345,161,969 bytes, exceeding the 8,388,608-byte scratch ceiling. The executable procedure remains incomplete. See [the three preparation gaps and storage decision](docs/STORAGE_PREPARATION_GAPS.md). No candidate or product test ran.
 
-Exact next action: select a storage and installation approach before completing and reviewing the executable procedure. Keep the five-second limit, every saved record, and the worker hold. Do not run another admission check or clear the saved stop.
+Historical next action, now superseded: select a storage and installation approach before completing and reviewing the executable procedure. Keep the five-second limit, every saved record, and the worker hold. Do not run another admission check or clear the saved stop.
 
 The owner-approved administrator cleanup has now removed exactly 31 old shortcuts. A separate live check confirmed all 31 target folders are unchanged and all links are absent. No permissions changed. The original failed launches and saved link records remain preserved; all 217 source and installed program files still match. The [cleanup report](docs/FIXTURE_CONSOLIDATION_GATES.md) explains the earlier Windows permission failure and the remaining storage decisions.
 

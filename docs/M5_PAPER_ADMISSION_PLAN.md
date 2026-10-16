@@ -1,5 +1,14 @@
 # Native paper admission integration
 
+## Current continuation - 16 October 2026
+
+The owner authorized workload-based timer and temporary-storage adjustments, superseding the older five-second scan and scratch limits below. The blocked reader19 increment is complete: 59 reader cases plus five compatibility cases passed identically in source and installed environments, zero failures/errors/skips, with complete environment-byte verification and independent review round 2 clear. The wrapper preserves original private inputs and single-use proof timing, pins complete bounded history, and always leaves ownership/economic/risk/consumption authority blocked. This is a prerequisite within gate 2, not closure of gate 2. See [the reader report](../reports/M5_PRIVATE_PORTFOLIO_CONTEXT.md) and [resource measurements](../reports/RESOURCE_TIMERS_AND_STORAGE.md).
+
+Next local increment: qualified native ownership and economic evidence against the immutable opening, complete local history and broker observations. Preserve the separate remaining risk, durable dispatch and integrated rehearsal gates. The saved master stop and terminal M3 history remain preserved; Strata stays off. Backup headroom must be resolved before ordinary recovery snapshots.
+
+## Earlier accepted plan and preserved evidence
+
+
 14 October 2026. Required local dependency after durable market lineage. The owner's autonomous engineering direction covers implementation and simulated verification. It does not grant actual account access or approve any concrete broker write.
 
 ## Approved local finish line — 14 October 2026

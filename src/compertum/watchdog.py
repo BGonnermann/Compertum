@@ -1,11 +1,12 @@
 """Restrictive decisions from measured storage; never enables brokerage."""
 import time
-from .storage import CAPS,GIB
+from .storage import CAPS,GIB,SCAN_SECONDS,INVENTORY_MAX_AGE
 
 
 def check_storage(observation,reservations,*,previous=None):
     reason=None
-    if time.monotonic()-observation['completed_monotonic']>5 or observation['scan_seconds']>5:
+    if (not 0<=time.monotonic()-observation['completed_monotonic']<=INVENTORY_MAX_AGE
+            or not 0<=observation['scan_seconds']<=SCAN_SECONDS):
         reason='STORAGE_STALE'
     elif observation['free_bytes']<50*GIB: reason='FREE_SPACE_FLOOR'
     elif observation['total_bytes']>50*GIB or any(observation['categories'][key]>cap for key,cap in CAPS.items()):

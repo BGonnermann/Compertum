@@ -14,10 +14,11 @@ from compertum.runtime.errors import RuntimeRefused
 
 ROOT=Path(__file__).parents[2]
 
-def test_native_control_duplicate_and_conflicting_request(tmp_path):
+@pytest.mark.parametrize('delay',[0,6])
+def test_native_control_duplicate_and_conflicting_request(tmp_path,delay):
     env={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','TEMP','TMP','PYTHONPATH'}}
     env.update(__PYVENV_LAUNCHER__=sys.executable,PYTHONNOUSERSITE='1',PYTHONDONTWRITEBYTECODE='1')
-    child=subprocess.Popen([sys.executable,'-B',str(ROOT/'tests/helpers/control_holder.py'),str(tmp_path)],
+    child=subprocess.Popen([sys.executable,'-B',str(ROOT/'tests/helpers/control_holder.py'),str(tmp_path),str(delay)],
         executable=sys._base_executable,env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,creationflags=0x08000000)
     try:
         deadline=time.monotonic()+5

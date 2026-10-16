@@ -1,5 +1,5 @@
 """Owner-held recovery barriers and append-preserved staged generations."""
-from contextlib import ExitStack
+from contextlib import ExitStack,contextmanager
 from datetime import datetime,timezone
 import hashlib
 import importlib.metadata
@@ -41,12 +41,27 @@ def _package_hash():
     return digest.hexdigest()
 
 
-def _write(manager,parent,path,raw):
+@contextmanager
+def _barrier_budget(manager,seconds):
+    deadline=time.monotonic()+seconds;previous=manager.health_probe
+    def check():
+        if time.monotonic()>=deadline:raise RuntimeRefused('RECOVERY_BARRIER_TIMEOUT')
+    def progress():
+        check()
+        if previous is not None:previous()
+        check()
+    manager.health_probe=progress
+    try:
+        check();yield check
+    finally:manager.health_probe=previous
+
+
+def _write(manager,parent,path,raw,*,before_publish=None):
     child=manager.split_grant(parent,max(len(raw),1))
     writer=manager.open_artifact(child,path)
     try:
         for offset in range(0,len(raw),8*1024**2): writer.write(raw[offset:offset+8*1024**2])
-        return writer.publish()
+        return writer.publish(before_publish=before_publish)
     finally: writer.close()
 
 
@@ -68,9 +83,10 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
             or recovery_lease.project_id!=project.project_id or watchdog_lease.project_id!=project.project_id
             or reserve.lease is not stores['execution'].lease): raise RuntimeRefused('RECOVERY_OWNERS_REQUIRED')
     barrier_id=str(uuid4());recovery_id=str(uuid4());base=f'backups/{grant.task_id}/{recovery_id}'
-    started=utc();deadline=time.monotonic()+30
+    started=utc()
     with ExitStack() as stack:
         stack.enter_context(_owner_scope(recovery_lease))
+        check_deadline=stack.enter_context(_barrier_budget(manager,manager.config.resources['recovery_barrier_seconds']))
         if remote_watchdog:
             stack.enter_context(_remote_scope(watchdog_remote))
             ack=call_owner(watchdog_remote,'checkpoint',{'barrier_id':barrier_id})
@@ -80,7 +96,7 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
         for role in sorted(stores): stack.enter_context(stores[role]._live())
         from .final_audit_recovery import snapshot,closed
         closed(snapshot(stores['coordinator'].conn))
-        observed=sample_storage(project);reserve_info=reserve.receipt()
+        observed=manager.observation();reserve_info=reserve.receipt()
         if reserve_info['capacity_bytes']!=GIB or reserve_info['unused_bytes']<256*1024**2 or reserve_info['allocated_bytes']<reserve_info['unused_bytes']:
             raise RuntimeRefused('RESERVE_UNVERIFIED')
         snapshots=[];checkpoints={};all_artifacts=[];pending=[];dedup=[]
@@ -140,7 +156,7 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
                 copied=writer.publish()
             finally: writer.close()
             all_artifacts.append({**artifact,'path':copied['path']})
-        if time.monotonic()>deadline: raise RuntimeRefused('RECOVERY_BARRIER_TIMEOUT')
+        check_deadline()
         completed=utc()
         manifest={'schema_version':'1','record_type':'RecoveryManifest','recovery_set_id':recovery_id,'project_id':project.project_id,
             'created_at':completed,'code_sha256':_package_hash(),
@@ -162,8 +178,8 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
         # No publication until referenced bytes, message relationships and schema validate.
         _validate_manifest(manifest,project.root_path)
         if verify_consumption_guard(project)!=guard or verify_seal_journal(project)!=seals or verify_attempt_guard(project)!=attempts or verify_opening(project)!=opening:raise RuntimeRefused('RECOVERY_JOURNAL_BOUNDARY_MISMATCH')
-        if time.monotonic()>deadline:raise RuntimeRefused('RECOVERY_BARRIER_TIMEOUT')
-        published=_write(manager,grant,f'{base}/manifest.json',canonical(manifest))
+        check_deadline()
+        published=_write(manager,grant,f'{base}/manifest.json',canonical(manifest),before_publish=check_deadline)
         return {'status':'PUBLISHED','manifest_path':str(project.root_path/published['path']),'manifest':manifest}
 
 

@@ -4,6 +4,20 @@
 
 ## Active checkpoint
 
+16 October 2026. **Workload limits are adjusted and the blocked private portfolio reader is verified.** Complete storage scans have 30 seconds and yield to heartbeat work; inventory freshness is 35 seconds. Recovery has a shared 240-second deadline. Authenticated commands allow 300 seconds, with five-second authentication and reply acknowledgement. The current task has 4 GiB temporary space inside a 10 GiB scratch category; the 50 GiB total and 1 GiB emergency reserve remain unchanged.
+
+The reader passed **64 identical source/installed cases**, zero failures/errors/skips, with both final environments byte-verified and independent reader review clear. Installed native three-owner recovery also passed. The full final capacity census passed with 29.567 GiB allocated, including 8.492 GiB scratch, and 187.673 GiB physical disk free. Backups still have only 522,272 bytes of category headroom. Strata remains off; the original installed environment, saved master stop and terminal M3 audit history remain preserved.
+
+- [x] Measure storage and revise the workload policy under current owner authority.
+- [x] Verify timer, heartbeat, IPC, storage and recovery behavior; preserve failed runs.
+- [x] Complete reader19 and its added history, schema, privacy and expiry checks.
+- [x] Verify matching source/installed results and complete environment bytes.
+- [x] Document measured timers, capacity and future space measurements.
+
+Exact next action: implement the qualified native ownership/economic producer against the immutable opening and complete history. Resolve backup headroom before ordinary new recovery snapshots or any saved-stop recovery. M5 requirements 2-5 remain open and M6 remains 0/10 actual sessions. See [timers and storage](../reports/RESOURCE_TIMERS_AND_STORAGE.md) and [the private-reader report](../reports/M5_PRIVATE_PORTFOLIO_CONTEXT.md).
+
+### Prior preview capacity refusal, preserved history
+
 16 October 2026. **The preview resource check is fixed and independently reviewed.
 One complete capacity census ran and refused the requested 1 GiB scratch hold.**
 The hold exceeds remaining scratch capacity by **1,063,722,952 bytes**. All 31

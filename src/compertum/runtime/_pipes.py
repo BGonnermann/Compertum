@@ -64,7 +64,9 @@ def verify_peer(registration, observed):
 
 
 def deadline_after(timeout):
-    if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 5:
+    # Ordinary peer/authentication calls still request five seconds. Trusted
+    # startup and operator requests may include bounded storage work.
+    if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 300:
         raise RuntimeRefused("PIPE_DEADLINE_DENIED")
     return time.monotonic() + timeout
 
@@ -72,7 +74,7 @@ def deadline_after(timeout):
 def _milliseconds(deadline):
     remaining = deadline - time.monotonic()
     if remaining <= 0: raise RuntimeRefused("PIPE_DEADLINE_EXCEEDED")
-    return max(1, min(5000, math.ceil(remaining * 1000)))
+    return max(1, min(300000, math.ceil(remaining * 1000)))
 
 
 class SECURITY_ATTRIBUTES(c.Structure):

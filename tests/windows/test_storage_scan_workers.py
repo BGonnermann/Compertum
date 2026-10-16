@@ -67,7 +67,7 @@ def test_failure_closes_every_reader_and_directory(tmp_path,monkeypatch,failure)
         calls+=1
         if calls>=2:
             if failure=='callback':raise RuntimeRefused('INJECTED_CALLBACK_FAILURE')
-            if failure=='deadline':monkeypatch.setattr(storage.time,'monotonic',lambda:start+6)
+            if failure=='deadline':monkeypatch.setattr(storage.time,'monotonic',lambda:start+storage.SCAN_SECONDS+1)
     expected={'native':'INJECTED_NATIVE_FAILURE','callback':'INJECTED_CALLBACK_FAILURE','deadline':'STORAGE_SCAN_DEADLINE'}[failure]
     with pytest.raises(RuntimeRefused,match=expected):storage.sample_storage(project,volume_probe=probe)
     assert handles and all(h.closed for h in handles)

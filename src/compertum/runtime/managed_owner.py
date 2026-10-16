@@ -18,7 +18,7 @@ from .errors import RuntimeRefused
 from .execution_health import MutualHealth,disarm_execution,execution_durable
 from compertum.events import canonical
 from compertum.persistence import open_store,checked_path,_active_store_path
-from compertum.storage import sample_storage,GIB,open_journal_reserve,create_journal_reserve
+from compertum.storage import iter_storage,GIB,INVENTORY_MAX_AGE,open_journal_reserve,create_journal_reserve
 from compertum.watchdog import check_storage
 
 
@@ -27,6 +27,7 @@ class StorageMonitor:
         self.lease=lease;self.project=project;self.previous=None;self.observation=None
         self.last_volume=0;self.last_scan=0;self.parent_heartbeat=time.monotonic();self.reason=None
         self.last_scan_started=0;self.last_volume_measured=0
+        self.scan=None
         halt=checked_path(project.root_path,project.root_path/'state/watchdog/halt.json')
         if halt.exists(): self.reason='RETAINED_WATCHDOG_HALT'
         self.mutual=MutualHealth(lease,self.trip,required=expect_execution)
@@ -51,14 +52,25 @@ class StorageMonitor:
         now=time.monotonic()
         if now-self.parent_heartbeat>15: self.trip('SUPERVISOR_HEARTBEAT_STALE')
         self.volume()
-        # Start scans at most 2.5 seconds apart; full scan still has its 5s bound.
-        if now-self.last_scan>=2.5:
+        # Yield between batches so pipe replies, volume checks and peer health
+        # keep their own deadlines even when a complete inventory takes longer.
+        if self.scan is None and now-self.last_scan>=2.5:
             self.last_scan=now;self.last_scan_started=now
+            self.scan=iter_storage(self.project,volume_probe=self.volume)
+        if self.scan is not None:
+            until=time.monotonic()+.05
+            try:
+                while True:
+                    next(self.scan)
+                    if time.monotonic()>=until:return
+            except StopIteration as completed:
+                observed=completed.value;self.scan=None
+            except BaseException:
+                self.close();raise
             path=_active_store_path(self.project.root_path,self.project.project_id,'coordinator')
             # Admission commits the grant before any bytes are created. Read the
             # ledger after the scan so a concurrent admitted publication cannot
             # appear to be unreserved merely because the old ledger was sampled.
-            observed=sample_storage(self.project,volume_probe=self.volume)
             db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=.2)
             try:
                 rows=db.execute('SELECT path,maximum FROM reservations WHERE path IS NOT NULL LIMIT 1025').fetchall()
@@ -69,20 +81,32 @@ class StorageMonitor:
             if result['status']=='RESEARCH_BLOCKED': self.trip(result['reason'])
             self.previous=observed;self.observation=observed
 
+    def close(self):
+        scan,self.scan=self.scan,None
+        if scan is not None:scan.close()
+
+    def storage_reason(self):
+        if self.reason:return self.reason
+        if self.observation is None:return 'STORAGE_SCAN_PENDING'
+        if not 0<=time.monotonic()-self.observation['completed_monotonic']<=INVENTORY_MAX_AGE:
+            return 'STORAGE_STALE'
+        return None
+
     def handle(self,action,payload):
         if action=='owner_heartbeat':return self.mutual.receive(payload)
         if action=='checkpoint' and set(payload)=={'barrier_id'}:
             from compertum.events import uuid
             uuid(payload['barrier_id']);self.tick()
-            if self.reason: raise RuntimeRefused('WATCHDOG_BLOCKED')
+            if self.storage_reason(): raise RuntimeRefused('WATCHDOG_BLOCKED')
             return {'barrier_id':payload['barrier_id'],'generation':self.lease.generation,'process_instance_id':self.lease.identity.process_instance_id}
         if action!='status' or payload!={}: raise RuntimeRefused('COMMAND_DENIED')
         self.parent_heartbeat=time.monotonic()
         self.tick()
-        if self.observation is None: raise RuntimeRefused('STORAGE_UNVERIFIED')
-        return {'status':'RESEARCH_BLOCKED' if self.reason else 'HEALTHY','reason':self.reason,
-                'observed_monotonic':self.observation['completed_monotonic'],
-                'volume_observed_monotonic':self.last_volume_measured,'scan_seconds':self.observation['scan_seconds'],
+        reason=self.storage_reason()
+        return {'status':'RESEARCH_BLOCKED' if reason else 'HEALTHY','reason':reason,
+                'observed_monotonic':time.monotonic(),
+                'storage_observed_monotonic':self.observation['completed_monotonic'] if self.observation else None,
+                'volume_observed_monotonic':self.last_volume_measured,'scan_seconds':self.observation['scan_seconds'] if self.observation else None,
                 'generation':self.lease.generation,'order_admission':'DISARMED','startup':_STARTUP_PROOF,
                 'mutual':self.mutual.status(),'heartbeat':self.mutual.receipt(healthy=self.reason is None)}
 
@@ -159,7 +183,7 @@ def main():
             if mutual is not None:mutual.tick()
             if authority is not None and barrier is None:authority.tick()
             if paper_reads is not None and barrier is None:paper_reads.tick()
-            try: serve_owner_once(channel,handler,timeout=.1)
+            try: serve_owner_once(channel,handler,timeout=.01 if monitor is not None and monitor.scan is not None else .1)
             except RuntimeRefused as error:
                 if error.code=='PIPE_DEADLINE_EXCEEDED': continue
                 raise
@@ -167,7 +191,10 @@ def main():
         if monitor is not None: monitor.trip(error.code if isinstance(error,RuntimeRefused) else 'OWNER_CHANNEL_LOST')
         if mutual is not None:mutual.halt(error.code if isinstance(error,RuntimeRefused) else 'OWNER_CHANNEL_LOST')
         return 3
-    finally: release_owner(lease)
+    finally:
+        try:
+            if monitor is not None:monitor.close()
+        finally:release_owner(lease)
 
 if __name__=='__main__': raise SystemExit(main())
 

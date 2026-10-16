@@ -31,7 +31,9 @@ def default_text():
 def test_resolved_defaults_preserve_reserve_inside_project_cap(config):
     value = config.load_config(ROOT / "config/default.toml", ROOT)
     assert value.storage_total_bytes == 53687091200
-    assert sum(value.storage_categories.values()) == 53687091200
+    # Category ceilings overlap; the independently enforced total stays 50 GiB.
+    assert value.storage_categories['scratch'] == 10*1024**3
+    assert value.storage_total_bytes < sum(value.storage_categories.values())
     assert value.execution_reserve_bytes == 1073741824
     assert value.storage_categories["records"] == 5368709120
     assert value.paths["state"] == ROOT / "state"

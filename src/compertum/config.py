@@ -23,7 +23,7 @@ _DEFAULTS = {
     "project": {"schema_version": "1", "mode": "m0", "new_spending_usd": "0.00"},
     "storage": {
         "total_bytes": 53687091200, "data_bytes": 16106127360, "models_bytes": 5368709120,
-        "scratch_bytes": 5368709120, "records_bytes": 5368709120, "backups_bytes": 21474836480,
+        "scratch_bytes": 10737418240, "records_bytes": 5368709120, "backups_bytes": 21474836480,
         "execution_reserve_bytes": 1073741824, "reserve_release_bytes": 67108864,
         "minimum_unused_reserve_bytes": 268435456, "minimum_free_bytes": 53687091200,
         "ingestion_free_bytes": 107374182400, "maximum_write_chunk_bytes": 8388608,
@@ -40,8 +40,9 @@ _DEFAULTS = {
         "dispatch_available_ram_bytes": 8589934592, "pause_available_ram_bytes": 6442450944,
         "local_input_tokens": 16384, "local_output_tokens": 2048, "local_request_seconds": 120,
         "manual_receipt_seconds": 86400, "heartbeat_seconds": 5, "missing_heartbeat_seconds": 15,
-        "task_lease_seconds": 30, "volume_monitor_seconds": 1, "project_monitor_seconds": 5,
-        "recovery_barrier_seconds": 30,
+        "task_lease_seconds": 30, "volume_monitor_seconds": 1, "project_monitor_seconds": 35,
+        "storage_scan_seconds": 30, "control_request_seconds": 300,
+        "recovery_barrier_seconds": 240,
     },
     "paths": {"state": "state", "data": "data", "artifacts": "artifacts", "scratch": ".cache",
               "backups": "backups", "reports": "reports", "logs": "logs"},
@@ -102,6 +103,18 @@ def load_config(path: Path, project_root: Path) -> M0Config:
         raise ConfigError("INVALID_CONFIG") from None
     # Read historical project configs without restoring the retired daily cap.
     resources = supplied.get("resources")
+    # The owner revised workload limits on 16 October. Read frozen older
+    # configurations without rewriting their bytes or changing runtime identity.
+    storage = supplied.get("storage")
+    if isinstance(storage, dict) and storage.get("scratch_bytes") == 5368709120:
+        storage["scratch_bytes"] = _DEFAULTS["storage"]["scratch_bytes"]
+    if isinstance(resources, dict):
+        if resources.get("project_monitor_seconds") == 5:
+            resources["project_monitor_seconds"] = 35
+        if resources.get("recovery_barrier_seconds") == 30:
+            resources["recovery_barrier_seconds"] = 240
+        for key in ("storage_scan_seconds", "control_request_seconds"):
+            resources.setdefault(key, _DEFAULTS["resources"][key])
     if isinstance(resources, dict) and "cpu_job_wall_seconds_per_day" in resources:
         legacy_daily_cap = resources.pop("cpu_job_wall_seconds_per_day")
         if type(legacy_daily_cap) is not int or legacy_daily_cap != 7200:

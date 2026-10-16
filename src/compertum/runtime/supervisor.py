@@ -73,6 +73,7 @@ class Supervisor:
                 from compertum.final_audit_controller import FinalAuditController
                 self.final_audit=FinalAuditController(self.coordinator,self.storage)
             job,self.watchdog=launch_owner(self.supervisor,'watchdog',expect_execution=not self.partial_fixture);self.jobs.append(job)
+            self.storage.health_probe=self.scan_health
             self.poll_health()
             self.endpoint=start_role_pipe(self.supervisor,ACTIONS)
         except BaseException:
@@ -82,7 +83,14 @@ class Supervisor:
         if self.health is None: return {'status':'UNVERIFIED'}
         return dict(self.health)
 
-    def poll_health(self):
+    def scan_health(self):
+        # No local state writes while storage holds its reservation transaction.
+        # Relay peer heartbeats during long synchronous admission inventories.
+        if time.monotonic()-self.last_poll>=.8:
+            self.poll_health(enforce=False)
+            if self.health['status']!='HEALTHY':raise RuntimeRefused('HEALTH_UNVERIFIED')
+
+    def poll_health(self,*,enforce=True):
         self.last_poll=time.monotonic()
         try:
             self.health=call_owner(self.watchdog,'status',{})
@@ -107,7 +115,7 @@ class Supervisor:
             if available_physical_memory()<6*1024**3: self.health['status']='RESEARCH_BLOCKED';self.health['reason']='AVAILABLE_RAM_FLOOR'
         except RuntimeRefused:
             self.health={'status':'RESEARCH_BLOCKED','reason':'WATCHDOG_UNAVAILABLE','observed_monotonic':time.monotonic()}
-        if self.health['status']!='HEALTHY':
+        if enforce and self.health['status']!='HEALTHY':
             self.halt('health')
             with self.store.conn: self.coordinator._state('research_state','PAUSED')
 

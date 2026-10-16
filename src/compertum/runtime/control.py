@@ -17,6 +17,9 @@ from .bootstrap import _load,decode_request_frame
 from .owners import _owner_scope,require_live_owner
 from ._pipes import NativePipeAPI,deadline_after,verify_peer
 from compertum.events import canonical
+from compertum.config import _DEFAULTS
+
+CONTROL_SECONDS=_DEFAULTS['resources']['control_request_seconds']
 
 
 def serve_control_once(endpoint,handler,*,timeout=5):
@@ -34,8 +37,12 @@ def serve_control_once(endpoint,handler,*,timeout=5):
                 decision=endpoint._authorize_peer(value,observed,secret)
                 if value['actor']['kind']!='operator': raise RuntimeRefused('ROLE_DENIED')
                 require_live_owner(endpoint.lease)
+                # Authentication retains five seconds. An authenticated command
+                # may include a recovery barrier and its admission inventories.
+                deadline=deadline_after(CONTROL_SECONDS-5)
                 try: result=handler(decision,value['action'],value['payload']);error=None
                 except RuntimeRefused as refused: result=None;error=refused.code
+                deadline=min(deadline,deadline_after(5))
                 reply=canonical({'schema_version':1,'decision':asdict(decision),'result':result,'error':error})
                 endpoint.api.write_frame(endpoint.handle,reply,deadline)
                 if not hmac.compare_digest(endpoint.api.read_frame(endpoint.handle,deadline),hashlib.sha256(reply).digest()):
@@ -45,7 +52,7 @@ def serve_control_once(endpoint,handler,*,timeout=5):
             if not endpoint.closed: endpoint.api.disconnect(endpoint.handle)
 
 
-def durable_request(endpoint,command,*,timeout=5):
+def durable_request(endpoint,command,*,timeout=CONTROL_SECONDS):
     if not isinstance(endpoint,PipeDescriptor) or endpoint.registration.identity.role!='supervisor':
         raise RuntimeRefused('CONTROL_ENDPOINT_DENIED')
     raw=encode_envelope(command)

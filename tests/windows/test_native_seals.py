@@ -89,9 +89,9 @@ def test_reserved_seal_growth_does_not_trip_independent_watchdog(state):
     initial=call_owner(monitor,'status',{})
     while time.monotonic()<deadline:
         result=call_owner(monitor,'status',{})
-        if result['observed_monotonic']>initial['observed_monotonic']:break
+        if result['storage_observed_monotonic']>initial['storage_observed_monotonic']:break
         time.sleep(.1)
-    assert result['observed_monotonic']>initial['observed_monotonic'] and result['status']=='HEALTHY'
+    assert result['storage_observed_monotonic']>initial['storage_observed_monotonic'] and result['status']=='HEALTHY'
 
 
 def test_malformed_native_reply_still_retires_channel(state,monkeypatch):

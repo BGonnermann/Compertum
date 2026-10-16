@@ -34,7 +34,7 @@ def test_independent_process_growth_trips_watchdog_within_five_seconds(tmp_path)
 def test_low_free_space_and_stale_monitor_never_admit(tmp_path):
     storage=importlib.import_module('compertum.storage'); watch=importlib.import_module('compertum.watchdog')
     observation=storage.sample_storage(resolve_project(tmp_path))
-    for change,reason in (({'free_bytes':49*1024**3},'FREE_SPACE_FLOOR'),({'completed_monotonic':time.monotonic()-6},'STORAGE_STALE')):
+    for change,reason in (({'free_bytes':49*1024**3},'FREE_SPACE_FLOOR'),({'completed_monotonic':time.monotonic()-storage.INVENTORY_MAX_AGE-1},'STORAGE_STALE')):
         result=watch.check_storage({**observation,**change},[])
         assert result['status']=='RESEARCH_BLOCKED' and result['reason']==reason
         assert result['broker_capability']=='CAPABILITY_UNAVAILABLE'

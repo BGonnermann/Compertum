@@ -19,7 +19,9 @@ from .runtime.owners import _owner_scope,require_live_owner
 
 GIB=1024**3
 _GRANT_OWNERS={}
-CAPS={'data':15*GIB,'models':5*GIB,'scratch':5*GIB,'records':5*GIB,'backups':20*GIB}
+CAPS={key:_DEFAULTS['storage'][key+'_bytes'] for key in ('data','models','scratch','records','backups')}
+SCAN_SECONDS=_DEFAULTS['resources']['storage_scan_seconds']
+INVENTORY_MAX_AGE=_DEFAULTS['resources']['project_monitor_seconds']
 
 class IOStatus(c.Structure):
     _fields_=[('status',c.c_void_p),('information',c.c_size_t)]
@@ -51,13 +53,13 @@ def _directory_rows(data):
     return rows
 
 
-def sample_storage(project,*,volume_probe=None):
-    """Enumerate every native AllocationSize without following links."""
+def iter_storage(project,*,volume_probe=None):
+    """Complete native inventory in caller-thread batches; close to cancel."""
     started=time.monotonic();root=project.root_path;resolved_root=root.resolve()
     files={};totals=dict.fromkeys(CAPS,0);reparse=[]
     tasks=[(str(root),'',None)];buffer=c.create_string_buffer(65536)
     def deadline():
-        if time.monotonic()-started>5:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
+        if time.monotonic()-started>SCAN_SECONDS:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
     def probe():
         deadline()
         if volume_probe is not None:volume_probe()
@@ -80,13 +82,28 @@ def sample_storage(project,*,volume_probe=None):
                     charged=max(length,allocated)
                     files[relative]={'size':length,'allocated':allocated,'charged':charged}
                     totals[file_category]+=charged
-        # Checked native closure is part of the five-second scan.
+                # All rows and linked targets are checked before yielding. The
+                # directory remains locked until its final batch is consumed.
+                yield None
+        # Checked native closure is part of the complete scan deadline.
         probe()
+        yield None
+    free_bytes=shutil.disk_usage(root).free
     completed=time.monotonic()
-    if completed-started>5:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
+    if completed-started>SCAN_SECONDS:raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
     return {'project_id':project.project_id,'categories':totals,'total_bytes':sum(totals.values()),
-            'free_bytes':shutil.disk_usage(root).free,'files':files,'reparse_paths':reparse,
+            'free_bytes':free_bytes,'files':files,'reparse_paths':reparse,
             'started_monotonic':started,'completed_monotonic':completed,'scan_seconds':completed-started}
+
+
+def sample_storage(project,*,volume_probe=None):
+    """Drive the same complete inventory synchronously for fresh admission."""
+    scan=iter_storage(project,volume_probe=volume_probe)
+    try:
+        while True:
+            try:next(scan)
+            except StopIteration as completed:return completed.value
+    finally:scan.close()
 
 
 @dataclass(frozen=True)
@@ -99,7 +116,7 @@ class StorageGrant:
 
 class StorageManager:
     def __init__(self,lease,config):
-        require_live_owner(lease,'coordinator'); self.lease=lease; self.config=config; self._grants={}
+        require_live_owner(lease,'coordinator'); self.lease=lease; self.config=config; self._grants={};self.health_probe=None
         with _owner_scope(lease) as guard:
             self.project=guard.project; self.root=guard.project.root_path
             from .runtime.identity import resolve_project
@@ -112,7 +129,7 @@ class StorageManager:
             self.observation()
 
     def observation(self):
-        with _owner_scope(self.lease): return sample_storage(self.project)
+        with _owner_scope(self.lease): return sample_storage(self.project,volume_probe=self.health_probe)
 
     def reservations(self):
         with self.store._live():
@@ -248,7 +265,7 @@ class BoundedWriter:
             self.manager.store.conn.execute('UPDATE reservations SET written=? WHERE id=?',(self.written,self.grant.grant_id))
             return n
 
-    def publish(self):
+    def publish(self,*,before_publish=None):
         job=getattr(self,'_final_audit_job',None)
         if job is not None and not job.audit_lifetime.exit_verified:raise RuntimeRefused('JOB_EXIT_UNVERIFIED')
         if self.manifest is not None: return dict(self.manifest)
@@ -256,6 +273,7 @@ class BoundedWriter:
             if self.closed: raise RuntimeRefused('WRITER_CLOSED')
             self.stream.flush(); os.fsync(self.stream.fileno()); self.stream.close()
             with self.path.open('rb') as stream: digest=hashlib.file_digest(stream,'sha256').hexdigest()
+            if before_publish is not None:before_publish()
             self.path.rename(self.destination)
             self.manifest={'artifact_id':str(uuid4()),'path':self.destination.relative_to(self.manager.root).as_posix(),'size_bytes':self.written,'sha256':digest,'task_id':self.grant.task_id}
             self.manager.store.conn.execute("UPDATE reservations SET status='PUBLISHED',path=?,manifest=? WHERE id=?",(self.manifest['path'],canonical(self.manifest).decode(),self.grant.grant_id))
