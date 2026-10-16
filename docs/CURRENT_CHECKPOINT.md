@@ -4,6 +4,27 @@
 
 ## Active checkpoint
 
+15 October 2026 continuation. **The owner approved 1 GiB of disk scratch. The
+capacity launcher refused before startup because the existing Vesper website
+preview exceeded its saved cumulative CPU allowance.** The preview remains
+running; no census start receipt or native Job exists. Independent correction
+review verified 933 frozen inputs. Two sets of eleven pure capacity checks
+passed, zero failures, errors or skips. No product test, candidate build, scan
+or installation ran. The later ten stages remain disabled.
+
+Storage category caps and scanner limits, the reserve and saved watchdog stop remain unchanged.
+Fresh checks matched 217 source files, 217 installed files, the coordinator
+database and saved-stop bytes. The full 1 GiB hold still needs a complete capacity
+check within the unchanged scratch category. Strata stays stopped.
+
+Exact next action: obtain the owner's decision about temporarily stopping the
+verified local preview and making one census launch. The stop procedure is
+prepared and reviewed; it has not run. Preserve the refusal and refresh reviewed
+documentation bindings before an approved launch. See
+[the continuation report](../reports/STORAGE_FRAME_CONTINUATION.md).
+
+### Earlier preparation, before the disk decision
+
 15 October 2026. **Storage admission remains blocked; diagnosis and a bounded fix are prepared for review.** The four approved folders remain removed and all backups and prior evidence are preserved. One new read-only five-second profile measured 1.990421 seconds in directory acquisition/first query and 0.677391 seconds in checked closure before timing out. The last complete count, less the 718 removed directories, still leaves a derived 28,620 before later record growth. No current complete inventory or capacity pass is claimed.
 
 The proposed change reuses at most 16 checked-closed buffers in the existing private native walker. It preserves caller-thread reads/callbacks and every current limit and check. Its timing benefit is unproved. The source diff is unapplied; no candidate was compiled, run, installed or promoted. Two in-memory diagnostic record checks passed with zero failures/skips; no product tests ran. Read [the diagnosis](../reports/STORAGE_ADMISSION_DIAGNOSIS.md) and [the bounded fix for review](STORAGE_ADMISSION_FIX_REVIEW.md).

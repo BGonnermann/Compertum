@@ -1,5 +1,14 @@
 # Compertum
 
+15 October continuation. **The owner approved 1 GiB of disk scratch, but the
+capacity launcher refused before startup because the existing Vesper website
+preview exceeded its saved cumulative CPU allowance.** No census or candidate
+ran. The preview remains running, pending the owner's decision about stopping it.
+Release review verified 933 frozen inputs. Pure capacity checks: 22 passed,
+zero failures, errors or skips. Product tests: zero. Storage category caps and scanner limits,
+reserve and saved stop are unchanged. See
+[the current continuation report](reports/STORAGE_FRAME_CONTINUATION.md).
+
 A supervised research system with reproducible experiments, bounded AI proposals, independent audits, and controlled paper-trading development.
 
 Updated 15 October 2026. **Working folder: `C:\Users\bgonn\Desktop\Compertum`.** GitHub stores code, configuration, tests, plans and reports for rollback. Credentials, provider data, runtime databases, environments and detailed local evidence stay outside Git.

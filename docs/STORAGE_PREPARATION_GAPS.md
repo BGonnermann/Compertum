@@ -1,5 +1,13 @@
 # Storage scanner preparation
 
+15 October continuation. The owner approved the larger 1 GiB isolated-environment
+scratch allowance. That resolves the storage-choice question below. The reviewed
+capacity launcher then refused before startup because the unrelated Vesper
+preview server exceeded its saved cumulative CPU allowance. The server remains
+running; its stop requires an owner decision. No native census or candidate ran.
+See [the current result and remaining execution gates](../reports/STORAGE_FRAME_CONTINUATION.md).
+The earlier 8 MiB conflict below is retained history, not the current allowance.
+
 15 October 2026. Execution is on hold. The implementation worker confirmed that
 no native Job had started. This document records preparation and a storage
 conflict. It does not approve a census, candidate run, admission check, or stop
