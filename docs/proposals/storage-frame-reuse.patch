@@ -1,0 +1,45 @@
+--- a/storage_scan.c
++++ b/storage_scan.c
+@@ -110,3 +110,4 @@
+ typedef struct {
+-    cw_frame *frame;
++    cw_frame *frame,*spare;
++    uint32_t spare_count;
+     cw_probe probe;
+@@ -114,3 +115,3 @@
+     uint32_t depth,max_depth;
+-    int initialized,failed,busy,awaiting_ack;
++    int initialized,failed,busy,awaiting_ack,closing;
+     WCHAR root[32768],path[32768];
+@@ -149,3 +150,8 @@
+ static cw_frame *cw_frame_alloc(cw_state *state,cw_result *out) {
+-    cw_frame *frame=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(cw_frame));
++    cw_frame *frame=state->spare;
++    if (frame) {
++        state->spare=frame->parent;--state->spare_count;
++        /* Clear all control fields. Query length bounds stale buffer bytes. */
++        memset(frame,0,offsetof(cw_frame,data));
++    } else frame=HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,sizeof(cw_frame));
+     if (!frame) { cw_fail(state,out,26,ERROR_NOT_ENOUGH_MEMORY);return NULL; }
+@@ -181,3 +187,6 @@
+     state->frame=frame->parent;--state->depth;
+-    if (!HeapFree(GetProcessHeap(),0,frame) && !error) error=ERROR_INVALID_DATA;
++    if (!error && !state->closing && state->spare_count<16) {
++        /* Only a checked-closed frame may enter this per-walk free list. */
++        frame->parent=state->spare;state->spare=frame;++state->spare_count;
++    } else if (!HeapFree(GetProcessHeap(),0,frame) && !error) error=ERROR_INVALID_DATA;
+     state->path[state->frame ? state->frame->prefix : 0]=0;
+@@ -270,4 +279,12 @@
+     if (!state || state->busy) { out->operation=33;out->error=ERROR_INVALID_STATE;return -1; }
+-    int answer=0;
++    int answer=0;state->closing=1;
+     while (state->frame) if (cw_pop(state,out,0)) answer=-1;
++    while (state->spare) {
++        cw_frame *frame=state->spare;state->spare=frame->parent;
++        --state->spare_count;
++        if (!HeapFree(GetProcessHeap(),0,frame)) {
++            out->operation=30;out->error=ERROR_INVALID_DATA;answer=-1;
++        }
++    }
++    if (state->spare_count) { out->operation=30;out->error=ERROR_INVALID_DATA;answer=-1; }
+     cw_stats(state,out);
