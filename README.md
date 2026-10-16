@@ -1,5 +1,17 @@
 # Compertum
 
+16 October 2026. **Native retained records and the activity parser boundary are verified.** The combined inventory has 371 matching unique source/installed cases per environment. Failures, errors and skips are zero. It includes 99 new pure activity cases and 272 unchanged component cases. Both latest complete environment byte checks passed. Each dependency completed independent review round 3.
+
+The parser fixes the original query and cursor chain. It preserves exact fill times and keeps missing native, ownership, fee, action and economic evidence blocking. No native activity producer, risk admission or actual dispatch is claimed.
+
+The final census passed in 44.709 seconds. Scratch has 309,710,856 bytes left after a 128 MiB hold. Backups have 1,074,264,096 bytes left under the approved 21 GiB ceiling. Another 1 GiB native fixture exceeds scratch headroom by 764,030,968 bytes. The 11 GiB scratch decision remains pending. The 50 GiB total and emergency reserve remain unchanged.
+
+Exact next action: resolve that allocation, then implement and qualify the private native activity producer. Continue ownership/economics, risk, durable dispatch/recovery and the installed local rehearsal in dependency order. M5 requirements 2-5 remain open. M6 remains 0/10 actual sessions. The saved master stop and terminal M3 audit failure remain preserved. Strata stays off.
+
+See [activity checks and the capacity barrier](reports/M5_ACTIVITY_BOUNDARY.md) and [native record evidence](reports/M5_NATIVE_ATTEMPT_RECORDS.md).
+
+## Earlier native-record checkpoint
+
 16 October 2026. **The native retained-attempt dependency is verified.** Source and installed evidence match across 272 unique cases per environment. There are zero failures, errors or skips in the accepted inventory. Both complete environment byte checks passed. Independent review round 3 is clear.
 
 Native write records remain separate from fake execution and inert preparation. The private reader now includes external attempts after an older database restore. No ownership, economic, risk or dispatch authority is granted.

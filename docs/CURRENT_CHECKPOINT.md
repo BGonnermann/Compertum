@@ -4,6 +4,24 @@
 
 ## Active checkpoint
 
+16 October 2026. **Native retained records and the activity parser boundary are verified.** The combined inventory has 371 matching unique source/installed cases per environment. Failures, errors and skips are zero. It includes 99 new pure activity cases and 272 unchanged component cases. Both latest complete environment byte checks passed. Each dependency completed independent review round 3.
+
+The parser fixes the original query and cursor chain. It preserves exact fill times and keeps missing native, ownership, fee, action and economic evidence blocking. No native activity producer, risk admission or actual dispatch is claimed.
+
+The final census passed in 44.709 seconds. Scratch has 309,710,856 bytes left after a 128 MiB hold. Backups have 1,074,264,096 bytes left under the approved 21 GiB ceiling. Another 1 GiB native fixture exceeds scratch headroom by 764,030,968 bytes. The 11 GiB scratch decision remains pending. The 50 GiB total and emergency reserve remain unchanged.
+
+Exact next action: resolve that allocation, then implement and qualify the private native activity producer. Continue ownership/economics, risk, durable dispatch/recovery and the installed local rehearsal in dependency order. M5 requirements 2-5 remain open. M6 remains 0/10 actual sessions. The saved master stop and terminal M3 audit failure remain preserved. Strata stays off.
+
+- [x] Verify disjoint retained native records and complete external-history observations.
+- [x] Verify the separate activity request, parser and exact timestamp boundary.
+- [x] Verify matching cases, complete environments, capacity and independent reviews.
+- [ ] Resolve the native fixture's pending scratch allocation.
+- [ ] Complete native activity, ownership/economics, risk, durable dispatch and the integrated rehearsal.
+
+See [exact current evidence](../reports/M5_ACTIVITY_BOUNDARY.md).
+
+### Earlier native-record checkpoint
+
 16 October 2026. **The native retained-attempt dependency is verified.** The accepted composite contains 272 matching unique source/installed cases per environment. Failures, errors and skips are zero. Both complete environment byte checks passed. Independent review round 3 is clear and all three rounds are used for this dependency.
 
 The external guard preserves native write records separately from fake execution and preparation. Fake status and economics exclude native records. The portfolio reader now checks external retained history after an older SQLite restore. The first opening stays unchanged. Financial and transport authority remain false.

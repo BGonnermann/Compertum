@@ -1,6 +1,12 @@
 # Timers and storage
 
-Later on 16 October, the owner approved **21 GiB backups**, retaining the 50 GiB total. This resolves the former 522,272-byte backup shortfall. A complete follow-up census passed in 45.262 seconds. It verified the original allocated emergency reserve and 437 preservation pins. Backups have 1,074,264,096 bytes of headroom. Scratch has 321,240,632 bytes left after a 128 MiB additional hold. Complete allocation and reservation accounting remains in `artifacts/m5/native-accounting-20261016-01/capacity05-measurement.json`.
+The latest complete census passed in 44.709 seconds after the activity parser checks. With all holds, scratch charges 10,427,707,384 bytes, records charge 1,214,080,896 bytes and backups charge 21,474,314,208 bytes. Scratch headroom is 309,710,856 bytes after a 128 MiB additional hold. Backup headroom is 1,074,264,096 bytes. All 437 original preservation pins and the new package bindings verified.
+
+An extra 1 GiB native fixture would exceed the current scratch category by 764,030,968 bytes. The owner approved 21 GiB backups only. The separate 11 GiB scratch decision remains pending under the unchanged 50 GiB total. No new full-reserve activity lifecycle check or saved-stop recovery ran. See [current evidence and the exact next action](M5_ACTIVITY_BOUNDARY.md).
+
+### Earlier native-record measurement
+
+Later on 16 October, the owner approved **21 GiB backups**, retaining the 50 GiB total. This replaces the former 522,272-byte backup headroom. A complete follow-up census passed in 45.262 seconds. It verified the original allocated emergency reserve and 437 preservation pins. Backups have 1,074,264,096 bytes of headroom. Scratch has 321,240,632 bytes left after a 128 MiB additional hold. Complete allocation and reservation accounting remains in `artifacts/m5/native-accounting-20261016-01/capacity05-measurement.json`.
 
 The native-record verification namespace has a 1280 MiB bound. It retains failed builds, prior package artifacts and a successful isolated test environment. Existing test limits remain 120 seconds, four CPUs, 4 GiB RAM and 16 processes. Host start/stop memory floors remain 16/12 GiB. The product scanner remains 30 seconds, inventory freshness 35 seconds and scratch 10 GiB. One heavy job runs at a time.
 

@@ -2,6 +2,12 @@
 
 ## Current continuation - 16 October 2026
 
+The inert activity boundary is verified with 99 matching source/installed cases and both complete environment byte checks. Its final independent review round 3 is clear. The unchanged prior component inventory has 272 cases, giving 371 unique passing cases per environment. These records grant no native provenance, ownership, fee closure, financial acceptance or transport authority.
+
+Next, implement and qualify the execution-owned native activity producer. The required new full-reserve fixture exceeds current scratch headroom by 764,030,968 bytes. The separate 11 GiB scratch decision is pending. Source, installed and fixture engineering remain distinct from actual-account qualification. See [the current report](../reports/M5_ACTIVITY_BOUNDARY.md).
+
+### Earlier retained-record continuation
+
 The native retained-attempt dependency is now verified across 272 matching unique source/installed cases per environment. Both complete environments passed. Independent review round 3 is clear. This adds no native transport, ownership or financial authority. The reader includes complete external history after an older SQLite restore. See [the exact report](../reports/M5_NATIVE_ATTEMPT_RECORDS.md).
 
 The owner approved 21 GiB backups under the unchanged 50 GiB total. The final census passed with 1,074,264,096 bytes of backup headroom. The separate 11 GiB scratch decision remains pending for fresh full-reserve native lifecycle evidence. Keep the saved stop and all evidence.
