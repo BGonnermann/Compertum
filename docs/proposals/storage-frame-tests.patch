@@ -1,0 +1,220 @@
+--- a/tests/windows/test_storage_scan_workers.py
++++ b/tests/windows/test_storage_scan_workers.py
+@@ -21,12 +21,13 @@
+         p=tmp_path/str(i);p.mkdir();(p/'one.bin').write_bytes(b'x')
+     project=resolve_project(tmp_path)
+     caller=threading.get_ident();seen=set();callbacks=[]
+-    original=storage.Directory
+-    @contextmanager
+-    def opened(path,buffer=None):
+-        seen.add(threading.get_ident())
+-        with original(path,buffer) as handle:yield handle
+-    monkeypatch.setattr(storage,'Directory',opened)
++    import compertum._storage_walk as walk
++    original=walk.Walker
++    class Observed(original):
++        def next(self):
++            seen.add(threading.get_ident())
++            return super().next()
++    monkeypatch.setattr(walk,'Walker',Observed)
+     observed=storage.sample_storage(project,volume_probe=lambda:callbacks.append(threading.get_ident()))
+     assert len(observed['files'])==12
+     assert seen=={caller}
+@@ -69,7 +70,7 @@
+             if failure=='callback':raise RuntimeRefused('INJECTED_CALLBACK_FAILURE')
+             if failure=='deadline':monkeypatch.setattr(storage.time,'monotonic',lambda:start+6)
+     expected={'native':'INJECTED_NATIVE_FAILURE','callback':'INJECTED_CALLBACK_FAILURE','deadline':'STORAGE_SCAN_DEADLINE'}[failure]
+-    with pytest.raises(RuntimeRefused,match=expected):storage.sample_storage(project,volume_probe=probe)
++    with pytest.raises(RuntimeRefused,match=expected):storage._sample_storage_legacy(project,volume_probe=probe)
+     assert handles and all(h.closed for h in handles)
+     assert not readers()
+ 
+@@ -84,7 +85,7 @@
+         raise RuntimeRefused('INJECTED_DIRECTORY_CLOSE_FAILURE')
+     monkeypatch.setattr(storage,'Directory',opened)
+     with pytest.raises(RuntimeRefused,match='INJECTED_DIRECTORY_CLOSE_FAILURE'):
+-        storage.sample_storage(project)
++        storage._sample_storage_legacy(project)
+     assert handles and all(h.closed for h in handles) and not readers()
+ 
+ 
+@@ -104,5 +105,5 @@
+     from compertum._native_storage import Directory
+     def read(self):return bytes(data)
+     monkeypatch.setattr(Directory,'read',read)
+-    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):storage.sample_storage(project)
++    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):storage._sample_storage_legacy(project)
+     assert not readers()
+--- a/tests/windows/test_storage_inventory.py
++++ b/tests/windows/test_storage_inventory.py
+@@ -63,4 +63,4 @@
+   return code
+  monkeypatch.setattr(reader,'_library',lambda:SimpleNamespace(cs_open_read=invalid_open,cs_next=real.cs_next,cs_close=real.cs_close))
+  with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):
+-  sample_storage(resolve_project(tmp_path))
++  storage._sample_storage_legacy(resolve_project(tmp_path))
+--- a/tests/windows/test_storage_walker.py
++++ b/tests/windows/test_storage_walker.py
+@@ -0,0 +1,162 @@
++"""Prepared actual-walker regressions. Not applied or executed in preparation."""
++import ctypes as c
++import os
++import struct
++import threading
++from pathlib import Path
++from types import SimpleNamespace
++import pytest
++import compertum.storage as storage
++import compertum._native_storage as native
++import compertum._storage_walk as walk
++from compertum.runtime.errors import RuntimeRefused
++from compertum.runtime.identity import resolve_project
++
++pytestmark=pytest.mark.skipif(os.name!='nt',reason='NATIVE_WINDOWS_UNAVAILABLE')
++
++class ForwardedFunction:
++    """Keep ctypes signatures on the real function, including pointer returns."""
++    def __init__(self,real,call):
++        object.__setattr__(self,'real',real)
++        object.__setattr__(self,'call',call)
++    def __call__(self,*args):return self.call(*args)
++    def __getattr__(self,name):return getattr(self.real,name)
++    def __setattr__(self,name,value):
++        if name in ('argtypes','restype'):setattr(self.real,name,value)
++        else:object.__setattr__(self,name,value)
++
++class Proxy:
++    def __init__(self, real, intercept=None):
++        self.real=real;self.intercept=intercept;self.functions={};self.calls=[];self.closed=[]
++    def __getattr__(self, name):
++        real=getattr(self.real,name)
++        if not name.startswith('cs_walk_'):return real
++        if name not in self.functions:
++            def call(*args):
++                self.calls.append((name,threading.get_ident()))
++                answer=real(*args)
++                if name=='cs_walk_close':
++                    result=c.cast(args[-1],c.POINTER(walk.WalkResult)).contents
++                    self.closed.append((result.opened,result.closed,result.depth,answer))
++                if self.intercept is not None:return self.intercept(name,args,answer)
++                return answer
++            self.functions[name]=ForwardedFunction(real,call)
++        return self.functions[name]
++
++def fixture(tmp_path,monkeypatch,intercept=None):
++    for number in range(4):
++        directory=tmp_path/str(number);directory.mkdir();(directory/'file').write_bytes(b'x')
++    proxy=Proxy(native._library(),intercept)
++    monkeypatch.setattr(native,'_library',lambda:proxy)
++    return resolve_project(tmp_path),proxy
++
++def closed(proxy):
++    assert proxy.closed and all(opened==ended and depth==0 and code==0
++        for opened,ended,depth,code in proxy.closed)
++
++def test_walker_native_reads_and_callbacks_use_caller(tmp_path,monkeypatch):
++    project,proxy=fixture(tmp_path,monkeypatch);caller=threading.get_ident();callbacks=[]
++    value=storage.sample_storage(project,volume_probe=lambda:callbacks.append(threading.get_ident()))
++    assert len(value['files'])==4 and callbacks and set(callbacks)=={caller}
++    assert {thread for name,thread in proxy.calls}=={caller}
++    assert any(name=='cs_walk_next' for name,thread in proxy.calls)
++    closed(proxy)
++
++@pytest.mark.parametrize('damage',['short_header','odd_name','name_overrun','short_step','unaligned_step','oversized_step','negative_allocation','reserved','traversal','duplicate'])
++def test_walker_malformed_output_refuses(tmp_path,monkeypatch,damage):
++    changed=[]
++    def intercept(name,args,answer):
++        if name!='cs_walk_next' or changed:return answer
++        result=c.cast(args[-1],c.POINTER(walk.WalkResult)).contents
++        if not result.records:return answer
++        changed.append(True);buffer=args[1];raw=bytearray(c.string_at(buffer,result.bytes))
++        step,name_bytes=struct.unpack_from('<II',raw)
++        if damage=='short_header':result.bytes=8
++        elif damage=='odd_name':struct.pack_into('<I',raw,4,1)
++        elif damage=='name_overrun':struct.pack_into('<I',raw,4,len(raw)*2)
++        elif damage=='short_step':struct.pack_into('<I',raw,0,8)
++        elif damage=='unaligned_step':struct.pack_into('<I',raw,0,step+1)
++        elif damage=='oversized_step':struct.pack_into('<I',raw,0,len(raw)+8)
++        elif damage=='negative_allocation':struct.pack_into('<q',raw,24,-1)
++        elif damage=='reserved':struct.pack_into('<I',raw,12,1)
++        elif damage=='traversal':raw[32:38]='../'.encode('utf-16-le')
++        elif damage=='duplicate':
++            raw=raw[:step]*2;result.bytes=len(raw);result.records=2
++        c.memmove(buffer,bytes(raw),len(raw))
++        return answer
++    project,proxy=fixture(tmp_path,monkeypatch,intercept)
++    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):
++        storage.sample_storage(project)
++    assert changed
++    closed(proxy)
++
++@pytest.mark.parametrize('code',[-1,3])
++def test_walker_native_failure_closes(tmp_path,monkeypatch,code):
++    def intercept(name,args,answer):return code if name=='cs_walk_next' else answer
++    project,proxy=fixture(tmp_path,monkeypatch,intercept)
++    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_UNVERIFIED'):
++        storage.sample_storage(project)
++    closed(proxy)
++
++def test_walker_parent_lock_lasts_through_ack(tmp_path,monkeypatch):
++    directory=tmp_path/'held';directory.mkdir();target=tmp_path/'target';target.mkdir()
++    (target/'file').write_bytes(b'x');(directory/'alias').symlink_to(target,target_is_directory=True)
++    original=Path.resolve;seen=[]
++    def resolve(path,*args,**kwargs):
++        if path.name=='alias':
++            with pytest.raises(PermissionError):directory.rename(tmp_path/'replaced')
++            seen.append(True)
++        return original(path,*args,**kwargs)
++    monkeypatch.setattr(Path,'resolve',resolve)
++    value=storage.sample_storage(resolve_project(tmp_path))
++    assert seen and value['reparse_paths']==['held/alias']
++
++def test_walker_callback_failure_closes_partial_walk(tmp_path,monkeypatch):
++    project,proxy=fixture(tmp_path,monkeypatch);polls=[]
++    def probe():
++        polls.append(True)
++        if len(polls)==5:raise RuntimeRefused('INJECTED_CALLBACK')
++    with pytest.raises(RuntimeRefused,match='INJECTED_CALLBACK'):
++        storage.sample_storage(project,volume_probe=probe)
++    closed(proxy)
++
++def test_walker_checked_close_failure_refuses(tmp_path,monkeypatch):
++    def intercept(name,args,answer):return -1 if name=='cs_walk_close' else answer
++    project,proxy=fixture(tmp_path,monkeypatch,intercept)
++    with pytest.raises(RuntimeRefused,match='STORAGE_DIRECTORY_CLOSE_UNVERIFIED'):
++        storage.sample_storage(project)
++    closed(proxy)
++
++def test_walker_final_cleanup_is_inside_five_seconds(tmp_path,monkeypatch):
++    clock=[0.0]
++    def intercept(name,args,answer):
++        if name=='cs_walk_close':clock[0]=6.0
++        return answer
++    project,proxy=fixture(tmp_path,monkeypatch,intercept)
++    monkeypatch.setattr(walk,'time',SimpleNamespace(monotonic=lambda:clock[0]))
++    monkeypatch.setattr(storage,'time',SimpleNamespace(monotonic=lambda:clock[0]))
++    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_DEADLINE'):
++        storage.sample_storage(project)
++    closed(proxy)
++    # The production entry point must also count its lazy module import.
++    import builtins
++    clock[0]=0.0;delayed=[];before=list(proxy.calls)
++    monkeypatch.setattr(storage,'time',SimpleNamespace(monotonic=lambda:clock[0]))
++    original_import=builtins.__import__
++    def slow_import(name,*args,**kwargs):
++        if name=='_storage_walk':clock[0]=6.0;delayed.append(True)
++        return original_import(name,*args,**kwargs)
++    monkeypatch.setattr(builtins,'__import__',slow_import)
++    with pytest.raises(RuntimeRefused,match='STORAGE_SCAN_DEADLINE'):
++        storage.sample_storage(project)
++    assert delayed and proxy.calls==before
++
++def test_walker_observation_is_fresh_each_scan(tmp_path,monkeypatch):
++    project,proxy=fixture(tmp_path,monkeypatch)
++    before=storage.sample_storage(project)
++    (tmp_path/'new-file').write_bytes(b'new')
++    after=storage.sample_storage(project)
++    assert len(before['files'])==4 and len(after['files'])==5
++    assert after['files']['new-file']['size']==3
++    assert len(proxy.closed)==2
++    closed(proxy)

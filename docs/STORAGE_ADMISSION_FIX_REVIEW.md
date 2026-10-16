@@ -61,3 +61,14 @@ The fresh complete census must charge all existing use, named streams and actual
 | Credentials, Strata, paper runtime, reader19 and requested clone | Unaffected | Keep stopped and unchanged |
 
 The review decision covers only whether to proceed with this one bounded candidate and its separately frozen executable procedure. This preparation does not activate it. A future capacity pass also cannot clear the existing `STORAGE_UNHEALTHY`/`RETAINED_WATCHDOG_HALT` stop. Any halt recovery requires a separate concrete operating decision after successful qualification. M5 and financial acceptance remain open.
+
+## Preparation follow-up
+
+The owner requested closure of the three preparation gaps and a separate review.
+Read [the preparation result and storage decision](STORAGE_PREPARATION_GAPS.md).
+The integration and regression patches are now prepared but remain unapplied.
+The preservation receipt exists. A fresh calculation shows that complete
+isolation requires at least 345,161,969 dependency bytes against an 8,388,608-byte
+scratch ceiling. The executable procedure remains blocked and incomplete.
+The owner instructed the implementation worker to hold execution. This follow-up
+does not release that hold or authorize another admission check.

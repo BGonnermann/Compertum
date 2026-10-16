@@ -1,0 +1,247 @@
+--- a/src/compertum/storage.py
++++ b/src/compertum/storage.py
+@@ -51,7 +51,7 @@
+     return rows
+ 
+ 
+-def sample_storage(project,*,volume_probe=None):
++def _sample_storage_legacy(project,*,volume_probe=None):
+     """Enumerate every native AllocationSize without following links."""
+     started=time.monotonic();root=project.root_path;resolved_root=root.resolve()
+     files={};totals=dict.fromkeys(CAPS,0);reparse=[]
+@@ -87,6 +87,14 @@
+     return {'project_id':project.project_id,'categories':totals,'total_bytes':sum(totals.values()),
+             'free_bytes':shutil.disk_usage(root).free,'files':files,'reparse_paths':reparse,
+             'started_monotonic':started,'completed_monotonic':completed,'scan_seconds':completed-started}
++
++
++def sample_storage(project,*,volume_probe=None):
++    """Use the pinned native walker; keep the legacy reader for direct checks."""
++    started=time.monotonic()
++    from . import _native_storage
++    from ._storage_walk import sample
++    return sample(project, _native_storage._library, volume_probe=volume_probe, started_monotonic=started)
+ 
+ 
+ @dataclass(frozen=True)
+--- a/src/compertum/_storage_walk.py
++++ b/src/compertum/_storage_walk.py
+@@ -0,0 +1,218 @@
++"""Prepared native walker integration; build and acceptance remain gated."""
++import ctypes as c
++from pathlib import Path
++import shutil
++import struct
++import threading
++import time
++from compertum.runtime.errors import RuntimeRefused
++from compertum.storage import CAPS, category
++
++
++class WalkResult(c.Structure):
++    _fields_ = [('bytes', c.c_uint32), ('records', c.c_uint32),
++                ('error', c.c_uint32), ('operation', c.c_uint32),
++                ('opened', c.c_uint64), ('closed', c.c_uint64),
++                ('depth', c.c_uint32), ('max_depth', c.c_uint32)]
++
++
++Probe = c.CFUNCTYPE(c.c_int)
++
++
++class Walker:
++    def __init__(self, root, probe, library):
++        self.library = library
++        self.closed = False
++        self.busy = False
++        self.failed = False
++        self.pending = False
++        self.callback_error = None
++        self.caller = threading.get_ident()
++        self.stats = {}
++        self.handle = None
++        self.buffer = c.create_string_buffer(262144)
++        self.probe = probe
++        self.callback = Probe(self._poll)
++        library.cs_walk_abi.argtypes = []
++        library.cs_walk_abi.restype = c.c_uint32
++        if c.sizeof(WalkResult) != 40 or library.cs_walk_abi() != 1:
++            raise RuntimeRefused('STORAGE_NATIVE_ABI')
++        library.cs_walk_create.argtypes = [c.c_wchar_p, Probe, c.POINTER(WalkResult)]
++        library.cs_walk_create.restype = c.c_void_p
++        library.cs_walk_next.argtypes = [c.c_void_p, c.c_void_p, c.c_uint32, c.POINTER(WalkResult)]
++        library.cs_walk_next.restype = c.c_int
++        library.cs_walk_ack.argtypes = [c.c_void_p]
++        library.cs_walk_ack.restype = c.c_int
++        library.cs_walk_close.argtypes = [c.c_void_p, c.POINTER(WalkResult)]
++        library.cs_walk_close.restype = c.c_int
++        result = WalkResult()
++        self.handle = library.cs_walk_create(str(root), self.callback, c.byref(result))
++        if not self.handle:
++            raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++
++    def _poll(self):
++        if self.callback_error is not None:
++            return 0
++        try:
++            if threading.get_ident() != self.caller:
++                raise RuntimeRefused('STORAGE_CALLBACK_THREAD')
++            self.probe()
++            return 1
++        except BaseException as error:
++            self.callback_error = error
++            return 0
++
++    def _available(self):
++        if self.closed:
++            raise RuntimeRefused('HANDLE_CLOSED')
++        if self.busy:
++            raise RuntimeRefused('STORAGE_WALK_REENTRANT')
++        if self.failed:
++            raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++
++    def _stats(self, result):
++        self.stats = {key: int(getattr(result, key)) for key in
++                      ('opened', 'closed', 'depth', 'max_depth', 'operation', 'error')}
++
++    def next(self):
++        self._available()
++        if self.pending:
++            raise RuntimeRefused('STORAGE_REPARSE_ACK_REQUIRED')
++        result = WalkResult()
++        self.busy = True
++        try:
++            code = self.library.cs_walk_next(self.handle, self.buffer, len(self.buffer), c.byref(result))
++            self._stats(result)
++            if self.callback_error is not None:
++                raise self.callback_error
++            if code not in (0, 1, 2) or result.bytes > len(self.buffer):
++                raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++            if code in (0, 2) and (not result.bytes or not result.records):
++                raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++            data = c.string_at(self.buffer, result.bytes)
++            rows = []
++            offset = 0
++            while offset < len(data):
++                if len(data)-offset < 32:
++                    raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++                step, name_bytes, attributes, reserved, size, allocation = struct.unpack_from('<IIIIqq', data, offset)
++                if (not name_bytes or name_bytes % 2 or step % 8 or step < 32+name_bytes or
++                        step-(32+name_bytes) >= 8 or offset+step > len(data) or reserved or
++                        size < 0 or allocation < 0 or attributes & 0x10 and not attributes & 0x400):
++                    raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++                try:
++                    relative = data[offset+32:offset+32+name_bytes].decode('utf-16-le')
++                except UnicodeError:
++                    raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED') from None
++                if (relative.startswith('/') or '\\' in relative or ':' in relative
++                        or '\0' in relative
++                        or any(part in ('', '.', '..') for part in relative.split('/'))):
++                    raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++                rows.append((relative, size, allocation, attributes))
++                offset += step
++            if len(rows) != result.records or code == 1 and result.depth:
++                raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++            links = [i for i, row in enumerate(rows) if row[3] & 0x400]
++            if links != ([len(rows)-1] if code == 2 else []):
++                raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++            self.pending = code == 2
++            return code, rows
++        except BaseException:
++            self.failed = True
++            raise
++        finally:
++            self.busy = False
++
++    def acknowledge(self):
++        self._available()
++        if not self.pending or self.library.cs_walk_ack(self.handle) != 0:
++            self.failed = True
++            raise RuntimeRefused('STORAGE_REPARSE_ACK_REQUIRED')
++        self.pending = False
++
++    def close(self):
++        if self.closed:
++            return
++        if self.busy:
++            raise RuntimeRefused('STORAGE_WALK_REENTRANT')
++        self.closed = True
++        result = WalkResult()
++        try:
++            code = self.library.cs_walk_close(self.handle, c.byref(result))
++            self._stats(result)
++            if code != 0 or result.depth or result.opened != result.closed:
++                raise RuntimeRefused('STORAGE_DIRECTORY_CLOSE_UNVERIFIED')
++        finally:
++            self.handle = None
++            self.callback = None
++            self.probe = None
++            self.callback_error = None
++
++
++def sample(project, library_loader, *, volume_probe=None, progress=None, started_monotonic=None):
++    started = time.monotonic() if started_monotonic is None else started_monotonic
++    root = project.root_path
++    resolved = root.resolve()
++    files = {}
++    totals = dict.fromkeys(CAPS, 0)
++    reparses = []
++    categories = {}
++
++    def probe():
++        if time.monotonic()-started > 5:
++            raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
++        if volume_probe is not None:
++            volume_probe()
++        if time.monotonic()-started > 5:
++            raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
++
++    probe()
++    walker = Walker(root, probe, library_loader())
++    error = close_error = None
++    try:
++        while True:
++            probe()
++            code, rows = walker.next()
++            for relative, size, allocation, attributes in rows:
++                first = relative.split('/', 1)[0]
++                if first not in categories:
++                    categories[first] = category(first)
++                if relative in files:
++                    raise RuntimeRefused('STORAGE_SCAN_UNVERIFIED')
++                if attributes & 0x400:
++                    target = (root/relative).resolve()
++                    if not target.is_relative_to(resolved):
++                        raise RuntimeRefused('STORAGE_REPARSE_ESCAPE')
++                    reparses.append(relative)
++                charged = max(size, allocation)
++                files[relative] = dict(size=size, allocated=allocation, charged=charged)
++                totals[categories[first]] += charged
++            probe()
++            if code == 2:
++                walker.acknowledge()
++            if code == 1:
++                break
++    except BaseException as caught:
++        error = caught
++    finally:
++        if progress is not None:
++            progress.update(files_seen=len(files), categories_partial=dict(totals), before_close=dict(walker.stats))
++        try:
++            walker.close()
++        except BaseException as caught:
++            close_error = caught
++        if progress is not None:
++            progress['after_close'] = dict(walker.stats)
++    if error is not None and close_error is not None:
++        raise BaseExceptionGroup('Storage scan and cleanup refused', [error, close_error])
++    if close_error is not None:
++        raise close_error
++    if error is not None:
++        raise error
++    probe()
++    completed = time.monotonic()
++    if completed-started > 5:
++        raise RuntimeRefused('STORAGE_SCAN_DEADLINE')
++    return dict(project_id=project.project_id, categories=totals, total_bytes=sum(totals.values()),
++                free_bytes=shutil.disk_usage(root).free, files=files, reparse_paths=reparses,
++                started_monotonic=started, completed_monotonic=completed, scan_seconds=completed-started)

@@ -18,7 +18,9 @@ The proposed change reuses at most 16 checked-closed buffers in the existing pri
 
 All 217 source and 217 installed program files, prior failed receipts, backups, actual coordinator bytes, 1 GiB reserve and watchdog stop remain unchanged. Ordinary work, reader19, Strata and clone updates remain stopped. The twelve earlier scanner experiment rounds and five maintenance reviews stay used; no round-13 candidate or further live admission attempt ran. M5 requirements 2 through 5 remain open; M6 stays zero of ten actual sessions.
 
-Exact next action: owner review of the proposed single candidate, unchanged acceptance gates and bounded records/scratch requirements. Do not execute the candidate or clear the stop from this preparation.
+Preparation follow-up: the worker is on hold and confirmed that no native Job started. Unapplied integration and regression drafts now select 61 cases per lane. The preservation receipt exists. Complete isolated dependency payloads require at least 345,161,969 bytes, exceeding the 8,388,608-byte scratch ceiling. The executable procedure remains incomplete. See [the three preparation gaps and storage decision](docs/STORAGE_PREPARATION_GAPS.md). No candidate or product test ran.
+
+Exact next action: select a storage and installation approach before completing and reviewing the executable procedure. Keep the five-second limit, every saved record, and the worker hold. Do not run another admission check or clear the saved stop.
 
 The owner-approved administrator cleanup has now removed exactly 31 old shortcuts. A separate live check confirmed all 31 target folders are unchanged and all links are absent. No permissions changed. The original failed launches and saved link records remain preserved; all 217 source and installed program files still match. The [cleanup report](docs/FIXTURE_CONSOLIDATION_GATES.md) explains the earlier Windows permission failure and the remaining storage decisions.
 
