@@ -1,5 +1,12 @@
 # Storage scanner preparation
 
+16 October update. The preview check now measures current CPU use and passed
+independent review. One complete capacity census ran, then refused the 1 GiB
+scratch hold with a 1,063,722,952-byte shortfall. The preview was already absent;
+this work did not stop it. The saved stop remains unchanged. See
+[the current result](../reports/PREVIEW_RESOURCE_CAPACITY.md).
+The preparation and earlier preview-stop proposal below are historical.
+
 15 October continuation. The owner approved the larger 1 GiB isolated-environment
 scratch allowance. That resolves the storage-choice question below. The reviewed
 capacity launcher then refused before startup because the unrelated Vesper

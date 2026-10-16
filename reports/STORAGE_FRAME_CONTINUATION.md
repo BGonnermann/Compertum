@@ -1,5 +1,15 @@
 # Storage fix continuation
 
+16 October update. The preview check was corrected to measure current resource
+use without stopping the preview. Independent review cleared one capacity
+census. It completed and refused the scratch hold because of a
+1,063,722,952-byte shortfall. The saved stop remains unchanged. See
+[the current report](PREVIEW_RESOURCE_CAPACITY.md). The report below preserves
+the earlier refusal and stop proposal; stopping the preview is no longer the
+next action.
+
+## Earlier 15 October report
+
 15 October 2026. The owner approved up to 1 GiB of disk scratch for an isolated
 test environment and retained outputs. The 4 MiB records ceiling, existing storage
 category limits, 50 GiB total budget and 50 GiB free-volume floor remain unchanged.

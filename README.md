@@ -1,13 +1,14 @@
 # Compertum
 
-15 October continuation. **The owner approved 1 GiB of disk scratch, but the
-capacity launcher refused before startup because the existing Vesper website
-preview exceeded its saved cumulative CPU allowance.** No census or candidate
-ran. The preview remains running, pending the owner's decision about stopping it.
-Release review verified 933 frozen inputs. Pure capacity checks: 22 passed,
-zero failures, errors or skips. Product tests: zero. Storage category caps and scanner limits,
-reserve and saved stop are unchanged. See
-[the current continuation report](reports/STORAGE_FRAME_CONTINUATION.md).
+16 October 2026. **The preview resource check is fixed and independently reviewed.
+One complete capacity census ran and refused the requested 1 GiB scratch hold.**
+The hold exceeds remaining scratch capacity by **1,063,722,952 bytes**. All 31
+simulated/pure checks passed, with zero failures, errors or skips. No product
+tests ran. The preview was already absent at launch; this work did not stop or
+restart it. This repair keeps the reviewed five-second limit. Separate edits
+appeared afterward that change the scanner setting to 30 seconds and scratch
+to 9 GiB; those edits are outside this review. All evidence and the saved stop
+remain preserved. See [the result](reports/PREVIEW_RESOURCE_CAPACITY.md).
 
 A supervised research system with reproducible experiments, bounded AI proposals, independent audits, and controlled paper-trading development.
 

@@ -4,6 +4,28 @@
 
 ## Active checkpoint
 
+16 October 2026. **The preview resource check is fixed and independently reviewed.
+One complete capacity census ran and refused the requested 1 GiB scratch hold.**
+The hold exceeds remaining scratch capacity by **1,063,722,952 bytes**. All 31
+simulated/pure checks passed, with zero failures, errors or skips. No product
+tests ran. The preview was already absent at launch; this work did not stop or
+restart it. This repair keeps the reviewed five-second limit. Separate edits
+appeared afterward that change the scanner setting to 30 seconds and scratch
+to 9 GiB; those edits are outside this review. All evidence and the saved stop
+remain preserved. See [the result](../reports/PREVIEW_RESOURCE_CAPACITY.md).
+
+- [x] Reproduce and correct lifetime CPU rejection without stopping the preview.
+- [x] Independently review all 960 input bindings and the bounded launch procedure.
+- [x] Run one capacity census and preserve its complete measurement and refusal.
+- [x] Verify process exit, zero remaining children and unchanged database/stop bytes.
+- [x] Record separate concurrent source changes without overwriting them.
+
+Exact next action: resolve the measured storage shortfall while preserving all
+records and current limits. No retry, candidate run, scratch write, clone update,
+ordinary runtime, Strata start or saved-stop recovery follows this refusal.
+
+### Prior preview refusal, preserved history
+
 15 October 2026 continuation. **The owner approved 1 GiB of disk scratch. The
 capacity launcher refused before startup because the existing Vesper website
 preview exceeded its saved cumulative CPU allowance.** The preview remains
