@@ -11,7 +11,7 @@ from compertum.persistence import StateStore
 from compertum.storage import JournalReserve
 from compertum.paper_contracts import identifier
 from compertum.fake_attempt_guard import require_attempt_guard
-from compertum.attempt_records import is_paper
+from compertum.attempt_records import is_paper,is_native,is_fake
 from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope,require_live_owner
 from .execution_health import MutualHealth
@@ -69,7 +69,11 @@ def _history(store):
         _need(count[0]<=256 and max(count[1:])<=65536,'EXECUTION_COMPROMISED')
         evidence=require_attempt_guard(store)
         paper=sum(is_paper(r['intent']) for r in evidence['records'])
-        return dict(status='PRESERVED_PREPARATION_AND_FAKE_HISTORY',paper_preparations=paper,fake_attempts=len(evidence['records'])-paper)
+        native=sum(is_native(r['intent']) for r in evidence['records'])
+        result=dict(status='PRESERVED_PREPARATION_AND_FAKE_HISTORY',paper_preparations=paper,
+                    fake_attempts=sum(is_fake(r['intent']) for r in evidence['records']))
+        if native:result.update(status='PRESERVED_DISJOINT_EXECUTION_HISTORY',native_attempts=native)
+        return result
     except (RuntimeRefused,sqlite3.Error):return dict(status='COMPROMISED',paper_preparations=None,fake_attempts=None)
 
 

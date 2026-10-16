@@ -2,6 +2,16 @@
 
 ## Current continuation - 16 October 2026
 
+The native retained-attempt dependency is now verified across 272 matching unique source/installed cases per environment. Both complete environments passed. Independent review round 3 is clear. This adds no native transport, ownership or financial authority. The reader includes complete external history after an older SQLite restore. See [the exact report](../reports/M5_NATIVE_ATTEMPT_RECORDS.md).
+
+The owner approved 21 GiB backups under the unchanged 50 GiB total. The final census passed with 1,074,264,096 bytes of backup headroom. The separate 11 GiB scratch decision remains pending for fresh full-reserve native lifecycle evidence. Keep the saved stop and all evidence.
+
+Next, verify a distinct inert activity-request and parser boundary. Fix the unfiltered account-activities endpoint, ascending order and original interval. Bound traversal to eight pages of 25 rows, 64 KiB per reply, 512 KiB total, 20 seconds and zero retries. Keep the original context's shorter lifetime. Activity IDs remain opaque cursors. API filters use creation dates. Transaction times and settlement dates cannot prove that delayed fees are posted. Complete traversal must leave native provenance, ownership, fees, actions and economic coverage unverified.
+
+Then qualify the private native activity producer and reconcile exact native order identities, fills, holdings and supported cash changes. Its new queue binding, WinHTTP lifecycle, encrypted publication and restart require fresh full-reserve native evidence. Continue risk, durable dispatch/recovery and the integrated rehearsal in dependency order. Actual broker actions remain outside this local scope.
+
+### Earlier reader continuation
+
 The owner authorized workload-based timer and temporary-storage adjustments, superseding the older five-second scan and scratch limits below. The blocked reader19 increment is complete: 59 reader cases plus five compatibility cases passed identically in source and installed environments, zero failures/errors/skips, with complete environment-byte verification and independent review round 2 clear. The wrapper preserves original private inputs and single-use proof timing, pins complete bounded history, and always leaves ownership/economic/risk/consumption authority blocked. This is a prerequisite within gate 2, not closure of gate 2. See [the reader report](../reports/M5_PRIVATE_PORTFOLIO_CONTEXT.md) and [resource measurements](../reports/RESOURCE_TIMERS_AND_STORAGE.md).
 
 Next local increment: qualified native ownership and economic evidence against the immutable opening, complete local history and broker observations. Preserve the separate remaining risk, durable dispatch and integrated rehearsal gates. The saved master stop and terminal M3 history remain preserved; Strata stays off. Backup headroom must be resolved before ordinary recovery snapshots.

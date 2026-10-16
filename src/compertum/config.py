@@ -23,7 +23,7 @@ _DEFAULTS = {
     "project": {"schema_version": "1", "mode": "m0", "new_spending_usd": "0.00"},
     "storage": {
         "total_bytes": 53687091200, "data_bytes": 16106127360, "models_bytes": 5368709120,
-        "scratch_bytes": 10737418240, "records_bytes": 5368709120, "backups_bytes": 21474836480,
+        "scratch_bytes": 10737418240, "records_bytes": 5368709120, "backups_bytes": 22548578304,
         "execution_reserve_bytes": 1073741824, "reserve_release_bytes": 67108864,
         "minimum_unused_reserve_bytes": 268435456, "minimum_free_bytes": 53687091200,
         "ingestion_free_bytes": 107374182400, "maximum_write_chunk_bytes": 8388608,

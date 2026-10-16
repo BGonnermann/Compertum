@@ -1,5 +1,13 @@
 # Timers and storage
 
+Later on 16 October, the owner approved **21 GiB backups**, retaining the 50 GiB total. This resolves the former 522,272-byte backup shortfall. A complete follow-up census passed in 45.262 seconds. It verified the original allocated emergency reserve and 437 preservation pins. Backups have 1,074,264,096 bytes of headroom. Scratch has 321,240,632 bytes left after a 128 MiB additional hold. Complete allocation and reservation accounting remains in `artifacts/m5/native-accounting-20261016-01/capacity05-measurement.json`.
+
+The native-record verification namespace has a 1280 MiB bound. It retains failed builds, prior package artifacts and a successful isolated test environment. Existing test limits remain 120 seconds, four CPUs, 4 GiB RAM and 16 processes. Host start/stop memory floors remain 16/12 GiB. The product scanner remains 30 seconds, inventory freshness 35 seconds and scratch 10 GiB. One heavy job runs at a time.
+
+The next small activity protocol checks fit this capacity. Another fully allocated 1 GiB native reserve fixture does not fit. The owner's separate 11 GiB scratch decision remains pending. No evidence removal or saved-stop recovery is authorized by the backup amendment. Strata remains off. See [native record verification](M5_NATIVE_ATTEMPT_RECORDS.md).
+
+## Earlier resource-policy measurements
+
 16 October 2026. The owner authorized sizing scan deadlines and temporary storage for the actual workload, then continuing the blocked local work. This decision supersedes the earlier five-second scan and 1 GiB preparation allowance. It preserves the 50 GiB project budget, free-disk floors, CPU/RAM limits, emergency reserve and all historical evidence. Strata stays off.
 
 ## Selected limits

@@ -10,7 +10,8 @@ from .events import uuid
 from .domain import ExecutionIntent,ExecutionDecision,RecoveryManifest,ContractError
 from .execution_contracts import record_sha256
 from .execution_risk import client_order_id
-from .attempt_records import validate_pair,is_paper
+from .attempt_records import validate_pair,is_paper,is_native,is_fake
+from .native_attempt_records import STATES as NATIVE_STATES
 from .paper_intent_records import STATES as PAPER_STATES,UNCONSUMED as PAPER_UNCONSUMED
 from .fake_attempt_guard import MAX_ATTEMPTS,MAX_BYTES,ZERO
 from .persistence import checked_path
@@ -20,7 +21,7 @@ from .fake_economic_opening import validate_pin,verify_opening
 FAKE_UNATTEMPTED=frozenset({'CHECKED','SKIPPED_RESTART','SKIPPED_WINDOW_EXPIRED'})
 UNATTEMPTED=FAKE_UNATTEMPTED|PAPER_UNCONSUMED
 FAKE_STATES=FAKE_UNATTEMPTED|{'SUBMITTING','UNKNOWN','ACKNOWLEDGED','PARTIALLY_FILLED','FILLED','CANCELED','EXPIRED','REJECTED'}
-STATES=FAKE_STATES|PAPER_STATES
+STATES=FAKE_STATES|PAPER_STATES|NATIVE_STATES
 
 
 def _state(conn,key):
@@ -57,8 +58,8 @@ def snapshot_attempts(conn,project_id):
     compromised=compromised or conflict==1
     ip,dp,expected_client=validate_pair(json.loads(body),json.loads(decision))
     if (canonical(ip).decode()!=body or canonical(dp).decode()!=decision or account!=ip['account_alias'] or key!=ip['intent_id']
-        or client!=expected_client or status not in (PAPER_STATES if is_paper(ip) else FAKE_STATES)
-        or is_paper(ip) and ip['project_id']!=project_id):raise ValueError()
+        or client!=expected_client or status not in (NATIVE_STATES if is_native(ip) else PAPER_STATES if is_paper(ip) else FAKE_STATES)
+        or not is_fake(ip) and ip['project_id']!=project_id):raise ValueError()
     rows.append(dict(intent=ip,decision=dp,client_order_id=client,attempted=status not in UNATTEMPTED))
   return dict(head=head,rows=rows,compromised=compromised,opening=opening)
  except (ValueError,TypeError,KeyError,sqlite3.Error,ContractError):raise RuntimeRefused('EXECUTION_COMPROMISED') from None

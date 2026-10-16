@@ -16,7 +16,7 @@ from .persistence import StateStore
 from .runtime.errors import RuntimeRefused
 from .runtime.owners import require_live_owner
 from .events import uuid
-from .attempt_records import is_paper
+from .attempt_records import is_fake
 
 MAX_INTENTS=256
 MAX_EVENTS=512
@@ -44,7 +44,7 @@ class FakeIntentJournal:
             preserved=provision_attempt_guard(store)
             if preserved['status']=='VERIFIED':
                 for record in preserved['records']:
-                    if is_paper(record['intent']):continue
+                    if not is_fake(record['intent']):continue
                     i=record['intent'];account=i['account_alias'];key=i['intent_id']
                     old=self.db.execute('SELECT body,decision,state FROM fake_intents WHERE account=? AND intent_id=?',(account,key)).fetchone()
                     if old is not None and (old[0]!=canonical(i).decode() or old[1]!=canonical(record['decision']).decode()):
@@ -103,7 +103,7 @@ class FakeIntentJournal:
     def _row(self,account,intent_id):
         row=self.db.execute('SELECT body,decision,state,order_id,filled,notional,client_id,conflict FROM fake_intents WHERE account=? AND intent_id=?',(account,intent_id)).fetchone()
         if row is None:raise RuntimeRefused('INTENT_NOT_FOUND')
-        if is_paper(json.loads(row[0])):raise RuntimeRefused('INTENT_SCOPE_MISMATCH')
+        if not is_fake(json.loads(row[0])):raise RuntimeRefused('INTENT_SCOPE_MISMATCH')
         return dict(intent=json.loads(row[0]),decision=json.loads(row[1]),status=row[2],order_id=row[3],filled_quantity=row[4],filled_notional=row[5],client_order_id=row[6],conflicting_observation=bool(row[7]),scope='DETERMINISTIC_FAKE',financial_accepted=False)
 
     def read(self,account,intent_id):
@@ -204,7 +204,10 @@ class FakeIntentJournal:
 
     def status(self):
         with self._transaction():
-            return dict(scope='DETERMINISTIC_FAKE',order_admission='DISARMED',reconciliation='RECONCILING',intents=self.db.execute("SELECT COUNT(*) FROM fake_intents WHERE state NOT LIKE 'PAPER_%'").fetchone()[0],events=self.db.execute("SELECT COUNT(*) FROM fake_intent_events WHERE kind NOT LIKE 'PAPER_%'").fetchone()[0],financial_accepted=False)
+            intents=self.db.execute("SELECT count(*) FROM fake_intents WHERE json_extract(body,'$.record_type')='ExecutionIntent'").fetchone()[0]
+            events=self.db.execute("SELECT count(*) FROM fake_intent_events e JOIN fake_intents i ON i.account=e.account AND i.intent_id=e.intent_id WHERE json_extract(i.body,'$.record_type')='ExecutionIntent'").fetchone()[0]
+            return dict(scope='DETERMINISTIC_FAKE',order_admission='DISARMED',reconciliation='RECONCILING',
+                        intents=intents,events=events,financial_accepted=False)
 
 
     def reserve_poll(self,account,intent_id,*,now):

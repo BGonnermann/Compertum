@@ -3,7 +3,7 @@ import hashlib,json,sqlite3
 from dataclasses import dataclass
 from compertum.data.encoding import canonical
 from compertum.domain import ContractError
-from compertum.attempt_records import validate_pair,is_paper
+from compertum.attempt_records import validate_pair,is_paper,is_native
 from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope
 from .paper_account_context import _PaperAccountContext
@@ -67,17 +67,21 @@ def _journal_snapshot(owner):
     if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'").fetchone():
         sequence=db.execute("SELECT seq FROM sqlite_sequence WHERE name='fake_intent_events' LIMIT 2").fetchall()
         _need(len(sequence)<=1 and all(type(row[0]) is int and row[0]>=0 for row in sequence))
-    pin=hashlib.sha256(canonical(dict(schema=schema,columns=columns,rows=rows,head=head,sequence=sequence))).hexdigest()
+    history=binding._history(owner)
+    _need(history['status'] in {'VERIFIED_ZERO_PRE_SCHEMA','VERIFIED_HISTORY'},'PAPER_PORTFOLIO_HISTORY_UNVERIFIED')
+    pin=hashlib.sha256(canonical(dict(schema=schema,columns=columns,rows=rows,head=head,sequence=sequence,
+        external_history=history))).hexdigest()
     classes=dict(fake=0,preparation=0,unknown=0)
     for row in rows['fake_intents']:
         try:
             intent,decision,_=validate_pair(json.loads(row[3]),json.loads(row[4]))
             _need(canonical(intent).decode()==row[3] and canonical(decision).decode()==row[4])
-            kind='preparation' if is_paper(intent) else 'fake'
+            kind='native' if is_native(intent) else 'preparation' if is_paper(intent) else 'fake'
         except (RuntimeRefused,*_INVALID):kind='unknown'
-        classes[kind]+=1
+        classes[kind]=classes.get(kind,0)+1
     return dict(sha256=pin,counts={table:len(values) for table,values in rows.items()},classes=classes,
-        retained_sequence=sequence[0][0] if sequence else 0)
+        retained_sequence=sequence[0][0] if sequence else 0,
+        retained_attempts=history['sequence'],guard_empty=history['empty'])
 
 
 def _diagnostic(context,journal,value):
@@ -89,7 +93,8 @@ def _diagnostic(context,journal,value):
     observation=json.loads(preflight.content)
     account=next(json.loads(raw)['observation'] for _,raw in preflight._records if json.loads(raw)['operation']=='ACCOUNT')
     matches=initial_cash is not None and cash_matches(initial_cash,account['cash'])
-    empty=not any(journal['counts'].values()) and journal['retained_sequence']==0
+    empty=(journal['guard_empty'] and journal['retained_attempts']==0
+        and not any(journal['counts'].values()) and journal['retained_sequence']==0)
     clean=(empty and matches and opening['reference']['disposition']=='CLEAN_ZERO_HISTORY'
         and value['confirmation_status']=='CONFIRMED_CURRENT_CONTEXT' and observation['positions']==observation['orders']==0
         and observation['order_coverage']=='OBSERVED_SHORT_TERMINAL_PAGE' and account['status']=='ACTIVE'
@@ -98,7 +103,7 @@ def _diagnostic(context,journal,value):
         observation_status='CLEAN_ZERO_OPENING_OBSERVED' if clean else 'BLOCKED',
         history_classification='VERIFIED_EMPTY_LOCAL_HISTORY' if empty else 'NONEMPTY_LOCAL_HISTORY',
         cash_observation='OPENING_UNVERIFIED' if opening is None else 'MATCHES_IMMUTABLE_OPENING' if matches else 'UNEXPLAINED_CASH_CHANGE',
-        journal_counts=journal['counts'],record_classes=journal['classes'],
+        journal_counts=journal['counts'],record_classes=journal['classes'],retained_attempts=journal['retained_attempts'],
         unverified_requirements=sorted(set(value.get('unverified_requirements',value.get('deficiencies',[])))|{'OWNERSHIP_UNVERIFIED',
             'ECONOMIC_COVERAGE_UNVERIFIED','FEE_ACTION_EVIDENCE_UNVERIFIED','RISK_UNVERIFIED','DURABLE_CONSUMPTION_UNVERIFIED'}),
         financial_accepted=False,transport_authorized=False,research_eligible=False,actual_flat=None)

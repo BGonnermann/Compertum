@@ -6,6 +6,7 @@ from .execution_risk import assess
 from .execution_plans import assess_control
 from .fake_execution_journal import FakeIntentJournal
 from .fake_attempt_guard import require_attempt_guard
+from .attempt_records import is_fake
 from .fake_economic_opening import require_opening
 from .fake_economic_ledger import reconcile
 from .deterministic_broker import DeterministicBroker,SimulatedTimeout
@@ -19,7 +20,9 @@ class FakeExecutionDriver:
         self.journal=journal;self.broker=broker
 
     def _economics(self,snapshot):
-        return reconcile(require_opening(self.journal.store,self.broker),require_attempt_guard(self.journal.store),snapshot)
+        evidence=require_attempt_guard(self.journal.store)
+        evidence={**evidence,'records':[r for r in evidence['records'] if is_fake(r['intent'])]}
+        return reconcile(require_opening(self.journal.store,self.broker),evidence,snapshot)
 
     def observation(self,template,*,now):
         return self._observation(template,self.broker.snapshot(),now=now)

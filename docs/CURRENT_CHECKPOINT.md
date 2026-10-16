@@ -4,6 +4,23 @@
 
 ## Active checkpoint
 
+16 October 2026. **The native retained-attempt dependency is verified.** The accepted composite contains 272 matching unique source/installed cases per environment. Failures, errors and skips are zero. Both complete environment byte checks passed. Independent review round 3 is clear and all three rounds are used for this dependency.
+
+The external guard preserves native write records separately from fake execution and preparation. Fake status and economics exclude native records. The portfolio reader now checks external retained history after an older SQLite restore. The first opening stays unchanged. Financial and transport authority remain false.
+
+The owner approved a 21 GiB backup ceiling under the unchanged 50 GiB total. The full census passed in 45.262 seconds. Backup headroom is 1,074,264,096 bytes. Scratch headroom is 321,240,632 bytes after a 128 MiB additional hold. The saved master stop, original environment, emergency reserve and terminal M3 audit history remain preserved. Strata stays off.
+
+- [x] Verify disjoint native retained records and fake-history separation.
+- [x] Repair and verify complete external-history observations after an older restore.
+- [x] Verify matching case inventories, complete environments and independent review.
+- [x] Apply the approved backup ceiling and verify complete capacity.
+- [ ] Verify the small activity protocol boundary and qualified native activity producer.
+- [ ] Complete ownership/economics, risk, durable dispatch/recovery and the integrated local rehearsal.
+
+Exact next action: freeze and execute the inert activity-request, parser and traversal cases within current capacity. The separate 11 GiB scratch decision remains pending for fresh full-reserve native lifecycle evidence. M5 requirements 2-5 remain open. M6 remains 0/10 actual sessions. See [the native-record report](../reports/M5_NATIVE_ATTEMPT_RECORDS.md).
+
+### Earlier 16 October reader checkpoint
+
 16 October 2026. **Workload limits are adjusted and the blocked private portfolio reader is verified.** Complete storage scans have 30 seconds and yield to heartbeat work; inventory freshness is 35 seconds. Recovery has a shared 240-second deadline. Authenticated commands allow 300 seconds, with five-second authentication and reply acknowledgement. The current task has 4 GiB temporary space inside a 10 GiB scratch category; the 50 GiB total and 1 GiB emergency reserve remain unchanged.
 
 The reader passed **64 identical source/installed cases**, zero failures/errors/skips, with both final environments byte-verified and independent reader review clear. Installed native three-owner recovery also passed. The full final capacity census passed with 29.567 GiB allocated, including 8.492 GiB scratch, and 187.673 GiB physical disk free. Backups still have only 522,272 bytes of category headroom. Strata remains off; the original installed environment, saved master stop and terminal M3 audit history remain preserved.

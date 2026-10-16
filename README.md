@@ -1,5 +1,17 @@
 # Compertum
 
+16 October 2026. **The native retained-attempt dependency is verified.** Source and installed evidence match across 272 unique cases per environment. There are zero failures, errors or skips in the accepted inventory. Both complete environment byte checks passed. Independent review round 3 is clear.
+
+Native write records remain separate from fake execution and inert preparation. The private reader now includes external attempts after an older database restore. No ownership, economic, risk or dispatch authority is granted.
+
+The owner approved 21 GiB backups under the unchanged 50 GiB total. The complete census passed with 1,074,264,096 bytes of backup headroom. Scratch has 321,240,632 bytes left after a 128 MiB hold. The 11 GiB scratch decision remains pending for another native reserve fixture.
+
+Exact next action: verify the small activity-request and parser boundary. Then qualify the native activity producer and economic evidence. M5 requirements 2-5 remain open. M6 remains 0/10 actual sessions. The saved master stop and terminal M3 audit failure remain preserved. Strata stays off.
+
+See [native records and exact evidence](reports/M5_NATIVE_ATTEMPT_RECORDS.md), [timers and capacity](reports/RESOURCE_TIMERS_AND_STORAGE.md), and [the current checkpoint](docs/CURRENT_CHECKPOINT.md).
+
+## Earlier 16 October reader checkpoint
+
 16 October 2026. **Workload limits are adjusted and the blocked private portfolio reader is verified.** Complete storage scans have 30 seconds and yield to heartbeat work; inventory freshness is 35 seconds. Recovery has a shared 240-second deadline. Authenticated commands allow 300 seconds, with five-second authentication and reply acknowledgement. The current task has 4 GiB temporary space inside a 10 GiB scratch category; the 50 GiB total and 1 GiB emergency reserve remain unchanged.
 
 The reader passed **64 identical source/installed cases**, zero failures/errors/skips, with both final environments byte-verified and independent reader review clear. Installed native three-owner recovery also passed. The full final capacity census passed with 29.567 GiB allocated, including 8.492 GiB scratch, and 187.673 GiB physical disk free. Backups still have only 522,272 bytes of category headroom. Strata remains off; the original installed environment, saved master stop and terminal M3 audit history remain preserved.

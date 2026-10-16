@@ -14,7 +14,7 @@ from .fake_execution_journal import FakeIntentJournal
 from .fake_attempt_guard import require_attempt_guard
 from .fake_economic_opening import require_opening
 from .fake_economic_ledger import reconcile
-from .attempt_records import is_paper
+from .attempt_records import is_fake
 from .runtime.errors import RuntimeRefused
 from .persistence import checked_path
 
@@ -81,7 +81,7 @@ class FakeObservationOwner:
             self._require_uncompromised()
             evidence=require_attempt_guard(self.store)
             # The shared guard is fully verified before selecting fake economics.
-            evidence={**evidence,'records':[v for v in evidence['records'] if not is_paper(v['intent'])]}
+            evidence={**evidence,'records':[v for v in evidence['records'] if is_fake(v['intent'])]}
             if self.broker is None:self._open_broker(guard,profile['account_alias'])
             self._broker_paths()
             if self.broker.account!=profile['account_alias']:raise RuntimeRefused('FAKE_ACCOUNT_CHANGED')

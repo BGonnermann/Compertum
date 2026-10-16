@@ -34,13 +34,20 @@ def _flush(path,raw):
     with path.open('xb') as f:f.write(raw);f.flush();os.fsync(f.fileno())
 
 
-from .attempt_records import record_key as _records,is_paper
+from .attempt_records import record_key as _records,is_paper,is_native,is_fake
 from .paper_intent_records import UNCONSUMED
 
 
-def _identity(project,mixed=False):
+def _identity(project,mixed=False,native=False):
+    if native:return dict(schema='execution-attempts-v3',project_id=project.project_id,
+                          scope='DISJOINT_FAKE_PREPARATION_NATIVE')
     return dict(schema='execution-attempts-v2' if mixed else 'fake-execution-attempts-v1',project_id=project.project_id,
                 scope='MIXED_PREPARATION_AND_FAKE' if mixed else 'DETERMINISTIC_FAKE')
+
+
+def _schema(intent):
+    if is_native(intent):return 'native-paper-write-attempt-v3'
+    return 'paper-preparation-attempt-v2' if is_paper(intent) else 'fake-execution-attempt-v1'
 
 
 def verify_attempt_guard(project):
@@ -48,8 +55,10 @@ def verify_attempt_guard(project):
     try:
         path=_directory(project)
         identity=_read(path/'identity.json',1024)
-        if identity not in (_identity(project),_identity(project,True)):raise ValueError()
-        mixed=identity==_identity(project,True)
+        if identity not in (_identity(project),_identity(project,True),_identity(project,native=True)):raise ValueError()
+        schemas={'fake-execution-attempt-v1'}
+        if identity!=_identity(project):schemas.add('paper-preparation-attempt-v2')
+        if identity==_identity(project,native=True):schemas.add('native-paper-write-attempt-v3')
         head=_read(path/'head.json',1024)
         if type(head) is not dict or set(head)!={'sequence','sha256'} or type(head['sequence']) is not int or not 0<=head['sequence']<=MAX_ATTEMPTS:raise ValueError()
         expected={'identity.json','head.json'}|{f'{n:08d}.json' for n in range(1,head['sequence']+1)}
@@ -62,10 +71,10 @@ def verify_attempt_guard(project):
         records=[];hashes=[];seen=set();prior=ZERO
         for n in range(1,head['sequence']+1):
             item=_read(path/f'{n:08d}.json')
-            if type(item) is not dict or set(item)!={'schema','sequence','previous_sha256','record'} or item['schema'] not in ({'fake-execution-attempt-v1','paper-preparation-attempt-v2'} if mixed else {'fake-execution-attempt-v1'}) or type(item['sequence']) is not int or item['sequence']!=n or item['previous_sha256']!=prior:raise ValueError()
+            if type(item) is not dict or set(item)!={'schema','sequence','previous_sha256','record'} or item['schema'] not in schemas or type(item['sequence']) is not int or item['sequence']!=n or item['previous_sha256']!=prior:raise ValueError()
             key=_records(item['record'])
-            if is_paper(item['record']['intent'])!=(item['schema']=='paper-preparation-attempt-v2'):raise ValueError()
-            if is_paper(item['record']['intent']) and item['record']['intent']['project_id']!=project.project_id:raise ValueError()
+            if _schema(item['record']['intent'])!=item['schema']:raise ValueError()
+            if not is_fake(item['record']['intent']) and item['record']['intent']['project_id']!=project.project_id:raise ValueError()
             if key in seen:raise ValueError()
             seen.add(key);records.append(item['record']);prior=_sha(item);hashes.append(prior)
         if prior!=head['sha256'] or _read(path/'head.json',1024)!=head or _read(path/'identity.json',1024)!=identity:raise ValueError()
@@ -132,13 +141,15 @@ def append_record(store,record):
                 return dict(first=False,record=prior)
         n=evidence['sequence']+1
         if n>MAX_ATTEMPTS:raise RuntimeRefused('FAKE_ATTEMPT_BOUND')
-        paper=is_paper(record['intent'])
-        if paper and record['intent']['project_id']!=guard.project.project_id:raise RuntimeRefused('EXECUTION_COMPROMISED')
-        item=dict(schema='paper-preparation-attempt-v2' if paper else 'fake-execution-attempt-v1',sequence=n,previous_sha256=evidence['sha256'],record=record);raw=canonical(item)
+        paper=is_paper(record['intent']);native=is_native(record['intent'])
+        if (paper or native) and record['intent']['project_id']!=guard.project.project_id:raise RuntimeRefused('EXECUTION_COMPROMISED')
+        item=dict(schema=_schema(record['intent']),sequence=n,previous_sha256=evidence['sha256'],record=record);raw=canonical(item)
         if len(raw)>MAX_BYTES:raise RuntimeRefused('FAKE_ATTEMPT_BOUND')
         path=_directory(guard.project)
         try:
             with guard.api.open_directory(path):
+                if native and _read(path/'identity.json',1024)!=_identity(guard.project,native=True):
+                    guard.api.publish_metadata(path/'identity.json',canonical(_identity(guard.project,native=True)))
                 if paper and _read(path/'identity.json',1024)==_identity(guard.project):
                     guard.api.publish_metadata(path/'identity.json',canonical(_identity(guard.project,True)))
                 _flush(path/f'{n:08d}.json',raw)

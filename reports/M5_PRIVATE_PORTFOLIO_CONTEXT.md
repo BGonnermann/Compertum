@@ -1,5 +1,9 @@
 # Private portfolio observations
 
+Later on 16 October, final native-record review found an external-history gap after an older SQLite restore. The reader now includes verified external attempts in its private digest. It requires zero external attempts before reporting empty history. Missing or corrupt guard evidence refuses. Seven new cases passed in source and installed environments. The broader inventory includes 66 reader cases and totals 272 unique matching cases per environment. Both complete environments passed. See [the repair and preserved failures](M5_NATIVE_ATTEMPT_RECORDS.md). Ownership and financial authority remain blocked.
+
+## Original reader increment
+
 16 October 2026. Reader19 resumed after the owner-authorized timer and temporary-storage repair. Its preserved 34 draft tests first ran and failed because the reader was absent. The implementation now borrows the original private account or combined account/market context and reports bounded local history observations. It never returns order authority, financial acceptance or a claim that the actual account is flat.
 
 The reader pins complete rows from all six local journal tables, their schema, indexes and triggers, the attempt-head state and the retained event sequence. A session row or retained sequence counts as nonempty history. Views, generated columns, partial schemas, oversized fields and excessive rows refuse. Reads are bounded before sorting. No journal schema or opening record is created or repaired while reading.

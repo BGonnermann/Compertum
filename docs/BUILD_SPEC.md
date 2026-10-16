@@ -8,6 +8,10 @@ Starting requirements: `Solo_Quant_System_Build_Preparation.md`, SHA-256 `668c66
 
 The owner authorized workload-based timer and temporary-space changes. Complete storage scans now have 30 seconds, completed inventories expire after 35 seconds, and scans yield to heartbeat work. Recovery has a shared 240-second deadline; authenticated commands allow 300 seconds while authentication and reply acknowledgements retain five seconds. The scratch category is 10 GiB under the unchanged 50 GiB aggregate cap. The current verification namespace has a 4 GiB bound, including three fully allocated native reserve fixtures. The actual 1 GiB emergency reserve, CPU/RAM limits and disk-free floors remain unchanged. Strata stays off. See [measurements, rationale and capacity research](../reports/RESOURCE_TIMERS_AND_STORAGE.md).
 
+Later on 16 October, the owner approved a 21 GiB backup ceiling under the unchanged 50 GiB total.
+The complete metadata census confirmed only 522,272 bytes remained under the previous 20 GiB ceiling.
+This decision permits no evidence removal, reserve borrowing or other category increase.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:
@@ -243,7 +247,7 @@ Proposal/AI adapter processes use one CPU thread and at most 256 MiB each; their
 
 Strata is already resident at approximately 53.5/62.9 GiB system RAM usage. Require at least 8 GiB available physical RAM before a 4 GiB research job; below 6 GiB, pause research dispatch and create a resource incident. Strata adapter uses one request, at most 16,384 input tokens and 2,048 output tokens, 120-second task request deadline. Abort if capacity would exceed the actual 65,536-token limit. Token counting must use the pinned local tokenizer or a verified conservative bound. No GPU training is admitted in version 1; later GPU experiments require a measured free-VRAM gate and separate protocol.
 
-Project storage cap is 50 GiB: at most 15 GiB data, 5 GiB quant model artifacts, 10 GiB scratch, 5 GiB records/logs/code, and 20 GiB local backups. Existing Strata weights remain external read-only dependencies and are not copied into the project. Require at least 100 GiB C: free before large ingestion and at least 50 GiB free during operation. Stop research writes first under pressure, preserve execution journal space, and halt order admission if durable journaling is threatened. Never auto-delete trial evidence to continue research.
+Project storage cap is 50 GiB: at most 15 GiB data, 5 GiB quant model artifacts, 10 GiB scratch, 5 GiB records/logs/code, and 21 GiB local backups. Existing Strata weights remain external read-only dependencies and are not copied into the project. Require at least 100 GiB C: free before large ingestion and at least 50 GiB free during operation. Stop research writes first under pressure, preserve execution journal space, and halt order admission if durable journaling is threatened. Never auto-delete trial evidence to continue research.
 
 ### Filesystem enforcement and journal capacity
 
@@ -296,7 +300,7 @@ Write artifacts to task-local temporary names, flush, hash, then atomically rena
 
 After a crash, expire task leases, mark interrupted attempts, verify checksums, resume only trusted checkpoint units, and never infer success from an artifact filename. A final evaluation marks consumption before reading holdout, persists progress, and may continue the same transaction from its checkpoint. If the evaluator revealed results before losing its recoverable state, mark `EVALUATION_COMPROMISED`; do not grant a fresh final query.
 
-Retention: keep all manifests, trial/evaluation/audit/control/order records and small logs permanently within the project budget; pin accepted/provisional model bundles and every dataset needed to rerun a scored experiment. Large scratch files may be proposed for removal after 30 days, but deletion requires owner approval and cannot remove scored evidence. Local consistent backups run after supervised sessions, retaining 7 daily and 4 weekly manifests plus separately copied, content-addressed blobs. Each immutable blob is copied once into the backup store, not repeated in eleven complete directory copies. Database snapshots use SQLite's consistent backup API. Verify hashes and a restore within the 20 GiB backup cap; inadequate capacity pauses new research evidence rather than silently dropping required history. Local backups share the desktop's failure domain. Independent backup location/capacity is pending; unattended paper operation remains disabled until a recoverable backup is verified. Secrets are never included in backups.
+Retention: keep all manifests, trial/evaluation/audit/control/order records and small logs permanently within the project budget; pin accepted/provisional model bundles and every dataset needed to rerun a scored experiment. Large scratch files may be proposed for removal after 30 days, but deletion requires owner approval and cannot remove scored evidence. Local consistent backups run after supervised sessions, retaining 7 daily and 4 weekly manifests plus separately copied, content-addressed blobs. Each immutable blob is copied once into the backup store, not repeated in eleven complete directory copies. Database snapshots use SQLite's consistent backup API. Verify hashes and a restore within the 21 GiB backup cap; inadequate capacity pauses new research evidence rather than silently dropping required history. Local backups share the desktop's failure domain. Independent backup location/capacity is pending; unattended paper operation remains disabled until a recoverable backup is verified. Secrets are never included in backups.
 
 ### Recovery-set manifest and restore protocol
 
