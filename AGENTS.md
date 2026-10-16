@@ -1,5 +1,18 @@
 # Compertum
 
+## Project-wide writing rule
+
+Use common English and ASD-STE100 Simplified Technical English principles throughout Compertum. This rule applies to every contributor and agent, including reviewers and delegated agents. Include this rule in task instructions for agents that do not read this file.
+
+- Apply the rule to replies, updates, plans, reports, documentation, diagrams, reviews, and text that users see in the program.
+- Use short, complete sentences. Put one idea or instruction in each sentence. Aim for no more than 20 words in instructions and 25 words in other sentences.
+- Use common words, active verbs, and direct instructions. Name who or what does the action.
+- Use the same word for the same thing. Avoid invented labels, unexplained abbreviations, and long groups of technical words.
+- Explain a necessary technical term when you first use it. Keep exact file names, commands, code names, units, and recorded results.
+- State what happened, what it means, and what happens next. Put a condition before the instruction that depends on it.
+- Check new and revised text for clear language before completion. Revise existing explanations when you work on them. Preserve original evidence, quoted text, and historical records.
+- Use the official [ASD-STE100 standard](https://www.asd-ste100.org/) as the reference. Do not claim full compliance without checking its writing rules and dictionary.
+
 ## Current owner direction — 14 October 2026
 
 - Keep `C:\Users\bgonn\Desktop\Compertum`, the master working folder, and GitHub up to date. The owner clarified that this is a synchronization requirement: an existing valid test need not be restarted solely because its results are written in another folder. Use master for current implementation and avoid unnecessary new desktop checkouts.
