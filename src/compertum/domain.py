@@ -574,7 +574,7 @@ class CapabilityDecision:
 
 _CONTROL_ACTIONS = frozenset({"start", "attach", "status", "doctor.read_only", "foundation.check",
                               "pause_research", "resume_research", "checkpoint", "stop_research",
-                              "shutdown", "ai.export", "ai.import", "baseline", "final", "final_audit", "synthetic_protocol", "owner_heartbeat", "fake_operator", "paper_read", "paper_read_transfer", "paper_market_read", "paper_market_transfer", "paper_presence", "paper_intent"})
+                              "shutdown", "ai.export", "ai.import", "baseline", "final", "final_audit", "synthetic_protocol", "owner_heartbeat", "fake_operator", "paper_read", "paper_read_transfer", "paper_market_read", "paper_market_transfer", "paper_presence", "paper_intent", "paper_activity", "paper_activity_transfer"})
 
 M0_CAPABILITIES = MappingProxyType({
     **{action: "CONTRACT_DEFINED" for action in _CONTROL_ACTIONS},

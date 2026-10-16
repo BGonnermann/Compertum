@@ -109,6 +109,8 @@ def _profile(native):
     from ._winhttp_data import _OwnedDataGet
     from ._winhttp_asset import _OwnedAssetGet
     from ._winhttp_order import _OwnedOrderHTTP
+    from ._winhttp_activity import _OwnedActivityGet
+    if type(native) is _OwnedActivityGet:return 'PAPER','ACTIVITY'
     if type(native) is _OwnedGet:return 'PAPER','READ'
     if type(native) is _OwnedAssetGet:return 'PAPER','ASSET'
     if type(native) is _OwnedDataGet:
@@ -118,11 +120,16 @@ def _profile(native):
 
 
 def _prepared_binding(producer):
+    from .paper_activity_owner import _ActivityProducer
     from .paper_market_collection import _MarketCollection
     from .paper_market_fresh import _MarketFresh
     from .paper_market_qualification import _PreparedMarketExchange
     from .paper_read_owner import PaperReadOwner
-    if type(producer) in (_MarketCollection,_MarketFresh):
+    if type(producer) is _ActivityProducer:
+        producer._check(full=False);_need(producer._state=='PENDING')
+        x=producer;request=producer._request;request.__post_init__();raw=request.content
+        target=request.to_payload()['target'];adapter='_OwnedActivityGet'
+    elif type(producer) in (_MarketCollection,_MarketFresh):
         producer._context();x=producer._pending
         _need(producer._state=='PENDING' and type(x) is _PreparedMarketExchange,'HTTP_PERMIT_WRONG_REQUEST')
         wire,target=x._verify(producer._lease,producer._protected)
@@ -207,7 +214,11 @@ def _producer_permit_locked(producer):
     from .paper_market_collection import _MarketCollection
     from .paper_market_fresh import _MarketFresh
     from .paper_read_owner import PaperReadOwner
-    if type(producer) is _MarketCollection:
+    from .paper_activity_owner import _ActivityProducer
+    if type(producer) is _ActivityProducer:
+        producer._check(full=False);lease=producer._lease;_need(producer._state=='READY')
+        profile=('PAPER',0,'ACTIVITY');deadline=producer._deadline_ns
+    elif type(producer) is _MarketCollection:
         producer._context();lease=producer._lease;_need(producer._state=='READY')
         profile=('DATA',2,'HISTORY' if producer._mode=='HISTORY' else 'CURRENT_ACTIONS');deadline=int((producer._real_started+80)*10**9)
     elif type(producer) is _MarketFresh:

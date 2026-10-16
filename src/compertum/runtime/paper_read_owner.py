@@ -52,7 +52,7 @@ class PaperReadOwner:
         if reserve.lease is not store.lease or health.lease is not store.lease:raise RuntimeRefused('OWNER_UNVERIFIED')
         self.store=store;self.reserve=reserve;self.health=health;self.lease=store.lease;self.db=store.conn
         self._preflight=None;self._read_provenance=[];self._account_proposal=None
-        self._market=None;self._input_context=None;self._presence=None;self._account_context=None;self._intents=None
+        self._market=None;self._input_context=None;self._presence=None;self._account_context=None;self._intents=None;self._activities=None
         self._active=None;self._packet=None;self._get=None;self._cipher=None;self._closed=False;self._transfer_offset=0;self._last_offset=None
         with _owner_scope(self.lease) as guard,store._live(),self.db:
             if any(type(r) is PaperReadOwner and not r._closed for r in guard.resources):raise RuntimeRefused('READ_OWNER_CAPACITY')
@@ -282,6 +282,22 @@ class PaperReadOwner:
                 self._presence=_PresenceOwner(self)
             return self._presence.handle(packet)
 
+    def _activity_helper(self):
+        if self._activities is None:
+            from .paper_activity_owner import _ActivityOwner
+            self._activities=_ActivityOwner(self)
+        return self._activities
+
+    def activity_handle(self,packet):
+        with _owner_scope(self.lease),self.store._live():
+            _need(not self._closed,'READ_OWNER_CLOSED')
+            return self._activity_helper().handle(packet)
+
+    def activity_transfer(self,payload):
+        with _owner_scope(self.lease),self.store._live():
+            _need(not self._closed,'READ_OWNER_CLOSED')
+            return self._activity_helper().transfer(payload)
+
     def tick(self):
         with _owner_scope(self.lease),self.store._live():
             if self._closed:return
@@ -289,6 +305,7 @@ class PaperReadOwner:
             if self._market is not None:self._market.tick()
             if self._presence is not None:self._presence.tick()
             if self._intents is not None:self._intents.tick()
+            if self._activities is not None:self._activities.tick()
 
     def intent_handle(self,packet):
         # The adapter owns final scope exits; no outer native reads after clocks.
@@ -361,6 +378,7 @@ class PaperReadOwner:
                         sha256=e['sha256'],total_bytes=e['size_bytes'],offset=offset,data=base64.b64encode(data).decode())
 
     def require_checkpoint(self):
+        if self._activities is not None:self._activities.require_checkpoint()
         if self._market is not None:self._market.require_checkpoint()
         _need(self._active is None and self._get is None and self._cipher is None,'READ_CHECKPOINT_BUSY')
 
@@ -371,6 +389,7 @@ class PaperReadOwner:
             if self._market is not None:self._market.close()
             if self._presence is not None:self._presence.close()
             if self._intents is not None:self._intents.close()
+            if self._activities is not None:self._activities.close()
             self._closed=True;self._clear_preflight();self._read_provenance=[]
             try:self._dispose_get()
             finally:

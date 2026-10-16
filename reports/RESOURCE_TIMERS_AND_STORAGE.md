@@ -1,5 +1,27 @@
 # Timers and storage
 
+## Current allocation - 16 October 2026
+
+The owner approved 12 GiB scratch after an earlier 11 GiB approval. Backups remain 21 GiB.
+The aggregate cap remains 50 GiB. The fully allocated 1 GiB emergency reserve remains protected.
+The first native fixture retains its watchdog halt and allocated reserve.
+A separately admitted fixture passed the current source and installed native stages.
+Each fixture keeps its original path and records. No evidence was removed.
+
+The final full census passed with 141,360,336 bytes of scratch headroom after recorded holds.
+Backup headroom is 1,074,264,096 bytes. The census includes both activity namespaces and outstanding reservations.
+Current namespace ceilings are 1152 MiB and 1056 MiB. An older 128 MiB scratch hold remains included.
+The separate full metadata census retains its 70-second measurement deadline and 80-second job bound.
+Production scans still allow 30 seconds. Inventory freshness remains 35 seconds.
+Tests retain 120 seconds, four CPUs, 4 GiB RAM and 16 processes per job.
+Host memory floors remain 16 GiB before start and 12 GiB while running.
+Only one heavy job runs at a time. Strata and its model server remain off.
+
+See `artifacts/m5/native-activity-20261016-01/capacity09-measurement.json` and `capacity09-result.json`.
+The source and installed environment checks and native closures are in the same evidence folder.
+See [the native activity report](M5_NATIVE_ACTIVITY_PRODUCER.md). Earlier allocations below are preserved history.
+
+
 The latest complete census passed in 44.709 seconds after the activity parser checks. With all holds, scratch charges 10,427,707,384 bytes, records charge 1,214,080,896 bytes and backups charge 21,474,314,208 bytes. Scratch headroom is 309,710,856 bytes after a 128 MiB additional hold. Backup headroom is 1,074,264,096 bytes. All 437 original preservation pins and the new package bindings verified.
 
 An extra 1 GiB native fixture would exceed the current scratch category by 764,030,968 bytes. The owner approved 21 GiB backups only. The separate 11 GiB scratch decision remains pending under the unchanged 50 GiB total. No new full-reserve activity lifecycle check or saved-stop recovery ran. See [current evidence and the exact next action](M5_ACTIVITY_BOUNDARY.md).

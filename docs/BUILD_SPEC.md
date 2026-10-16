@@ -12,6 +12,12 @@ Later on 16 October, the owner approved a 21 GiB backup ceiling under the unchan
 The complete metadata census confirmed only 522,272 bytes remained under the previous 20 GiB ceiling.
 This decision permits no evidence removal, reserve borrowing or other category increase.
 
+Later on 16 October, the owner approved 11 GiB scratch, then 12 GiB scratch to preserve a failed native fixture.
+The current scratch ceiling is 12 GiB. Backups stay 21 GiB and the total stays 50 GiB.
+The original 1 GiB emergency reserve remains fully allocated and protected.
+Both native fixture reserves and all failed evidence remain preserved.
+No timer, memory, CPU, financial or broker-authority limit changed with these allocations.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

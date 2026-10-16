@@ -1,5 +1,17 @@
 # Compertum
 
+16 October 2026. **The native activity producer is locally verified.** Source and installed checks each passed 271 matching cases. Failures, errors and skips are zero. Each inventory includes four native Windows stages and 267 pure or in-process cases. Both complete environment byte checks passed. Final independent code review round 3 is clear; all three rounds are used.
+
+The producer binds the original account context, immutable opening, complete local history and credential identity. Native loopback checks cover collection, lost replies, encrypted publication, restart, cancellation and historical reopening. The account opening is invented test evidence. These checks grant no ownership, economic, risk or broker-write authority.
+
+The owner approved 12 GiB scratch and 21 GiB backups under the unchanged 50 GiB total. The final census passed. Scratch has 141,360,336 bytes left after recorded holds. Backups have 1,074,264,096 bytes left. Both native fixture reserves and the failed fixture's halt remain preserved. The saved master stop, original environment and terminal M3 audit failure remain preserved. Strata stays off.
+
+Exact next action: freeze the ownership and economic reconciliation cases against the immutable opening, complete history and native observations. Then complete risk, durable dispatch/recovery and the integrated local rehearsal in dependency order. M5 requirements 2-5 remain open. M6 remains 0/10 actual supervised sessions.
+
+See [native activity verification](reports/M5_NATIVE_ACTIVITY_PRODUCER.md) and [the current checkpoint](docs/CURRENT_CHECKPOINT.md).
+
+## Earlier activity-parser checkpoint
+
 16 October 2026. **Native retained records and the activity parser boundary are verified.** The combined inventory has 371 matching unique source/installed cases per environment. Failures, errors and skips are zero. It includes 99 new pure activity cases and 272 unchanged component cases. Both latest complete environment byte checks passed. Each dependency completed independent review round 3.
 
 The parser fixes the original query and cursor chain. It preserves exact fill times and keeps missing native, ownership, fee, action and economic evidence blocking. No native activity producer, risk admission or actual dispatch is claimed.

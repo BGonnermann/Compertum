@@ -76,7 +76,7 @@ def test_actual_execution_handler_routes_intents_only_after_checkpoint_release(t
     class Reads:
         def __init__(self,*args):assert args==(store,reserve,mutual);constructed.append(self)
         def handle(self,p):raise AssertionError('wrong read route')
-        transfer=market_handle=market_transfer=presence_handle=handle
+        transfer=market_handle=market_transfer=presence_handle=activity_handle=activity_transfer=handle
         def intent_handle(self,p):calls.append(p);return dict(observed=p)
         def tick(self):raise AssertionError('no second event loop iteration expected')
         def require_checkpoint(self):events.append(('intent_checkpoint',))
