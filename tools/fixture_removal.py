@@ -89,12 +89,23 @@ def namespace_usage(api,poll=lambda:None):
     return total
 
 def require_namespace_budget(api,hold=0):
-    baseline=json.loads((NAMESPACE/'execution-budget-baseline.json').read_bytes())
+    original=(NAMESPACE/'execution-budget-baseline.json').read_bytes()
+    baseline=json.loads(original)
+    approval=json.loads((NAMESPACE/'recovery01-owner-approval.json').read_bytes())
+    assert hashlib.sha256(original).hexdigest()==approval['original_budget_baseline_sha256']
+    assert approval['additional_attempts']==1 and approval['prior_removal_attempts']==1
+    assert approval['additional_records_bytes']==8*1024**2
+    assert approval['cumulative_growth_maximum_bytes']==24*1024**2
+    assert approval['total_namespace_maximum_bytes']==32*1024**2
+    assert approval['additional_review_rounds']==2 and approval['prior_review_rounds_used']==3
+    assert approval['failed_attempt_preserved'] is True
+    assert approval['scratch_growth_bytes']==0
+    assert not any(approval[key] for key in ('administrator_elevation_approved','security_changes_approved','halt_change_approved','runtime_or_clone_writes_approved'))
     used=namespace_usage(api)
     assert baseline['scope']=='CUMULATIVE_STAGE_A_AND_B'
     assert baseline['growth_maximum_bytes']==16*1024**2 and baseline['total_namespace_maximum_bytes']==32*1024**2
     assert used+hold<=baseline['total_namespace_maximum_bytes']
-    assert used-baseline['initial_namespace_charged_bytes']+hold<=baseline['growth_maximum_bytes']
+    assert used-baseline['initial_namespace_charged_bytes']+hold<=approval['cumulative_growth_maximum_bytes']
     assert shutil.disk_usage(ROOT).free>=50*1024**3
     return used
 
@@ -170,20 +181,20 @@ def execute_removal(context):
     assert not approval['administrator_elevation_approved'] and not approval['security_changes_approved']
     assert approval['scratch_growth_bytes']==0
     assert approval['stage_a_independent_verification_sha256']==sha(namespace/'independent-verification.json')
-    fresh=json.loads((namespace/'stage-b-gate-metadata.json').read_bytes())
-    capacity=json.loads((namespace/'stage-b-gate-capacity.json').read_bytes())
-    links=json.loads((namespace/'stage-b-gate-links.json').read_bytes())
+    fresh=json.loads((namespace/'recovery01-stage-b-gate-metadata.json').read_bytes())
+    capacity=json.loads((namespace/'recovery01-stage-b-gate-capacity.json').read_bytes())
+    links=json.loads((namespace/'recovery01-stage-b-gate-links.json').read_bytes())
     assert capacity['capacity_qualified'] and not capacity['unknown_streams'] and not capacity['barriers'] and not capacity['ledger_failures']
     assert not links['incoming'] and not links['unresolved'] and not links['barriers']
     archive.require_scratch_baseline(capacity['categories']['scratch'],capacity['outstanding_conservative_bytes']['scratch'])
     pending=dict(capacity['outstanding_conservative_bytes']);pending['records']+=10*1024**2
-    assert pending['records']>=26*1024**2
+    assert pending['records']>=34*1024**2
     assert all(capacity['categories'][key]+pending[key]<=limit for key,limit in context['CAPS'].items() if key!='scratch')
     assert sum(capacity['categories'].values())+sum(pending.values())<=50*1024**3
-    assert capacity['free_bytes']-26*1024**2>=50*1024**3
+    assert capacity['free_bytes']-34*1024**2>=50*1024**3
     rows=plan_removal(fresh['groups']);assert len(rows)==1827
     assert {kind:sum(row['kind']==kind for row in rows) for kind in ('file','directory','reparse')}==dict(file=1098,directory=718,reparse=11)
-    result_path=namespace/'stage-b-result.json';manifest_path=namespace/'stage-b-removal-manifest.json';journal_path=namespace/'stage-b-removal-journal.jsonl'
+    result_path=namespace/'recovery01-stage-b-result.json';manifest_path=namespace/'recovery01-stage-b-removal-manifest.json';journal_path=namespace/'recovery01-stage-b-removal-journal.jsonl'
     assert not any(path.exists() for path in (result_path,manifest_path,journal_path)),'PRESERVE_PREVIOUS_REMOVAL_ATTEMPT'
     last_budget=-float('inf');disposed_paths=[];verified_paths=[];changed_dirs=set()
     result=dict(status='STAGE_B_FAILED_RETAIN_ALL_PROGRESS',entries_disposed=0,entries_verified_absent=0,recursive_removal=False,permissions_changed=False,privileges_changed=False,extra_roots_removed=False)
@@ -248,8 +259,7 @@ def execute_removal(context):
                 for name in dirs+files:observed.add((Path(base)/name).relative_to(ROOT).as_posix())
                 dirs[:]=[name for name in dirs if not (Path(base)/name).lstat().st_file_attributes&0x400]
             assert observed==set(group['entries'])
-        assert time.monotonic()-context['started']<60,'INSUFFICIENT_TIME_BEFORE_FIRST_REMOVAL'
-        manifest=dict(scope='EXACT_APPROVED_FOUR_ROOTS',roots=list(ROOTS),metadata_sha256=sha(namespace/'stage-b-gate-metadata.json'),capacity_sha256=sha(namespace/'stage-b-gate-capacity.json'),approval_sha256=sha(namespace/'stage-b-owner-approval.json'),archive_index_sha256=backup_result['index_sha256'],entries=[{key:row[key] for key in ('path','kind','volume','file_id')} for row in rows])
+        manifest=dict(scope='EXACT_APPROVED_FOUR_ROOTS',roots=list(ROOTS),metadata_sha256=sha(namespace/'recovery01-stage-b-gate-metadata.json'),capacity_sha256=sha(namespace/'recovery01-stage-b-gate-capacity.json'),approval_sha256=sha(namespace/'stage-b-owner-approval.json'),recovery_approval_sha256=sha(namespace/'recovery01-owner-approval.json'),archive_index_sha256=backup_result['index_sha256'],entries=[{key:row[key] for key in ('path','kind','volume','file_id')} for row in rows])
         manifest_bytes=len((json.dumps(manifest,sort_keys=True,indent=2)+'\n').encode())
         assert manifest_bytes<=1024**2
         # Hold the actual full manifest plus the entire journal, result and

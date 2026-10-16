@@ -1,5 +1,7 @@
 # One additional attempt after the removal preflight refusal
 
+15 October 2026. The owner approved this proposal, and its single additional removal attempt and single pending production check have closed. See [the actual outcome and preserved failures](../reports/FIXTURE_REMOVAL_RECOVERY.md). No further attempt is authorized. The approved proposal is preserved below as history and in its original fingerprinted local copy.
+
 15 October 2026. **Proposal for review. Do not execute it without a new retry decision.** The first approved attempt stopped before creating a removal manifest or journal. Independent verification proves all 1,827 originals and the nine backup files unchanged. See [the failure and preservation report](../reports/FIXTURE_REMOVAL_PREFLIGHT.md).
 
 The owner's existing approval of the four exact roots, historical-copy limits and master-only link scope remains recorded. This proposal asks only for one additional bounded attempt, the records needed to preserve both attempts, and at most two additional independent review rounds for the corrected execution source and final result. Carry every earlier review and scanner count forward.

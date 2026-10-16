@@ -1,10 +1,16 @@
 # Test-folder preservation decisions and history
 
-15 October 2026. **The copies are verified, but the first approved removal preflight stopped before deleting anything.** The full inspection took 60.834 seconds and triggered the helper's additional 60-second start requirement. Independent verification proves all four originals, their 1,827 entries and the nine backup files unchanged. See [the refusal report](../reports/FIXTURE_REMOVAL_PREFLIGHT.md).
+15 October 2026. **The four approved backed-up folders have been removed and all 1,827 entries independently verified absent.** All eight backup payloads and their index still verify. All 1,627 other master links, 217 source and 217 installed program files, 65 original group reports and 112 receipt fingerprints remain unchanged. See [the recovery report](../reports/FIXTURE_REMOVAL_RECOVERY.md).
 
-The owner has accepted the historical-copy limits and master-only incoming-link scope. Fresh checks found all 1,638 retained master links readable, no incoming dependencies inside master and no actual reservation rows. Scratch remains 310,888 bytes over its limit. The existing watchdog stop remains preserved, and the one later production check has not run. Ordinary work and clone updates stay stopped.
+The single production storage check refused with `STORAGE_SCAN_DEADLINE`. Current inventory/capacity did not qualify. No second scan was launched. The existing `state/watchdog/halt.json` remains unchanged. Its recorded `STORAGE_UNHEALTHY` stop still prevents ordinary admission through `RETAINED_WATCHDOG_HALT`. No halt recovery, ordinary work, reader19, Strata or clone update ran.
 
-A [bounded recovery proposal](FIXTURE_REMOVAL_RECOVERY_PROPOSAL.md) requests one additional attempt and 8 MiB more cumulative execution records while preserving every failed record and all operating limits. It needs a new retry decision under the [existing procedure](FIXTURE_CONSOLIDATION_EXECUTION_PROCEDURE.md). The sections below retain earlier investigation results and failures as history.
+The owner approved one additional removal attempt, 8 MiB more cumulative records and two additional reviews. The removal child exited with code 0 in 38.4780912 seconds under the unchanged one-CPU, 128 MiB and 75-second limits. Its parent reported failure at an immediate Job-membership check after the observed exit; the original failed receipt remains intact. A separate read-only audit verified all 3,654 ordered journal records, every approved absence, backups and protected inputs, then reconciled that post-exit failure without repeating removal. A separately reviewed C-only helper waited for Job exit within the same deadline. No deletion or scan allowance was reset.
+
+The execution allowance is one cumulative 24 MiB growth limit, measured from the original 301,352-byte baseline, with the unchanged 32 MiB folder and category limits. The records charge conservatively retains the full 34 MiB combined hold. Twenty-five in-memory helper checks passed with zero failures or skips. No product tests ran, with zero passed, failed or skipped cases. Earlier failures and all original backup limits remain recorded. Scanner experiment rounds 1 through 12 remain used, reader19 remains 34 drafts and zero executed cases, M5 requirements 2 through 5 remain open, and M6 remains zero of ten actual sessions.
+
+Exact next action: keep ordinary work and clone writes stopped. Any recovery of the preserved watchdog stop, further scan or additional removal needs a concrete new operating decision. This maintenance result accepts no M5 or financial requirement.
+
+The sections below preserve the earlier investigation and decisions. Their measurements and unresolved-approval statements describe that earlier point in time; the verified removal and refused check above are the current outcome.
 
 ## Owner-approved link cleanup, completed
 
