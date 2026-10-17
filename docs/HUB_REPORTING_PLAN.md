@@ -17,13 +17,13 @@ Add no service, account call, model process, or scheduled task.
 
 ## Acceptance checklist
 
-- [ ] Connect all existing stage record sources and registered native workers.
-- [ ] Mark stages without an implemented producer or journal explicitly.
-- [ ] Keep timestamps, runtime roots, historical records, and current activity distinct.
-- [ ] Prove that observation leaves database, log, and shared-memory bytes unchanged.
-- [ ] Verify committed log reads, partial writes, identities, refusal cases, and browser updates.
-- [ ] Create and inspect the desktop shortcut and verify launcher reuse.
-- [ ] Review, refresh the horizontal PDF, and synchronize verified checkpoints and the rollback clone.
+- [x] Connect all existing stage record sources and registered native workers.
+- [x] Mark stages without an implemented producer or journal explicitly.
+- [x] Keep timestamps, runtime roots, historical records, and current activity distinct.
+- [x] Prove that observation leaves database, log, and shared-memory bytes unchanged.
+- [x] Verify committed log reads, partial writes, identities, refusal cases, and browser updates.
+- [x] Create and inspect the desktop shortcut and verify launcher reuse.
+- [x] Review, refresh the horizontal PDF, and synchronize verified checkpoints and the rollback clone.
 
 Run the Hub source cases and browser checks. Use fresh checked test namespaces and external screenshots.
 Use at most three review and repair rounds. Stop for a concrete missing authority, unsafe resource level, or unresolved required check.

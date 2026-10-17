@@ -65,5 +65,8 @@ All product source files, operating gates, frozen identities, failed evidence, a
 
 Evidence is outside Git in `C:\Users\bgonn\.codex\visualizations\2026\10\17\01a14a69-85c1-7252-8eb9-f7ddce9f50a3\hub-reporting-20261017`.
 The original-byte check, final source log, browser results, shortcut read-back, map checks, and synchronization receipt belong there.
-The horizontal project-map PDF must be refreshed and inspected before final delivery.
+The horizontal project-map PDF was refreshed. All nine landscape pages were rendered and inspected.
+Its 81 navigation links and 90 source notes passed checks. The current economic and operating blockers remain intact.
+Verified code checkpoint `f9355f4` was pushed to the approved private repository and matched the clean rollback clone.
+Final documentation, the served PDF fingerprint, and matching revisions are recorded in the external release receipt.
 Hub verification does not change milestone acceptance, the native economic gate, or the zero of ten actual supervised sessions.
