@@ -3,6 +3,36 @@
 16 October 2026. This record executes the approved local finish plan in
 `M5_PAPER_ADMISSION_PLAN.md`. The primary agent owns all source changes.
 
+## Current cost component
+
+16 October 2026. **Position costs from current original records are locally verified.**
+Source and installed checks each passed 53 matching distinct cases, with zero failures, errors or skips.
+Each inventory includes 51 in-process cases and two native Windows stages.
+Both final complete environment checks passed. Independent review round 3 is clear; all three rounds are used.
+
+The new private context binds the original account, opening, complete history, portfolio and native activity records.
+Supported recorded-fill costs must match. Unsupported histories remain blocked after closing and reopening.
+Fees, corporate actions, risk, durable dispatch and the installed integrated rehearsal remain open.
+M5 gates 2-5 remain open. M6 remains 0/10 actual supervised sessions. Only M0 is fully accepted.
+
+The final maintenance census passed in 44.6748 seconds under the unchanged 110-second measurement bound.
+Its parent Job closed in 48.1994 seconds with zero remaining children.
+Scratch has 4,146,112 bytes left after holds. Backups have 924,473,376 bytes left.
+Scratch remains 12 GiB, backups 21 GiB and the total 50 GiB.
+Production scans retain 30 seconds and their 35-second freshness rule.
+
+The first installed native attempt remains failed. Its original runtime and sidecars have a verified preservation archive.
+One existing acknowledgement was recovered without another account request or changed activity identity.
+A separate instrumented test passed. Its 4.8145-second acknowledgement has little margin under the unchanged five-second limit.
+The original failure's cause remains unproven. Historical failures do not enter passing counts.
+
+Next, bind declared fee calculations to original current fills under the reviewed fee-context plan.
+Then qualify fees and actions before risk, durable dispatch and the installed local rehearsal.
+The failed fixtures, saved stops, original environment and terminal M3 audit history remain preserved.
+No actual broker action occurred. Strata stays off.
+
+See [the exact current cost report](../reports/M5_POSITION_COST_CONTEXT.md).
+
 ## Completion requirements
 
 - [ ] Gate 2: reconcile owned orders, exact fills, holdings and supported cash changes against the immutable opening.

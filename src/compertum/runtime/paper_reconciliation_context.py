@@ -9,6 +9,7 @@ from compertum.data.encoding import canonical
 from compertum.domain import ContractError
 from compertum.fake_attempt_guard import verify_attempt_guard
 from compertum.paper_reconciliation import calculate_reconciliation
+from compertum.paper_position_costs import calculate_position_costs
 from .errors import RuntimeRefused
 from .owners import _MUTEX, _owner_scope
 from .paper_account_context import _PaperAccountContext
@@ -36,7 +37,8 @@ def _sha(value):
     return hashlib.sha256(canonical(value)).hexdigest()
 
 
-def _capture(owner, context, portfolio, activity_id):
+def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
+    _need(type(position_costs) is bool)
     _need(type(context) is _PaperAccountContext and owner._account_context is context)
     _need(context._owner is owner and not context._closed)
     proof = portfolio._prepare_proof()
@@ -84,13 +86,15 @@ def _capture(owner, context, portfolio, activity_id):
     native = tuple(row for row in history['records'] if is_native(row['intent'])
                    and row['intent']['account_alias'] == alias)
     fills = tuple(row for page in collection['pages'] for row in page['parsed']['rows'])
-    calculation = calculate_reconciliation(project_id=owner.lease.project_id, account_alias=alias,
+    calculate = calculate_position_costs if position_costs else calculate_reconciliation
+    calculation = calculate(project_id=owner.lease.project_id, account_alias=alias,
         opening_cash=cash, current_cash=observed_account[0]['cash'], attempts=native,
         orders=tuple(row for page in order_pages for row in page['rows']),
         positions=tuple(positions[0]['rows']), activities=fills)
     stable = dict(context=context._binding, activity=record, opening=opening,
                   journal=journal['sha256'], history_sha256=history['sha256'],
-                  preflight=preflight._content_sha, calculation=calculation)
+                  preflight=preflight._content_sha, calculation=calculation,
+                  position_costs=position_costs)
     pin = _sha(stable)
 
     def original():
@@ -113,6 +117,16 @@ def _capture(owner, context, portfolio, activity_id):
         unverified_requirements=['ACTION_EVIDENCE_UNVERIFIED', 'FEE_LIABILITIES_UNVERIFIED',
             'POSITION_COST_RECONSTRUCTION_UNVERIFIED', 'RISK_UNVERIFIED', 'DURABLE_CONSUMPTION_UNVERIFIED'],
         transport_authorized=False, financial_accepted=False, actual_flat=None)
+    if position_costs:
+        complete = calculation['position_costs_complete']
+        _need(type(complete) is bool)
+        result['record_type'] = 'PaperPositionCostDiagnostic'
+        result['position_cost_status'] = ('MATCHING_RECORDED_FILL_COSTS' if complete
+                                          else 'UNSUPPORTED_FILL_COST_HISTORY')
+        if complete:
+            result['unverified_requirements'].remove('POSITION_COST_RECONSTRUCTION_UNVERIFIED')
+        else:
+            result['unverified_requirements'].append('UNSUPPORTED_FILL_COST_HISTORY')
     protected = load_paper_slot(owner.lease, alias)
     _need(hashlib.sha256(protected.ciphertext).hexdigest() == seed['credential_sha256'])
     expected_slot = slot_payload(protected)
@@ -135,6 +149,7 @@ class _ReconciliationContext:
     _activity_id: str
     _binding: str
     _calculation: bytes
+    _position_costs: bool
     _closed: bool
 
     def __init__(self, *, _factory=None, **fields):
@@ -163,10 +178,14 @@ class _ReconciliationContext:
                 raise RuntimeRefused('PAPER_RECONCILIATION_DATABASE_CLOSED') from None
             _need(not pending, 'PAPER_RECONCILIATION_TRANSACTION_OPEN')
             try:
+                mode = self._position_costs
+                _need(type(mode) is bool)
                 owner = self._owner
                 with _owner_scope(owner.lease), owner.store._live():
                     _need(owner.db is self._db and not owner._closed)
-                    proof, pin, calculation, result, original = _capture(owner, self._context, self._portfolio, self._activity_id)
+                    proof, pin, calculation, result, original = _capture(
+                        owner, self._context, self._portfolio, self._activity_id, position_costs=mode)
+                    _need(self._position_costs is mode)
                     _need(pin == self._binding and calculation == self._calculation)
                     check, finish, invalidate = proof._check, proof._finish, proof._invalidate
 
@@ -174,6 +193,7 @@ class _ReconciliationContext:
                         _need(not self._closed and owner.db is self._db and not self._context._closed)
                         _need(owner._account_context is self._context and self._binding == pin
                               and self._calculation == calculation)
+                        _need(self._position_costs is mode)
 
                     def checked():
                         identity()
@@ -183,8 +203,10 @@ class _ReconciliationContext:
                             invalidate(error.code)
                             raise
                         original()
+                        identity()
 
                     def finished():
+                        identity()
                         try:
                             finish()
                         except RuntimeRefused as error:
@@ -198,6 +220,7 @@ class _ReconciliationContext:
                     proof._check = checked
                     proof._finish = finished
                     proof._invalidate = invalidated
+                    proof._final_identity = identity
                     proof._content = canonical(result)
                     return proof
             except RuntimeRefused:
@@ -211,8 +234,9 @@ class _ReconciliationContext:
         return self._prepare_proof()._verify()
 
 
-def reconciliation_context(owner, *, subject, packet_id, activity_id):
+def _context(owner, *, subject, packet_id, activity_id, position_costs):
     with _MUTEX:
+        _need(type(position_costs) is bool)
         db = owner.db
         try:
             pending = db.in_transaction
@@ -225,10 +249,19 @@ def reconciliation_context(owner, *, subject, packet_id, activity_id):
         portfolio = _portfolio_context(context)
         try:
             with _owner_scope(owner.lease), owner.store._live():
-                _, pin, calculation, _, _ = _capture(owner, context, portfolio, activity_id)
+                _, pin, calculation, _, _ = _capture(
+                    owner, context, portfolio, activity_id, position_costs=position_costs)
                 return _ReconciliationContext(_factory=_FACTORY, _owner=owner, _db=db, _context=context,
                     _portfolio=portfolio, _activity_id=activity_id, _binding=pin,
-                    _calculation=calculation, _closed=False)
+                    _calculation=calculation, _position_costs=position_costs, _closed=False)
         except (RuntimeRefused, *_INVALID):
             portfolio.close()
             raise RuntimeRefused('PAPER_RECONCILIATION_INVALID') from None
+
+
+def reconciliation_context(owner, *, subject, packet_id, activity_id):
+    return _context(owner, subject=subject, packet_id=packet_id, activity_id=activity_id, position_costs=False)
+
+
+def position_cost_context(owner, *, subject, packet_id, activity_id):
+    return _context(owner, subject=subject, packet_id=packet_id, activity_id=activity_id, position_costs=True)

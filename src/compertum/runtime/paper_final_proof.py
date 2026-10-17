@@ -41,12 +41,12 @@ def _health_finish(owner,health,state):
 
 
 class _FinalProof:
-    __slots__=('_owner','_db','_lease','_health','_peer','_check','_finish','_invalidate','_content','_used')
+    __slots__=('_owner','_db','_lease','_health','_peer','_check','_finish','_invalidate','_final_identity','_content','_used')
     def __init__(self,owner,check,finish,invalidate,value,*,_factory=None):
         if _factory is not _FACTORY:raise RuntimeRefused('PAPER_FINAL_PROOF_UNQUALIFIED')
         self._owner=owner;self._db=owner.db;self._check=check;self._finish=finish;self._invalidate=invalidate
         self._lease=owner.lease;self._health=owner.health;self._peer=canonical(owner.health.peer)
-        self._content=canonical(value);self._used=False
+        self._final_identity=None;self._content=canonical(value);self._used=False
     def __repr__(self):return '<PrivatePaperFinalProof redacted>'
     def __reduce_ex__(self,protocol):raise RuntimeRefused('PAPER_FINAL_PROOF_SERIALIZATION_FORBIDDEN')
     def _verify(self):return _verify_proofs(self)[0]
@@ -84,6 +84,12 @@ def _verify_proofs(*proofs):
             for p in proofs:
                 failed=p;p._finish()
             failed=None;_health_finish(owner,health,state)
+            # These optional checks compare captured objects only. They must
+            # not read files or clocks after the final original clock checks.
+            for p in proofs:
+                failed=p
+                if p._final_identity is not None:p._final_identity()
+            failed=None
             values=[]
             for p in proofs:
                 failed=p;values.append(json.loads(p._content))
@@ -100,7 +106,7 @@ def _verify_proofs(*proofs):
         finally:
             if consumed:
                 for p in proofs:
-                    p._check=None;p._finish=None;p._invalidate=None;p._owner=None;p._db=None
+                    p._check=None;p._finish=None;p._invalidate=None;p._final_identity=None;p._owner=None;p._db=None
                     p._lease=None;p._health=None;p._peer=None;p._content=b''
 
 

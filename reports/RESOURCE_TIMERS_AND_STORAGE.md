@@ -1,6 +1,33 @@
 # Timers and storage
 
-## Current measured maintenance profile - 16 October 2026
+## Current original-record cost checkpoint - 16 October 2026
+
+The final component census passed in 44.6748 seconds. Its parent Job closed in 48.1994 seconds with zero children.
+Scratch charges 12,880,755,776 bytes after holds, leaving 4,146,112 bytes under 12 GiB.
+Backups charge 21,624,104,928 bytes after holds, leaving 924,473,376 bytes under 21 GiB.
+Records charge 1,315,287,936 bytes. The total stays below the unchanged 50 GiB cap.
+The component backup hold is 112 MiB. Its record hold remains 8 MiB.
+The same 258 MiB scratch hold includes the older 128 MiB future-growth allowance.
+It also covers 40 MiB prior source, 40 MiB installed, 12 MiB sealed pure costs and 38 MiB current source.
+The current installed subfolder has 24 MiB within its parent's 40 MiB.
+
+Native allocation and named-stream measurements govern the census. Job folder checks use a conservative upper bound.
+Three completed build copies moved into backups without changing file bytes, write times or native identities.
+Their three inventories and the copied-ledger inventory also moved into the admitted backup folder.
+The first copied-ledger job exceeded its record-folder upper bound. It remains failed; its complete output remains preserved.
+Measured reversible moves restored room without increasing a category ceiling. Other failed preparations remain separately recorded.
+
+Both complete runtime archives passed readback, including a separate archive of the failed installed native attempt and its sidecars.
+One existing acknowledgement recovered without another GET. A separate stopped-state check verified it after shutdown.
+A later instrumented native test passed. Its acknowledgement took 4.8145 seconds within the unchanged five-second transport limit.
+This narrow timing margin does not establish the earlier failure's cause.
+
+The maintenance census retains 110 seconds inside a 120-second Job, one CPU and 128 MiB RAM.
+Production scans retain 30 seconds and 35-second freshness. Test Jobs retain their existing CPU, RAM, process and memory-floor limits.
+No runtime moved. No evidence was deleted. No unrelated program was stopped. Strata remains off.
+See [the exact component report](M5_POSITION_COST_CONTEXT.md).
+
+## Earlier measured maintenance profile - 16 October 2026
 
 The owner-authorized workload sizing was applied to the read-only metadata census.
 A 110-second measurement within a 120-second parent Job passed in 78.4774 seconds.
