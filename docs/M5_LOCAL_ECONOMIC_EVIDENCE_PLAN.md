@@ -11,10 +11,22 @@ Loopback means requests stay on this computer at `127.0.0.1`.
 Keep this evidence separate from actual provider evidence and actual paper approval.
 An `ENGINEERING_FIXTURE` label alone cannot authorize actual broker transport.
 
-Use the existing native owners, original opening, account observations, activity publication, and attempt history.
+Use the existing native owner code, account observations, activity publication, and attempt history.
 Do not replace the accounting implementation or infer facts from diagnostic flags.
 Retained fee schedules establish estimates. Posted fees establish observed cash effects.
 Neither establishes complete billing, an unpaid balance, or a complete action interval.
+
+The existing approved native project has no original complete economic ledger.
+Its original producers returned fixed account cash and later one posted fee.
+They did not record fee accruals, linked payments, reversals, or an action calendar.
+New records cannot prove that missing past history. Its first opening and credential slot remain immutable.
+Preserve that project, its reserve, and every failed attempt. Do not reset or extend its claimed history.
+
+A positive native test requires a separate project with a source journal before its first account observation.
+The owner approved one fresh native folder. That folder already exists and remains preserved.
+A second fresh native folder needs a separate owner decision and fresh complete capacity admission.
+Prepare calculations, a test source, exact cases, and the measured request within the current approved bounds.
+Do not create the second folder or change active limits while that decision is pending.
 
 ## Original fixture producer
 
@@ -53,7 +65,9 @@ Return one private, redacted, nonserializable context from the existing owner.
 Bind original bytes and live identities before and after callbacks.
 Recheck credentials, transactions, owner generation, clocks, expiry, health, and original publication identities.
 Proofs are single-use. Closing a proof must preserve borrowed resources.
-Restart preserves history and invalidates freshness. It must not replay any economic event.
+Restart preserves history and acknowledged clock times. It must not replay an economic event or restore freshness.
+Require one hard link for the original source journal. Refuse an additional link before reading or appending.
+Bind the covered asset and symbol to every relevant original order, fill, holding, and attempt.
 
 The qualified scope is local fixture economics only.
 Keep actual billing, actual action coverage, financial acceptance, and actual broker authority unqualified.
@@ -77,11 +91,13 @@ Do not introduce a public route that treats a fixture declaration as actual evid
 Freeze exact case IDs, source hashes, commands, resource limits, and expected scope before execution.
 First observe a focused failing case. Then implement the smallest required change.
 Require matching source and installed cases, complete environment checks, and final independent review.
-Verify native publication and restart in the one existing approved native folder.
-Preserve the original opening, reserve identity, historical failures, and retained halts.
+Verify native publication and restart only after authority for the separate native project and complete capacity admission.
+Create its source before its first opening. Preserve all earlier project identities, reserves, failures, and retained halts.
 
 Use at most three review and repair rounds for this increment.
 The bounded design audit is round 1. Carry that counter into its admitted records.
+Preparation review 2 found asset, restart-clock, and hard-link gaps. Verify their repairs in both environments.
+Final review 3 remains unused until native source qualification and its positive cases are ready.
 Posted-fee final review 3 is now clear and closed. Its counters remain separate.
 
 ## Admission and continuation
@@ -89,6 +105,8 @@ Posted-fee final review 3 is now clear and closed. Its counters remain separate.
 Require a fresh complete storage census before new namespaces or increased holds.
 Keep test scratch at 14 GiB, backups at 21 GiB, and total storage at 50 GiB.
 Keep the one existing native folder and its allocated one GiB reserve.
+The proposed additional folder has a 1072 MiB bound, including its own allocated one GiB reserve.
+Measure the complete 14 GiB and proposed 15 GiB cases. Keep the proposal separate from active authority.
 Preserve interpreter, dependencies, CPU, memory, deadline, production scan, and financial limits.
 Keep one heavy job at a time. Keep Strata off.
 

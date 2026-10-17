@@ -1,5 +1,18 @@
 # Timers and storage
 
+## Economic preparation and additional native proposal - 17 October 2026
+
+Active limits remain 14 GiB test scratch, 21 GiB backups, and 50 GiB total.
+Preparation uses 128 MiB source output, 80 MiB installed output within its 288 MiB parent, 8 MiB records, and 64 MiB backups.
+The source and installed inventories each passed 54 cases. Both complete environment byte checks passed.
+The existing native project lacks original economic history. New source records cannot establish that missing past interval.
+The one-folder approval is already used. No additional native folder or reserve has been created.
+The fresh complete census proposes another 1072 MiB native namespace with its own allocated one GiB reserve.
+At 14 GiB, scratch is short by 540,742,416 bytes. At 15 GiB, 532,999,408 scratch bytes remain after all holds.
+Backups and total storage fit unchanged. The 15 GiB proposal requires owner approval and fresh admission before allocation.
+No timer, CPU, memory, interpreter, dependency, financial, or published program limit changed. Strata stays off.
+See M5_LOCAL_ECONOMIC_PREPARATION.md for the exact decision and retained evidence.
+
 ## Posted-fee installed output admission - 17 October 2026
 
 All 238 source and installed cases passed, including two native Windows cases per environment. Both complete environments passed.

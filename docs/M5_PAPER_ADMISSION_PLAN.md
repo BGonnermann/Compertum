@@ -1,6 +1,29 @@
 # Native paper admission integration
 
-## Current posted-fee verification - 17 October 2026
+## Current economic preparation and approval boundary - 17 October 2026
+
+**Economic preparation is verified. Native qualification and the approved local finish plan remain incomplete.**
+Source and installed checks each passed 54 distinct in-process cases, with zero failures, errors, or skips.
+Each inventory contains 35 calculation cases and 19 controlled journal cases. No economic native case has passed.
+Both complete environment byte checks passed. Independent preparation review 2/3 is clear; final native review 3 remains unused.
+
+The calculation checks linked fees, reversals, cash, and covered asset identity. It grants no source or broker authority.
+The test source retains events and acknowledged coverage times across reopening. It rejects files with multiple hard links.
+All 232 earlier product files remain unchanged. One unqualified calculation module was added.
+
+The existing native project lacks original fee accruals, payment links, and a complete action calendar.
+Its fixed replies cannot prove that missing history. Its first opening and credential slot remain immutable.
+Positive native verification needs another project, with its source created before its first account observation.
+The approved one-folder allowance is already used. No second folder or reserve has been created.
+
+Active test scratch remains 14 GiB. The measured request is 15 GiB and one additional 1072 MiB native folder.
+Backups remain 21 GiB; total storage remains 50 GiB. Preserve all original runtimes, reserves, halts, and failed results.
+Next, obtain that specific decision, then require fresh complete capacity admission before native implementation and verification.
+Then finish current-input risk, durable dispatch and recovery, and the installed combined local rehearsal.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+Strata stays off. See reports/M5_LOCAL_ECONOMIC_PREPARATION.md for evidence and the exact measured request.
+
+## Earlier posted-fee verification - 17 October 2026
 
 **Posted-fee engineering is locally verified. The approved local finish plan remains incomplete.**
 Source and installed inventories each passed 238 distinct cases, with zero failures, errors, or skips.

@@ -4,6 +4,25 @@ Continue Compertum in `C:\Users\bgonn\Desktop\Compertum` until the approved loca
 Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md v1.1, and docs/M5_PAPER_ADMISSION_PLAN.md first.
 Current owner instructions and the current checkpoint override historical restrictions and reports.
 
+Current boundary: economic preparation passed 54 matching source and installed in-process cases, with zero failures, errors, or skips.
+Each inventory contains 35 calculation cases and 19 controlled journal cases. Both complete environments passed.
+Independent preparation review 2/3 is clear. Final native review 3 remains unused. No economic native case is accepted.
+Read reports/M5_LOCAL_ECONOMIC_PREPARATION.md and artifacts/m5/local-economics-20261017-01/economic-preparation-verification01.json.
+
+The existing native project's fixed replies lack original accrual, payment, reversal, and complete action history.
+Do not create that history after the fact or change its immutable first opening and credential slot.
+Positive qualification requires one additional native project with its original source established before its first account observation.
+The current approval covers one folder, already used. Active test scratch stays 14 GiB.
+The measured additional request is 15 GiB test scratch and one additional 1072 MiB native namespace.
+Backups stay 21 GiB; total storage stays 50 GiB. No proposed cap, folder, or reserve is active.
+If the owner has not approved that additional request, stop at that concrete authority boundary.
+Do not ask for the earlier 14 GiB approval again.
+After approval, require fresh complete admission before creating .cache/test-runs/native-economic-fresh-20261017-01/native-shared.
+Preserve every earlier native project, reserve, failed result, and halt at its original path.
+Implement the original native source and private proof, verify matching native cases, and then use final review 3.
+Then continue current-input risk, durable dispatch/recovery, and the installed combined local rehearsal below.
+
+
 Declared-fee engineering is verified across 260 matching distinct source and installed cases, with zero failures, errors, or skips.
 Each inventory contains 258 in-process cases and two native stages. Both complete environments passed after the native stages.
 Final declared-fee review 3/3 is clear and closed. Infrastructure review 3/3 remains closed. Never reset either counter.
@@ -27,7 +46,7 @@ The same fresh native project and allocated reserve were preserved before and af
 The installed test output uses a measured 80 MiB hold. Test scratch stays 14 GiB, backups 21 GiB, and total storage 50 GiB.
 
 Continue the bounded local fixture economic evidence plan in docs/M5_LOCAL_ECONOMIC_EVIDENCE_PLAN.md.
-Its design review 1 is complete. Carry that counter forward, and require fresh complete admission for new namespaces.
+Design review 1 and preparation review 2 are complete. Final native review 3 remains unused. Carry these counters forward.
 Derive unpaid fees from original complete accrual and payment records. Do not infer zero liabilities from estimates or posted totals.
 Require the original controlled fixture action calendar. Refuse relevant or unsupported actions and incomplete coverage.
 Keep fixture evidence separate from actual-account qualification and actual broker transport.
