@@ -1,5 +1,19 @@
 # Compertum
 
+16 October 2026. **The original order and fill comparison is locally verified.** The accepted inventory has 301 matching distinct cases per environment. Failures, errors and skips are zero. It includes 71 calculation cases, 192 compatibility cases, 36 private-context cases and two native Windows stages per environment.
+
+Both complete environment byte checks passed. The calculator and context each completed three independent review rounds. Both final reviews are clear. The isolated closed-database repair passed three focused checks per environment. Valid earlier cases are reused under recorded change comparisons.
+
+The native checks used an invented account opening and local HTTP replies. The passing runtime stayed at its original path after a verified preservation archive. Its project and allocated reserve identities remain unchanged. The failed fixture, master stop, original environment and terminal M3 audit history remain preserved. Strata stays off.
+
+The final census passed. Scratch has 40,286,760 bytes left after recorded holds under its 12 GiB ceiling. Backups have 1,041,917,984 bytes left under 21 GiB. The total stays 50 GiB.
+
+Exact next action: define and freeze the next missing accounting producer. Fee liabilities, corporate actions and full position costs remain unverified. Then continue risk, durable dispatch and the integrated installed rehearsal. M5 gates 2-5 remain open. M6 remains 0/10 actual supervised sessions. Only M0 is fully accepted.
+
+See [exact comparison evidence](reports/M5_OWNERSHIP_COMPARISON.md).
+
+## Earlier native activity checkpoint
+
 16 October 2026. **The native activity producer is locally verified.** Source and installed checks each passed 271 matching cases. Failures, errors and skips are zero. Each inventory includes four native Windows stages and 267 pure or in-process cases. Both complete environment byte checks passed. Final independent code review round 3 is clear; all three rounds are used.
 
 The producer binds the original account context, immutable opening, complete local history and credential identity. Native loopback checks cover collection, lost replies, encrypted publication, restart, cancellation and historical reopening. The account opening is invented test evidence. These checks grant no ownership, economic, risk or broker-write authority.

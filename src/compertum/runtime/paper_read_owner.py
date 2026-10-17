@@ -221,6 +221,10 @@ class PaperReadOwner:
         from .paper_account_context import account_context
         return account_context(self,subject=subject,packet_id=packet_id)
 
+    def reconciliation_context(self,*,subject,packet_id,activity_id):
+        from .paper_reconciliation_context import reconciliation_context
+        return reconciliation_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id)
+
     def opening(self,packet_id,manifest):
         from .paper_opening import current_opening
         return current_opening(self,packet_id,manifest)
