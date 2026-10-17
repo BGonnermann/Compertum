@@ -11,7 +11,7 @@ Live activity refreshes every two seconds while visible. Documents refresh every
 The **Whole loop** page shows 17 stages and their branch and return connections. Stages without operational events remain Not observed.
 The Project map page opens the existing horizontal PDF. No model, research runtime, account control, service, or scheduled task starts.
 
-Hub checks passed **49 source cases and 47 main browser checks**, with zero failures, errors, or skips in each final run.
+Hub checks passed **51 source cases and 47 main browser checks**, with zero failures, errors, or skips in each final run.
 These are Hub checks. They do not change M1 through M6 acceptance or repeat the installed-package fee checks shown below.
 See [live activity and stage reporting](docs/HUB_LIVE_ACTIVITY.md) and [current verification](reports/HUB_LIVE_VERIFICATION.md).
 The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.

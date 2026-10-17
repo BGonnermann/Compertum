@@ -21,12 +21,12 @@ The diagram is ready to consume explicit stage events; it is not proof that the 
 
 | Check | Passed | Failed | Errors | Skipped |
 | --- | ---: | ---: | ---: | ---: |
-| Hub source cases, including native Windows process identity | 49 | 0 | 0 | 0 |
+| Hub source cases, including native Windows process identity | 51 | 0 | 0 | 0 |
 | Main browser checks against the running Hub | 47 | 0 | 0 | 0 |
 | Final independent review rerun of source cases | 49 | 0 | 0 | 0 |
 
-The review rerun repeats the same 49 cases. Do not add these counts into a larger distinct source total.
-The source set includes the original 23 Hub cases and 26 live-observation cases.
+The review rerun repeats 49 of the current cases. Do not add these counts into a larger distinct source total.
+The current source set includes the original 23 Hub cases and 28 live-observation cases.
 The native process case starts a harmless short-lived Python child in a fresh test folder.
 It verifies actual working-directory binding and creation identity. It does not run the Compertum native lifecycle suite.
 Stage and transcript cases use invented records. Browser failure and markup checks use browser-only responses.
@@ -50,6 +50,9 @@ Additional regressions reject relative working directories and oversized-record 
 Opening a test file does not count as executing it. A process disappearing never becomes a successful result.
 Unknown native processes remain unclassified. Their presence does not establish an engineering or operational stage.
 The final review found no unresolved material finding within the accepted Hub scope.
+After review, a final live read found that the coverage summary could hide omitted history or capped sessions.
+Two added regression cases reproduced that defect. The repair keeps Partial visible across later reads and session caps.
+The primary agent reran all 51 source cases and 47 browser checks after that repair. No fourth review pass was used.
 
 ## Limits and privacy
 
@@ -78,7 +81,8 @@ Existing unrelated M5 work and saved failure history remain separate from this c
 
 The first accepted live browser evidence is outside Git:
 `C:\Users\bgonn\.codex\visualizations\2026\10\17\01a14a69-85c1-7252-8eb9-f7ddce9f50a3\hub-live-browser-01`.
-The final source log is `hub-live-source-release.txt`. Final browser evidence is in `hub-live-browser-release`.
+The final source log is `hub-live-source-coverage.txt`. Final browser evidence is in `hub-live-browser-coverage`.
+Earlier passing runs and the two failing coverage regressions remain in the task record.
 The refreshed PDF copy and synchronization receipts remain outside Git in the same task-owned artifact folder.
 The original source failures and review regressions were retained in the task record. Failed native product evidence was not removed.
 

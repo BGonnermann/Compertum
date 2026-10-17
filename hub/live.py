@@ -62,7 +62,8 @@ class AgentReader:
                 self.limited = True; break
             if path in self.files:
                 selected.append(path)
-                if len(selected) >= MAX_FILES: break
+                if len(selected) >= MAX_FILES:
+                    self.limited = True; break
                 continue
             try:
                 with path.open('rb') as stream:
@@ -85,7 +86,8 @@ class AgentReader:
                 self.files[path] = {'id': identity, 'offset': 0, 'carry': b'', 'discarding': False, 'pending': {}, 'state': 'Not observed',
                                     'activity': 'No current event', 'last_signal': None, 'history_partial': False}
                 selected.append(path)
-                if len(selected) >= MAX_FILES: break
+                if len(selected) >= MAX_FILES:
+                    self.limited = True; break
             except (OSError, ValueError, UnicodeError, RuntimeError):
                 self.limited = True
         self.files = {path: self.files[path] for path in selected}
@@ -177,20 +179,21 @@ class AgentReader:
                 joined = state['carry'] + raw
                 lines = joined.split(b'\n'); state['carry'] = lines.pop()
                 if len(state['carry']) > MAX_LINE:
-                    state['carry'] = b''; state['discarding'] = True; partial = True
+                    state['carry'] = b''; state['discarding'] = True; state['history_partial'] = True; partial = True
                 for line in lines:
                     if len(line) > MAX_LINE:
-                        partial = True; continue
+                        state['history_partial'] = True; partial = True; continue
                     try:
                         self.consume(json.loads(line), state)
                     except (ValueError, UnicodeError, TypeError):
-                        partial = True
+                        state['history_partial'] = True; partial = True
                 partial = partial or bool(state['carry'])
             except OSError:
                 state['state'] = 'Unavailable'; partial = True
         agents = []
         now = datetime.now(timezone.utc)
         for state in self.files.values():
+            partial = partial or state['history_partial']
             at = state['last_signal']
             age = (now - at).total_seconds() if at else None
             status = state['state']

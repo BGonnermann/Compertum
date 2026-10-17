@@ -96,6 +96,23 @@ class LiveTests(unittest.TestCase):
         reader = live.AgentReader(Path.cwd(), self.sessions)
         self.assertEqual(reader.snapshot()['agents'], [])
 
+    def test_omitted_project_sessions_mark_coverage_partial(self):
+        for index in range(live.MAX_FILES):
+            path = self.day / f'rollout-project-{index}.jsonl'
+            path.write_text(json.dumps(dict(type='session_meta', payload=dict(id=str(uuid.uuid4()), cwd=str(self.root)))) + '\n', encoding='utf-8')
+        result = self.reader.snapshot()
+        self.assertEqual(len(result['agents']), live.MAX_FILES)
+        self.assertEqual(result['status'], 'Partial')
+
+    def test_omitted_history_stays_partial_after_later_reads(self):
+        with self.path.open('ab') as stream:
+            stream.write(b'x' * (live.MAX_READ + 10) + b'\n')
+        self.append('event_msg', dict(type='task_started', turn_id='turn1'))
+        result = self.reader.snapshot()
+        self.assertTrue(result['agents'][0]['history_partial'])
+        self.assertEqual(result['status'], 'Partial')
+        self.assertEqual(self.reader.snapshot()['status'], 'Partial')
+
     def test_oversized_record_suffix_cannot_become_an_event(self):
         with self.path.open('ab') as stream: stream.write(b'x' * (live.MAX_LINE + 10))
         self.reader.snapshot()
