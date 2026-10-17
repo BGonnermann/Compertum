@@ -1,5 +1,19 @@
 # Compertum
 
+## Read-only project Hub - 17 October 2026
+
+Open the local Hub at **[http://127.0.0.1:8767](http://127.0.0.1:8767)** while its terminal is running.
+To start it later, double-click **`hub/Open Compertum Hub.cmd`**. Keep that terminal open; press Ctrl+C there to stop it.
+The PowerShell alternative is `./hub/start.ps1`.
+
+The charcoal and warm-white pages show the current checkpoint, next actions, working-folder changes, separate test inventories, milestones, and original documents.
+Records refresh every ten seconds while visible. Each observation shows its source and time. A lost connection marks retained records stale.
+The Project map page opens the existing horizontal PDF. No model, research runtime, account control, service, or scheduled task starts.
+
+Hub checks passed **23 source cases and 33 browser checks**, with zero failures, errors, or skips in each final run.
+These are Hub checks. They do not change M1 through M6 acceptance or repeat the installed-package fee checks shown below.
+See [the Hub plan](docs/HUB_PLAN.md) and [verification and operating limits](reports/HUB_VERIFICATION.md).
+
 ## Current declared-fee verification - 17 October 2026
 
 **Declared-fee engineering is locally verified. The approved local finish plan remains incomplete.**

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#222321">
+  <title>Compertum Hub</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">C</span><div>COMPERTUM<span class="brand-caption">Project Hub</span></div></div>
+      <div class="nav-label">WORKSPACE</div>
+      <nav aria-label="Hub pages">
+        <button type="button" data-page="overview" aria-current="page"><span>Overview</span><span aria-hidden="true">↗</span></button>
+        <button type="button" data-page="work">Current work</button>
+        <button type="button" data-page="results">Results</button>
+        <button type="button" data-page="map">Project map</button>
+        <button type="button" data-page="records">Source records</button>
+      </nav>
+      <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span> Read-only connection<p>Local project records.<br>No research or account controls.</p></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div><span class="breadcrumb">Compertum / </span><span id="page-name">Overview</span></div><span class="pill">LOCAL · READ ONLY</span></header>
+      <main id="content">
+        <div class="page-heading"><div><p class="eyebrow">YOUR PROJECT, IN VIEW</p><h1 id="page-title">What is happening.</h1><p id="page-description" class="muted">Current progress, missing proof, and the next recorded step.</p></div><button id="refresh" class="button secondary" type="button">Refresh records <span aria-hidden="true">↻</span></button></div>
+        <div class="freshness"><span id="connection-state" class="connection" data-state="loading">Reading project records…</span><span id="last-read"></span></div>
+        <div id="connection-error" role="alert" hidden></div>
+        <section id="overview-page" aria-label="Project overview"><p class="empty">Reading the current checkpoint…</p></section>
+        <section id="work-page" aria-label="Current work" hidden></section>
+        <section id="results-page" aria-label="Recorded test results" hidden></section>
+        <section id="map-page" aria-label="Project map" hidden></section>
+        <section id="records-page" aria-label="Source records" hidden>
+          <div class="records-layout"><div class="surface records-list"><label for="record-search">Find a project record</label><input id="record-search" type="search" placeholder="Search file names" autocomplete="off"><p id="catalogue-note" class="muted small"></p><div id="record-list"></div></div><article class="surface record-view"><div id="record-heading"><h2>Open a source record.</h2><p class="muted">Choose a checkpoint, plan, or report to read the actual file.</p></div><pre id="record-text" aria-label="Original source text"></pre></article></div>
+        </section>
+        <footer class="workspace-footer"><span>Compertum Hub</span><span>Saved evidence stays separate from financial acceptance.</span></footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
