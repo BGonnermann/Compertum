@@ -346,3 +346,10 @@ Engineering checks do not establish strategy acceptance or authorize account/ord
 Work in master. Commit and push completed, verified changes at each meaningful checkpoint under the owner's standing authorization. Record unfinished checks explicitly. Preserve commits; never force-push or reset history to make a checkpoint look clean. No scheduled run is needed.
 
 Sibling folders retain historical environments and evidence. Their path-bound runtime records are not relocated or relabeled as master-folder results. Git rollback restores tracked files; runtime/data recovery requires the local backups and receipts. Historical reports may reference local evidence that is intentionally absent from GitHub.
+
+## Storage sharing - 17 October 2026
+
+Storage sharing passed 58 matching source and installed-package checks, with zero failures, errors, or skips per environment.
+New recovery sets reuse independently copied bytes for the same unchanged artifact. Sharing survives restore.
+Existing evidence, safety checks, and storage limits remain unchanged. No GiB reserve or full native project was created.
+See [the remaining test sequence](docs/STORAGE_SHARING_PLAN.md) and [verification scope](reports/STORAGE_SHARING_VERIFICATION.md).

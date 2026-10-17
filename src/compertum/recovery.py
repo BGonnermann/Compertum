@@ -100,6 +100,20 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
         if reserve_info['capacity_bytes']!=GIB or reserve_info['unused_bytes']<256*1024**2 or reserve_info['allocated_bytes']<reserve_info['unused_bytes']:
             raise RuntimeRefused('RESERVE_UNVERIFIED')
         snapshots=[];checkpoints={};all_artifacts=[];pending=[];dedup=[]
+        # Publish sharing receipts before the coordinator snapshot. Restoring
+        # this first set must retain the authority to reuse its backup files.
+        config_hash=hashlib.sha256(canonical(manager.config.to_payload())).hexdigest()
+        lineage=_recovery_lineage(stores['coordinator'].conn,stores['evaluation'].conn,project,config_hash)
+        from .recovery_lineage import verify_file_dependencies
+        verify_file_dependencies(stores['coordinator'].conn,lineage,project.root_path)
+        artifact_map={a['artifact_id']:a for a in artifacts}
+        for item in lineage['artifacts']:
+            if item['artifact_id'] in artifact_map and artifact_map[item['artifact_id']]!=item: raise RuntimeRefused('RECOVERY_ARTIFACT_INVALID')
+            artifact_map[item['artifact_id']]=item
+        if len(artifact_map)>1024:raise RuntimeRefused('RECOVERY_BOUND_EXCEEDED')
+        from .backup_artifacts import shared_backup_artifacts
+        all_artifacts.extend(stack.enter_context(shared_backup_artifacts(
+            manager,grant,artifact_map.values(),check=check_deadline)))
         # One owner lock order serializes delivery and every database transaction
         # across this in-process barrier. Remote adapters must provide this same
         # acknowledged barrier; they are not inferred from three loose snapshots.
@@ -136,26 +150,11 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
                 ack=json.loads(body);receiver=stores[ack['role']]
                 row=receiver.conn.execute('SELECT sha256,seq FROM inbox WHERE event_id=?',(event_id,)).fetchone()
                 if row!=(ack['sha256'],ack['sequence']): raise RuntimeRefused('RECOVERY_MESSAGE_MISMATCH')
-        lineage=_recovery_lineage(stores['coordinator'].conn,stores['evaluation'].conn,project,hashlib.sha256(canonical(manager.config.to_payload())).hexdigest())
-        from .recovery_lineage import verify_file_dependencies
+        if _recovery_lineage(stores['coordinator'].conn,stores['evaluation'].conn,project,config_hash)!=lineage:
+            raise RuntimeRefused('RECOVERY_LINEAGE_MISMATCH')
         verify_file_dependencies(stores['coordinator'].conn,lineage,project.root_path)
-        artifact_map={a['artifact_id']:a for a in artifacts}
-        for item in lineage['artifacts']:
-            if item['artifact_id'] in artifact_map and artifact_map[item['artifact_id']]!=item: raise RuntimeRefused('RECOVERY_ARTIFACT_INVALID')
-            artifact_map[item['artifact_id']]=item
         remaining=manager.store.conn.execute('SELECT maximum-written FROM reservations WHERE id=?',(grant.grant_id,)).fetchone()[0]
-        if len(artifact_map)+len(all_artifacts)>1024 or sum(max(1,a['size_bytes']) for a in artifact_map.values())+1024**2>remaining:raise RuntimeRefused('RECOVERY_BOUND_EXCEEDED')
-        for artifact in artifact_map.values():
-            source=checked_path(project.root_path,project.root_path/artifact['path'])
-            if source.stat().st_size!=artifact['size_bytes'] or _hash(source)!=artifact['sha256']: raise RuntimeRefused('RECOVERY_ARTIFACT_INVALID')
-            child=manager.split_grant(grant,max(1,artifact['size_bytes']))
-            writer=manager.open_artifact(child,f"{base}/blobs/{artifact['artifact_id']}.bin")
-            try:
-                with source.open('rb') as stream:
-                    while chunk:=stream.read(8*1024**2): writer.write(chunk)
-                copied=writer.publish()
-            finally: writer.close()
-            all_artifacts.append({**artifact,'path':copied['path']})
+        if len(all_artifacts)>1024 or 1024**2>remaining:raise RuntimeRefused('RECOVERY_BOUND_EXCEEDED')
         check_deadline()
         completed=utc()
         manifest={'schema_version':'1','record_type':'RecoveryManifest','recovery_set_id':recovery_id,'project_id':project.project_id,

@@ -1,5 +1,23 @@
 # Current Compertum checkpoint
 
+## Storage sharing - 17 October 2026
+
+Storage sharing passed 58 matching source and installed-package checks, with zero failures, errors, or skips in each inventory.
+The installed run reused existing dependencies and verified its frozen package bytes before and after tests.
+This is component verification. It does not accept a full isolated environment, a GiB reserve, or native economic qualification.
+
+New recovery sets share independently copied bytes for the same unchanged artifact identity and hash.
+Sharing records precede coordinator snapshots, so reuse survives restoration of the first set.
+Different identities keep separate paths. Snapshots, manifests, original evidence, failures, reserves, halts, and storage checks remain intact.
+This task changed no limits and created no full native project or GiB reserve.
+
+Another task had already activated its separately approved 15 GiB test profile and created the economic project.
+Use that existing project only where original history, identity, storage admission, and process closure permit sharing.
+Plan economics, risk, dispatch, supported recovery, and installed rehearsal as one compatible sequence.
+Keep destructive or incompatible cases separate. Do not raise limits to run them.
+See docs/STORAGE_SHARING_PLAN.md and reports/STORAGE_SHARING_VERIFICATION.md for the exact scope and next action.
+Historical checkpoint sections below retain their original status and approvals. Strata stays off.
+
 ## Current economic preparation and approval boundary - 17 October 2026
 
 **Economic preparation is verified. Native qualification and the approved local finish plan remain incomplete.**
