@@ -1,6 +1,33 @@
 # Declared fees from original current fills
 
-## Current repair and retained native halt - 17 October 2026
+## Current verified declared-fee engineering - 17 October 2026
+
+Source and installed checks each passed 260 distinct cases, with zero failures, errors, or skips.
+Each inventory has 258 in-process cases and two native Windows stages. The 258 valid cases are explicitly reused.
+Both complete environment checks passed after all four fresh native stages. Final fee review 3/3 is clear and closed.
+The exact aggregate is `artifacts/m5/native-fee-recovery-20261016-01/fresh-native-fee-aggregate01.json`.
+The final acceptance receipt is `declared-fee-final-acceptance01.json` in that same evidence folder.
+
+The owner approved 14 GiB test scratch for one fresh native folder. Backups stay 21 GiB, and total storage stays 50 GiB.
+The complete admission passed before creation. Program configuration, locked dependencies, and all 230 package files remain unchanged.
+The new project and allocated reserve identities differ from both older native folders.
+Two source stages and the same two installed stages verified original input binding, calculator invocation, and single-use behavior.
+Restart preserved history but could not restore current fee freshness. Every Job observed exit with zero remaining children.
+All replies and credentials were invented. Native evidence covers Windows ownership and lifecycle, not actual financial acceptance.
+
+The successful runtime has no retained watchdog halt. Its stopped archive contains 85 files and 113 entries.
+Archive size is 11,263,465 bytes. Its SHA-256 is `add34e6fec88cb50b358c08f06712b0562af1a346582859863b15441e5cd6e62`.
+All archived content, file identities, original modification times, and the fully allocated one GiB reserve were verified.
+The earlier failed attempts remain failed and excluded from acceptance. Their archives and both older stops remain intact.
+The first pipe failure's original cause remains unproven. Neither old halted runtime was resumed or reset.
+
+Actual billing coverage, account applicability, unpaid liabilities, and action coverage remain unverified.
+Financial and transport authority remain false. Matching declared arithmetic cannot establish zero actual fees.
+The next bounded step is the original posted-fee observation plan. Then complete the remaining accounting, risk, dispatch, and local rehearsal gates.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+
+
+## Earlier repair and retained native halt - 17 October 2026
 
 **The helper repair is verified in-process. Native fee qualification and the approved local finish plan remain incomplete.**
 

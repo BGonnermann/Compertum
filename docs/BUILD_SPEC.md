@@ -18,6 +18,11 @@ The original 1 GiB emergency reserve remains fully allocated and protected.
 Both native fixture reserves and all failed evidence remain preserved.
 No timer, memory, CPU, financial or broker-authority limit changed with these allocations.
 
+On 17 October, the owner approved 14 GiB test scratch for one fresh native test folder.
+Backups remain 21 GiB, and the aggregate remains 50 GiB. The test folder retains a 1072 MiB bound and one allocated GiB reserve.
+This test-space approval does not revise published program limits or the frozen configuration of historical runtimes.
+All operating, financial, memory, CPU, and deadline gates remain unchanged.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

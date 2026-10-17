@@ -1,6 +1,28 @@
 # Native paper admission integration
 
-## Current fee repair and storage decision - 17 October 2026
+## Current declared-fee verification - 17 October 2026
+
+**Declared-fee engineering is locally verified. The approved local finish plan remains incomplete.**
+Source and installed inventories each passed 260 distinct cases, with zero failures, errors, or skips.
+Each contains 258 in-process cases and two native Windows stages. Both complete environment byte checks passed.
+Final fee review 3/3 is clear. All declared-fee and infrastructure review rounds are closed.
+
+The owner approved 14 GiB test scratch for one fresh native folder. Backups remain 21 GiB; the total remains 50 GiB.
+Fresh complete capacity admission passed before creation. Published program limits and all 230 package files are unchanged.
+The new folder has its own project and fully allocated one GiB reserve. Four separately frozen native stages passed.
+They verify original declared inputs, calculator calls, single-use proofs, and no restored freshness after restart.
+The stopped successful runtime has a verified 85-file preservation archive. It has no watchdog halt.
+Both older failed native attempts and retained halts remain preserved. Never clear or resume those halted folders.
+
+Acceptance covers declared-fee engineering only. Actual billing coverage, account applicability, and unpaid liabilities remain unverified.
+Next, implement posted fee observations against original account activity under M5_POSTED_FEES_PLAN.md.
+Its measured allocation retains the existing native folder; it creates no additional native reserve.
+Then finish liability and action qualification, risk, durable dispatch/recovery, and the installed combined rehearsal.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+The original environment, master stop, failed fixtures, reserves, and terminal M3 history remain preserved. Strata stays off.
+See the declared-fee report and the posted-fee plan for exact evidence and the next bounded step.
+
+## Earlier helper repair and storage pause - 17 October 2026
 
 **The fee test helper is repaired. Native fee qualification remains blocked by a retained storage halt.**
 Source and installed inventories each contain 258 distinct passing in-process cases, with zero failures, errors, or skips.

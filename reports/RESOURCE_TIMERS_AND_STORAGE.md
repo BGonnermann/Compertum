@@ -1,5 +1,17 @@
 # Timers and storage
 
+## Approved test scratch and fresh native verification - 17 October 2026
+
+The owner approved 14 GiB test scratch for one fresh native folder. Backups remain 21 GiB, and the total remains 50 GiB.
+This is a test-space decision. Published program limits, deadlines, memory and CPU limits, dependencies, and financial gates are unchanged.
+The complete admission passed before allocating a new 1024 MiB reserve within the 1072 MiB native namespace.
+Four native stages passed. Both complete environments passed. Final declared-fee review 3/3 is clear.
+The successful stopped runtime has a verified 11,263,465-byte archive within the existing 64 MiB recovery backup hold.
+Old halts, failed attempts, reserve identities, and the original environment remain preserved. Strata stays off.
+The next posted-fee increment has separately measured holds. Its native namespace remains the existing admitted folder.
+Do not count that native namespace twice. Charge its measured bytes plus the unused portion of its 1072 MiB ceiling.
+
+
 ## Current fresh native fee folder request - 17 October 2026
 
 Projection census 08 passed in 43.0678 seconds. Its parent closed in 49.6235 seconds with zero children.

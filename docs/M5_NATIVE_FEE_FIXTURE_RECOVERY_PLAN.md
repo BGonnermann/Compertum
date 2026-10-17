@@ -1,6 +1,23 @@
 # Restore native fee verification in a fresh test folder
 
-## Current request after the retained halt - 17 October 2026
+## Approved recovery and verified result - 17 October 2026
+
+The owner approved test scratch at 14 GiB for one fresh native folder. Backups stay 21 GiB; total storage stays 50 GiB.
+Fresh complete admission passed before creation. Published program configuration and package bytes remain unchanged.
+The fresh runtime has a new project identity and fully allocated one GiB reserve. No old runtime was copied or reset.
+All four frozen native stages passed, two from source and two from the installed package.
+Each complete component inventory contains 260 distinct passes, zero failures, zero errors, and zero skips.
+Both complete environments passed. Final fee review 3/3 is clear. All infrastructure and fee review rounds are closed.
+The successful stopped runtime has a verified archive of 85 files and 113 entries, with no retained halt.
+Archive size is 11,263,465 bytes; SHA-256 is `add34e6fec88cb50b358c08f06712b0562af1a346582859863b15441e5cd6e62`.
+Both older failed attempts, their original identities, allocated reserves, and retained halts remain preserved.
+This closes the declared-fee recovery procedure. It does not establish actual billing or complete the local finish plan.
+Continue posted fee observations, liability and action qualification, risk, durable dispatch, and the installed combined rehearsal.
+Use the one admitted fresh folder only after the applicable preservation and capacity checks. Do not create another native folder.
+Current private receipts are `declared-fee-final-acceptance01.json` and `fresh-native-preservation-result.json` in the recovery evidence folder.
+
+
+## Earlier request after the retained halt - 17 October 2026
 
 This request remains unapproved. Scratch stays at 12 GiB. No fresh native folder or reserve has been created.
 

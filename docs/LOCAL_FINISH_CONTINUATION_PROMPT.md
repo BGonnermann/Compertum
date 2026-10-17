@@ -4,31 +4,26 @@ Continue Compertum in `C:\Users\bgonn\Desktop\Compertum` until the approved loca
 Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md v1.1, and docs/M5_PAPER_ADMISSION_PLAN.md first.
 Current owner instructions and the current checkpoint override historical restrictions and reports.
 
-Declared-fee source and installed checks each passed 258 matching distinct in-process cases, with zero failures, errors, or skips.
-Both complete environment byte checks passed. Fee reviews 1 and 2 are used. Final fee review 3 remains unused.
+Declared-fee engineering is verified across 260 matching distinct source and installed cases, with zero failures, errors, or skips.
+Each inventory contains 258 in-process cases and two native stages. Both complete environments passed after the native stages.
+Final declared-fee review 3/3 is clear and closed. Infrastructure review 3/3 remains closed. Never reset either counter.
 The existing current-cost component retains its separate 53 accepted cases per environment. Do not add overlapping inventories.
 Only M0 is fully accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
 
-The 256 earlier cases remain reusable. Two new cases verify refusal of unreserved growth and acceptance of reserved artifact publication.
-Only native test helpers and tests changed. All 230 product package files remain unchanged; the valid Windows wheel is reused.
-Both source native attempts remain failed: zero passed, two failed attempts, zero errors or skips. They attempted the same first case.
-The first child's exit reason was not retained. The original pipe failure's cause remains unproven.
-The earlier process condition cleared. A separately recorded attempt passed startup and published its local account observation.
-The watchdog then retained UNACCOUNTED_GROWTH because the helper wrote a new reference outside reserved storage.
-The helper now publishes that reference through checked artifact storage. The stopped runtime retains its halt and verified 403-file archive.
-Never clear or resume it, reset identities, stop a Windows service, or bypass the exit check.
-All three native archives are verified. Keep original paths, allocated reserves, and every failed receipt.
-Infrastructure review 3/3 is clear and closed. Final fee review 3 remains unused.
+The owner explicitly approved 14 GiB test scratch for one fresh native folder on 17 October.
+Do not ask for that approval again. Backups remain 21 GiB, and the total remains 50 GiB.
+The fresh folder is `.cache/test-runs/native-fee-fresh-20261016-01/native-shared`.
+It has a new project identity and its own fully allocated one GiB reserve. Its namespace is capped at 1072 MiB.
+All four separately frozen declared-fee native stages passed. The successful stopped runtime has a verified 85-file archive and no halt.
+Keep this runtime at its original path. Reuse it only after applicable fresh preservation and capacity checks.
+Never create another native folder, copy a runtime, or reset an identity under this one-folder approval.
+Both older failed native attempts and retained halts remain preserved. Never clear or resume those halted runtimes.
+The first pipe failure's cause remains unproven. All failed receipts and three older archives remain intact.
 
-First resolve the pending storage decision in docs/M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md.
-The current scratch cap remains 12 GiB. The prepared fresh 1072 MiB native hold requires a 14 GiB cap.
-The backup cap stays 21 GiB, and the total stays 50 GiB. Do not infer approval from this continuation instruction.
-The admitted recovery record and backup holds stay 8 MiB and 64 MiB. No further increase to those holds is requested.
-If the owner approves, record that decision and require fresh complete capacity admission before creating the separate runtime.
-Create new project and reserve identities with tracked configuration and invented credentials. Never copy or reset an old runtime.
-Freeze four separate source and installed stages and their original inputs. Keep both failed attempts outside acceptance.
-Stop on the first new refusal or failure. Never bypass a retained stop or repeat an unchanged launch.
-Verify matching source and installed native stages, then finish complete environment checks and the unused final fee review 3.
+Continue the bounded posted-fee increment in docs/M5_POSTED_FEES_PLAN.md.
+Its design review 1/3 corrections cover posting-interval uncertainty, conservative credit handling, and exact row fields.
+Carry those counters forward. Keep exact source and installed cases, original observations, and resource holds.
+Do not change original cash or infer complete billing, reversal, unpaid-liability, or action coverage from matching arithmetic.
 
 Continue fee billing and corporate-action qualification against original current records.
 Keep declared fee arithmetic separate from actual charges, unpaid liabilities, applicability, reversals, and coverage.

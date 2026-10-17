@@ -101,10 +101,13 @@ See [the exact report](../reports/M5_NATIVE_FEE_CONTEXT.md) and [the recovery pl
 
 ## Current execution state - 17 October 2026
 
-Each environment has 258 distinct passing in-process cases. Both refreshed complete environments passed.
-Two new cases prove that unreserved reference growth refuses and reserved artifact publication passes the storage check.
-Only native test helpers and tests changed. All 230 product package files remain unchanged.
-The native attempt retains an UNACCOUNTED_GROWTH halt and a verified 403-file archive. Never clear or resume it.
-A fresh 1072 MiB fixture requires the pending 14 GiB scratch decision. Backups stay 21 GiB and the total 50 GiB.
-Infrastructure review 3/3 is clear. Final fee review 3 remains unused until native qualification finishes.
-See M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md for the measured request and exact next action.
+Declared-fee engineering is verified across 260 distinct cases per environment, with zero failures, errors, or skips.
+Each inventory includes 258 in-process cases and two native stages. Both refreshed complete environments passed.
+Final fee review 3/3 is clear; all three fee reviews are closed. All infrastructure reviews remain closed.
+The owner approved 14 GiB test scratch for one fresh folder. Backups remain 21 GiB and total storage remains 50 GiB.
+The fresh folder has a new project, its own fully allocated one GiB reserve, and a verified 85-file stopped-state archive.
+Four separately frozen native stages passed. Earlier failures, both older native folders, and their halts remain preserved.
+Published program limits and all 230 product package files are unchanged.
+Actual billing, applicability, unpaid liabilities, action coverage, risk, and durable dispatch remain unverified.
+Next, implement the separate posted-fee observation plan, then continue the remaining approved local finish gates.
+See M5_POSTED_FEES_PLAN.md and reports/M5_NATIVE_FEE_CONTEXT.md.
