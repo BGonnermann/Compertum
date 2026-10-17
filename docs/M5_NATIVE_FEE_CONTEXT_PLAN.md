@@ -90,7 +90,7 @@ Design review 1/3 and code review 2/3 are used. Three code findings have passing
 The design needs no account-specific choice. Fresh native storage now needs the separate owner decision below.
 Actual account-specific terms and billing remain later qualification requirements.
 
-## Current execution state
+## Execution state on 16 October 2026
 
 The source and installed in-process inventories each passed 256 distinct cases. Both complete environments passed.
 The original native fixture is blocked by a denied previous-owner process inspection. Never retry or reset that fixture.
@@ -98,3 +98,13 @@ Use the separately reviewed fresh-fixture plan only after explicit storage appro
 The prepared 14 GiB scratch request does not change the 21 GiB backup or 50 GiB aggregate limits.
 Native fee qualification and final review 3 remain open. Actual billing and applicability remain unverified.
 See [the exact report](../reports/M5_NATIVE_FEE_CONTEXT.md) and [the recovery plan](M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md).
+
+## Current execution state - 17 October 2026
+
+Each environment has 258 distinct passing in-process cases. Both refreshed complete environments passed.
+Two new cases prove that unreserved reference growth refuses and reserved artifact publication passes the storage check.
+Only native test helpers and tests changed. All 230 product package files remain unchanged.
+The native attempt retains an UNACCOUNTED_GROWTH halt and a verified 403-file archive. Never clear or resume it.
+A fresh 1072 MiB fixture requires the pending 14 GiB scratch decision. Backups stay 21 GiB and the total 50 GiB.
+Infrastructure review 3/3 is clear. Final fee review 3 remains unused until native qualification finishes.
+See M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md for the measured request and exact next action.

@@ -1,5 +1,30 @@
 # Compertum
 
+## Current fee repair and storage decision - 17 October 2026
+
+**The fee test helper is repaired. Native fee qualification remains blocked by a retained storage halt.**
+Source and installed inventories each contain 258 distinct passing in-process cases, with zero failures, errors, or skips.
+They include 256 unchanged cases and two new storage regression cases. Both refreshed complete environment checks passed.
+The repair reserves and publishes the fee reference through checked artifact storage. All 230 product package files are unchanged.
+
+The earlier process inspection condition cleared. A separately recorded attempt then passed startup and published its local account observation.
+The watchdog stopped it for `UNACCOUNTED_GROWTH` from a new unreserved reference file. The halt remains intact.
+Its complete verified archive retains 403 files. Never clear or resume that stopped runtime.
+Both native failed attempts remain failed. No native fee stage is accepted. The first pipe failure's cause remains unproven.
+
+The fresh folder needs 1072 MiB. The current 12 GiB scratch limit cannot admit it; 13 GiB is also insufficient.
+The measured 14 GiB proposal leaves 1,037,624,944 scratch bytes. Backups stay 21 GiB, and the total stays 50 GiB.
+Owner approval remains pending. No limit has changed, and no fresh folder or reserve has been created.
+Infrastructure review 3/3 is clear. Fee final review 3 remains unused. Earlier review counters stay closed.
+
+Next, resolve that specific storage decision and require fresh complete admission before creating the separate native fixture.
+Then finish native fee verification, billing and actions, risk, durable dispatch/recovery, and the installed integrated rehearsal.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+The original environment, master stop, failed fixtures, reserves, and terminal M3 history remain preserved. Strata stays off.
+See [the current report](reports/M5_NATIVE_FEE_CONTEXT.md) and [the concrete recovery request](docs/M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md).
+
+## Earlier fee checkpoint - 16 October 2026
+
 ## Current fee work and native blocker
 
 16 October 2026. **Declared-fee checks passed in-process; native qualification is blocked.**

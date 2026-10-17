@@ -43,6 +43,8 @@ paper_preflight.native_read_provenance=lambda *a:dict(original_origin(*a),origin
 
 # Test-only observations. No method grants order authority.
 from compertum.runtime import paper_fee_context as fee_module
+from paper_fee_fixture import reference_location
+_,reference_relative=reference_location(public['supervisor']['project_id'])
 original_adapter=fee_module.build_fee_batches
 original_calculator=fee_module.calculate_fees
 adapter_calls=[];calculator_calls=[]
@@ -58,7 +60,7 @@ def fee_observation(self,value):
  if value['state']=='PUBLISHED':
   context=None
   try:
-   declaration=json.loads((root/'fee-fixture-reference.json').read_text())
+   declaration=json.loads((root/reference_relative).read_text())
    context=self.o.fee_context(subject=value['subject'],packet_id=value['packet_id'],
     activity_id=value['activity_id'],declaration_id=declaration['declaration_id'],manifest=declaration['manifest'])
    proof=context._prepare_proof();result['fixture_fee']=proof._verify()

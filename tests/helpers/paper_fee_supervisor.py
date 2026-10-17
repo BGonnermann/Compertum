@@ -42,7 +42,9 @@ def command(args):
 subprocess.list2cmdline=command
 import compertum.runtime.supervisor as module
 s=module.Supervisor(config)
-reference=root/'fee-fixture-reference.json'
+from paper_fee_fixture import reference_location,publish_reference
+_,reference_relative=reference_location(s.project.project_id)
+reference=root/reference_relative
 if not reference.exists():
  from uuid import uuid4
  from compertum.data.encoding import canonical
@@ -57,7 +59,7 @@ if not reference.exists():
  declaration=prepare_fee_declaration(project_id=s.project.project_id,task_id=task,declaration_id=identity,schedules=(schedule,))
  grant=s.storage.reserve_bytes(task,'records',len(declaration.content))
  manifest=publish_fee_declaration(s.storage,grant,declaration)
- with reference.open('x') as stream:json.dump(dict(declaration_id=identity,manifest=manifest),stream)
+ publish_reference(s.storage,identity,manifest)
 status=s.status
 s.status=lambda:dict(status(),fixture_requests=list(seen))
 class LostReply(Exception):pass

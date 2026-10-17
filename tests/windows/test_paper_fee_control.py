@@ -7,6 +7,7 @@ from compertum.runtime.errors import RuntimeRefused
 from test_paper_activity_control import ROOT,control,output,stop,account,activity
 
 RECORDS=ROOT/'artifacts/m5/native-fee-context-20261016-01'
+RECOVERY=ROOT/'artifacts/m5/native-fee-recovery-20261016-01'
 EVIDENCE=RECORDS/'native-fee-context'
 
 def launch_reconciliation(root,mode):
@@ -33,14 +34,14 @@ def admitted_root():
  selected=os.environ.get('COMPERTUM_RECONCILIATION_FIXTURE')
  assert selected,'NATIVE_RECONCILIATION_CAPACITY_NOT_ADMITTED'
  root=Path(selected)
- assert root==ROOT/'.cache/test-runs/native-activity-20261016-02/native-shared'
- admission=json.loads((RECORDS/'fee-capacity03-result.json').read_text())
+ assert root==ROOT/'.cache/test-runs/native-fee-fresh-20261016-01/native-shared'
+ admission=json.loads((RECOVERY/'fresh-native-capacity01-result.json').read_text())
  assert admission['status']=='CAPACITY_GATE_PASSED'
- saved=json.loads((RECORDS/'fee-native-preservation-result.json').read_text())
- assert saved['status']=='STOPPED_NATIVE_FIXTURE_PRESERVED'
+ saved=json.loads((RECOVERY/'fresh-native-fixture-result.json').read_text())
+ assert saved['status']=='FRESH_NATIVE_FEE_FIXTURE_READY'
  assert saved['fixture']==str(root) and root.is_dir()
- for label in ('fee-capacity03','fee-preserve-native01'):
-  closed=json.loads((RECORDS/(label+'.closure.json')).read_text())
+ for label in ('fresh-native-capacity01','fresh-native-fixture01'):
+  closed=json.loads((RECOVERY/(label+'.closure.json')).read_text())
   assert closed['status']=='PASSED' and closed['remaining_children']==0 and closed['exit_observed'] is True
  from compertum.runtime._windows import WindowsAPI
  from compertum.runtime.identity import resolve_project

@@ -1,5 +1,19 @@
 # Timers and storage
 
+## Current fresh native fee folder request - 17 October 2026
+
+Projection census 08 passed in 43.0678 seconds. Its parent closed in 49.6235 seconds with zero children.
+Scratch remains 12 GiB, backups 21 GiB, and the total 50 GiB. No limit changed.
+Current remaining capacity after holds is 14,214,768 scratch bytes and 689,584,160 backup bytes.
+The recovery records and backup namespaces retain their admitted 8 MiB and 64 MiB limits.
+
+The new 1072 MiB native hold is short by 1,109,858,704 bytes under 12 GiB.
+At 13 GiB, it remains short by 36,116,880 bytes. At 14 GiB, it leaves 1,037,624,944 bytes.
+The projected aggregate charge is 37,210,469,320 bytes, below 50 GiB. Owner approval remains pending.
+The earlier native folder retains its UNACCOUNTED_GROWTH halt and verified 403-file archive. Never clear or resume it.
+Maintenance keeps 110 seconds inside a 120-second Job. Production scans keep 30 seconds and 35-second freshness.
+All other resource, financial, permission, and Strata boundaries remain unchanged.
+
 ## Current fee native storage boundary
 
 16 October 2026. Final fee checkpoint census 05 passed in 45.4573 seconds.

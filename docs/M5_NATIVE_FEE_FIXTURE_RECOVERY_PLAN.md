@@ -1,5 +1,55 @@
 # Restore native fee verification in a fresh test folder
 
+## Current request after the retained halt - 17 October 2026
+
+This request remains unapproved. Scratch stays at 12 GiB. No fresh native folder or reserve has been created.
+
+The earlier process condition changed. Normal reads and snapshots verified all six previous owners absent.
+Infrastructure review 2 cleared a separately labelled attempt under the unchanged exit guard.
+Fresh capacity admission and the complete 397-file preservation check passed before that attempt.
+The attempt passed owner startup and published its local account observation. It then failed its health check.
+The watchdog retained `UNACCOUNTED_GROWTH`. No fee activity context completed. No actual account request occurred.
+
+The helper wrote `fee-fixture-reference.json` outside reserved storage after watchdog startup.
+That new file was absent from the earlier inventory. The unchanged storage checker rejects this form of growth.
+The repair publishes the reference under a project-bound task artifact path with an exact records grant.
+Two source and two installed regression cases verify rejection of the unreserved write and acceptance of reserved publication.
+The earlier 256 cases per environment remain reusable. Product files and their test files are unchanged.
+Each current in-process inventory therefore contains 258 distinct passing cases, with zero failures, errors, or skips.
+Both refreshed complete environment checks against the repaired source archive passed. Native qualification remains incomplete.
+Fee reviews 1 and 2 are used. Final fee review 3 remains unused.
+
+The halted runtime has a separate complete verified archive of 24,684,181 bytes, with 403 files and 498 entries.
+Archive SHA-256: `be2d456a80c1b0a709e322ca3fcbaff462e48e01fc5c6c1d9efac26d615debdb`.
+The retained halt SHA-256 is `113ad6e6255e27b8ff2f7cf6b70b09c5aa9dc465df1641fb77b2ded3924f030a`.
+Keep that runtime, halt, project, reserve, and every failed result. Never clear or resume it.
+Both native failed attempts remain failed. Their original labels and identities remain unchanged.
+
+The complete projection check passed in 43.0678 seconds. Its parent closed in 49.6235 seconds with zero children.
+After current holds, scratch has 14,214,768 bytes left. The fresh 1072 MiB hold cannot fit.
+A 13 GiB scratch cap remains short by 36,116,880 bytes. A 14 GiB cap leaves 1,037,624,944 bytes.
+The projected aggregate charge is 37,210,469,320 bytes, below the unchanged 50 GiB total.
+Backups remain 21 GiB, with 689,584,160 bytes left after their existing holds.
+The admitted recovery record and backup namespaces retain 8 MiB and 64 MiB limits.
+The 64 MiB backup hold already covers the new preserved failure and one bounded fresh-runtime preservation if needed.
+No further backup or records cap increase is requested.
+
+After explicit approval of 14 GiB scratch, run fresh complete admission before creating the proposed folder.
+Use `.cache/test-runs/native-fee-fresh-20261016-01/native-shared` with a new project and fully allocated one GiB reserve.
+Copy required tracked configuration and schemas only. Provision invented credentials and local HTTP replies.
+Retain normal deadlines, health checks, memory floors, CPU limits, and one heavy job at a time.
+Freeze new source and installed attempt labels for the two native cases. Preserve both earlier failures outside acceptance.
+The unchanged guard must qualify each launch. Stop on the first new refusal or failure; never bypass a retained stop.
+Only after complete native verification, use final fee review 3, refresh reports and the map, and synchronize the checkpoint.
+Then continue the full approved accounting, risk, durable dispatch, recovery, and installed local rehearsal plan.
+
+Current private evidence is in `artifacts/m5/native-fee-recovery-20261016-01`.
+The measured request is `fresh-fixture-projection08-result.json`.
+The halted-state archive is `recovery-native-failure-preservation.json`.
+The earlier access-denied diagnostics and first failure remain preserved in the original fee evidence folder.
+
+## Earlier proposal - 16 October 2026
+
 16 October 2026. This is a prepared storage request. It is not permission to create or start another native runtime.
 
 ## Current blocker

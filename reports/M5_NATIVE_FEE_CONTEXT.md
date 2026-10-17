@@ -1,5 +1,58 @@
 # Declared fees from original current fills
 
+## Current repair and retained native halt - 17 October 2026
+
+**The helper repair is verified in-process. Native fee qualification and the approved local finish plan remain incomplete.**
+
+| Current evidence | Source | Installed |
+| --- | ---: | ---: |
+| Unchanged earlier in-process cases | 256 passed | 256 passed |
+| New reference-storage regression cases | 2 passed | 2 passed |
+| Distinct accepted in-process cases | 258 passed | 258 passed |
+| Accepted failures / errors / skips | 0 / 0 / 0 | 0 / 0 / 0 |
+| Refreshed complete environment byte checks | Verified | Verified |
+| Accepted native fee stages | 0 | 0 |
+
+The 256 earlier cases remain valid. Their test files and every product source file are unchanged.
+Three native helper/control files changed; one shared fixture helper and one regression test file were added.
+All 230 wheel and installed package files match the original product bytes. The valid Windows wheel is reused.
+The repaired source archive retains 633 files, including the updated helpers and regression test.
+Its SHA-256 is `3fa64a0dbde4a881763039ebe08eb9b29de77522c3f3317990edc05d9978b691`.
+Wheel SHA-256 remains `bfec2f5f3a9d5c4a8bb377ffbc654409d454eea7f85f311d1afc3e2b79d1d59a`.
+
+The earlier process condition cleared. Normal process reads and snapshots verified all six previous owners absent.
+Infrastructure review 2 cleared a separately labelled attempt. Fresh admission and the complete 397-file preservation check passed first.
+That attempt passed startup and published its invented local account observation. Its next health check failed.
+The watchdog retained `UNACCOUNTED_GROWTH`. The helper had created a 395-byte reference file outside reserved storage after startup.
+The repair publishes that reference under a project-bound task artifact path with an exact records grant.
+Both new regression cases use actual record writers and storage checks, with in-process owners and simulated reserves and replies.
+They prove rejection of the unreserved write and acceptance of the reserved publication. They do not establish native lifecycle acceptance.
+
+Both source native attempts remain failed: each has zero passes, one failure, zero errors, and zero skips.
+They attempted the same first native case. Do not count them as two distinct passing or accepted native cases.
+Neither completed a fee activity context. The first pipe failure's cause remains unproven.
+The second failed runtime has a complete verified archive of 24,684,181 bytes, with 403 files and 498 entries.
+Archive SHA-256 is `be2d456a80c1b0a709e322ca3fcbaff462e48e01fc5c6c1d9efac26d615debdb`.
+The original halt remains intact. Never clear or resume that runtime.
+
+Final preservation verified 219 original environment and master records, all 403 halted native files, and all 845 completed cost files.
+All three native archives, both reserve identities, the earlier failed fixture's halt, and the master stop remain preserved.
+The new aggregate and exact reuse proof are in `artifacts/m5/native-fee-recovery-20261016-01/repaired-fee-checks-aggregate01.json`.
+Every accepted Job observed exit with zero remaining children. No actual broker request occurred. Strata stays off.
+
+The complete projection passed in 43.0678 seconds. Its parent closed in 49.6235 seconds with zero children.
+The fresh 1072 MiB fixture cannot fit under 12 GiB scratch. A 13 GiB ceiling remains short by 36,116,880 bytes.
+A 14 GiB ceiling leaves 1,037,624,944 bytes. Backups remain 21 GiB, and the total remains 50 GiB.
+Projected aggregate use is 37,210,469,320 bytes. Existing 8 MiB record and 64 MiB backup holds remain sufficient.
+Infrastructure review 3/3 is clear. Fee final review 3 remains unused. The storage decision remains pending.
+No limit has changed. No fresh folder or reserve exists. Require fresh complete admission after explicit approval.
+
+Then qualify the two native stages in each environment and finish final fee review 3.
+Continue billing and actions, current-input risk, durable dispatch/recovery, and the installed local rehearsal.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+
+## Earlier fee checkpoint - 16 October 2026
+
 16 October 2026. Source and installed in-process fee checks passed. Native qualification remains blocked.
 The approved local finish plan remains incomplete. M5 gates 2 through 5 remain open.
 Only M0 is fully accepted. M6 remains zero of ten actual supervised sessions.
