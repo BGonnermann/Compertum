@@ -1,5 +1,5 @@
 """Real Windows owners, original journal, and invented local account replies."""
-import json,os,socket,subprocess,sys,time
+import json,os,socket,sqlite3,subprocess,sys,time
 from pathlib import Path
 from uuid import uuid4
 import pytest
@@ -22,6 +22,10 @@ def admitted_root():
   assert list(api.file_identity(handle))==saved['reserve_identity']
  assert not (root/'state/watchdog/halt.json').exists()
  assert (root/'config.toml').read_bytes()==(ROOT/'config/default.toml').read_bytes()
+ # This continuation must retain the original opening and bounded history.
+ with sqlite3.connect((root/'state/execution.sqlite').as_uri()+'?mode=ro',uri=True) as db:
+  assert db.execute("SELECT count(*) FROM state WHERE key='paper_opening:fixture'").fetchone()==(1,)
+  assert db.execute('SELECT count(*) FROM paper_read_packets').fetchone()[0]<=28
  lane='source' if str(Path(__import__('compertum').__file__)).startswith(str(ROOT/'src')) else 'installed'
  return root,lane
 
@@ -55,18 +59,17 @@ def collect(root):
  return packet,identity,value
 
 def run_case(mode):
- root,lane=admitted_root();receipt=RECORDS/f'native-{lane}-{mode}.json';assert not receipt.exists()
+ root,lane=admitted_root();receipt=RECORDS/f'review3-native-{lane}-{mode}.json';assert not receipt.exists()
  with socket.socket() as foreign:
   foreign.setsockopt(socket.SOL_SOCKET,socket.SO_EXCLUSIVEADDRUSE,1);foreign.bind(('127.0.0.1',0));foreign.listen(1)
   p,initial=launch(root,mode,foreign.getsockname()[1])
   try:
    if mode=='restart':
-    previous=json.loads((RECORDS/f'native-{lane}-positive.json').read_text())
+    previous=json.loads((RECORDS/f'review3-native-{lane}-positive.json').read_text())
     observed=activity(root,'status',activity_id=previous['activity_id'])
     assert observed['state']=='PUBLISHED' and 'fixture_economic_error' in observed and 'fixture_economic' not in observed
     packet=previous['packet_id'];identity=previous['activity_id']
    else:
-    if lane=='source' and mode=='positive':account(root)
     packet,identity,observed=collect(root)
     assert observed['fixture_foreign_listener_refused'] is True
     if mode=='positive':

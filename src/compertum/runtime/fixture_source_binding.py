@@ -122,6 +122,10 @@ class _SourceStart:
                     if self in guard.resources:guard.resources.remove(self)
             except RuntimeRefused:pass
 
+def _close_source_start(transport):
+    start=getattr(transport,'_fixture_source_start',None)
+    if type(start) is _SourceStart:start.close()
+
 def start_fixture_get(lease,request,port,timeout,*,_permit=None):
     from ._winhttp_get import _OwnedGet
     with _owner_scope(lease):

@@ -71,7 +71,8 @@ Reconcile holdings and open orders after each effect. Give each serial close chi
 End with resolved fixture orders, zero fixture holdings, a reconciled ledger, and disarmed admission.
 Count remaining bounded account-history slots before freezing the complete native sequence.
 
-The accepted plan requires real owner clocks. Fixture buys require an actual exchange session and 09:35–10:05 New York.
+The accepted plan requires real owner clocks. Historical collection must finish before 09:25 on the actual exchange day.
+Fixture buys require that day's 09:35–10:05 New York window.
 Today is Saturday, 17 October. Existing simulated-clock seams do not satisfy positive native admission.
 Complete code, matching source and installed checks, refusal cases, and rehearsal preparation before stopping for that external timing condition.
 An exception for a substituted final-rehearsal clock requires an explicit change to the accepted plan.
@@ -85,3 +86,45 @@ Use at most three review and repair rounds per increment. Carry each counter for
 The initial bounded risk and dispatch design review is complete. Final economic review remains separate.
 Refresh reports, README, checkpoint, GitHub, the local clone, and the horizontal project-map PDF before closing work.
 Actual paper orders, cancellations, closes, and supervised market sessions remain outside this local authorization.
+
+## Reviewed implementation details
+
+The initial independent design review requires the following details. It does not reset economic review 3.
+
+The fixture risk factory resolves the exact native intent, confirmation, current inputs, presence, and economic context.
+It retains original observed cash separately from cash available after unpaid fees.
+It reuses the existing fixture calculations for buying, resting orders, exposure, and closing limits.
+Cancellation uses account and owned-target checks. It needs no quote or exchange session.
+The fixture factory rejects strategy intents. It grants no actual broker authority.
+Freeze calculator arguments before calling calculation code. Recheck them afterward.
+
+Compose input and economic checks into one private proof. Join that proof with native presence.
+Retain final identity checks, original expiry, health, and single-use behavior.
+Closing the composed wrapper must preserve borrowed resources.
+
+Native consumption needs its own call-local commit procedure.
+Verify all original records after the queue wait. Append exactly one external attempt and the expected SQLite rows.
+Verify unchanged surrounding records. Commit before the final pure clock, identity, and health checks.
+Run those final checks in the transport's existing send hook, after native setup and queue commitment.
+Clear retained callbacks after that call. A duplicate append can never permit another send.
+
+The trusted order producer binds exact request bytes, method, body hash, and authenticated local endpoint.
+Reject a missing test port, TLS fallback, producer replacement, or direct use without durable consumption.
+Keep the ten-second request deadline separate from waiting for a queue permit.
+
+Native recovery must restore missing consumed rows from the external guard as `NATIVE_UNKNOWN`.
+It must never recreate dispatch authority. Preserve the external guard after any SQLite failure.
+Keep strict native states, bounded events, existing fake-record filters, and conservative uncertainty.
+
+Persist a parent closing operation before its original start expiry.
+Bind its exact quantity, child limits, confirmation, and operation deadline.
+Give each child a distinct deterministic intent ID and client ID.
+Reconcile the previous child before creating fresh current-input proofs for the next child.
+Refuse increased quantities, overlapping children, uncertain effects, and extra children.
+Restart must not resume submission automatically.
+
+Extend the original order decoder and economic context before accepting future source events.
+Keep the original beginning and prove each history extension.
+Record linked transaction identities and durable completion before acknowledging an effect.
+Refuse incomplete records or incomplete changes across the two original journals.
+Derive cash, quantities, cumulative fills, and replies only from committed events.

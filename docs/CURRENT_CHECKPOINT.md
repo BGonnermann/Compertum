@@ -6,18 +6,22 @@ The owner approved 15 GiB test scratch and one additional 1072 MiB native folder
 Fresh complete storage admission passed. Backups stay 21 GiB; total storage stays 50 GiB.
 Both original journals existed before the new project's first account observation. All earlier identities and evidence remain preserved.
 
-Three final source native economic stages passed, including shutdown, with zero failures, errors, or skips.
+Source and installed economic checks each passed 229 distinct cases, with zero failures, errors, or skips.
+Each inventory contains 226 in-process cases and three native stages, including shutdown.
 They check original source qualification, changed-source refusal, and restart without restored freshness.
-The complete source inventory passed 220 cases: 217 in-process cases and three native stages, with zero failures, errors, or skips.
-Matching installed checks and complete environment checks remain pending.
-Economic final review 3 remains unused. Gate 2 remains open until its component verification is complete.
+Both complete environments passed byte verification. The frozen package contains 238 product files.
+Economic final review is clear at 3 of 3. Its two findings were reproduced and repaired without resetting the counter.
+The repairs close source process handles on terminal reads and freeze calculator arguments before callbacks.
+Gate 2 remains open for future controlled order history and its remaining integration.
 
 The native run exposed a shutdown defect in the recent backup-sharing change.
-The repair passed 61 source checks and independent shutdown review 1. Installed verification remains pending.
+The repair passed 61 matching source and installed checks and independent shutdown review 1.
 Both failed native attempts have verified archives. The continuing native project is stopped without a retained watchdog halt.
 
 Next, finish economic verification, risk, durable dispatch and recovery, and the installed combined rehearsal.
-The accepted plan retains real owner clocks and operation windows. Positive native buy rehearsal needs an eligible exchange window.
+The accepted plan retains real owner clocks and operation windows.
+Historical inputs must finish before 09:25. Native buying requires 09:35–10:05 New York on an eligible exchange day.
+The next eligible day is Monday, 19 October.
 Complete independent code and tests before stopping for that external timing condition.
 M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions. Only M0 is fully accepted.
 See reports/M5_NATIVE_ECONOMICS.md. Strata stays off.

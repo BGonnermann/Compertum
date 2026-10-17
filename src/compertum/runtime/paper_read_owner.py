@@ -246,9 +246,16 @@ class PaperReadOwner:
         from .paper_opening import current_opening
         return current_opening(self,packet_id,manifest)
 
-    def _dispose_get(self):
+    def _dispose_get(self,*,retain_source=False):
         if self._get is not None:
-            self._get.close();_need(self._get.native_closed,'HTTP_CLEANUP_UNVERIFIED');self._get=None
+            transport=self._get
+            try:
+                transport.close();_need(transport.native_closed,'HTTP_CLEANUP_UNVERIFIED')
+                self._get=None
+            finally:
+                if not retain_source:
+                    from .fixture_source_binding import _close_source_start
+                    _close_source_start(transport)
 
     def _finish(self,value):
         if self._packet is not None:
@@ -357,10 +364,14 @@ class PaperReadOwner:
                     value['requests'][-1]['http_status']=result.status_code
                     with self.db:self._write(value)
                     transport=self._get;request=self._packet._pending
-                    self._dispose_get()
-                    self._packet.accept(result.body,received_at=_now())
-                    from .paper_preflight import native_read_provenance
-                    self._read_provenance.append(native_read_provenance(transport,result,self.lease,request))
+                    try:
+                        self._dispose_get(retain_source=True)
+                        self._packet.accept(result.body,received_at=_now())
+                        from .paper_preflight import native_read_provenance
+                        self._read_provenance.append(native_read_provenance(transport,result,self.lease,request))
+                    finally:
+                        from .fixture_source_binding import _close_source_start
+                        _close_source_start(transport)
                     status=self._packet.status();value['responses']=status['responses']
                     if status['state'] not in {'READY','PENDING'}:
                         value.update(state='EVIDENCE_READY',reason=status['reason']);self._finish(value)

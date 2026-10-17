@@ -24,13 +24,16 @@ The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification]
 
 The owner approved 15 GiB test scratch and one additional 1072 MiB native folder. Complete storage admission passed.
 Backups stay 21 GiB; total storage stays 50 GiB. Both original journals existed before the first account observation.
-Three source native stages passed, including shutdown. They cover original economics, changed-source refusal, and restart without restored freshness.
-The complete source inventory passed 220 cases, with zero failures, errors, or skips: 217 in-process cases and three native stages.
-Matching installed checks, complete environment checks, and final economic review remain pending.
-The shutdown repair passed 61 source checks and independent review 1. Both failed native attempts retain verified archives.
+Source and installed checks each passed 229 distinct cases, with zero failures, errors, or skips.
+Each inventory contains 226 in-process cases and three native stages, including shutdown.
+Both complete environments passed byte verification. Final economic review is clear at 3 of 3.
+The final repairs close source process handles on aborted reads and freeze calculator arguments before callbacks.
+The 61 shutdown checks are included in each inventory. All failed attempts and original native identities remain preserved.
 
 The local finish plan remains incomplete. Continue risk, durable dispatch and recovery, and the installed combined rehearsal.
-Real owner clocks and operation windows remain required. Positive native buy rehearsal needs an eligible exchange window.
+Real owner clocks and operation windows remain required.
+Historical inputs must finish before 09:25. Native buying must occur during 09:35–10:05 New York on an eligible exchange day.
+The next eligible day is Monday, 19 October. Complete independent implementation and tests before that timing boundary.
 M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions. Only M0 is fully accepted.
 See [the current native report](reports/M5_NATIVE_ECONOMICS.md). Strata stays off.
 

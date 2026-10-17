@@ -77,9 +77,11 @@ def _capture(owner,context,portfolio,activity_id):
     proof,base,originals,metadata,original,protected,account_id=_capture_originals(owner,context,portfolio,activity_id,allow_unsupported=True)
     _need(metadata['provenance']=='LOOPBACK_FIXTURE')
     values,source_binding,source_check=_source_snapshot(owner,context,base,originals)
+    expected_arguments=canonical(values)
     calculation=calculate_fixture_economics(**values);_need(type(calculation) is FixtureEconomicCalculation)
     calculation.__post_init__();private=calculation.content;value=calculation.to_payload()
-    _need(calculation.arguments==canonical(values) and calculation.content==private and value['cash_matches'])
+    _need(calculation.arguments==expected_arguments and canonical(values)==expected_arguments
+          and calculation.content==private and value['cash_matches'])
     pin=_sha(dict(base,source=source_binding,calculation_sha256=_sha(value)))
     result=dict(version=1,record_type='FixtureEconomicContextDiagnostic',scope='ENGINEERING_FIXTURE_ECONOMICS',
         status='BLOCKED',source_status='CONTROLLED_LOCAL_SOURCE_VERIFIED',source_qualified=True,
