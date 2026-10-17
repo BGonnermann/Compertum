@@ -115,7 +115,7 @@ M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessi
 The horizontal PDF has nine reviewed pages, 90 function groups, 81 navigation links, and 90 source notes.
 Visual review found a clipped footer and damaged roadmap separators. Both were corrected before final review.
 The PDF retains the current live Hub work and its separate 51 source and 47 browser checks.
-The PDF SHA-256 is `06a284b6ec5bdc5dbd30b487f6d8cd221efd20b53f0ffe30f15ccc95541c23af`.
+The exact map hash and all-page review receipt remain in the local evidence folder.
 The existing Hub reader correctly reads the new saved checkpoint, counts, next plan, report, and map.
 Its first isolated import failed because the test environment lacked the Windows user-profile path.
 The corrected isolated check passed. This repair changed no Hub code and added no product test cases.
