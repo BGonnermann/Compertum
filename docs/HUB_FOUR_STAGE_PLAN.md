@@ -20,7 +20,7 @@ The reporting interface does not implement missing signal generation or automati
 - [x] Engineering work stays separate from operational reports and financial acceptance.
 - [x] Writer failures preserve the caller's work and exception. The Hub never publishes reports itself.
 - [x] Native process binding, privacy, bounds, updates, and read-only behavior pass source and browser checks.
-- [ ] Review, refresh the horizontal map, and synchronize the verified code and rollback clone.
+- [x] Review, refresh the horizontal map, and synchronize the verified code and rollback clone.
 
 Use fresh test namespaces. Test only small invented calculations and reporting events.
 Run the Hub source cases and browser inventory. Keep exact pass, failure, error, and skip counts.
