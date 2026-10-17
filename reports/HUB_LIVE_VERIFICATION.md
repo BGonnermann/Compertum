@@ -79,5 +79,14 @@ Existing unrelated M5 work and saved failure history remain separate from this c
 The first accepted live browser evidence is outside Git:
 `C:\Users\bgonn\.codex\visualizations\2026\10\17\01a14a69-85c1-7252-8eb9-f7ddce9f50a3\hub-live-browser-01`.
 The final source log is `hub-live-source-release.txt`. Final browser evidence is in `hub-live-browser-release`.
-The updated project-map PDF and synchronization receipts remain outside Git in the same task-owned artifact folder.
+The refreshed PDF copy and synchronization receipts remain outside Git in the same task-owned artifact folder.
 The original source failures and review regressions were retained in the task record. Failed native product evidence was not removed.
+
+## Project map and saved checkpoint
+
+The horizontal project-map PDF was rebuilt and all nine landscape pages were rendered and inspected.
+Its 81 internal navigation links and 90 source notes passed checks. The live Hub and incomplete stage feeds are shown explicitly.
+The stable PDF remains in the 15 October project-map artifact folder. The earlier map was preserved before this update.
+Only Hub source, tests, and documentation were saved. Unrelated M5 changes remain outside the Hub commits.
+Verified code checkpoint `0b701da` was pushed to the private primary repository under the existing approved account.
+The rollback clone was advanced without rewriting history. Final documentation and exact matching revisions use an external synchronization receipt.

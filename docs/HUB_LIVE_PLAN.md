@@ -15,7 +15,7 @@ This extends the approved Hub. The primary agent implements and verifies the cha
 - [x] Provide a small local stage-reporting wrapper for trusted future jobs. It does not grant execution or account authority.
 - [x] Verify event parsing, native process detection, expired observations, partial records, HTTP access, and browser transitions.
 - [x] Complete one independent review within three bounded passes.
-- [ ] Refresh the horizontal PDF and synchronize the approved private repository and clone.
+- [x] Refresh the horizontal PDF and synchronize the approved private repository and clone.
 
 ## Design and bounds
 
