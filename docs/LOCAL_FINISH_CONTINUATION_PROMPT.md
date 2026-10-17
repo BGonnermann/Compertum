@@ -14,16 +14,23 @@ The owner explicitly approved 14 GiB test scratch for one fresh native folder on
 Do not ask for that approval again. Backups remain 21 GiB, and the total remains 50 GiB.
 The fresh folder is `.cache/test-runs/native-fee-fresh-20261016-01/native-shared`.
 It has a new project identity and its own fully allocated one GiB reserve. Its namespace is capped at 1072 MiB.
-All four separately frozen declared-fee native stages passed. The successful stopped runtime has a verified 85-file archive and no halt.
+All four separately frozen declared-fee native stages passed. The declared-fee phase has its verified 85-file archive. The posted-fee phase has a newer verified archive and no halt.
 Keep this runtime at its original path. Reuse it only after applicable fresh preservation and capacity checks.
 Never create another native folder, copy a runtime, or reset an identity under this one-folder approval.
 Both older failed native attempts and retained halts remain preserved. Never clear or resume those halted runtimes.
 The first pipe failure's cause remains unproven. All failed receipts and three older archives remain intact.
 
-Continue the bounded posted-fee increment in docs/M5_POSTED_FEES_PLAN.md.
-Its design review 1/3 corrections cover posting-interval uncertainty, conservative credit handling, and exact row fields.
-Carry those counters forward. Keep exact source and installed cases, original observations, and resource holds.
-Do not change original cash or infer complete billing, reversal, unpaid-liability, or action coverage from matching arithmetic.
+Posted-fee engineering is now verified across 238 matching distinct source and installed cases, with zero failures, errors, or skips.
+Each inventory contains 236 in-process cases and two native stages. Both complete environment byte checks passed.
+Posted-fee final review 3/3 is clear and closed. Never reset these or earlier counters.
+The same fresh native project and allocated reserve were preserved before and after use. Keep its verified archive and original path.
+The installed test output uses a measured 80 MiB hold. Test scratch stays 14 GiB, backups 21 GiB, and total storage 50 GiB.
+
+Continue the bounded local fixture economic evidence plan in docs/M5_LOCAL_ECONOMIC_EVIDENCE_PLAN.md.
+Its design review 1 is complete. Carry that counter forward, and require fresh complete admission for new namespaces.
+Derive unpaid fees from original complete accrual and payment records. Do not infer zero liabilities from estimates or posted totals.
+Require the original controlled fixture action calendar. Refuse relevant or unsupported actions and incomplete coverage.
+Keep fixture evidence separate from actual-account qualification and actual broker transport.
 
 Continue fee billing and corporate-action qualification against original current records.
 Keep declared fee arithmetic separate from actual charges, unpaid liabilities, applicability, reversals, and coverage.

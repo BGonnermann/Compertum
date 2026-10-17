@@ -1,5 +1,17 @@
 # Timers and storage
 
+## Posted-fee installed output admission - 17 October 2026
+
+All 238 source and installed cases passed, including two native Windows cases per environment. Both complete environments passed.
+Retained source output measured 69,812,224 bytes. The original 64 MiB installed-output allowance was insufficient.
+A fresh full census admitted 80 MiB and its 208 MiB parent before installed tests. No source case was repeated for this change.
+The census Job closed in 58.3002 seconds with zero remaining children.
+It left 802,361,000 scratch bytes and 622,475,296 backup bytes after holds.
+Test scratch stays 14 GiB, backups 21 GiB, and total storage 50 GiB. Native reserve and published program limits are unchanged.
+The one original fresh native folder was preserved and reused. Its new archive contains 151 files.
+All older failures, halts, reserve identities, and the original environment remain preserved. Strata stays off.
+See M5_POSTED_FEE_CONTEXT.md for exact case groups, hashes, historical failures, and the remaining local gates.
+
 ## Approved test scratch and fresh native verification - 17 October 2026
 
 The owner approved 14 GiB test scratch for one fresh native folder. Backups remain 21 GiB, and the total remains 50 GiB.

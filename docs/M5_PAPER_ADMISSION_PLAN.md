@@ -1,6 +1,32 @@
 # Native paper admission integration
 
-## Current declared-fee verification - 17 October 2026
+## Current posted-fee verification - 17 October 2026
+
+**Posted-fee engineering is locally verified. The approved local finish plan remains incomplete.**
+Source and installed inventories each passed 238 distinct cases, with zero failures, errors, or skips.
+Each contains 236 in-process cases and two native Windows stages. Both complete environment byte checks passed.
+Native stages use real Windows owners and invented local replies.
+Final posted-fee review 3/3 is clear. Posted-fee, declared-fee, and infrastructure review rounds are closed.
+
+The calculation preserves original cash and signed USD fee rows. Matching cash does not establish billing or unpaid liabilities.
+The new calculation accepts bounded inputs above 64 KiB. The existing parser retains its original limit.
+All four native stages passed in the same approved folder. Its original project and allocated reserve remain unchanged.
+The stopped runtime has a fresh verified archive. The failed posted-fee attempt also has a complete retained archive.
+The test helper now checks proof phases during explicit status calls. Publication acknowledgement remains passive.
+The first failure's cause remains unproven. Both older halted runtimes remain preserved and stopped.
+
+The installed test output needed 80 MiB. A fresh complete measurement admitted that hold before installed tests.
+Test scratch stays 14 GiB, backups 21 GiB, and total storage 50 GiB. Published program limits remain unchanged.
+
+Next, implement local fixture fee liabilities and action evidence under M5_LOCAL_ECONOMIC_EVIDENCE_PLAN.md.
+Its design review 1 is complete. Derive facts from complete original fixture records; do not assume zero liabilities.
+Then finish current-input risk, durable dispatch and recovery, and the installed combined local rehearsal.
+Actual billing and provider action coverage remain unverified. Financial and actual broker authority remain false.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+The original environment, master stop, failed evidence, reserves, and terminal M3 history remain preserved. Strata stays off.
+See M5_POSTED_FEE_CONTEXT.md for exact results and local evidence paths. Keep Hub results separate from these inventories.
+
+## Earlier declared-fee verification - 17 October 2026
 
 **Declared-fee engineering is locally verified. The approved local finish plan remains incomplete.**
 Source and installed inventories each passed 260 distinct cases, with zero failures, errors, or skips.

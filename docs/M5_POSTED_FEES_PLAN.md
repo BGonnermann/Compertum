@@ -4,6 +4,13 @@
 Declared-fee engineering is verified across 260 matching source and installed cases. Its three review rounds are closed.
 Actual billing coverage, account applicability, unpaid liabilities, actions, risk, dispatch, and the combined rehearsal remain open.
 
+## Verified result - 17 October 2026
+
+Source and installed inventories each passed 238 distinct cases, with zero failures, errors, or skips.
+Each contains 236 in-process cases and two native Windows stages. Both complete environment byte checks passed.
+All three posted-fee review rounds are closed. Actual billing, liabilities, and action coverage remain unverified.
+Continue M5_LOCAL_ECONOMIC_EVIDENCE_PLAN.md, then risk, durable dispatch and recovery, and the installed combined rehearsal.
+
 ## Intended behavior
 
 Compare original observed cash with owned fills and retained USD fee activity.
@@ -90,7 +97,7 @@ Freeze exact cases, commands, inputs, and resource bounds before each run.
 Run a focused failing case before implementation. Preserve every failed receipt.
 Require matching distinct source and installed inventories, complete environment byte checks, and final independent review.
 Use at most three review and repair rounds. Carry counters forward.
-Design review 1/3 identified the timing, credit, and exact-schema requirements above. Code and final reviews remain unused.
+Design review 1/3 identified the timing, credit, and exact-schema requirements above. Code review 2 found the repaired parser limit. Final review 3 is clear; all three rounds are closed.
 Test a backdated fee and a fee collected after the current cash observation. Both keep the posting-interval blocker.
 Test opening cash 10, a purchase costing 20, and a fee credit 10. The unchanged fill check must refuse.
 Test zero, negative zero, invalid dates, extra fields, cross-kind duplicate IDs, and cancelling debit/credit pairs.
@@ -105,7 +112,7 @@ No test result establishes actual-account acceptance or authority for a broker a
 ## Capacity and execution
 
 Require fresh complete capacity admission before creating new test or evidence namespaces.
-Proposed new holds are 128 MiB source scratch, 64 MiB installed test output, and 16 MiB installed-prefix growth.
+Proposed new holds are 128 MiB source scratch, 80 MiB installed test output, and 16 MiB installed-prefix growth.
 The installed prefix is the existing isolated Python environment. Preserve its original runtime and dependencies.
 Reserve eight MiB records and 64 MiB backups.
 Retain the existing fresh-native 1072 MiB hold. Do not create another native folder.
@@ -114,5 +121,5 @@ Published program limits, locked dependencies, CPU and RAM bounds, deadlines, an
 Keep one heavy job at a time and host memory floors of 16 GiB to start and 12 GiB to stop.
 Keep maintenance measurement at 110 seconds within a 120-second job. Production scans stay at 30 seconds with 35-second freshness.
 
-Next, review this bounded contract, admit the measured holds, and freeze the exact cases.
-Then implement, verify, and continue liability and action qualification, risk, durable dispatch, and the combined local rehearsal.
+Verification is complete: 238 matching cases per environment, including two native stages, with complete byte checks.
+Continue local economic evidence, current-input risk, durable dispatch and recovery, and the combined installed rehearsal.

@@ -234,6 +234,10 @@ class PaperReadOwner:
         return fee_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id,
             declaration_id=declaration_id,manifest=manifest)
 
+    def posted_fee_context(self,*,subject,packet_id,activity_id):
+        from .paper_posted_fee_context import posted_fee_context
+        return posted_fee_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id)
+
     def opening(self,packet_id,manifest):
         from .paper_opening import current_opening
         return current_opening(self,packet_id,manifest)
