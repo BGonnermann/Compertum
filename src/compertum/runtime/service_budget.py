@@ -1,6 +1,7 @@
 """Execution-owned cooperative admission; no request or retry authority."""
 from collections import deque
 import hashlib,json,time
+from compertum.data.encoding import canonical
 from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope,require_live_owner
 
@@ -110,6 +111,8 @@ def _profile(native):
     from ._winhttp_asset import _OwnedAssetGet
     from ._winhttp_order import _OwnedOrderHTTP
     from ._winhttp_activity import _OwnedActivityGet
+    from .paper_fixture_orders import _FixtureOrderHTTP
+    if type(native) is _FixtureOrderHTTP:return 'PAPER',native._method
     if type(native) is _OwnedActivityGet:return 'PAPER','ACTIVITY'
     if type(native) is _OwnedGet:return 'PAPER','READ'
     if type(native) is _OwnedAssetGet:return 'PAPER','ASSET'
@@ -125,6 +128,16 @@ def _prepared_binding(producer):
     from .paper_market_fresh import _MarketFresh
     from .paper_market_qualification import _PreparedMarketExchange
     from .paper_read_owner import PaperReadOwner
+    from .paper_fixture_orders import _FixtureOrderProducer
+    if type(producer) is _FixtureOrderProducer:
+        from .paper_order_qualification import _PreparedOrderExchange
+        producer._check();_need(producer._state=='PENDING' and type(producer._pending) is _PreparedOrderExchange)
+        x=producer._pending;request=x;raw=x.content;p=x._verify(producer._lease,producer._protected)
+        from ._winhttp_order import _wire
+        method,target,body=_wire(p['operation'],p['parameters'],p['body'])
+        return (id(producer),id(x),id(request),hashlib.sha256(raw).hexdigest(),'_FixtureOrderHTTP',target,
+            method,hashlib.sha256(body).hexdigest(),('127.0.0.1',producer._port,False),
+            hashlib.sha256(canonical({'X-Compertum-Test':producer._header})).hexdigest())
     if type(producer) is _ActivityProducer:
         producer._check(full=False);_need(producer._state=='PENDING')
         x=producer;request=producer._request;request.__post_init__();raw=request.content
@@ -157,7 +170,7 @@ def bind_producer_permit(producer,permit):
 def _native_wire(native):
     raw=getattr(native,'_request_bytes',b'');request=getattr(native,'_source_request',None)
     return (id(native),type(native).__name__,native._origin,native._wire_path,native._method,
-            id(request),hashlib.sha256(raw).hexdigest(),native._wire_body_sha256)
+            id(request),hashlib.sha256(raw).hexdigest(),native._wire_body_sha256,getattr(native,'_wire_header_sha256',None))
 
 
 def _validate_binding(q,native,permit,service,kind):
@@ -165,10 +178,15 @@ def _validate_binding(q,native,permit,service,kind):
     producers=[p for p,t in q._producers.values() if t is ticket]
     if producers:
         _need(len(producers)==1 and q._binding==_prepared_binding(producers[0]),'HTTP_PERMIT_WRONG_REQUEST')
-        _,_,rid,sha,adapter,target=q._binding
+        _,_,rid,sha,adapter,target=q._binding[:6]
+        method='GET'
+        if adapter=='_FixtureOrderHTTP':
+            method,body_sha,origin,header_sha=q._binding[6:]
+            _need(native._wire_body_sha256==body_sha and native._origin==origin
+                and native._wire_header_sha256==header_sha,'HTTP_PERMIT_WRONG_REQUEST')
         _need(type(native).__name__==adapter and id(getattr(native,'_source_request',None))==rid
               and hashlib.sha256(getattr(native,'_request_bytes',b'')).hexdigest()==sha
-              and native._wire_path==target and native._method=='GET','HTTP_PERMIT_WRONG_REQUEST')
+              and native._wire_path==target and native._method==method,'HTTP_PERMIT_WRONG_REQUEST')
     else:
         _need(entry[1]==3 and q._binding is None,'HTTP_PERMIT_WRONG_REQUEST')
     _need(q._native==_native_wire(native),'HTTP_PERMIT_WRONG_REQUEST')
@@ -215,7 +233,11 @@ def _producer_permit_locked(producer):
     from .paper_market_fresh import _MarketFresh
     from .paper_read_owner import PaperReadOwner
     from .paper_activity_owner import _ActivityProducer
-    if type(producer) is _ActivityProducer:
+    from .paper_fixture_orders import _FixtureOrderProducer
+    if type(producer) is _FixtureOrderProducer:
+        producer._check();lease=producer._lease;_need(producer._state=='READY')
+        profile=('PAPER',0,'DELETE' if getattr(producer,'_purpose',None)=='CANCEL' else 'POST');deadline=producer._deadline_ns
+    elif type(producer) is _ActivityProducer:
         producer._check(full=False);lease=producer._lease;_need(producer._state=='READY')
         profile=('PAPER',0,'ACTIVITY');deadline=producer._deadline_ns
     elif type(producer) is _MarketCollection:

@@ -242,6 +242,10 @@ class PaperReadOwner:
         from .paper_fixture_economics import fixture_economic_context
         return fixture_economic_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id)
 
+    def fixture_risk_context(self,*,subject,intent_id,activity_id):
+        from .paper_fixture_risk import fixture_risk_context
+        return fixture_risk_context(self,subject=subject,intent_id=intent_id,activity_id=activity_id)
+
     def opening(self,packet_id,manifest):
         from .paper_opening import current_opening
         return current_opening(self,packet_id,manifest)

@@ -5,7 +5,7 @@ from datetime import datetime,timezone
 import hashlib,json,os,socket
 from compertum.data.encoding import canonical
 from compertum.fixture_source_journal import decode_source_journal
-from compertum.fixture_order_origin import decode_order_origin
+from compertum.fixture_order_journal import decode_order_journal
 from compertum.paper_contracts import strict_json
 from compertum.persistence import checked_path,open_store
 from .errors import RuntimeRefused
@@ -91,7 +91,10 @@ def source_file(lease):
 
 def order_source_file(lease):
     with _owner_scope(lease) as guard:
-        raw,identity=_reserved_source_file(lease,ORDER_SOURCE_PATH);value=decode_order_origin(raw)
+        raw,identity=_reserved_source_file(lease,ORDER_SOURCE_PATH)
+        economic,_=source_file(lease)
+        heads=(economic['genesis_sha256'],*(event['sha256'] for event in economic['ledger']['events']))
+        value=decode_order_journal(raw,economic_heads=heads)
         _need(value['origin']['project_id']==guard.project.project_id)
         return value,identity
 

@@ -31,13 +31,13 @@ def _wire(operation,parameters,body):
 
 
 class _OwnedOrderHTTP(_OwnedHTTP):
-    def __init__(self,lease,*,operation,parameters=None,body=None,headers,timeout=10,_test_port=None,_permit=None):
+    def __init__(self,lease,*,operation,parameters=None,body=None,headers,timeout=10,_test_port=None,_permit=None,_deadline_at=None):
         method,path,wire=_wire(operation,parameters,body)
         if _test_port is not None and (type(_test_port) is not int or not 1<=_test_port<=65535):
             raise RuntimeRefused('HTTP_ORDER_INPUT_INVALID')
         super().__init__(lease,host='paper-api.alpaca.markets' if _test_port is None else '127.0.0.1',
                          port=443 if _test_port is None else _test_port,secure=_test_port is None,path=path,
-                         headers=headers,timeout=timeout,method=method,body=wire,_permit=_permit)
+                         headers=headers,timeout=timeout,method=method,body=wire,_permit=_permit,_deadline_at=_deadline_at)
 
     def _accept_status(self,code):
         # Error bodies are bounded private observations, never financial effects.

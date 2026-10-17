@@ -20,7 +20,23 @@ These are Hub checks. They do not change M1 through M6 acceptance or repeat the 
 See [live activity](docs/HUB_LIVE_ACTIVITY.md), [the four stage reporters](docs/HUB_STAGE_REPORTING.md), and [current verification](reports/HUB_FOUR_STAGE_VERIFICATION.md).
 The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.
 
-## Current native economic continuation - 17 October 2026
+## Current local risk and controlled dispatch - 17 October 2026
+
+The approved local finish plan remains incomplete. New risk and decoder checks passed 112 source cases before later history changes.
+The later controlled-source and dispatch inventory passed 79 source cases, with zero failures, errors, or skips.
+Keep these overlapping inventories separate. The new code has no installed or complete native acceptance yet.
+
+The local source preserves committed history, causal clocks, current inventory, and coverage through each order event.
+The trusted local producer binds exact requests, final durable consumption, request deadlines, and original native replies.
+Writer review 3, binding review 2, and internal send-commit review 2 are clear for their recorded source scopes.
+Four separate private-factory and deadline source cases also passed, with zero failures, errors, or skips.
+Producer review 2 and future-rejection review 1 are clear for source scope.
+Native outcome reconciliation, the closing parent, matching installed verification, and final reviews remain open.
+Complete independent work before the unchanged Monday native window. Storage stays 15/21/50 GiB. Strata stays off.
+Only M0 is accepted. M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions.
+See [the current progress report](reports/M5_LOCAL_RISK_DISPATCH.md).
+
+## Earlier native economic continuation - 17 October 2026
 
 The owner approved 15 GiB test scratch and one additional 1072 MiB native folder. Complete storage admission passed.
 Backups stay 21 GiB; total storage stays 50 GiB. Both original journals existed before the first account observation.

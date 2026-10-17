@@ -59,9 +59,10 @@ def exact_terms(purpose,terms,*,stored=False):
 
 
 def time_bounds(purpose,terms,at,diagnostic):
-    need(diagnostic['calendar_agreement']=='MATCHES_PINNED_CALENDAR','PAPER_INTENT_CALENDAR_UNVERIFIED')
-    need(not any('CLOCK' in reason or 'CALENDAR' in reason for reason in diagnostic['deficiencies']),'PAPER_INTENT_CLOCK_UNVERIFIED')
+    need(not any('CLOCK' in reason for reason in diagnostic['deficiencies']),'PAPER_INTENT_CLOCK_UNVERIFIED')
     if purpose=='CANCEL':return at+timedelta(seconds=60),None
+    need(diagnostic['calendar_agreement']=='MATCHES_PINNED_CALENDAR','PAPER_INTENT_CALENDAR_UNVERIFIED')
+    need(not any('CALENDAR' in reason for reason in diagnostic['deficiencies']),'PAPER_INTENT_CLOCK_UNVERIFIED')
     day=at.astimezone(NY).date()
     try:session=session_times(day.isoformat())
     except DataError:raise RuntimeRefused('PAPER_INTENT_CALENDAR_UNVERIFIED') from None

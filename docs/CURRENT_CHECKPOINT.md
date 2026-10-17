@@ -1,5 +1,26 @@
 # Current Compertum checkpoint
 
+## Local risk and controlled dispatch - 17 October 2026
+
+The local finish plan remains incomplete. New risk and decoder checks passed 112 source cases before the later history extension.
+The later controlled-source and dispatch inventory passed 79 source cases, with zero failures, errors, or skips.
+These inventories overlap earlier work. Keep their recorded source versions and simulated authority separate from native acceptance.
+Every completed final job has zero remaining children. The new code has no installed or full native acceptance yet.
+
+Original source extensions, exact inventory, causal clocks, economic coverage, and final consumption checks are implemented.
+The trusted local producer binds its service permit, exact request, original endpoint, final consumption, and native reply.
+Writer review 3, binding review 2, and internal send-commit review 2 are clear for their recorded source scopes.
+Four separate private-factory and deadline cases also passed, with zero failures, errors, or skips and zero remaining children.
+Their source readers, clocks, and reserve capacity are simulated. Producer review 2 and future-rejection review 1 are clear.
+Final risk and decoder reviews remain pending. Native outcome reconciliation and the closing parent remain unfinished.
+
+Next, finish native outcome reconciliation and the durable closing parent, then matching source and installed verification.
+Prepare the compatible combined native rehearsal before stopping for Monday's unchanged real-clock window.
+Storage remains 15 GiB test scratch, 21 GiB backups, and 50 GiB total. Fresh internal hold admission passed.
+No additional native project or reserve was created. Preserve all identities, failures, reserves, and halts.
+Only M0 is accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
+See reports/M5_LOCAL_RISK_DISPATCH.md. Strata stays off.
+
 ## Native economic continuation - 17 October 2026
 
 The owner approved 15 GiB test scratch and one additional 1072 MiB native folder.

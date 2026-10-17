@@ -142,5 +142,13 @@ class ControlledEconomicSource:
                 seen[event['event_id']]=event
         self._acknowledge(text,text)
         return dict(cash=format(cash,'f'),activities=tuple(rows))
+    def advance_order_clock(self,at):
+        """Persist the paired order clock before its effect, without closing that interval."""
+        self._live();need(self._last_clock<=_nanoseconds(at)<=_nanoseconds(self._now()))
+        need(_nanoseconds(at)>max(self._last_at,self._closed_until))
+        boundaries=[self._header['covered_after'],*(event['at'] for event in self._events)]
+        boundaries.extend(row['covered_until'] for row in map(json.loads,self._raw.splitlines()[1:]) if row['kind']=='CLOCK_ACK')
+        until=max(boundaries,key=_nanoseconds)
+        need(_nanoseconds(until)<_nanoseconds(at));self._acknowledge(at,until)
     def close(self):
         if self._stream is not None:self._stream.close();self._stream=None

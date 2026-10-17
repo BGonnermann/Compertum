@@ -38,9 +38,16 @@ def _source_snapshot(owner,context,base,originals):
     journal,identity=source_file(owner.lease)
     orders,order_identity=order_source_file(owner.lease)
     descriptor={k:orders[k] for k in ('producer_id','genesis_sha256','journal_sha256')}
-    _need(first_source['order_source']==source['order_source']==descriptor)
-    _need(first_witness['order_source']==witness['order_source']==descriptor)
+    beginning=first_source['order_source']
+    _need(set(beginning)==set(descriptor) and all(beginning[k]==descriptor[k] for k in ('producer_id','genesis_sha256')))
+    _need(beginning['journal_sha256'] in orders['prefix_sha256'])
+    _need(source['order_source']==witness['order_source']==descriptor and first_witness['order_source']==beginning)
     _need(first_witness['order_source_file_identity']==witness['order_source_file_identity']==order_identity)
+    _need(all(attempt in originals['attempts'] for attempt in orders['attempts']))
+    inventory=orders['inventory']
+    same=lambda left,right:sorted(canonical(row) for row in left)==sorted(canonical(row) for row in right)
+    _need(same(originals['orders'],inventory['orders']) and same(originals['positions'],inventory['positions']))
+    _need(same([row for row in originals['activities'] if row['activity_type']=='FILL'],inventory['fills']))
     _need(orders['origin']['economic_producer_id']==journal['producer_id'] and orders['origin']['economic_genesis_sha256']==journal['genesis_sha256'])
     _need(_nanoseconds(orders['origin']['created_at'])<=_nanoseconds(first['request']['created_at']))
     _need(first_witness['source_file_identity']==witness['source_file_identity']==identity)
@@ -54,6 +61,7 @@ def _source_snapshot(owner,context,base,originals):
     _need(all(old[k]==ledger[k] for k in header_keys))
     after=first['request']['created_at'];until=ledger['covered_until']
     _need(_nanoseconds(ledger['covered_after'])<=_nanoseconds(after)<_nanoseconds(until)<=_nanoseconds(current['parsed']['received_at']))
+    _need(all(_nanoseconds(transaction['at'])<=_nanoseconds(until) for transaction in orders['transactions']))
     _need(_nanoseconds(until)<=_nanoseconds(live['covered_until']))
     _need(native_source_peer(owner.lease,witness['port'])==witness['peer'])
     bound=dict(ledger,opening_sha256=base['opening']['sha256'],history_sha256=base['journal'])
