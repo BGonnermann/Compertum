@@ -245,6 +245,11 @@ class LiveMonitor:
             reported = read_jobs(self.root, native['processes'])
             result['jobs'] = reported['jobs']; result['coverage']['stage_jobs'] = reported['status']
             result['reporting'] = self.runtime_reader.snapshot(native['processes'])
+            from stage_reporting import read_reports
+            result['stage_reports'] = read_reports(self.root,native['processes'])
+            for stage in result['reporting']['stages']:
+                if stage['id'] in result['stage_reports']['stages']:
+                    stage['connection']=result['stage_reports']['stages'][stage['id']]['status']
             from loop import build_loop
             result['loop'] = build_loop(result)
             self.cached = result; self.last_read = time.monotonic()

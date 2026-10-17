@@ -1,5 +1,7 @@
 # Hub reporting connections and desktop shortcut
 
+This is the earlier 73-case release. See HUB_FOUR_STAGE_VERIFICATION.md for the four new stage reporting interfaces.
+
 17 October 2026. The owner requested remaining local reporting connections, explicit missing information, and a desktop shortcut.
 
 ## Current result

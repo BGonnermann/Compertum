@@ -51,6 +51,20 @@ def build_loop(activity):
             if report['records']: stage['state']='Saved record'
             elif report['connection']=='Reporting not implemented': stage['state']='Reporting not implemented'
         if stage['worker_observations']: stage['state']='Worker observed'
+        feed=activity.get('stage_reports',{}).get('stages',{}).get(stage['id'])
+        stage['producer_reports']=feed['reports'] if feed else []
+        stage['producer_status']=feed['status'] if feed else None
+        if feed:
+            stage['connection']=stage['reporting']=feed['status']
+            stage['state']='No report received' if not feed['reports'] and feed['status']=='No report received' else 'Report unavailable'
+        if stage['id'] in {'mathematics','qualification','signals','feedback'}:
+            stage_jobs=[job for job in activity.get('jobs',[]) if job.get('stage')==stage['id']]
+            candidates=[('Producer report',row) for row in stage['producer_reports']]+[('Explicit job event',row) for row in stage_jobs]
+            if candidates:
+                current=[row for row in candidates if row[1]['state']=='Running']
+                source,latest=max(current or candidates,key=lambda row:row[1]['observed_at'])
+                stage.update(state=f"{latest['kind'].capitalize()}: {latest['state'].lower()}",reporting=source,activities=stage_jobs)
+            continue
         jobs = [job for job in activity.get('jobs', []) if job.get('stage') == stage['id'] and job.get('kind') == 'operational']
         if jobs:
             stage.update(state=jobs[0]['state'], reporting='Explicit job event', activities=jobs)

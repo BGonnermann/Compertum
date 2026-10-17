@@ -220,12 +220,18 @@ function renderWholeLoop(data) {
     liveState.stage = stage.id;
     track.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === control)));
     detail.replaceChildren(node('p', stage.state.toUpperCase(), 'eyebrow'), node('h2', stage.name), node('p', stage.description), keyRow('Reporting', stage.reporting), node('p', stage.source, 'muted small'), sourceLink('docs/BUILD_SPEC.md', 'Read the governing specification'));
+    if (stage.producer_status) detail.append(keyRow('Stage report source', stage.producer_status));
+    (stage.producer_reports || []).forEach(report => {
+      detail.append(keyRow(`Report ${report.run_id.slice(0,8)} · ${report.kind}`, report.state), node('p', `Started ${time(report.started_at)} · reported ${time(report.observed_at)}${report.finished_at ? ` · finished ${time(report.finished_at)}` : ''}`, 'muted small'));
+      Object.entries(report.metrics).forEach(([name,value]) => detail.append(keyRow(name.replaceAll('_',' '), String(value))));
+    });
+    if (stage.producer_status) detail.append(node('p', 'A producer reports its own stage result. Engineering work is separate from operation. Completion does not grant financial acceptance or operating permission.', 'muted small'));
     if (!stage.activities.length) detail.append(node('p', 'No operational stage event. Local records below are separate observations.', 'muted small'));
     (stage.worker_observations || []).forEach(worker => detail.append(keyRow(`Process ${worker.pid}`, 'Worker observed'), node('p', `${worker.scope} · started ${time(worker.started_at)}. Completion is unknown.`, 'muted small')));
     (stage.record_sources || []).forEach(source => detail.append(keyRow(`${source.runtime} · ${source.table}`, source.status)));
     (stage.saved_records || []).forEach(record => detail.append(keyRow(`${record.runtime} · record ${record.record_id}`, record.state), node('p', `${record.source_at ? `Source time ${time(record.source_at)}` : 'Source time unavailable'} · read ${time(record.observed_at)}`, 'muted small')));
     if ((stage.saved_records || []).length) detail.append(node('p', 'These are bounded saved observations. A saved running state without a current worker remains unconfirmed. Financial acceptance is separate.', 'muted small'));
-    stage.activities.forEach(job => detail.append(keyRow(`Job ${job.run_id.slice(0, 8)}`, `${job.state}${job.exit_code === null ? '' : ` · exit code ${job.exit_code}`}`), node('p', `Observed ${time(job.observed_at)}${job.finished_at ? ` · finished ${time(job.finished_at)}` : ''}`, 'muted small')));
+    stage.activities.forEach(job => detail.append(keyRow(`Job ${job.run_id.slice(0, 8)} · ${job.kind}`, `${job.state}${job.exit_code === null ? '' : ` · exit code ${job.exit_code}`}`), node('p', `Observed ${time(job.observed_at)}${job.finished_at ? ` · finished ${time(job.finished_at)}` : ''}`, 'muted small')));
   }
   data.loop.stages.forEach((stage, index) => {
     const control = button('', () => choose(stage, control), 'loop-stage'); control.setAttribute('aria-pressed', 'false');

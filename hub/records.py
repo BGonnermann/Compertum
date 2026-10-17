@@ -20,6 +20,7 @@ CORE_RECORDS = (
     'reports/HUB_VERIFICATION.md',
     'docs/HUB_LIVE_PLAN.md', 'docs/HUB_LIVE_ACTIVITY.md', 'reports/HUB_LIVE_VERIFICATION.md',
     'docs/HUB_REPORTING_PLAN.md', 'reports/HUB_REPORTING_VERIFICATION.md',
+    'docs/HUB_FOUR_STAGE_PLAN.md', 'docs/HUB_STAGE_REPORTING.md', 'reports/HUB_FOUR_STAGE_VERIFICATION.md',
 )
 DEFAULT_MAP = Path.home() / '.codex/visualizations/2026/10/15/01a14191-f4fd-7730-8c3f-810c63c1b081/output/pdf/Compertum-project-map.pdf'
 WORDS = {'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,

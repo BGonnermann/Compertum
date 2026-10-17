@@ -44,8 +44,10 @@ The reader checks two matching byte observations, verifies log checksums, and re
 It never opens original shared-memory files through SQLite or writes a database copy to disk.
 Changing, oversized, linked, missing, unsupported, or mismatched records remain unavailable or partial.
 
-Thirteen stages have existing record adapters. Mathematics, qualification, qualified signals, and research feedback lack separate durable stage producers.
-These four stages say Reporting not implemented. A calculation function or planned connection does not establish current activity.
+Thirteen stages have existing journal adapters. Mathematics, qualification, signals, and feedback now have separate reporting interfaces.
+The job wrapper publishes those stage reports when separately authorized work runs. Existing programs can also publish measured progress.
+Before a report arrives, these four stages say No report received. See [the reporting guide](HUB_STAGE_REPORTING.md).
+A reporting interface does not implement missing operational calculations or automatic feedback. A planned connection never establishes current activity.
 Some connected stages expose only preparation or invented test records. Paper dispatch and whole-loop authority remain unestablished.
 Source timestamps stay missing when the original record has none. Observation time is shown separately.
 Each source displays at most 12 records. Missing tables and bounded omissions remain visible.

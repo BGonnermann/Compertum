@@ -34,6 +34,7 @@ async function main() {
     await page.getByRole('button', { name: 'Current work', exact: true }).click();
     await page.getByText('Live activity connected · refreshes every 2 seconds', { exact: true }).waitFor();
     const activity = await (await page.request.get(`${base}/api/live`)).json();
+    check(['mathematics','qualification','signals','feedback'].every(stage => activity.stage_reports.stages[stage]), 'All four stage reporting sources are connected.');
     check(activity.refresh_seconds === 2, 'Live activity has its own two-second refresh.');
     const identity = await (await page.request.get(`${base}/api/identity`)).json();
     check(identity.app === 'Compertum Hub' && identity.protocol === 1, 'The manual launcher can identify this Hub.');
@@ -58,8 +59,11 @@ async function main() {
     await page.waitForTimeout(2600);
     check(await page.locator('.loop-stage[data-stage="experiments"]').getAttribute('aria-pressed') === 'true', 'A selected stage survives live refresh.');
     check((await page.locator('#loop-page').innerText()).includes('No operational stage event'), 'Unconnected operational stages remain explicit.');
-    await page.locator('.loop-stage[data-stage="feedback"]').click();
-    check((await page.locator('#loop-page').innerText()).includes('Reporting not implemented'), 'An absent feedback producer is not shown as connected.');
+    for (const stage of ['mathematics','qualification','signals','feedback']) {
+      await page.locator(`.loop-stage[data-stage="${stage}"]`).click();
+      const source = activity.stage_reports.stages[stage];
+      check((await page.locator('#loop-page').innerText()).includes(source.status), `The ${stage} stage shows its actual reporting source state.`);
+    }
     await page.locator('.loop-stage[data-stage="data"]').click();
     check((await page.locator('#loop-page').innerText()).includes('Saved observations') || (await page.locator('#loop-page').innerText()).includes('bounded saved observations'), 'Saved source records have a separate meaning from live activity.');
     check((await page.locator('#loop-page').innerText()).includes('Source time unavailable'), 'An absent source timestamp stays unavailable.');
@@ -74,6 +78,20 @@ async function main() {
     await page.unroute('**/api/live');
     await page.waitForTimeout(2600);
     check(!(await page.locator('.loop-stage[data-stage="experiments"]').innerText()).includes('Worker observed'), 'A removed worker observation does not stay running.');
+    const reportsFixture = structuredClone(activity);
+    for (const [stage, metric, outcome] of [['mathematics','checks_completed','Completed'],['qualification','checks_failed','Blocked'],['signals','signals_count','No signal'],['feedback','revisions_requested','Revision requested']]) {
+      const row = reportsFixture.loop.stages.find(item => item.id === stage);
+      row.producer_status = 'Stage reporting connected'; row.reporting = 'Producer report'; row.state = `Engineering: ${outcome.toLowerCase()}`;
+      row.producer_reports = [{run_id:'12345678-1234-4234-8234-123456789012',kind:'engineering',state:outcome,started_at:new Date().toISOString(),observed_at:new Date().toISOString(),finished_at:new Date().toISOString(),metrics:{[metric]:stage === 'signals' ? 0 : 2}}];
+    }
+    await page.route('**/api/live', route => route.fulfill({json:reportsFixture}));
+    await page.waitForTimeout(2600);
+    for (const [stage, metric] of [['mathematics','checks completed'],['qualification','checks failed'],['signals','signals count'],['feedback','revisions requested']]) {
+      await page.locator(`.loop-stage[data-stage="${stage}"]`).click();
+      check((await page.locator('#loop-page').innerText()).includes(metric), `The ${stage} stage displays its allowed progress count.`);
+    }
+    check((await page.locator('#loop-page').innerText()).includes('Completion does not grant financial acceptance'), 'Stage report completion does not become financial acceptance.');
+    await page.unroute('**/api/live'); await page.waitForTimeout(2600);
     await page.screenshot({ path: path.join(output, 'hub-whole-loop-live.png'), fullPage: true });
     await page.route('**/api/live', route => route.abort());
     await page.getByRole('button', { name: 'Refresh records' }).click();
