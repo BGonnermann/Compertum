@@ -18,11 +18,12 @@
       <nav aria-label="Hub pages">
         <button type="button" data-page="overview" aria-current="page"><span>Overview</span><span aria-hidden="true">↗</span></button>
         <button type="button" data-page="work">Current work</button>
+        <button type="button" data-page="loop">Whole loop</button>
         <button type="button" data-page="results">Results</button>
         <button type="button" data-page="map">Project map</button>
         <button type="button" data-page="records">Source records</button>
       </nav>
-      <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span> Read-only connection<p>Local project records.<br>No research or account controls.</p></div>
+      <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span> Read-only connection<p>Live project observations.<br>No research or account controls.</p></div>
     </aside>
     <div class="workspace">
       <header class="topbar"><div><span class="breadcrumb">Compertum / </span><span id="page-name">Overview</span></div><span class="pill">LOCAL · READ ONLY</span></header>
@@ -30,8 +31,11 @@
         <div class="page-heading"><div><p class="eyebrow">YOUR PROJECT, IN VIEW</p><h1 id="page-title">What is happening.</h1><p id="page-description" class="muted">Current progress, missing proof, and the next recorded step.</p></div><button id="refresh" class="button secondary" type="button">Refresh records <span aria-hidden="true">↻</span></button></div>
         <div class="freshness"><span id="connection-state" class="connection" data-state="loading">Reading project records…</span><span id="last-read"></span></div>
         <div id="connection-error" role="alert" hidden></div>
+        <div class="live-strip" aria-live="polite"><span id="live-state">Connecting to live activity…</span><span id="live-time"></span></div>
+        <div id="live-error" role="alert" hidden></div>
         <section id="overview-page" aria-label="Project overview"><p class="empty">Reading the current checkpoint…</p></section>
         <section id="work-page" aria-label="Current work" hidden></section>
+        <section id="loop-page" aria-label="Whole research and operation loop" hidden></section>
         <section id="results-page" aria-label="Recorded test results" hidden></section>
         <section id="map-page" aria-label="Project map" hidden></section>
         <section id="records-page" aria-label="Source records" hidden>

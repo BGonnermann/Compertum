@@ -18,6 +18,7 @@ CORE_RECORDS = (
     'docs/PROJECT_MAP_REFRESH.md', 'docs/HUB_PLAN.md',
     'docs/M5_POSTED_FEES_PLAN.md', 'reports/M5_NATIVE_FEE_CONTEXT.md',
     'reports/HUB_VERIFICATION.md',
+    'docs/HUB_LIVE_PLAN.md', 'docs/HUB_LIVE_ACTIVITY.md', 'reports/HUB_LIVE_VERIFICATION.md',
 )
 DEFAULT_MAP = Path.home() / '.codex/visualizations/2026/10/15/01a14191-f4fd-7730-8c3f-810c63c1b081/output/pdf/Compertum-project-map.pdf'
 WORDS = {'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
@@ -255,4 +256,4 @@ class RecordStore:
                     'completed': number(sessions[1]) if sessions else None,
                     'required': number(sessions[2]) if sessions else None},
                 'work': self.work(), 'catalogue': catalogue, 'map': self.map_info(),
-                'runtime': {'status': 'Not observed', 'note': 'This Hub reads saved records. It does not inspect or control the research runtime.'}}
+                'runtime': {'status': 'Not observed', 'note': 'Operational stage status needs explicit job events. Saved documents do not establish a running operational loop.'}}

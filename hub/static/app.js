@@ -1,9 +1,11 @@
 'use strict';
 
 const state = { snapshot: null, page: 'overview', selectedRecord: null, recordHash: null, busy: false, timer: null, recordRequest: 0, recordController: null };
+const liveState = { data: null, busy: false, timer: null, stale: false, stage: 'data' };
 const pages = {
   overview: ['Overview', 'What is happening.', 'Current progress, missing proof, and the next recorded step.'],
-  work: ['Current work', 'The next steps are visible.', 'Recorded plans and observed file changes. Running work stays separate.'],
+  work: ['Current work', 'See work as it happens.', 'Live agent signals and actual project processes, with their observation times.'],
+  loop: ['Whole loop', 'Follow the whole loop.', 'Data to research, evaluation, paper operation, and feedback. Every stage keeps its evidence separate.'],
   results: ['Results', 'What the checks establish.', 'Exact recorded results, with separate environments and original sources.'],
   map: ['Project map', 'See how the project connects.', 'Milestones, their requirements, and the full horizontal project map.'],
   records: ['Source records', 'Read the actual evidence.', 'Checkpoints, plans, and reports from this working folder.']
@@ -97,8 +99,8 @@ function renderWork(data) {
   data.next_steps.forEach(text => plan.append(node('p', text)));
   if (!data.next_steps.length) plan.append(node('p', 'No next action is recorded in the current section.', 'muted'));
   const links = node('div', null, 'record-links'); data.related_records.forEach(path => links.append(sourceLink(path))); plan.append(links, provenance(data.checkpoint));
-  const runtime = surface('Running work', 'OBSERVATION LIMIT');
-  runtime.append(node('h3', data.runtime.status), node('p', data.runtime.note, 'muted'), node('p', 'A file change is not proof that an agent or test is running.', 'muted small'));
+  const runtime = surface('Operational runtime', 'STAGE REPORTING');
+  runtime.append(node('h3', data.runtime.status), node('p', data.runtime.note, 'muted'), button('See whole-loop observations →', () => changePage('loop')));
   columns.append(plan, runtime); parent.append(columns);
   const files = surface('Changes in the working folder', 'READ-ONLY GIT OBSERVATION'); files.classList.add('below');
   files.append(node('p', data.work.note, 'muted small'));
@@ -111,6 +113,143 @@ function renderWork(data) {
   }
   if (data.work.omitted) files.append(node('p', `${data.work.omitted} further changes are omitted by the display limit.`, 'muted small'));
   parent.append(files);
+  const livePanel = node('div'); livePanel.id = 'work-live-panel'; parent.prepend(livePanel);
+  if (liveState.data) renderLiveActivity(liveState.data);
+}
+
+function activityCards(data) {
+  const parent = node('div');
+  const grid = node('div', null, 'stats-pair');
+  const agents = surface('Agents', 'LIVE ACTIVITY EVENTS');
+  if (!data.agents.length) agents.append(node('p', data.coverage.agents === 'Unavailable' ? 'The agent event source is unavailable.' : 'No project agent was found within the bounded discovery window.', 'muted'));
+  data.agents.filter(agent => agent.last_signal && agent.age_seconds < 86400).slice(0, 8).forEach(agent => {
+    const row = node('div', null, 'activity-row');
+    row.append(node('div', `Agent ${agent.id.slice(0, 8)}`, 'activity-name'), node('strong', agent.state), node('p', agent.activity, 'muted small'), node('small', `Last signal ${time(agent.last_signal)} · ${agent.pending_tools} pending tools`));
+    if (agent.history_partial) row.append(node('small', 'Older events are outside the read window.'));
+    agents.append(row);
+  });
+  agents.append(node('p', `Agent coverage: ${data.coverage.agents}. Signals older than ${data.stale_after_seconds} seconds cannot establish current work.`, 'muted small'));
+  const processes = surface('Project processes', 'NATIVE WINDOWS OBSERVATION');
+  if (!data.processes.length) processes.append(node('p', 'No accessible project work process is currently observed.', 'muted'));
+  [...data.processes].sort((a,b) => Number(b.kind === 'test') - Number(a.kind === 'test') || b.started_at.localeCompare(a.started_at)).forEach(process => {
+    const row = node('div', null, 'activity-row');
+    row.append(node('div', process.label, 'activity-name'), node('strong', `Process ${process.pid} · ${process.program}`), node('p', `Started ${time(process.started_at)}`, 'muted small'));
+    processes.append(row);
+  });
+  processes.append(node('p', `Coverage: ${data.coverage.processes}. Unreadable candidate processes: ${data.coverage.unreadable_processes}.`, 'muted small'));
+  processes.append(node('p', 'A process disappearing does not prove that its work passed.', 'muted small'));
+  grid.append(agents, processes); parent.append(grid);
+  const jobs = surface('Reported jobs', 'EXPLICIT JOB RECEIPTS'); jobs.classList.add('below');
+  if (!data.jobs.length) jobs.append(node('p', 'No explicit job receipt is connected. Unwrapped test processes are still observed above.', 'muted'));
+  data.jobs.slice(0, 12).forEach(job => {
+    const row = node('div', null, 'activity-row');
+    row.append(node('div', `${job.stage.replaceAll('_', ' ')} · ${job.kind}`, 'activity-name'), node('strong', job.state), node('p', `Job ${job.run_id.slice(0, 8)} · process ${job.pid}${job.exit_code === null ? '' : ` · exit code ${job.exit_code}`}`, 'muted small'), node('small', `Started ${time(job.started_at)} · observed ${time(job.observed_at)}`));
+    if (job.finished_at) row.append(node('small', `Finished ${time(job.finished_at)}`));
+    jobs.append(row);
+  });
+  parent.append(jobs);
+  const events = surface('Recent activity', 'OBSERVED EVENTS'); events.classList.add('below');
+  if (!data.events.length) events.append(node('p', 'No current activity events have been observed.', 'muted'));
+  data.events.slice(0, 18).forEach(event => {
+    const row = node('div', null, 'event-row');
+    const label = event.exit_code === undefined ? event.label : `${event.label} · exit code ${event.exit_code}`;
+    row.append(node('span', label), node('small', `${event.agent_id ? `Agent ${event.agent_id.slice(0, 8)} · ` : ''}${time(event.at)}`));
+    events.append(row);
+  });
+  events.append(node('p', 'Command exit codes are observations. They do not grant milestone or financial acceptance.', 'muted small'));
+  parent.append(events); return parent;
+}
+
+function renderLiveActivity(data) {
+  const target = document.getElementById('work-live-panel');
+  if (target) target.replaceChildren(activityCards(data));
+  const overview = document.getElementById('overview-page');
+  let summary = document.getElementById('overview-live-summary');
+  if (!summary) { summary = surface('Happening now', 'LIVE OBSERVATIONS'); summary.id = 'overview-live-summary'; overview.prepend(summary); }
+  const active = data.agents.filter(agent => ['Working', 'Recent activity'].includes(agent.state));
+  summary.replaceChildren(node('p', 'LIVE OBSERVATIONS', 'eyebrow'), node('h2', 'Happening now'), node('p', `${active.length} agents with current signals · ${data.processes.filter(row => row.kind === 'test').length} test processes · ${data.processes.length} observed project processes`), button('See current work →', () => changePage('work')));
+  renderWholeLoop(data);
+}
+
+function renderWholeLoop(data) {
+  const parent = document.getElementById('loop-page'); parent.replaceChildren();
+  const status = surface('Current observation coverage');
+  status.append(node('p', `Agent events: ${data.coverage.agents}. Project processes: ${data.coverage.processes}.`, 'muted'));
+  status.append(node('p', 'Operational stages need their own job events. A stage without a current event stays Not observed.', 'muted small'));
+  parent.append(status);
+  const viewport = node('div', null, 'loop-viewport');
+  const track = node('div', null, 'whole-loop-track');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 1000 460'); svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('preserveAspectRatio', 'none');
+  const byId = new Map(data.loop.stages.map(stage => [stage.id, stage]));
+  const defs = document.createElementNS(svg.namespaceURI, 'defs');
+  const marker = document.createElementNS(svg.namespaceURI, 'marker'); marker.id = 'loop-arrow';
+  for (const [key,value] of Object.entries({viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'5',markerHeight:'5',orient:'auto-start-reverse'})) marker.setAttribute(key,value);
+  const tip = document.createElementNS(svg.namespaceURI, 'path'); tip.setAttribute('d','M 0 0 L 10 5 L 0 10 z'); marker.append(tip); defs.append(marker); svg.append(defs);
+  for (const edge of data.loop.connections) {
+    const a = byId.get(edge.from), b = byId.get(edge.to); if (!a || !b) continue;
+    const ax = 80 + a.column * 164, ay = 20 + a.row * 160, bx = 80 + b.column * 164, by = 20 + b.row * 160;
+    let path;
+    if (a.row === b.row && Math.abs(a.column - b.column) === 1) {
+      const direction = b.column > a.column ? 1 : -1;
+      path = `M ${ax + direction*72} ${ay+48} L ${bx-direction*72} ${by+48}`;
+    } else if (a.row === b.row) {
+      path = `M ${ax} ${ay+96} V ${ay+112} H ${bx} V ${by+96}`;
+    } else {
+      const down = b.row > a.row, fromY = ay+(down?96:0), toY = by+(down?0:96), mid = (fromY+toY)/2;
+      path = `M ${ax} ${fromY} V ${mid} H ${bx} V ${toY}`;
+    }
+    const line = document.createElementNS(svg.namespaceURI, 'path'); line.setAttribute('d',path);
+    line.setAttribute('marker-end','url(#loop-arrow)');
+    if (edge.state === 'Connection unfinished') line.setAttribute('stroke-dasharray','5 4'); svg.append(line);
+  }
+  track.append(svg);
+  const detail = surface(null); detail.classList.add('below');
+  function choose(stage, control) {
+    liveState.stage = stage.id;
+    track.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === control)));
+    detail.replaceChildren(node('p', stage.state.toUpperCase(), 'eyebrow'), node('h2', stage.name), node('p', stage.description), keyRow('Reporting', stage.reporting), node('p', stage.source, 'muted small'), sourceLink('docs/BUILD_SPEC.md', 'Read the governing specification'));
+    stage.activities.forEach(job => detail.append(keyRow(`Job ${job.run_id.slice(0, 8)}`, `${job.state}${job.exit_code === null ? '' : ` · exit code ${job.exit_code}`}`), node('p', `Observed ${time(job.observed_at)}${job.finished_at ? ` · finished ${time(job.finished_at)}` : ''}`, 'muted small')));
+  }
+  data.loop.stages.forEach((stage, index) => {
+    const control = button('', () => choose(stage, control), 'loop-stage'); control.setAttribute('aria-pressed', 'false');
+    control.dataset.stage = stage.id;
+    control.style.left = `${(8+stage.column*164)/10}%`; control.style.top = `${20+stage.row*160}px`;
+    control.append(node('small', String(index + 1).padStart(2, '0')), node('strong', stage.name), node('span', stage.state));
+    track.append(control);
+  });
+  viewport.append(track); parent.append(viewport, node('p', 'Arrows show the required route. Dashed arrows mark unfinished connections. Select any stage for its exact observation.', 'map-direction'), detail);
+  if (data.loop.stages.length) {
+    const index = Math.max(0, data.loop.stages.findIndex(stage => stage.id === liveState.stage));
+    choose(data.loop.stages[index], track.querySelectorAll('button')[index]);
+  }
+  const connections = surface('Return paths and unfinished connections'); connections.classList.add('below');
+  data.loop.connections.filter(edge => ['feedback', 'reconciliation'].includes(edge.from) || edge.from === 'proposals').forEach(edge => connections.append(keyRow(`${edge.from.replaceAll('_', ' ')} → ${edge.to.replaceAll('_', ' ')}`, edge.state)));
+  connections.append(node('p', data.loop.note, 'muted small')); parent.append(connections);
+  const engineering = surface('Engineering activity beside the loop'); engineering.classList.add('below');
+  engineering.append(node('p', 'Agent edits and tests remain separate from an operational research or paper session.', 'muted'));
+  engineering.append(node('p', `${data.loop.engineering.length} current engineering processes.`, 'muted small'), button('View live agent and test activity →', () => changePage('work'))); parent.append(engineering);
+}
+
+async function refreshLive() {
+  if (liveState.busy || document.hidden) return;
+  liveState.busy = true;
+  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const data = await readJSON('/api/live', controller.signal); liveState.data = data; liveState.stale = false;
+    renderLiveActivity(data);
+    document.getElementById('live-state').textContent = 'Live activity connected · refreshes every 2 seconds';
+    document.getElementById('live-time').textContent = `Observed ${time(data.observed_at)}`;
+    document.getElementById('live-error').hidden = true;
+  } catch (error) {
+    liveState.stale = true;
+    document.getElementById('live-state').textContent = 'Live activity connection lost · retained observations are stale';
+    const notice = document.getElementById('live-error'); notice.hidden = false;
+    notice.textContent = 'Current agent and process activity cannot be confirmed. Retained observations below are stale.';
+  } finally {
+    clearTimeout(timeout); liveState.busy = false; clearTimeout(liveState.timer);
+    if (!document.hidden) liveState.timer = setTimeout(refreshLive, 2000);
+  }
 }
 
 function renderResults(data) {
@@ -214,6 +353,7 @@ async function refresh() {
     const data = await readJSON('/api/snapshot', controller.signal);
     state.snapshot = data;
     renderOverview(data); renderWork(data); renderResults(data); renderMap(data); renderRecordList();
+    if (liveState.data) renderLiveActivity(liveState.data);
     const status = document.getElementById('connection-state'); status.textContent = 'Connected to saved project records'; status.dataset.state = 'connected';
     document.getElementById('last-read').textContent = `Records checked ${time(data.read_at)}`;
     document.getElementById('connection-error').hidden = true;
@@ -230,8 +370,9 @@ async function refresh() {
 }
 
 document.querySelectorAll('nav [data-page]').forEach(item => item.addEventListener('click', () => changePage(item.dataset.page)));
-document.getElementById('refresh').addEventListener('click', refresh);
+document.getElementById('refresh').addEventListener('click', () => { refresh(); refreshLive(); });
 document.getElementById('record-search').addEventListener('input', renderRecordList);
-document.addEventListener('visibilitychange', () => { clearTimeout(state.timer); if (!document.hidden) refresh(); });
+document.addEventListener('visibilitychange', () => { clearTimeout(state.timer); clearTimeout(liveState.timer); if (!document.hidden) { refresh(); refreshLive(); } });
 changePage(location.hash.slice(1));
 refresh();
+refreshLive();

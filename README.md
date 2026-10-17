@@ -6,13 +6,15 @@ Open the local Hub at **[http://127.0.0.1:8767](http://127.0.0.1:8767)** while i
 To start it later, double-click **`hub/Open Compertum Hub.cmd`**. Keep that terminal open; press Ctrl+C there to stop it.
 The PowerShell alternative is `./hub/start.ps1`.
 
-The charcoal and warm-white pages show the current checkpoint, next actions, working-folder changes, separate test inventories, milestones, and original documents.
-Records refresh every ten seconds while visible. Each observation shows its source and time. A lost connection marks retained records stale.
+The charcoal and warm-white pages show live agent signals, native project processes, test jobs, original documents, and saved results.
+Live activity refreshes every two seconds while visible. Documents refresh every ten seconds. A lost connection marks retained observations stale.
+The **Whole loop** page shows 17 stages and their branch and return connections. Stages without operational events remain Not observed.
 The Project map page opens the existing horizontal PDF. No model, research runtime, account control, service, or scheduled task starts.
 
-Hub checks passed **23 source cases and 33 browser checks**, with zero failures, errors, or skips in each final run.
+Hub checks passed **49 source cases and 47 main browser checks**, with zero failures, errors, or skips in each final run.
 These are Hub checks. They do not change M1 through M6 acceptance or repeat the installed-package fee checks shown below.
-See [the Hub plan](docs/HUB_PLAN.md) and [verification and operating limits](reports/HUB_VERIFICATION.md).
+See [live activity and stage reporting](docs/HUB_LIVE_ACTIVITY.md) and [current verification](reports/HUB_LIVE_VERIFICATION.md).
+The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.
 
 ## Current declared-fee verification - 17 October 2026
 

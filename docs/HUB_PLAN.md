@@ -1,6 +1,7 @@
 # Read-only Compertum Hub implementation plan
 
 17 October 2026. The owner approved the preview and requested implementation in charcoal and warm white.
+This records the initial saved-document release. The later live-activity extension is documented in `docs/HUB_LIVE_PLAN.md`.
 The primary agent implements this plan in master. Existing unrelated work stays intact.
 
 ## Goal and design

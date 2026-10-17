@@ -28,14 +28,39 @@ async function main() {
     check(actual.work.available, 'Read-only Git observations are available.');
     const original = fs.readFileSync(path.join(project, 'docs/CURRENT_CHECKPOINT.md'));
     check(actual.checkpoint.sha256 === crypto.createHash('sha256').update(original).digest('hex'), 'The checkpoint fingerprint matches the original file.');
-    check((await page.locator('#overview-page h2').first().textContent()) === actual.checkpoint.summary, 'The visible summary matches the actual checkpoint.');
+    check((await page.locator('#overview-page .focus-card h2').textContent()) === actual.checkpoint.summary, 'The visible summary matches the actual checkpoint.');
     check(await page.locator('#overview-page').getByText('Not observed', { exact: true }).isVisible(), 'Running work is not inferred from saved files.');
     await page.screenshot({ path: path.join(output, 'hub-overview-desktop.png'), fullPage: true });
     await page.getByRole('button', { name: 'Current work', exact: true }).click();
+    await page.getByText('Live activity connected · refreshes every 2 seconds', { exact: true }).waitFor();
+    const activity = await (await page.request.get(`${base}/api/live`)).json();
+    check(activity.refresh_seconds === 2, 'Live activity has its own two-second refresh.');
+    check(activity.agents.some(agent => ['Working', 'Recent activity'].includes(agent.state)), 'Current project agent signals are connected.');
+    check(activity.processes.some(item => item.pid === process.pid && item.kind === 'test'), 'The native observer sees this real browser-check process running.');
+    check(activity.jobs.some(job => job.pid === process.pid && job.state === 'Running' && job.kind === 'engineering'), 'This real verification job has a current process-bound receipt.');
+    check(!JSON.stringify(activity).includes('aggregated_output') && !JSON.stringify(activity).includes('raw_content'), 'The live endpoint exposes no transcript or tool output fields.');
+    check(await page.getByRole('heading', { name: 'Reported jobs', exact: true }).isVisible(), 'Explicit job states and outcomes have a visible place.');
     check(await page.locator('#work-page').isVisible(), 'Current work opens.');
     check((await page.locator('#work-page').innerText()).includes('Observed file changes'), 'Current work explains file-change limits.');
     const workText = await page.locator('#work-page').innerText();
     check(actual.work.changes.length ? actual.work.changes.every(item => workText.includes(item.path)) : workText.includes('No visible source changes'), 'Current work matches the actual observed file changes.');
+    await page.screenshot({ path: path.join(output, 'hub-current-work-live.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Whole loop', exact: true }).click();
+    check(await page.locator('.loop-stage').count() === 17, 'The whole-loop page includes all 17 stages.');
+    check(await page.locator('.whole-loop-track svg path[marker-end]').count() === 20, 'The loop includes branches and return connections.');
+    await page.locator('.loop-stage[data-stage="experiments"]').click();
+    await page.waitForTimeout(2600);
+    check(await page.locator('.loop-stage[data-stage="experiments"]').getAttribute('aria-pressed') === 'true', 'A selected stage survives live refresh.');
+    check((await page.locator('#loop-page').innerText()).includes('No operational stage event'), 'Unconnected operational stages remain explicit.');
+    await page.screenshot({ path: path.join(output, 'hub-whole-loop-live.png'), fullPage: true });
+    await page.route('**/api/live', route => route.abort());
+    await page.getByRole('button', { name: 'Refresh records' }).click();
+    await page.getByText('Live activity connection lost · retained observations are stale', { exact: true }).waitFor();
+    check(await page.locator('#live-error').isVisible(), 'Live connection loss marks retained activity stale.');
+    await page.unroute('**/api/live');
+    await page.getByRole('button', { name: 'Refresh records' }).click();
+    await page.getByText('Live activity connected · refreshes every 2 seconds', { exact: true }).waitFor();
+    check(await page.locator('#live-error').isHidden(), 'Live activity recovers after its connection returns.');
     await page.getByRole('button', { name: 'Results', exact: true }).click();
     check(await page.locator('#results-page').isVisible(), 'Results opens.');
     const values = await page.locator('#results-page .big-number').allTextContents();
@@ -74,7 +99,7 @@ async function main() {
     check(true, 'Visible pages refresh their actual record observations automatically.');
     for (const width of [390, 320]) {
       await page.setViewportSize({ width, height: 844 });
-      for (const name of ['Overview', 'Current work', 'Results', 'Project map', 'Source records']) {
+      for (const name of ['Overview', 'Current work', 'Whole loop', 'Results', 'Project map', 'Source records']) {
         await page.getByRole('button', { name, exact: true }).click();
         if (name === 'Results') await page.locator('#results-page summary').click();
         check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name} fits at ${width}px, including expanded content.`);

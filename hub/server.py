@@ -1,13 +1,15 @@
 """Manually started, loopback-only Hub. Reads do not start Compertum."""
 import argparse
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import socket
 import sys
+import threading
 from urllib.parse import parse_qs, urlsplit
 
 from records import DEFAULT_MAP, MAX_MAP_BYTES, RecordStore, regular_without_links
+from live import LiveMonitor
 
 STATIC = Path(__file__).resolve().parent / 'static'
 ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
@@ -16,6 +18,7 @@ ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
 
 
 def make_server(store, port=8767):
+    monitor = LiveMonitor(store.root)
     class HubHandler(BaseHTTPRequestHandler):
         server_version = 'CompertumHub'
         sys_version = ''
@@ -68,6 +71,8 @@ def make_server(store, port=8767):
                     return self.respond(400, {'error': 'Use a local Hub path.'})
                 if address.path == '/api/snapshot' and not address.query:
                     return self.respond(200, store.snapshot())
+                if address.path == '/api/live' and not address.query:
+                    return self.respond(200, monitor.snapshot())
                 if address.path == '/api/record':
                     query = parse_qs(address.query, strict_parsing=True, max_num_fields=1)
                     if set(query) != {'path'} or len(query['path']) != 1:
@@ -102,8 +107,26 @@ def make_server(store, port=8767):
 
         do_POST = do_PUT = do_PATCH = do_DELETE = do_OPTIONS = refuse_write
 
-    class LocalServer(HTTPServer):
+    class LocalServer(ThreadingHTTPServer):
         allow_reuse_address = False
+        daemon_threads = True
+        slots = threading.BoundedSemaphore(4)
+
+        def process_request(self, request, client_address):
+            if not self.slots.acquire(blocking=False):
+                self.shutdown_request(request)
+                return
+            try:
+                super().process_request(request, client_address)
+            except Exception:
+                self.slots.release()
+                raise
+
+        def process_request_thread(self, request, client_address):
+            try:
+                super().process_request_thread(request, client_address)
+            finally:
+                self.slots.release()
 
         def server_bind(self):
             if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
