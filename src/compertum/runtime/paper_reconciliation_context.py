@@ -37,8 +37,8 @@ def _sha(value):
     return hashlib.sha256(canonical(value)).hexdigest()
 
 
-def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
-    _need(type(position_costs) is bool)
+def _capture_originals(owner, context, portfolio, activity_id, *, allow_unsupported=False):
+    _need(type(allow_unsupported) is bool)
     _need(type(context) is _PaperAccountContext and owner._account_context is context)
     _need(context._owner is owner and not context._closed)
     proof = portfolio._prepare_proof()
@@ -64,9 +64,12 @@ def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
     seed = collection['bindings']
     _need(collection['state'] == 'COMPLETE' and collection['summary']['traversal_complete'])
     _need(collection['reason'] is None and collection['summary']['native_closed'])
-    _need(set(collection['summary']['deficiencies']) <= {
+    allowed = {
         'OWNERSHIP_UNVERIFIED', 'ECONOMIC_COVERAGE_UNVERIFIED', 'FEE_LIABILITIES_UNVERIFIED',
-        'ACTION_EVIDENCE_UNVERIFIED', 'NATIVE_PROVENANCE_UNVERIFIED'})
+        'ACTION_EVIDENCE_UNVERIFIED', 'NATIVE_PROVENANCE_UNVERIFIED'}
+    if allow_unsupported:
+        allowed.add('UNSUPPORTED_ACTIVITY')
+    _need(set(collection['summary']['deficiencies']) <= allowed)
     _need(collection['binding'] == record['binding'] and collection['plan_sha256'] == record['plan_sha256'])
     _need(collection['summary'] == record['summary'] and collection['provenance'] in {'PAPER_TLS','LOOPBACK_FIXTURE'})
     _need(seed['account_context_sha256'] == context._binding and seed['opening_sha256'] == opening['sha256'])
@@ -86,16 +89,19 @@ def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
     native = tuple(row for row in history['records'] if is_native(row['intent'])
                    and row['intent']['account_alias'] == alias)
     fills = tuple(row for page in collection['pages'] for row in page['parsed']['rows'])
-    calculate = calculate_position_costs if position_costs else calculate_reconciliation
-    calculation = calculate(project_id=owner.lease.project_id, account_alias=alias,
+    arguments = dict(project_id=owner.lease.project_id, account_alias=alias,
         opening_cash=cash, current_cash=observed_account[0]['cash'], attempts=native,
         orders=tuple(row for page in order_pages for row in page['rows']),
         positions=tuple(positions[0]['rows']), activities=fills)
     stable = dict(context=context._binding, activity=record, opening=opening,
                   journal=journal['sha256'], history_sha256=history['sha256'],
-                  preflight=preflight._content_sha, calculation=calculation,
-                  position_costs=position_costs)
-    pin = _sha(stable)
+                  preflight=preflight._content_sha)
+    protected = load_paper_slot(owner.lease, alias)
+    _need(hashlib.sha256(protected.ciphertext).hexdigest() == seed['credential_sha256'])
+    expected_slot = slot_payload(protected)
+    metadata = dict(provenance=collection['provenance'], empty_at=seed['started_at'],
+                    account_identity_sha256=collection['account_identity_sha256'])
+    _need(metadata['account_identity_sha256'] == hashlib.sha256(preflight._account_id.encode()).hexdigest())
 
     def original():
         _need(owner._account_context is context and context._owner is owner and not context._closed)
@@ -109,8 +115,19 @@ def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
             _need(guard.api.read_regular(path, maximum=16384) == expected_slot)
         _need(preflight._content_sha == stable['preflight'] and context._binding == stable['context'])
 
+    return proof, stable, arguments, metadata, original, protected, preflight._account_id
+
+
+def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
+    _need(type(position_costs) is bool)
+    proof, base, arguments, metadata, original, protected, account_id = _capture_originals(
+        owner, context, portfolio, activity_id)
+    calculate = calculate_position_costs if position_costs else calculate_reconciliation
+    calculation = calculate(**arguments)
+    stable = dict(base, calculation=calculation, position_costs=position_costs)
+    pin = _sha(stable)
     result = dict(version=1, record_type='PaperReconciliationDiagnostic', status='BLOCKED',
-        observation_status='MATCHING_LOOPBACK_OBSERVATIONS' if collection['provenance'] == 'LOOPBACK_FIXTURE'
+        observation_status='MATCHING_LOOPBACK_OBSERVATIONS' if metadata['provenance'] == 'LOOPBACK_FIXTURE'
             else 'MATCHING_ORIGINAL_OBSERVATIONS',
         order_count=calculation['order_count'], fill_count=calculation['fill_count'],
         position_count=len(calculation['owned_positions']),
@@ -127,11 +144,8 @@ def _capture(owner, context, portfolio, activity_id, *, position_costs=False):
             result['unverified_requirements'].remove('POSITION_COST_RECONSTRUCTION_UNVERIFIED')
         else:
             result['unverified_requirements'].append('UNSUPPORTED_FILL_COST_HISTORY')
-    protected = load_paper_slot(owner.lease, alias)
-    _need(hashlib.sha256(protected.ciphertext).hexdigest() == seed['credential_sha256'])
-    expected_slot = slot_payload(protected)
     raw = canonical(result)
-    _need(preflight._account_id.encode() not in raw)
+    _need(account_id.encode() not in raw)
     with open_paper_credentials(owner.lease, protected) as credentials:
         _reject_reflections(raw, tuple(credentials.headers().values()))
     proof._check()

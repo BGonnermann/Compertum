@@ -1,5 +1,19 @@
 # Timers and storage
 
+## Current fee native storage boundary
+
+16 October 2026. Final fee checkpoint census 05 passed in 45.4573 seconds.
+Its parent closed in 54.6959 seconds with zero remaining children.
+After existing holds, scratch has 14,539,184 bytes left; backups have 756,701,216 bytes left.
+Scratch remains 12 GiB, backups 21 GiB, and the total 50 GiB. No category limit has changed.
+Maintenance keeps 110 seconds inside a 120-second Job. Production scans retain 30 seconds and 35-second freshness.
+
+The current native folder cannot pass its previous-owner process check because Windows denies inspection.
+A separately prepared 1072 MiB native hold cannot fit under 12 GiB. A 13 GiB cap is also insufficient.
+The [recovery plan](../docs/M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md) requests a 14 GiB scratch decision.
+Its separate backup hold remains within 21 GiB. Its projected aggregate charge remains below 50 GiB.
+Neither that approval nor creation of the new fixture has occurred. Preserve both original reserves and every failed test.
+
 ## Current original-record cost checkpoint - 16 October 2026
 
 The final component census passed in 44.6748 seconds. Its parent Job closed in 48.1994 seconds with zero children.

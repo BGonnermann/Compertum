@@ -229,6 +229,11 @@ class PaperReadOwner:
         from .paper_reconciliation_context import position_cost_context
         return position_cost_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id)
 
+    def fee_context(self,*,subject,packet_id,activity_id,declaration_id,manifest):
+        from .paper_fee_context import fee_context
+        return fee_context(self,subject=subject,packet_id=packet_id,activity_id=activity_id,
+            declaration_id=declaration_id,manifest=manifest)
+
     def opening(self,packet_id,manifest):
         from .paper_opening import current_opening
         return current_opening(self,packet_id,manifest)

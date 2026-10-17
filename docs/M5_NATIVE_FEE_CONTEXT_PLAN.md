@@ -86,5 +86,15 @@ Next, review this contract and choose the smallest private capture and publicati
 After admission, freeze the affected compatibility and new adapter cases. Implement and verify this increment.
 Then continue fee billing and action qualification, risk, durable dispatch and the installed local rehearsal.
 
-Design review 1/3 accepted this shape with the details above. Code review 2 and final review 3 remain unused.
-No owner choice is needed for this engineering. Actual account-specific terms and billing remain later qualification requirements.
+Design review 1/3 and code review 2/3 are used. Three code findings have passing repairs. Final review 3 remains unused.
+The design needs no account-specific choice. Fresh native storage now needs the separate owner decision below.
+Actual account-specific terms and billing remain later qualification requirements.
+
+## Current execution state
+
+The source and installed in-process inventories each passed 256 distinct cases. Both complete environments passed.
+The original native fixture is blocked by a denied previous-owner process inspection. Never retry or reset that fixture.
+Use the separately reviewed fresh-fixture plan only after explicit storage approval and fresh complete admission.
+The prepared 14 GiB scratch request does not change the 21 GiB backup or 50 GiB aggregate limits.
+Native fee qualification and final review 3 remain open. Actual billing and applicability remain unverified.
+See [the exact report](../reports/M5_NATIVE_FEE_CONTEXT.md) and [the recovery plan](M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md).

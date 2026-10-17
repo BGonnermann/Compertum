@@ -1,5 +1,31 @@
 # Compertum
 
+## Current fee work and native blocker
+
+16 October 2026. **Declared-fee checks passed in-process; native qualification is blocked.**
+Source and installed checks each passed 256 matching distinct in-process cases, with zero failures, errors, or skips.
+Both complete environment byte checks passed. Fee reviews 1 and 2 are used; final review 3 remains unused.
+The private fee context binds original fills and retained declarations. Actual billed fees and liabilities remain unknown.
+The earlier current-cost component retains its separate 53 accepted cases per environment. Do not sum overlapping inventories.
+
+The first source native fee stage failed before account collection: zero passed, one failed, zero errors or skips.
+The closed pipe does not establish the child's original exit reason. That first failure's cause remains unproven.
+Windows currently denies the required inspection of saved evaluation process ID 31756, including a narrower read.
+The existing owner-exit check must refuse reuse. The original failed runtime has a complete verified preservation archive.
+No owner identity, exit check, permission, service, or failed result was changed. The blocked runtime must not resume.
+
+A fresh native folder needs 1072 MiB. The measured 12 GiB scratch limit cannot admit that hold.
+The prepared request raises scratch to 14 GiB. Backups stay 21 GiB, and the total stays 50 GiB.
+This is a pending owner decision. No new native folder or reserve has been created, and no limit has changed.
+Finish native verification only after that decision and a fresh complete capacity check.
+
+Fee billing, corporate actions, current-input risk, durable dispatch/recovery, and the installed integrated rehearsal remain open.
+M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions. Only M0 is fully accepted.
+The original environment, saved stops, failed fixtures, reserves, and terminal M3 history remain preserved. Strata stays off.
+No actual broker action occurred. See [the fee report](reports/M5_NATIVE_FEE_CONTEXT.md) and [the recovery request](docs/M5_NATIVE_FEE_FIXTURE_RECOVERY_PLAN.md).
+
+## Earlier current-record cost checkpoint
+
 16 October 2026. **Position costs from current original records are locally verified.**
 Source and installed checks each passed 53 matching distinct cases, with zero failures, errors or skips.
 Each inventory includes 51 in-process cases and two native Windows stages.

@@ -38,6 +38,20 @@ def _decimal_text(value):
 def calculate_reconciliation(*, project_id, account_alias, opening_cash,
                              current_cash, attempts, orders, positions, activities):
     """Compare invented or original values without authenticating their origin."""
+    return _checked_calculation(project_id, account_alias, opening_cash, current_cash,
+                                attempts, orders, positions, activities, require_cash_match=True)
+
+
+def validate_fill_history(*, project_id, account_alias, opening_cash,
+                          current_cash, attempts, orders, positions, activities):
+    """Check fill ownership and quantities. An unexplained cash change stays unqualified."""
+    value = _checked_calculation(project_id, account_alias, opening_cash, current_cash,
+                                 attempts, orders, positions, activities, require_cash_match=False)
+    return dict(value, record_type='PaperFillHistoryCalculation')
+
+
+def _checked_calculation(project, alias, opening, cash, attempts, orders, positions,
+                         activities, *, require_cash_match):
     try:
         # At most 64 price digits, 9 quantity digits and 3 summation digits,
         # plus at most 62 fractional digits. Refuse any unanticipated rounding.
@@ -45,14 +59,16 @@ def calculate_reconciliation(*, project_id, account_alias, opening_cash,
                           Emax=999999, capitals=1, clamp=0, flags=[],
                           traps=[InvalidOperation, DivisionByZero, Overflow, Inexact, Rounded])
         with localcontext(context):
-            return _calculate(project_id, account_alias, opening_cash, current_cash,
-                              attempts, orders, positions, activities)
+            return _calculate(project, alias, opening, cash, attempts, orders, positions,
+                              activities, require_cash_match=require_cash_match)
     except (ContractError, DecimalException, KeyError, TypeError, ValueError,
             AttributeError, OverflowError, RecursionError):
         raise RuntimeRefused('PAPER_RECONCILIATION_UNVERIFIED') from None
 
 
-def _calculate(project, alias, opening, observed_cash, attempts, orders, positions, activities):
+def _calculate(project, alias, opening, observed_cash, attempts, orders, positions,
+               activities, *, require_cash_match=True):
+    _need(type(require_cash_match) is bool)
     _need(type(project) is str and re.fullmatch('[0-9a-f]{64}', project) is not None)
     _need(type(alias) is str and re.fullmatch('[A-Za-z0-9][A-Za-z0-9_-]{0,63}', alias) is not None)
     for rows, limit in ((attempts, 256), (orders, 200), (positions, 64), (activities, 200)):
@@ -171,9 +187,12 @@ def _calculate(project, alias, opening, observed_cash, attempts, orders, positio
         observed[name] = quantity
         assets.add(asset)
     owned = {name: quantity for name, quantity in owned.items() if quantity}
-    _need(owned == observed and abs(broker_cash - cash) <= number('0.01'))
+    _need(owned == observed)
+    cash_matches = abs(broker_cash - cash) <= number('0.01')
+    if require_cash_match:
+        _need(cash_matches)
     return dict(version=1, record_type='PaperReconciliationCalculation',
-                scope='UNQUALIFIED_CALCULATION', status='BLOCKED', calculation_matches=True,
+                scope='UNQUALIFIED_CALCULATION', status='BLOCKED', calculation_matches=cash_matches,
                 expected_cash=_decimal_text(cash), cash_difference=_decimal_text(broker_cash-cash),
                 owned_positions=owned, remaining_quantities=remaining,
                 order_count=len(indexed), fill_count=len(activities),
