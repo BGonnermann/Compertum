@@ -36,7 +36,7 @@ Serve the existing project-map PDF through one fixed route. Do not expose its co
 - [x] Verify actual records and browser behavior. Save browser evidence outside the repository.
 - [x] Complete one independent review. Repair supported findings and rerun affected checks.
 - [x] Update README and `reports/HUB_VERIFICATION.md`. Refresh and inspect the project-map PDF.
-- [ ] Commit and push only verified Hub files and reports under the existing synchronization authority.
+- [x] Commit and push only verified Hub files and reports under the existing synchronization authority.
 
 ## Validation and limits
 

@@ -43,7 +43,7 @@ The first browser launch lacked the expected browser revision. Verification then
 The next attempt exposed whitespace in the summary comparison. A stronger first-line check and reader repair resolved it.
 
 Browser evidence is local and excluded from Git:
-`C:\Users\bgonn\.codex\visualizations\2026\10\17\01a14a69-85c1-7252-8eb9-f7ddce9f50a3\hub-checks-03`.
+`C:\Users\bgonn\.codex\visualizations\2026\10\17\01a14a69-85c1-7252-8eb9-f7ddce9f50a3\hub-checks-final`.
 Its `browser-results.json` records all 33 accepted checks. Earlier attempt folders retain their failure receipts.
 
 ## Access and resource limits
@@ -60,6 +60,7 @@ Git commands disable optional writes, have a three-second deadline, and discard 
 One request runs at a time. Browser requests have an eight-second deadline; idle client connections have a three-second limit.
 
 Before work, the host had 42.12 GiB free memory and 166.86 GiB free disk space.
+The standalone Hub used the existing Python 3.14.7. Its observed working set after browser checks was 30.29 MiB.
 Checks used fresh small folders under `.cache/test-runs/compertum-hub-20261017`; no native reserve was created.
 Browser evidence and generated PDFs remain outside the repository. No storage category or operating limit changed.
 The original model setup, credentials, runtime databases, saved stops, native fixtures, and unrelated M5 files were not used by the Hub.
@@ -76,5 +77,9 @@ The original map, roadmap, generator, review manifest, and PDF were copied to a 
 
 ## Repository synchronization
 
-The verified implementation checkpoint will be synchronized under the owner's existing private-repository authority.
+Implementation checkpoint `cad2de8ab070db2b0a6e8358bc1db5a121e189f4` was pushed to the approved private `BGonnermann/Compertum` repository.
+The active account was verified as `BGonnermann`. The remote main head matched the local checkpoint after publication.
 Only Hub files, this plan and report, and the README belong to this change. Unrelated M5 work remains outside its commit.
+Nine pre-existing modified or untracked source and instruction files matched their initial SHA-256 fingerprints after the build.
+The complete Hub change passed the staged whitespace check. Existing unrelated line-ending warnings were left untouched.
+This report accompanies the subsequent verification checkpoint and the browser check that also works after files are committed.

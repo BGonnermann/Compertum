@@ -34,7 +34,8 @@ async function main() {
     await page.getByRole('button', { name: 'Current work', exact: true }).click();
     check(await page.locator('#work-page').isVisible(), 'Current work opens.');
     check((await page.locator('#work-page').innerText()).includes('Observed file changes'), 'Current work explains file-change limits.');
-    check((await page.locator('#work-page').innerText()).includes('hub/'), 'Current work shows this actual Hub change.');
+    const workText = await page.locator('#work-page').innerText();
+    check(actual.work.changes.length ? actual.work.changes.every(item => workText.includes(item.path)) : workText.includes('No visible source changes'), 'Current work matches the actual observed file changes.');
     await page.getByRole('button', { name: 'Results', exact: true }).click();
     check(await page.locator('#results-page').isVisible(), 'Results opens.');
     const values = await page.locator('#results-page .big-number').allTextContents();
