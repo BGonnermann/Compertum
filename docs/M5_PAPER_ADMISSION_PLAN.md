@@ -2,6 +2,42 @@
 
 ## Current continuation - 16 October 2026
 
+16 October 2026. **Recorded-fill position costs are locally verified.**
+Source and installed checks each passed 102 matching distinct cases, with zero failures, errors or skips.
+These include 31 new cost cases and 71 unchanged comparison cases.
+Both complete environment file checks passed. Independent review round 3 is clear; all three rounds are used.
+
+The calculation compares supported costs and keeps uncertain histories blocked, including after closing and reopening a position.
+It does not yet qualify costs from current original account records.
+Fees, corporate actions, risk, durable dispatch and the installed integrated rehearsal remain open.
+M5 gates 2-5 remain open. M6 remains 0/10 actual supervised sessions. Only M0 is fully accepted.
+
+The final maintenance census passed in 78.4774 seconds under the standing workload-sizing approval.
+It used a 110-second measurement bound within a 120-second Job, one CPU and 128 MiB RAM.
+Production scans retain 30 seconds and their 35-second freshness rule.
+Scratch remains 12 GiB, backups 21 GiB and the total 50 GiB.
+Both earlier 70-second failures remain preserved. No unrelated program was stopped.
+
+Next, bind the verified cost calculation to current original records. Then qualify fees and actions before risk and dispatch.
+The failed native fixture, saved stops, original environment and terminal M3 audit history remain preserved.
+No actual broker action occurred. Strata stays off.
+
+See [the exact cost report](../reports/M5_POSITION_COSTS.md).
+
+### Resolved storage pause
+
+16 October 2026. **The next accounting increment is blocked at its storage check.** The census stopped after 70.0017 seconds. It counted 99,181 files but produced no complete capacity measurement. Its Job exited 1 with zero remaining children. No position-cost test folder, product test or package build started.
+
+A separate 20-second diagnostic counted 30,218 files. It recorded file-check timing but did not establish one cause. Its Job closed successfully. That diagnostic grants no capacity admission. A busy `bf6` process coincided with the slowdown. Memory remained above the required floors. No other program was stopped.
+
+The original comparison remains verified across 301 matching distinct cases per environment, with zero failures, errors or skips. Both complete byte checks and separate final reviews passed. Its published code checkpoint is `0cae4b5`. Master, GitHub and the requested clone matched that checkpoint. The failed fixture, saved stops, original environment and terminal M3 audit history remain preserved. Strata stays off.
+
+Exact next action: require a measured external-load change, a diagnosed repair or scoped authority for another admission attempt. Then run one instrumented capacity check within the existing bounds. Keep scratch at 12 GiB, backups at 21 GiB and the total at 50 GiB. The prepared retry has not run. M5 gates 2-5 remain open. M6 remains 0/10 actual supervised sessions. Only M0 is fully accepted.
+
+See [the exact blocker](../reports/M5_LOCAL_FINISH_BLOCKER.md) and [the bounded follow-up](M5_STORAGE_GATE_FOLLOWUP.md).
+
+### Earlier verified comparison continuation
+
 16 October 2026. **The original order and fill comparison is locally verified.** The accepted inventory has 301 matching distinct cases per environment. Failures, errors and skips are zero. It includes 71 calculation cases, 192 compatibility cases, 36 private-context cases and two native Windows stages per environment.
 
 Both complete environment byte checks passed. The calculator and context each completed three independent review rounds. Both final reviews are clear. The isolated closed-database repair passed three focused checks per environment. Valid earlier cases are reused under recorded change comparisons.

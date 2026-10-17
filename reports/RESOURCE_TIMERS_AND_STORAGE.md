@@ -1,5 +1,23 @@
 # Timers and storage
 
+## Current measured maintenance profile - 16 October 2026
+
+The owner-authorized workload sizing was applied to the read-only metadata census.
+A 110-second measurement within a 120-second parent Job passed in 78.4774 seconds.
+It retained one CPU, 128 MiB RAM, 16 processes, the shared heavy-job lock and 16/12 GiB host memory floors.
+Both earlier 70-second failures remain preserved. No unrelated program was stopped.
+Production storage scans remain 30 seconds, with 35-second completed-inventory freshness.
+Do not increase the measured maintenance bound again automatically after a failure.
+
+Scratch stays 12 GiB, backups 21 GiB and total storage 50 GiB.
+Final remaining scratch after all recorded holds is 6,190,840 bytes; backup headroom is 1,041,917,984 bytes.
+The completed cost namespace uses 11,517,952 bytes within a 32 MiB hold.
+Before closing unused capacity, preserve its complete contents and verify a new complete measurement.
+No evidence removal, reserve release, saved-stop recovery or actual-account action follows from this check.
+See [the cost verification and exact failures](M5_POSITION_COSTS.md).
+
+## Earlier resource measurements
+
 ## Current allocation - 16 October 2026
 
 The owner approved 12 GiB scratch after an earlier 11 GiB approval. Backups remain 21 GiB.

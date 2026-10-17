@@ -65,3 +65,37 @@ No actual broker operation or Strata startup occurred.
 Next action: define and freeze the next missing accounting producer. Continue
 through the accepted finish scope without reopening completed review counters.
 See `reports/M5_OWNERSHIP_COMPARISON.md` for exact evidence and historical failures.
+
+
+## Resolved storage pause
+
+The next position-cost increment reached an incomplete capacity census.
+The check stopped at 70.0017 seconds with no capacity approval.
+A separate 20-second diagnostic added timings but did not establish one cause.
+No new scratch namespace, cost program, product test or package build started.
+The next bounded admission command is prepared and has not executed.
+Require a measured external change, diagnosed repair or scoped retry authority.
+See `docs/M5_STORAGE_GATE_FOLLOWUP.md` and `reports/M5_LOCAL_FINISH_BLOCKER.md`.
+The full approved finish scope remains incomplete.
+
+## Current action
+
+16 October 2026. **Recorded-fill position costs are locally verified.**
+Source and installed checks each passed 102 matching distinct cases, with zero failures, errors or skips.
+These include 31 new cost cases and 71 unchanged comparison cases.
+Both complete environment file checks passed. Independent review round 3 is clear; all three rounds are used.
+
+The calculation compares supported costs and keeps uncertain histories blocked, including after closing and reopening a position.
+It does not yet qualify costs from current original account records.
+Fees, corporate actions, risk, durable dispatch and the installed integrated rehearsal remain open.
+M5 gates 2-5 remain open. M6 remains 0/10 actual supervised sessions. Only M0 is fully accepted.
+
+The final maintenance census passed in 78.4774 seconds under the standing workload-sizing approval.
+It used a 110-second measurement bound within a 120-second Job, one CPU and 128 MiB RAM.
+Production scans retain 30 seconds and their 35-second freshness rule.
+Scratch remains 12 GiB, backups 21 GiB and the total 50 GiB.
+Both earlier 70-second failures remain preserved. No unrelated program was stopped.
+
+Next, bind the verified cost calculation to current original records. Then qualify fees and actions before risk and dispatch.
+The failed native fixture, saved stops, original environment and terminal M3 audit history remain preserved.
+No actual broker action occurred. Strata stays off.
