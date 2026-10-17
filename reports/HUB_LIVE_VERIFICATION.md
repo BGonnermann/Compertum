@@ -1,5 +1,7 @@
 # Live Hub activity and whole-loop verification
 
+This is the earlier 51-case live release. See HUB_REPORTING_VERIFICATION.md for the current record connections and shortcut.
+
 17 October 2026. This extends the first saved-record Hub under the owner's explicit live-activity request.
 The charcoal and warm-white interface now has six pages, including Whole loop.
 

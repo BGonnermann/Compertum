@@ -5,6 +5,21 @@ import shlex
 from pathlib import PureWindowsPath
 
 
+def worker_stage(command):
+    try: args = [part.strip('\"\'') for part in shlex.split(command, posix=False)]
+    except ValueError: return None
+    if not args or PureWindowsPath(args[0]).name.lower() not in {'python','python.exe','py','py.exe'} or '-c' in args: return None
+    try:
+        index = args.index('-m'); module = args[index + 1]; mode = args[index + 2] if len(args)>index+2 else ''
+    except (ValueError,IndexError): return None
+    if module == 'compertum.runtime.campaign_worker':
+        return 'final_evaluation' if mode=='final' else 'reports' if mode=='scorecard' else 'experiments'
+    if module == 'compertum.runtime.audit_worker':
+        return 'independent_audit' if mode=='final_audit' else 'development_audit'
+    if module == 'compertum.runtime.replay_worker': return 'experiments'
+    return None
+
+
 def test_command(command):
     try:
         args = [part.strip('\"\'') for part in shlex.split(command, posix=False)]

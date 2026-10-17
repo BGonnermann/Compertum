@@ -175,8 +175,19 @@ function renderWholeLoop(data) {
   const parent = document.getElementById('loop-page'); parent.replaceChildren();
   const status = surface('Current observation coverage');
   status.append(node('p', `Agent events: ${data.coverage.agents}. Project processes: ${data.coverage.processes}.`, 'muted'));
-  status.append(node('p', 'Operational stages need their own job events. A stage without a current event stays Not observed.', 'muted small'));
+  status.append(node('p', 'Registered workers show current process activity. Saved records show earlier state. Neither proves operational acceptance.', 'muted small'));
   parent.append(status);
+  let runtimeConnections = null;
+  if (data.reporting) {
+    const runtimes = surface('Connected runtime records', 'PASSIVE LOCAL READS'); runtimes.classList.add('below');
+    data.reporting.runtimes.forEach(runtime => {
+      runtimes.append(node('h3', runtime.name), node('p', runtime.status, 'muted small'));
+      runtime.journals.forEach(journal => runtimes.append(keyRow(`${journal.role} journal`, journal.status)));
+      if (runtime.retained_halt) runtimes.append(node('p', 'A saved halt is retained. This does not establish a running watchdog.', 'muted small'));
+    });
+    runtimes.append(node('p', 'Native test runtime records contain invented inputs. Their saved states do not qualify actual operation.', 'muted small'));
+    runtimeConnections = runtimes;
+  }
   const viewport = node('div', null, 'loop-viewport');
   const track = node('div', null, 'whole-loop-track');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -209,6 +220,11 @@ function renderWholeLoop(data) {
     liveState.stage = stage.id;
     track.querySelectorAll('button').forEach(item => item.setAttribute('aria-pressed', String(item === control)));
     detail.replaceChildren(node('p', stage.state.toUpperCase(), 'eyebrow'), node('h2', stage.name), node('p', stage.description), keyRow('Reporting', stage.reporting), node('p', stage.source, 'muted small'), sourceLink('docs/BUILD_SPEC.md', 'Read the governing specification'));
+    if (!stage.activities.length) detail.append(node('p', 'No operational stage event. Local records below are separate observations.', 'muted small'));
+    (stage.worker_observations || []).forEach(worker => detail.append(keyRow(`Process ${worker.pid}`, 'Worker observed'), node('p', `${worker.scope} · started ${time(worker.started_at)}. Completion is unknown.`, 'muted small')));
+    (stage.record_sources || []).forEach(source => detail.append(keyRow(`${source.runtime} · ${source.table}`, source.status)));
+    (stage.saved_records || []).forEach(record => detail.append(keyRow(`${record.runtime} · record ${record.record_id}`, record.state), node('p', `${record.source_at ? `Source time ${time(record.source_at)}` : 'Source time unavailable'} · read ${time(record.observed_at)}`, 'muted small')));
+    if ((stage.saved_records || []).length) detail.append(node('p', 'These are bounded saved observations. A saved running state without a current worker remains unconfirmed. Financial acceptance is separate.', 'muted small'));
     stage.activities.forEach(job => detail.append(keyRow(`Job ${job.run_id.slice(0, 8)}`, `${job.state}${job.exit_code === null ? '' : ` · exit code ${job.exit_code}`}`), node('p', `Observed ${time(job.observed_at)}${job.finished_at ? ` · finished ${time(job.finished_at)}` : ''}`, 'muted small')));
   }
   data.loop.stages.forEach((stage, index) => {
@@ -219,6 +235,7 @@ function renderWholeLoop(data) {
     track.append(control);
   });
   viewport.append(track); parent.append(viewport, node('p', 'Arrows show the required route. Dashed arrows mark unfinished connections. Select any stage for its exact observation.', 'map-direction'), detail);
+  if (runtimeConnections) parent.append(runtimeConnections);
   if (data.loop.stages.length) {
     const index = Math.max(0, data.loop.stages.findIndex(stage => stage.id === liveState.stage));
     choose(data.loop.stages[index], track.querySelectorAll('button')[index]);

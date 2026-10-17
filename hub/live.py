@@ -214,12 +214,20 @@ class LiveMonitor:
         self.root = Path(root).resolve(); self.reader = AgentReader(root, sessions)
         self.lock = threading.Lock(); self.cached = None; self.last_read = 0
         self.prior_processes = {}; self.process_events = deque(maxlen=40)
+        from runtime_records import RuntimeReader
+        self.runtime_reader = RuntimeReader(self.root)
 
     def snapshot(self):
         with self.lock:
             if self.cached is not None and time.monotonic() - self.last_read < 1:
                 return self.cached
             agents = self.reader.snapshot(); native = observe(self.root)
+            for root in self.runtime_reader.roots[1:]:
+                if not root.is_dir() or root.is_relative_to(self.root): continue
+                extra = observe(root)
+                native['processes'].extend(row | {'runtime_name': 'Original development runtime'} for row in extra['processes'])
+                native['unreadable_candidates'] += extra['unreadable_candidates']
+                if extra['status'] != 'Available': native['status'] = 'Partial'
             current = {row['identity']: row for row in native['processes']}
             at = now_string()
             if native['status'] != 'Unavailable':
@@ -236,6 +244,7 @@ class LiveMonitor:
             from job_events import read_jobs
             reported = read_jobs(self.root, native['processes'])
             result['jobs'] = reported['jobs']; result['coverage']['stage_jobs'] = reported['status']
+            result['reporting'] = self.runtime_reader.snapshot(native['processes'])
             from loop import build_loop
             result['loop'] = build_loop(result)
             self.cached = result; self.last_read = time.monotonic()

@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from records import DEFAULT_MAP, MAX_MAP_BYTES, RecordStore, regular_without_links
 from live import LiveMonitor
+from job_events import project_key
 
 STATIC = Path(__file__).resolve().parent / 'static'
 ASSETS = {'/': ('index.html', 'text/html; charset=utf-8'),
@@ -73,6 +74,8 @@ def make_server(store, port=8767):
                     return self.respond(200, store.snapshot())
                 if address.path == '/api/live' and not address.query:
                     return self.respond(200, monitor.snapshot())
+                if address.path == '/api/identity' and not address.query:
+                    return self.respond(200, dict(app='Compertum Hub',project=project_key(store.root),protocol=1))
                 if address.path == '/api/record':
                     query = parse_qs(address.query, strict_parsing=True, max_num_fields=1)
                     if set(query) != {'path'} or len(query['path']) != 1:

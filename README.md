@@ -3,17 +3,20 @@
 ## Read-only project Hub - 17 October 2026
 
 Open the local Hub at **[http://127.0.0.1:8767](http://127.0.0.1:8767)** while its terminal is running.
-To start it later, double-click **`hub/Open Compertum Hub.cmd`**. Keep that terminal open; press Ctrl+C there to stop it.
+To start it later, open the **Compertum Hub** desktop shortcut or **`hub/Open Compertum Hub.cmd`**.
+The shortcut reuses the running Hub. A new Hub keeps a minimized terminal open; restore it and press Ctrl+C to stop.
 The PowerShell alternative is `./hub/start.ps1`.
 
 The charcoal and warm-white pages show live agent signals, native project processes, test jobs, original documents, and saved results.
 Live activity refreshes every two seconds while visible. Documents refresh every ten seconds. A lost connection marks retained observations stale.
-The **Whole loop** page shows 17 stages and their branch and return connections. Stages without operational events remain Not observed.
+The **Whole loop** page shows 17 stages, registered workers, saved runtime records, and missing reporting sources.
+Master, the original development folder, and the approved native test runtime keep separate identities.
+Saved running records do not establish current activity. Stages without a reporting program say Reporting not implemented.
 The Project map page opens the existing horizontal PDF. No model, research runtime, account control, service, or scheduled task starts.
 
-Hub checks passed **51 source cases and 47 main browser checks**, with zero failures, errors, or skips in each final run.
+Hub checks passed **73 source cases and 58 main browser checks**, with zero failures, errors, or skips in each final run.
 These are Hub checks. They do not change M1 through M6 acceptance or repeat the installed-package fee checks shown below.
-See [live activity and stage reporting](docs/HUB_LIVE_ACTIVITY.md) and [current verification](reports/HUB_LIVE_VERIFICATION.md).
+See [live activity and stage reporting](docs/HUB_LIVE_ACTIVITY.md) and [current reporting verification](reports/HUB_REPORTING_VERIFICATION.md).
 The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.
 
 ## Current economic preparation and approval boundary - 17 October 2026

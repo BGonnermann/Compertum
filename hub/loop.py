@@ -42,6 +42,15 @@ def build_loop(activity):
         if edge['from'] in {'proposals', 'feedback'}:
             edge['state'] = 'Connection unfinished'
     for stage in stages:
+        report = next((row for row in activity.get('reporting',{}).get('stages',[]) if row['id']==stage['id']),None)
+        stage.update(connection=report['connection'] if report else 'Runtime records not connected',
+                     saved_records=report['records'] if report else [],record_sources=report['sources'] if report else [],
+                     worker_observations=[row for row in activity.get('processes',[]) if row.get('kind')=='stage_worker' and row.get('stage')==stage['id']])
+        if report:
+            stage['reporting'] = report['connection']
+            if report['records']: stage['state']='Saved record'
+            elif report['connection']=='Reporting not implemented': stage['state']='Reporting not implemented'
+        if stage['worker_observations']: stage['state']='Worker observed'
         jobs = [job for job in activity.get('jobs', []) if job.get('stage') == stage['id'] and job.get('kind') == 'operational']
         if jobs:
             stage.update(state=jobs[0]['state'], reporting='Explicit job event', activities=jobs)

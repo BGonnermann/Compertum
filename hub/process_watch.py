@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import time
 
-from activity_labels import activity_label
+from activity_labels import activity_label, worker_stage
 
 
 def project_path(value, root):
@@ -103,9 +103,12 @@ def observe(root, exclude_pids=None):
                                 started = datetime.fromtimestamp(ticks / 10000000 - 11644473600, timezone.utc).isoformat().replace('+00:00', 'Z')
                                 label = activity_label(text=command)
                                 kind = 'test' if label == 'Running test tools' else 'work'
+                                stage = worker_stage(command)
+                                fixture = '.cache' in Path(cwd).parts and 'test-runs' in Path(cwd).parts
                                 result['processes'].append({'pid': entry.pid, 'identity': f'{entry.pid}-{ticks}', 'started_at': started,
-                                    'state': 'Process observed', 'kind': kind, 'stage': 'verification' if kind == 'test' else 'unclassified',
-                                    'label': 'Test process' if kind == 'test' else 'Project process', 'program': name})
+                                    'state': 'Process observed', 'kind': 'stage_worker' if stage else kind, 'stage': stage or ('verification' if kind == 'test' else 'unclassified'),
+                                    'scope': 'Test runtime' if fixture else 'Runtime worker' if stage else 'Project work',
+                                    'label': 'Registered stage worker' if stage else 'Test process' if kind == 'test' else 'Project process', 'program': name})
                     except (OSError, UnicodeError, ValueError, OverflowError):
                         result['unreadable_candidates'] += 1
                     finally:

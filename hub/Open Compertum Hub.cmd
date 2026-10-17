@@ -1,3 +1,3 @@
 @echo off
-python -B "%~dp0server.py" --open-browser
+python -B "%~dp0launch.py"
 if errorlevel 1 pause
