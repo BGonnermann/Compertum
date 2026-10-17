@@ -58,6 +58,8 @@ def native_read_provenance(transport,result,lease,request):
         and transport._wire_path==p['target'] and result.status_code==200):
         if transport._origin==('paper-api.alpaca.markets',443,True):origin='PAPER_TLS'
         elif transport._origin[0]=='127.0.0.1' and transport._origin[2] is False:origin='LOOPBACK_FIXTURE'
+    from .fixture_source_binding import finish_if_present
+    finish_if_present(transport,result,lease,request)
     return dict(request_sha256=request.sha256,raw_sha256=_sha(result.body),origin=origin)
 
 

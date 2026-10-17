@@ -23,6 +23,10 @@ Backups remain 21 GiB, and the aggregate remains 50 GiB. The test folder retains
 This test-space approval does not revise published program limits or the frozen configuration of historical runtimes.
 All operating, financial, memory, CPU, and deadline gates remain unchanged.
 
+Later on 17 October, the owner approved 15 GiB test scratch for one additional 1072 MiB native folder.
+Fresh complete admission passed before that folder was created. Backups remain 21 GiB; total storage remains 50 GiB.
+This test-only approval preserves published program limits, historical runtimes, allocated reserves, and all other operating gates.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

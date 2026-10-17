@@ -1,5 +1,27 @@
 # Current Compertum checkpoint
 
+## Native economic continuation - 17 October 2026
+
+The owner approved 15 GiB test scratch and one additional 1072 MiB native folder.
+Fresh complete storage admission passed. Backups stay 21 GiB; total storage stays 50 GiB.
+Both original journals existed before the new project's first account observation. All earlier identities and evidence remain preserved.
+
+Three final source native economic stages passed, including shutdown, with zero failures, errors, or skips.
+They check original source qualification, changed-source refusal, and restart without restored freshness.
+The complete source inventory passed 220 cases: 217 in-process cases and three native stages, with zero failures, errors, or skips.
+Matching installed checks and complete environment checks remain pending.
+Economic final review 3 remains unused. Gate 2 remains open until its component verification is complete.
+
+The native run exposed a shutdown defect in the recent backup-sharing change.
+The repair passed 61 source checks and independent shutdown review 1. Installed verification remains pending.
+Both failed native attempts have verified archives. The continuing native project is stopped without a retained watchdog halt.
+
+Next, finish economic verification, risk, durable dispatch and recovery, and the installed combined rehearsal.
+The accepted plan retains real owner clocks and operation windows. Positive native buy rehearsal needs an eligible exchange window.
+Complete independent code and tests before stopping for that external timing condition.
+M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions. Only M0 is fully accepted.
+See reports/M5_NATIVE_ECONOMICS.md. Strata stays off.
+
 ## Storage sharing - 17 October 2026
 
 Storage sharing passed 58 matching source and installed-package checks, with zero failures, errors, or skips in each inventory.
@@ -18,7 +40,7 @@ Keep destructive or incompatible cases separate. Do not raise limits to run them
 See docs/STORAGE_SHARING_PLAN.md and reports/STORAGE_SHARING_VERIFICATION.md for the exact scope and next action.
 Historical checkpoint sections below retain their original status and approvals. Strata stays off.
 
-## Current economic preparation and approval boundary - 17 October 2026
+## Earlier economic preparation and approval boundary - 17 October 2026
 
 **Economic preparation is verified. Native qualification and the approved local finish plan remain incomplete.**
 Source and installed checks each passed 54 distinct in-process cases, with zero failures, errors, or skips.

@@ -22,7 +22,11 @@ def checked_path(path):
     roots=(ROOT/'.cache/test-runs/m5-local-economics-20261017-01',
            ROOT/'.cache/test-runs/m5-reconciliation-installed-20261016-01/local-economics-20261017-01',
            ROOT/'artifacts/m5/local-economics-20261017-01/controlled-source-ledgers')
-    need(any(path.is_relative_to(root) for root in roots))
+    native=ROOT/'.cache/test-runs/native-economic-fresh-20261017-01/native-shared/state/fixture-economic-source.jsonl'
+    if path==native:
+        admitted=json.loads((ROOT/'artifacts/m5/native-economics-20261017-01/capacity-activation.json').read_text())
+        need(admitted['admission']['scratch_cap_gib']==15 and admitted['admission']['additional_native_folders']==1)
+    else:need(any(path.is_relative_to(root) for root in roots))
     current=path
     while current!=ROOT:
         if current.exists():need(not current.lstat().st_file_attributes&0x400)

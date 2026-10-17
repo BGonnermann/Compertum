@@ -23,10 +23,11 @@ New records cannot prove that missing past history. Its first opening and creden
 Preserve that project, its reserve, and every failed attempt. Do not reset or extend its claimed history.
 
 A positive native test requires a separate project with a source journal before its first account observation.
-The owner approved one fresh native folder. That folder already exists and remains preserved.
-A second fresh native folder needs a separate owner decision and fresh complete capacity admission.
-Prepare calculations, a test source, exact cases, and the measured request within the current approved bounds.
-Do not create the second folder or change active limits while that decision is pending.
+The earlier approved native folder remains preserved.
+The owner subsequently approved 15 GiB test scratch for one additional 1072 MiB native folder.
+Fresh complete capacity admission passed before its creation. This increment uses that additional folder.
+Preserve its project, source beginnings, first opening, reserve, failed attempts, and original file identities.
+This approval permits no further native folder or category increase.
 
 ## Original fixture producer
 
@@ -35,6 +36,12 @@ Bind its original bytes to the project, account, opening, execution generation, 
 Bind the complete fill history, relevant original publication hashes, event sequence, and ledger-head hash.
 Require the original local producer identity. A copied artifact or caller boolean cannot supply that identity.
 Never accept this record as actual-account applicability or actual provider coverage.
+
+Before the first account observation, create a separate original companion journal for order history.
+Link its producer, project, account, asset, creation time, initial cash, and explicit empty inventory to the economic source.
+Record the requirement to retain every future order, fill, cancellation, and cash change before reporting it.
+Bind both source beginnings and file identities in the first native account witness.
+Later handlers may append supported future events. They must preserve both original beginnings and all earlier history.
 
 The record contains the fixture's dated fee rules and complete economic events.
 Each accrual, payment, and reversal has a stable unique ID and original time.
@@ -103,10 +110,10 @@ Posted-fee final review 3 is now clear and closed. Its counters remain separate.
 ## Admission and continuation
 
 Require a fresh complete storage census before new namespaces or increased holds.
-Keep test scratch at 14 GiB, backups at 21 GiB, and total storage at 50 GiB.
-Keep the one existing native folder and its allocated one GiB reserve.
-The proposed additional folder has a 1072 MiB bound, including its own allocated one GiB reserve.
-Measure the complete 14 GiB and proposed 15 GiB cases. Keep the proposal separate from active authority.
+Active test scratch is 15 GiB, backups are 21 GiB, and total storage is 50 GiB.
+Keep the earlier native folder and its allocated reserve unchanged.
+The admitted additional folder has a 1072 MiB bound, including its own allocated one GiB reserve.
+Retain the complete admission measurement, owner decision, original source births, and process closure receipts.
 Preserve interpreter, dependencies, CPU, memory, deadline, production scan, and financial limits.
 Keep one heavy job at a time. Keep Strata off.
 

@@ -20,7 +20,21 @@ These are Hub checks. They do not change M1 through M6 acceptance or repeat the 
 See [live activity](docs/HUB_LIVE_ACTIVITY.md), [the four stage reporters](docs/HUB_STAGE_REPORTING.md), and [current verification](reports/HUB_FOUR_STAGE_VERIFICATION.md).
 The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.
 
-## Current economic preparation and approval boundary - 17 October 2026
+## Current native economic continuation - 17 October 2026
+
+The owner approved 15 GiB test scratch and one additional 1072 MiB native folder. Complete storage admission passed.
+Backups stay 21 GiB; total storage stays 50 GiB. Both original journals existed before the first account observation.
+Three source native stages passed, including shutdown. They cover original economics, changed-source refusal, and restart without restored freshness.
+The complete source inventory passed 220 cases, with zero failures, errors, or skips: 217 in-process cases and three native stages.
+Matching installed checks, complete environment checks, and final economic review remain pending.
+The shutdown repair passed 61 source checks and independent review 1. Both failed native attempts retain verified archives.
+
+The local finish plan remains incomplete. Continue risk, durable dispatch and recovery, and the installed combined rehearsal.
+Real owner clocks and operation windows remain required. Positive native buy rehearsal needs an eligible exchange window.
+M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions. Only M0 is fully accepted.
+See [the current native report](reports/M5_NATIVE_ECONOMICS.md). Strata stays off.
+
+## Earlier economic preparation and approval boundary - 17 October 2026
 
 **Economic preparation is verified. Native qualification and the approved local finish plan remain incomplete.**
 Source and installed checks each passed 54 distinct in-process cases, with zero failures, errors, or skips.

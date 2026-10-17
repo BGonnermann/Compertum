@@ -100,24 +100,11 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
         if reserve_info['capacity_bytes']!=GIB or reserve_info['unused_bytes']<256*1024**2 or reserve_info['allocated_bytes']<reserve_info['unused_bytes']:
             raise RuntimeRefused('RESERVE_UNVERIFIED')
         snapshots=[];checkpoints={};all_artifacts=[];pending=[];dedup=[]
-        # Publish sharing receipts before the coordinator snapshot. Restoring
-        # this first set must retain the authority to reuse its backup files.
-        config_hash=hashlib.sha256(canonical(manager.config.to_payload())).hexdigest()
-        lineage=_recovery_lineage(stores['coordinator'].conn,stores['evaluation'].conn,project,config_hash)
-        from .recovery_lineage import verify_file_dependencies
-        verify_file_dependencies(stores['coordinator'].conn,lineage,project.root_path)
-        artifact_map={a['artifact_id']:a for a in artifacts}
-        for item in lineage['artifacts']:
-            if item['artifact_id'] in artifact_map and artifact_map[item['artifact_id']]!=item: raise RuntimeRefused('RECOVERY_ARTIFACT_INVALID')
-            artifact_map[item['artifact_id']]=item
-        if len(artifact_map)>1024:raise RuntimeRefused('RECOVERY_BOUND_EXCEEDED')
-        from .backup_artifacts import shared_backup_artifacts
-        all_artifacts.extend(stack.enter_context(shared_backup_artifacts(
-            manager,grant,artifact_map.values(),check=check_deadline)))
         # One owner lock order serializes delivery and every database transaction
         # across this in-process barrier. Remote adapters must provide this same
         # acknowledged barrier; they are not inferred from three loose snapshots.
-        for role,store in stores.items():
+        def snapshot_owner(role):
+            store=stores[role]
             from .runtime.recovery_adapter import RemoteStore
             maximum=16*1024**2 if isinstance(store,RemoteStore) else min(16*1024**2,store.conn.execute('PRAGMA page_count').fetchone()[0]*store.conn.execute('PRAGMA page_size').fetchone()[0]+65536)
             child=manager.split_grant(grant,maximum)
@@ -133,6 +120,23 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
                                 'payload_path':artifact['path'],'payload_sha256':artifact['sha256'],'sequence':seq})
             for row in checkpoint['deduplication']:
                 dedup.append({'event_id':row['event_id'],'receiver_role':role,'payload_sha256':row['sha256'],'ack_sequence':row['sequence']})
+        # Remote database connections exist only after their acknowledged snapshots.
+        # Keep both owner barriers held while resolving their original lineage.
+        for role in ('evaluation','execution'):snapshot_owner(role)
+        config_hash=hashlib.sha256(canonical(manager.config.to_payload())).hexdigest()
+        lineage=_recovery_lineage(stores['coordinator'].conn,stores['evaluation'].conn,project,config_hash)
+        from .recovery_lineage import verify_file_dependencies
+        verify_file_dependencies(stores['coordinator'].conn,lineage,project.root_path)
+        artifact_map={a['artifact_id']:a for a in artifacts}
+        for item in lineage['artifacts']:
+            if item['artifact_id'] in artifact_map and artifact_map[item['artifact_id']]!=item: raise RuntimeRefused('RECOVERY_ARTIFACT_INVALID')
+            artifact_map[item['artifact_id']]=item
+        if len(artifact_map)+len(all_artifacts)>1024:raise RuntimeRefused('RECOVERY_BOUND_EXCEEDED')
+        from .backup_artifacts import shared_backup_artifacts
+        all_artifacts.extend(stack.enter_context(shared_backup_artifacts(
+            manager,grant,artifact_map.values(),check=check_deadline)))
+        # Retain the sharing receipts inside the first coordinator snapshot.
+        snapshot_owner('coordinator')
         from .evaluation_seals import verify_seal_journal
         from .recovery_lineage import snapshot_seals,snapshot_consumption,seal_references
         guard=verify_consumption_guard(project);seals=verify_seal_journal(project)
