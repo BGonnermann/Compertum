@@ -1,5 +1,17 @@
 # Current Compertum checkpoint
 
+## Pipe repair proposal reviewed - 18 October 2026
+
+The proposed repair adds one verified application identity to one temporary test pipe.
+Independent review found no blocking design issue. The repair is not applied.
+The default pipe rules, runtime source, limits, permissions, and saved stops remain unchanged.
+The next step is a disabled isolated helper, pure policy tests, and a fixed evidence ledger.
+Creating a pipe with changed access rules requires separate approval.
+Pipe-name requirements and native access remain unverified. No new tests or full storage scan ran.
+See [the proposal](M5_PIPE_REPAIR_PLAN.md) and [independent review](../reports/M5_PIPE_REPAIR_REVIEW.md).
+Strata remains off. No broker action ran.
+
+
 ## Full storage check passed - 18 October 2026
 
 One authorized full storage check passed without a retry.
