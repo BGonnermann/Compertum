@@ -1,5 +1,17 @@
 # Compertum
 
+## Storage check repair - 17 October 2026
+
+The maintenance repair passed **13 small checks**, with zero failures, errors, or skips.
+The wrapper now checks memory and time during storage scans and preserves all existing folder limits.
+Independent review cleared one complete capacity retry.
+That retry reached `JOB_DEADLINE` after **120.006721 seconds** and closed all child processes.
+It produced no complete storage result. All ten full simulated broker stages remain unrun.
+The approved retry is used. No additional full scan is approved.
+The earlier 61-case source and installed helper results remain historical and were not rerun during this repair.
+Saved stops remain unchanged. Strata stays off. Only M0 is accepted.
+See [the repair report](reports/M5_STORAGE_TIMEOUT_REPAIR.md) and [current checkpoint](docs/CURRENT_CHECKPOINT.md).
+
 ## Simulated broker clock - 17 October 2026
 
 The test helpers can use a saved simulated market time.

@@ -1,5 +1,35 @@
 # Current Compertum checkpoint
 
+## Storage check timeout repair - 17 October 2026
+
+The owner approved a targeted repair and one new bounded capacity retry.
+This instruction replaces the earlier instruction to request another capacity attempt.
+The one approved full retry is now used. Storage admission remains blocked.
+
+The maintenance wrapper now shares each fresh file observation across overlapping capped folders.
+It keeps all 28 folder limits and explicit current metadata checks.
+It checks host memory and the original job deadline during each scan and after the final scan.
+Product storage admission, software versions, test identities, and financial rules remain unchanged.
+
+Thirteen final small fixture checks passed, with zero failures, errors, or skips.
+Their final wrapper passed in 29.628102 seconds and left zero child processes.
+It also checked actual name spelling for file and directory calls.
+The first wrapper reached 120.000295 seconds and closed all child processes.
+Both the helper code and sandbox context changed between those attempts.
+The timing difference does not identify one cause by itself.
+
+Independent repair review round 2 cleared the concrete retry.
+The full retry reached JOB_DEADLINE after 120.006721 seconds and closed all child processes.
+It produced no complete census result or saved partial traversal counts.
+Host memory checks had a maximum interval of 0.669146 seconds.
+The minimum observed available host memory was 33.908875 GiB.
+All ten simulated broker stages remain unrun. No new complete environment check ran.
+The agent stopped dependent stages and preserved the failed retry.
+No additional full scan is approved.
+Exact next action: prepare a separate bounded proposal to reduce full census work.
+Keep Strata off. Do not clear saved stops or take actual broker actions.
+See reports/M5_STORAGE_TIMEOUT_REPAIR.md and docs/M5_STORAGE_TIMEOUT_REPAIR.md for evidence, the checklist, and unchanged limits.
+
 ## Simulated broker clock - 17 October 2026
 
 The owner approved a test clock for the simulated broker.

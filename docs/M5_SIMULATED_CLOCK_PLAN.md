@@ -60,3 +60,14 @@ Stopped preservation and the final available-evidence audit passed.
 Independent review round 3 is closed with no actionable code findings.
 Ten broker stages still require a complete fresh storage check.
 Prepare a bounded storage-check repair before requesting another capacity attempt.
+
+## Later storage repair - 17 October 2026
+
+The owner approved a targeted repair and one new bounded retry.
+Thirteen small maintenance checks passed, with zero failures, errors, or skips.
+Independent repair review round 2 cleared the concrete retry.
+The retry failed at JOB_DEADLINE after 120.006721 seconds and closed all child processes.
+It produced no complete storage result. The ten simulated broker stages remain unrun.
+The approved retry is used. No additional full scan is approved.
+Preserve the earlier clock review 3 and all failed receipts.
+Use docs/M5_STORAGE_TIMEOUT_REPAIR.md for the current repair checklist and stopping point.
