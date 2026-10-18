@@ -1,71 +1,41 @@
-# Continue simulated broker verification
+# Continue local access diagnosis
 
-Use `C:\Users\bgonn\Desktop\Compertum` as the working folder.
-Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md, and docs/M5_SIMULATED_CLOCK_PLAN.md.
-Read reports/M5_SIMULATED_CLOCK.md before using an earlier result.
+Use `C:\Users\bgonn\Desktop\Compertum`.
+Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md, and reports/M5_STORAGE_AND_SIMULATED_RESUMPTION.md.
 
-The owner approved a test clock for the simulated broker.
-Source and installed-package helper runs each passed 61 cases.
-Each run had zero failures, errors, skips, and remaining child processes.
-The earlier 35-case, 60-case, and 285-case results overlap or cover different work.
-Do not add those inventories together.
-Product source and the existing installed package remain unchanged.
-Real-broker rules, actual waits, watchdog checks, queue warmup, and deadlines remain unchanged.
-Do not wait for actual market hours to run the simulated plans.
+Two full storage checks passed within the unchanged limits.
+The first source simulated history test failed with `NATIVE_CALL_FAILED:CreateFileW:5`.
+Its result was zero passes, one failure, zero errors, and zero skips.
+The other nine stages did not run. The sequence allowance is closed without retry.
+The isolated pipe diagnostic reproduced the failure without starting owners or changing permissions.
+It found zero restricted SIDs in the process token. The exact denial cause remains unproven.
+Independent result review is complete. Earlier review counters remain closed.
 
-The first complete storage check reached CENSUS_110_SECOND_DEADLINE.
-The one separate retry reached JOB_DEADLINE.
-Both failed jobs observed exit and left zero child processes.
-No broker test owner started. No clock frame or stage receipt exists.
-All ten full simulated broker stages remain unrun.
-A partial storage count does not authorize a test launch.
+Prepare an isolated Windows access-check investigation.
+Use the failed supervisor error and `pipe-access-diagnostic01.json` as the starting evidence.
+Preserve client access `0x00100083` and the original generated security rule.
+Check the actual launch context before attributing the error to security policy or product code.
+Do not change permissions, tokens, access flags, or administrator settings without evidence and separate authority.
+Do not rerun the closed sequence or reset its exclusive attempt marker.
 
-Inspect the saved capacity failures before preparing another attempt.
-Keep both failed jobs and their original records.
-Review `capacity_census_clock03_candidate.py` in `artifacts/m5/risk-dispatch-20261017-01`.
-That candidate reads the preserved helper mapping once before its loop.
-The candidate remains unexecuted. Its effect on elapsed time is unknown.
-Do not call it a proven storage performance repair.
-Keep complete coverage, file allocation checks, archive checks, and saved-stop checks.
-Keep the 110-second census deadline and 120-second job deadline.
-Keep the capacity job at one CPU and 128 MiB RAM.
-Prepare the exact additional capacity attempt for owner review.
-Stop before executing another capacity attempt without a new bounded allowance.
+Prepare an evidence-storage proposal before another broker-stage proposal.
+The diagnostic closure recorded 385,024 bytes of record headroom; the history forecast requires 524,288 bytes.
+Later closeout files reduce this headroom further.
+Preserve all failed records and original runtime paths.
+Do not raise folder limits, delete evidence, or use the D: archive as runtime capacity.
 
-After a complete fresh storage check passes, bind its original receipt and successful closure to the original stage plan.
-Preserve the failed launcher record. Use a separate fixed launcher record.
-Keep the original plan hash, project identity, test identities, and attempt guard.
-Require another fresh complete storage check before each later stage.
-Use the existing `simclock02` plans. Do not replace their identities to recover a failed stage.
-Run both history stages before buying.
-Verify lost replies, restart with holdings and open orders, exact cancellation, closing, and component shutdown.
-Finish with zero fixture holdings, resolved fixture orders, and disarmed actual-broker admission.
-
-Use only `.cache/test-runs/native-economic-fresh-20261017-01/native-shared`.
-Keep project identity `266b470c104c6b122e2db6d48a7c5946037235feae781ce2a808bda5010f4e39`.
-Preserve original journals, openings, sources, credential slots, reserves, and saved stops.
-Keep each account and activity history within its separate limit of 32.
-Keep scratch within 15 GiB, C: backups within 21 GiB, and C: project storage within 50 GiB.
-Keep the separate D: archive vault within 200 GiB.
-Do not use the archive vault as runtime capacity.
+Keep C: within 50 GiB total, 15 GiB scratch, and 21 GiB backups.
+Keep the separate D: archive within 200 GiB.
 Create no additional full project or GiB reserve.
 Run one heavy job at a time.
-Require 16 GiB free host memory before starting. Stop below 12 GiB.
-Keep test jobs within four CPUs, 4 GiB RAM, 16 processes, and 120 seconds.
-Keep 88 seconds for work, 17 seconds for cleanup, and 15 seconds for the test framework.
-Keep owner calls within five seconds.
-Keep all financial rules, one-share limits, and $250 fixture limits unchanged.
+Require 16 GiB free host memory before launch. Stop below 12 GiB.
+Keep capacity jobs within one CPU, 128 MiB RAM, and their 110/120-second deadlines.
+Keep broker test jobs within four CPUs, 4 GiB RAM, 16 processes, and 120 seconds.
+Keep original project, test, plan, reserve, and attempt identities.
+Preserve actual clock deadlines, queue warmup, five-second owner calls, and all financial rules.
 
-Preserve the completed clock review counter and all earlier component review counters.
-Treat a complete environment check separately from the 247-file product hash check.
-Finish independent review against actual saved results.
-Preserve stopped evidence and all failed attempts.
-Refresh and inspect all nine pages of the horizontal project-map PDF.
-Update master, the private BGonnermann/Compertum repository, and its existing tracked-files clone.
-Verify the active BGonnermann account before publication.
+Keep Strata off. Keep spending at zero.
+Stop before saved-stop clearance or actual broker, order, and account actions.
 Keep credentials, environments, runtime databases, private outputs, and backups out of Git.
-
-Keep Strata off. Preserve its files and configuration.
-Keep new spending zero. Keep paused automations paused.
-Stop before clearing saved stops or performing actual broker, order, or account actions.
+Refresh the horizontal map after a verified status change.
 Only M0 is accepted. M5 remains incomplete. M6 remains zero of ten actual supervised sessions.

@@ -1,5 +1,33 @@
 # Current Compertum checkpoint
 
+## Storage passed; simulated startup failed - 18 October 2026
+
+The owner requested autonomous local progress. The agent ran the reviewed storage check and then the existing simulated sequence.
+Two full storage checks passed in 104.739527 and 101.633859 seconds, within unchanged limits.
+Independent review cleared the storage package and completed result.
+The source history test reported zero passes, one failure, zero errors, and zero skips.
+Windows refused the supervisor's local pipe connection with `NATIVE_CALL_FAILED:CreateFileW:5`.
+The first managed worker did not start. The remaining nine stages did not run.
+The sequence stopped without retry. All child processes closed.
+An isolated diagnostic reproduced the access denial without starting owners or changing permissions.
+Its process token had zero restricted SIDs. The complete cause remains unproven.
+
+Stopped preservation verified 133 files and 195 entries. The attempt guard remains at zero.
+The final named audit matched 61 frozen inputs and 247 source and 247 installed product files.
+These hash checks do not qualify the complete environments.
+One incorrectly prepared audit failed. A separate corrected audit passed. Both records remain preserved.
+The earlier 43-case source and 61-case helper results remain historical.
+
+Exact next action: identify the Windows access check that rejects the isolated pipe client.
+Independent result review round 2 verified the stopped result. Both launcher review rounds are closed.
+The latest diagnostic closure left 385,024 bytes in the record folder. The next history forecast needs 524,288 bytes.
+Both access diagnosis and a reviewed evidence-storage plan are prerequisites for another broker stage.
+Do not restart the failed sequence, relax permissions, or clear saved stops.
+Keep all storage, deadline, memory, processor, retry, and financial limits unchanged.
+Keep Strata off. Only M0 is accepted. No actual broker action occurred.
+See reports/M5_STORAGE_AND_SIMULATED_RESUMPTION.md for results and evidence.
+The sections below retain earlier states and do not replace this current status.
+
 ## Storage check preparation - 18 October 2026
 
 The owner requested diagnosis, a bounded candidate, and independent review without another full scan.

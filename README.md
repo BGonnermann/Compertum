@@ -1,5 +1,17 @@
 # Compertum
 
+## Storage check passed - 18 October 2026
+
+Two full storage checks passed within the unchanged deadlines.
+The first simulated broker test failed because Windows refused a local pipe connection (`CreateFileW:5`).
+The test result was **0 passed, 1 failed, 0 errors, 0 skipped**. The other nine stages did not run.
+The sequence stopped without retry. All child processes closed.
+An isolated diagnostic reproduced the error. The cause still needs investigation before a security change or another broker test.
+Runtime evidence is preserved. Product file hashes remain unchanged in source and installed locations.
+Strata stays off. Saved stops remain intact. Only M0 is accepted.
+See [the current report](reports/M5_STORAGE_AND_SIMULATED_RESUMPTION.md) and [checkpoint](docs/CURRENT_CHECKPOINT.md).
+The sections below preserve earlier results.
+
 ## Prepared storage check repair - 18 October 2026
 
 The parent job uses 13.51 seconds before starting the census.
