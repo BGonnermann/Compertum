@@ -33,7 +33,8 @@ The original programs, plans, attempt markers, and evidence remain unchanged.
 The first source run passed 19 checks, with zero failures, errors, or skips.
 Its parent job passed in 82.075567 seconds and closed all children.
 The second parent job reached JOB_DEADLINE at 120.001286 seconds and closed all children.
-No completed test XML exists for that run. Its failed closure remains preserved.
+Its test XML records 24 passed, zero failed, zero errors, and zero skipped in 6.844 seconds.
+The parent timeout makes that overall run failed. Its failed closure remains preserved.
 The final source run passed 25 checks, with zero failures, errors, or skips, in 8.719 seconds.
 Its parent job passed in 83.511019 seconds and closed all children.
 The source hash check confirmed unchanged inputs during that final run.
