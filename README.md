@@ -1,5 +1,20 @@
 # Compertum
 
+## Prepared storage check repair - 18 October 2026
+
+The parent job uses 13.51 seconds before starting the census.
+Startup, the census, and final checks then share less than 106.49 seconds.
+The census has a separate 110-second maximum. The old failure did not record its final phase.
+
+Disabled candidates remove repeated archive and file-charge work and add bounded phase records.
+The final small set passed **43 source checks**, with zero failures, errors, or skips.
+The job closed all children. Fresh byte checks matched 247 product files in each source and installed location.
+These checks do not establish full-scan timing or complete environment qualification.
+
+No new full scan or broker stage ran. The active scanner and all limits remain unchanged.
+Strata stays off. Saved stops remain intact. Only M0 is accepted.
+See [the preparation report](reports/M5_STORAGE_CHECK_PREPARATION.md) and [current checkpoint](docs/CURRENT_CHECKPOINT.md).
+
 ## Storage check repair - 17 October 2026
 
 The maintenance repair passed **13 small checks**, with zero failures, errors, or skips.

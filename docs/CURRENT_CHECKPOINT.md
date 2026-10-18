@@ -1,5 +1,35 @@
 # Current Compertum checkpoint
 
+## Storage check preparation - 18 October 2026
+
+The owner requested diagnosis, a bounded candidate, and independent review without another full scan.
+The parent spends 13.512762 seconds on its initial folder count before child startup.
+Less than 106.487238 seconds remain for startup, a census capped at 110 seconds, and final parent checks.
+Repeated parent counts also overlap the child. The last failure did not save its final child phase.
+These facts explain the restricted time budget. They do not isolate every cause of the slowdown.
+
+Separate disabled candidates remove repeated ZIP membership work and repeated file-charge sums.
+They add bounded phase records, retain original timer start points, and save child exit before final checks.
+The active wrapper, census, product files, profiles, and limits remain unchanged.
+Both prepared programs refuse execution before imports or writes.
+
+The final preparation set passed 43 source cases, with zero failures, errors, or skips.
+Its wrapper passed in 44.699596 seconds and closed every child process.
+Fresh byte checks matched 247 product files in each source and installed location.
+The verifier matched 24 old evidence pins and 135 original file hashes. The attempt guard remains at zero.
+No original database connection, installed-package test, complete environment check, full census, or broker stage ran.
+
+The initial missing-helper failure and the later verifier failure remain preserved.
+One fixture verifier exceeded its job memory while reading the reserve. Its result name also collided with an existing review record.
+A separately named repair passed with 1 MiB hash reads and unchanged resource limits.
+Independent preparation review round 2 cleared the corrected candidate for owner review.
+Both review rounds are closed. The review grants no full-scan or broker-stage execution.
+
+Storage admission remains blocked. The earlier full retry remains used.
+Exact next action: review the disabled candidate before a separate full-scan execution decision.
+Keep Strata off. Do not clear saved stops or take broker actions.
+See reports/M5_STORAGE_CHECK_PREPARATION.md and docs/M5_STORAGE_CHECK_PREPARATION.md.
+
 ## Storage check timeout repair - 17 October 2026
 
 The owner approved a targeted repair and one new bounded capacity retry.
