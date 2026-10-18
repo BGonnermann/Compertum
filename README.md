@@ -1,5 +1,17 @@
 # Compertum
 
+## Full storage check passed - 18 October 2026
+
+One authorized full storage check passed without a retry.
+The scan took 71.160717 seconds. The complete job passed in 104.068814 seconds and closed all children.
+The check included the new 8 MiB evidence allowance within unchanged category and total limits.
+It examined 59,287 directories, 220,813 files, and 4,480 links.
+It found zero unknown entries, access barriers, or ledger failures.
+This check did not run broker tests or accept a roadmap milestone.
+See [the storage report](reports/M5_EVIDENCE_STORAGE_CHECK.md).
+Strata remained off. Permissions and saved stops remained unchanged.
+
+
 ## Child output repairs verified - 18 October 2026
 
 Both child programs now use the checked clock-file location.
