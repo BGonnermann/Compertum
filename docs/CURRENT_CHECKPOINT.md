@@ -1,5 +1,28 @@
 # Current Compertum checkpoint
 
+## Simulated broker clock - 17 October 2026
+
+The owner approved a test clock for the simulated broker.
+This instruction replaces the earlier requirement to wait for actual market times for these simulated tests.
+Keep real-broker rules, actual timeouts, evidence, storage limits, and saved stops unchanged. Keep Strata off.
+
+The final source and installed-package helper checks each passed 61 cases, with zero failures, errors, or skips.
+Both runs closed all child processes. All earlier failed checks remain preserved.
+The clock changes only market timestamp functions inside test helpers. Product files remain unchanged.
+Independent review round 3 cleared the code, all ten revised plans, and all 689 frozen inputs.
+The first full storage check reached CENSUS_110_SECOND_DEADLINE before completion. No broker test owner started.
+The one capacity retry also reached JOB_DEADLINE. Both failed jobs closed all child processes. No further retry is planned.
+The ten full simulated broker stages remain unrun. Actual broker authority remains false.
+Both fresh complete environment checks also reached JOB_DEADLINE. Both observed exit and closed all child processes.
+The passing helper runs verified 247 product files in each environment. Complete environment verification remains incomplete.
+Stopped preservation passed with 135 files, 197 entries, and zero changed original files.
+The final evidence audit passed. It verified guard sequence zero and unchanged 11/9 histories per owner.
+Independent review round 3 is closed with no actionable code findings. It does not accept the unrun broker stages.
+
+Use docs/M5_SIMULATED_CLOCK_PLAN.md for acceptance, limits, and the current work checklist.
+Preserve the earlier real-clock plans and results as historical evidence.
+Only M0 is complete and accepted. M5 and its actual broker requirements remain incomplete.
+
 ## Local risk and controlled dispatch - 17 October 2026
 
 Local implementation and verification are complete. The approved local finish plan remains blocked on the combined native rehearsal.

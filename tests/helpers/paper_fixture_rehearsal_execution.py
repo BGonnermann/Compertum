@@ -1,4 +1,4 @@
-"""Native test owner. Clocks and queue warmup remain real."""
+"""Native test owner. Only the optional market clock can use simulated time."""
 from compertum.runtime.startup import require_entrypoint_startup
 proof=require_entrypoint_startup()
 import hashlib,json,os,sys,traceback
@@ -9,6 +9,14 @@ sys.path.insert(0,str(master/'tests'))
 fixture=json.loads((root/'loopback-fixture.json').read_text());assert fixture['kind']=='controlled-native-rehearsal'
 plan_path=Path(fixture['plan_path']);assert plan_path.parent==master/'artifacts/m5/risk-dispatch-20261017-01'
 raw=plan_path.read_bytes();assert hashlib.sha256(raw).hexdigest()==fixture['plan_sha256'];plan=json.loads(raw)
+clock=None
+if plan.get('market_clock') is not None:
+ from helpers.fixture_market_clock import clock_for_plan
+ clock_path=Path(fixture['market_clock_path']).resolve()
+ assert clock_path==plan_path.with_name(plan_path.stem+'-clock.json')
+ clock_raw=clock_path.read_bytes();assert len(clock_raw)<=4096
+ assert hashlib.sha256(clock_raw).hexdigest()==fixture['market_clock_sha256']
+ clock=clock_for_plan(plan,json.loads(clock_raw),plan_sha256=fixture['plan_sha256'])
 def failed(kind,value,frames):
  target=plan_path.parent/f'rehearsal-child-failure-{os.getpid()}.json'
  with target.open('x') as out:json.dump(dict(error_type=kind.__name__,values_recorded=False,
@@ -45,4 +53,6 @@ original_handle=paper_presence._PresenceOwner.handle
 def handle(self,packet):return self.parent._rehearsal.handle(packet,original_handle(self,packet))
 paper_presence._PresenceOwner.handle=handle
 managed_owner._STARTUP_PROOF=proof
-raise SystemExit(managed_owner.main())
+if clock is None:raise SystemExit(managed_owner.main())
+from helpers.fixture_market_clock import owner_market_clock
+with owner_market_clock(clock):raise SystemExit(managed_owner.main())

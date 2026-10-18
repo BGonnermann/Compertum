@@ -25,7 +25,9 @@ NY=ZoneInfo('America/New_York');ROOT=Path(__file__).parents[2]
 BID='89.875';ASK='90'
 def need(value):
  if not value:raise RuntimeRefused('CONTROLLED_REHEARSAL_SOURCE_REFUSED')
-def stamp():return utc(datetime.now(timezone.utc).isoformat())
+def market_now():return datetime.now(timezone.utc)
+
+def stamp():return utc(market_now().isoformat())
 
 def clock_reply(now):
  need(type(now) is datetime and now.utcoffset() is not None)
@@ -97,7 +99,7 @@ class OriginalSourceServer:
    if hasattr(self,'orders'):self.orders.close()
    self.economic.close();raise
  def read(self,target):
-  url=urlparse(target);path=url.path;now=datetime.now(timezone.utc)
+  url=urlparse(target);path=url.path;now=market_now()
   if path=='/v2/account':
    observed=self.orders.observations();snapshot=self.economic.snapshot(opening_sha256='0'*64,history_sha256='0'*64,until=stamp());orders=self.orders.snapshot()
    need(self.supervisor is not None);s=self.supervisor.supervisor

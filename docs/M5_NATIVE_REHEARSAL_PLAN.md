@@ -1,5 +1,17 @@
 # Combined native rehearsal preparation
 
+## Current direction
+
+The owner approved a test clock for the simulated broker on 17 October 2026.
+Use docs/M5_SIMULATED_CLOCK_PLAN.md and reports/M5_SIMULATED_CLOCK.md for the current test scope and evidence.
+The earlier real-clock plans below remain preserved and unrun.
+The revised simulated plans retain the original project, source identities, actual waits, and resource limits.
+Two complete storage attempts reached their deadlines before any broker test owner started.
+The ten simulated broker stages remain unrun.
+Do not use an earlier capacity result to start them.
+
+## Earlier real-clock preparation
+
 17 October 2026. This continues the approved local finish plan. It does not accept its remaining gates.
 
 Preparation review 3 of 3 is clear. All review rounds remain closed.

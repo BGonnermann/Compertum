@@ -1,4 +1,4 @@
-"""Real native owners and clocks. Every source account and order is invented."""
+"""Native test owners with optional market time. Actual timeout clocks stay real."""
 from datetime import datetime,timedelta,time as daytime,timezone
 from pathlib import Path
 from uuid import uuid4
@@ -67,8 +67,9 @@ def counts(root):
    result[role+':activity']=db.execute('SELECT count(*) FROM state WHERE substr(key,1,?)=?',(len(prefix),prefix)).fetchone()[0]
  return result
 
-def window(plan):
- now=datetime.now(timezone.utc);local=now.astimezone(NY);assert local.date().isoformat()==plan['session_date'],'NATIVE_PLAN_DATE_NOT_CURRENT'
+def window(plan,*,now=None):
+ now=datetime.now(timezone.utc) if now is None else now
+ local=now.astimezone(NY);assert local.date().isoformat()==plan['session_date'],'NATIVE_PLAN_DATE_NOT_CURRENT'
  session=session_times(plan['session_date'])
  if plan['phase']=='HISTORY':assert now+timedelta(seconds=120)<datetime.combine(local.date(),daytime(9,25),NY),'NATIVE_HISTORY_WINDOW_UNAVAILABLE'
  elif plan['phase'] in {'BUY','REST'}:
@@ -77,7 +78,19 @@ def window(plan):
 
 def run_phase(phase):
  plan_path=Path(os.environ['COMPERTUM_DISPATCH_PLAN']).resolve();assert plan_path.parent==O
- plan=json.loads(plan_path.read_bytes());assert plan['phase']==phase and plan['scope']=='CONTROLLED_LOCAL_REHEARSAL';window(plan)
+ plan_raw=plan_path.read_bytes();plan=json.loads(plan_raw)
+ assert plan['phase']==phase and plan['scope']=='CONTROLLED_LOCAL_REHEARSAL'
+ market_clock=None;clock_path=None;clock_sha=None
+ if plan.get('market_clock') is not None:
+  from helpers.fixture_market_clock import clock_for_plan
+  frame=dict(kind='SIMULATED_MARKET_CLOCK',version=1,start_at=plan['market_clock']['start_at'],
+   actual_anchor_monotonic_ns=time.monotonic_ns(),maximum_elapsed_seconds=120,
+   plan_sha256=hashlib.sha256(plan_raw).hexdigest(),project_id=plan['project_id'])
+  market_clock=clock_for_plan(plan,frame,plan_sha256=frame['plan_sha256'])
+  clock_path=O/(plan_path.stem+'-clock.json')
+  with clock_path.open('x') as out:json.dump(frame,out,indent=2)
+  clock_sha=hashlib.sha256(clock_path.read_bytes()).hexdigest()
+ window(plan,now=None if market_clock is None else market_clock.now())
  root=Path(os.environ['COMPERTUM_DISPATCH_FIXTURE']).resolve();assert root==ROOT/'.cache/test-runs/native-economic-fresh-20261017-01/native-shared'
  project=resolve_project(root);assert project.project_id==plan['project_id'] and not (root/'state/watchdog/halt.json').exists()
  lane='source' if Path(__import__('compertum').__file__).resolve()==ROOT/'src/compertum/__init__.py' else 'installed';assert lane==plan['lane']
@@ -85,14 +98,21 @@ def run_phase(phase):
  assert all(before[k]+len(plan['parts'])<=32 for k in before)
  saved=json.loads((O.with_name('native-economics-20261017-01')/'fresh-native-fixture-result.json').read_text());api=WindowsAPI()
  with api.open_file(root/'state/execution-reserve.bin',0x80,1) as handle:assert list(api.file_identity(handle))==saved['reserve_identity']
- receipt=O/('native-rehearsal-'+lane+'-'+phase.lower()+'-receipt.json');assert not receipt.exists()
+ prefix=plan.get('receipt_prefix','native-rehearsal')
+ assert prefix=='native-rehearsal' if market_clock is None else prefix in {'simclock01','simclock02'}
+ if market_clock is not None: assert plan_path.name==f'{prefix}-{lane}-{phase.lower()}-plan.json'
+ receipt=O/(prefix+'-'+lane+'-'+phase.lower()+'-receipt.json');assert not receipt.exists()
  token=str(uuid4());stdout=O/(token+'.supervisor.stdout');stderr=O/(token+'.supervisor.stderr')
  env={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','PYTHONPATH','TEMP','TMP'}}
  env.update(__PYVENV_LAUNCHER__=sys.executable,PYTHONNOUSERSITE='1',PYTHONDONTWRITEBYTECODE='1')
- driver=Driver(root);process=None;fresh=None;record=dict(status='FAILED',lane=lane,phase=phase,clock_substituted=False,queue_clock_substituted=False)
+ driver=Driver(root);process=None;fresh=None
+ record=dict(status='FAILED',lane=lane,phase=phase,clock_substituted=market_clock is not None,
+  queue_clock_substituted=False,actual_timeout_clocks_substituted=False,clock_frame_sha256=clock_sha)
  try:
   with stdout.open('xb') as out,stderr.open('xb') as err:
-   process=subprocess.Popen([sys.executable,'-B',str(ROOT/'tests/helpers/paper_fixture_rehearsal_supervisor.py'),str(root),str(plan_path)],
+   arguments=[sys.executable,'-B',str(ROOT/'tests/helpers/paper_fixture_rehearsal_supervisor.py'),str(root),str(plan_path)]
+   if market_clock is not None:arguments.extend([str(clock_path),clock_sha])
+   process=subprocess.Popen(arguments,
     executable=sys._base_executable,env=env,stdout=out,stderr=err,creationflags=0x08000000)
   def healthy():
    assert process.poll() is None,'NATIVE_SUPERVISOR_EXITED'
@@ -105,7 +125,7 @@ def run_phase(phase):
    h=driver.market('prepare',job_id=plan['history_job_id'],account_alias='fixture',mode='HISTORY',symbol='MSFT',history_job_id=None)
    for op in ('authorize','start'):driver.market(op,job_id=h['job_id'],grant_sha256=h['grant_sha256'])
    record['history']=driver.wait(lambda:driver.market('status',job_id=h['job_id']),lambda v:v['publication']['state']=='PUBLISHED')
-   assert datetime.now(NY).time()<daytime(9,25)
+   assert (datetime.now(NY) if market_clock is None else market_clock.now(NY)).time()<daytime(9,25)
   else:
    history=json.loads((O/plan['history_receipt']).read_text());assert history['status']=='PASSED';events=[]
    for index,part in enumerate(plan['parts']):
@@ -140,6 +160,11 @@ def run_phase(phase):
   driver.call('shutdown');process.wait(timeout=5);assert process.returncode==0 and stderr.read_bytes()==b''
   record['closure']=json.loads(stdout.read_bytes());closure=record['closure']
   assert closure['real_account_calls']==closure['actual_broker_actions']==0 and not closure['source_errors']
+  assert closure['clock_substituted'] is (market_clock is not None)
+  assert closure['queue_clock_substituted'] is False
+  if market_clock is not None:
+   assert closure['actual_timeout_clocks_substituted'] is False and closure['clock_frame_sha256']==clock_sha
+   assert hashlib.sha256(clock_path.read_bytes()).hexdigest()==clock_sha
   assert len(closure['writes'])==int(phase!='HISTORY') and closure['reply_lost'] is (phase=='BUY')
   if phase=='CLOSE':assert not closure['inventory']['positions'] and all(r['status'] in {'filled','canceled','expired','rejected'} for r in closure['inventory']['orders'])
   assert verify_attempt_guard(project)['sequence']==plan['attempts_after']

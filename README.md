@@ -1,5 +1,21 @@
 # Compertum
 
+## Simulated broker clock - 17 October 2026
+
+The test helpers can use a saved simulated market time.
+Source and installed-package runs each passed **61 checks**, with zero failures, errors, skips, or remaining child processes.
+Product source and actual broker rules remain unchanged.
+Waits, health checks, watchdog checks, and deadlines still use actual time.
+
+The full broker sequence stopped before its first owner launch.
+The complete storage check reached its 110-second deadline. Its single retry reached the 120-second job deadline.
+The ten full simulated broker stages remain unrun. A complete fresh storage result is required before they can start.
+The earlier requirement to wait for actual market hours does not apply to these simulated tests.
+Actual broker actions still require separate approval and retain their original time rules.
+
+Only M0 is accepted. Saved stops remain in place. Strata stays off.
+See [the clock report](reports/M5_SIMULATED_CLOCK.md), [the current checkpoint](docs/CURRENT_CHECKPOINT.md), and [the clock plan](docs/M5_SIMULATED_CLOCK_PLAN.md).
+
 ## Read-only project Hub - 17 October 2026
 
 Open the local Hub at **[http://127.0.0.1:8767](http://127.0.0.1:8767)** while its terminal is running.
@@ -20,7 +36,9 @@ These are Hub checks. They do not change M1 through M6 acceptance or repeat the 
 See [live activity](docs/HUB_LIVE_ACTIVITY.md), [the four stage reporters](docs/HUB_STAGE_REPORTING.md), and [current verification](reports/HUB_FOUR_STAGE_VERIFICATION.md).
 The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification](reports/HUB_VERIFICATION.md) remain historical records.
 
-## Current local risk and controlled dispatch - 17 October 2026
+## Earlier local risk and controlled dispatch - 17 October 2026
+
+This section preserves the earlier real-clock preparation. The simulated clock report above gives the current test status.
 
 Local implementation and verification are complete. The approved local finish plan still requires its combined native rehearsal.
 Source and installed inventories each passed **285 distinct cases**, with zero failures, errors, skips, or remaining children.
