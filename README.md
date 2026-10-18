@@ -1,5 +1,18 @@
 # Compertum
 
+## Pipe identity observed - 18 October 2026
+
+The observer and parent share an unpackaged AppContainer identity at integrity level 4096.
+The bounded observation passed in 25.735736 seconds, with exit 0 and zero remaining children.
+No pipe was created. Windows pipe access and launcher namespace eligibility remain unverified.
+The evidence folder uses 86,016 charged bytes. Conservative full commitments leave 45,056 bytes.
+Independent review accepted observation only. No new source or broker tests ran.
+Next, prepare the disabled experiment runner and resolve its namespace choice and exact evidence bindings before requesting permission.
+See [the identity review](reports/M5_PIPE_IDENTITY_REVIEW.md).
+Strata stayed off. No permissions, saved stops, or broker state changed.
+
+
+
 ## Disabled pipe helper verified - 18 October 2026
 
 The pipe helper now prepares review text and always refuses native execution.
