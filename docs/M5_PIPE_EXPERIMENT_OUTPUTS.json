@@ -1,0 +1,28 @@
+{
+  "status": "PROPOSED_NOT_RESERVED",
+  "native_execution_enabled": false,
+  "namespace": "artifacts/m5/simulated-evidence-next-01",
+  "label": "pipe-isolated01",
+  "allocation_source": "preparation_and_bindings",
+  "allocation_source_limit_bytes": 1048576,
+  "proposed_suballocation_bytes": 131072,
+  "folder_limit_bytes": 8388608,
+  "category_limit_bytes": 5368709120,
+  "total_limit_bytes": 53687091200,
+  "outputs": {
+    "pipe-isolated01.plan.json": 8192,
+    "pipe-isolated01.result.json": 32768,
+    "pipe-isolated01.log": 16384,
+    "pipe-isolated01.progress.jsonl": 8192,
+    "pipe-isolated01.closure.json": 65536
+  },
+  "prerequisites": [
+    "Reconcile all preparation allocations and actual files before reservation.",
+    "Count this suballocation once within the existing preparation allowance.",
+    "Require exclusive bounded writers for every output.",
+    "Verify the actual token identity and launcher pipe-name requirement.",
+    "Obtain exact permission approval before creating any pipe.",
+    "Stop if a full storage scan is required without separate authority."
+  ],
+  "retry_limit": 0
+}

@@ -1,5 +1,17 @@
 # Current Compertum checkpoint
 
+## Disabled pipe helper verified - 18 October 2026
+
+The pipe helper now prepares review text and always refuses native execution.
+All 42 source checks passed, with 0 failures, 0 errors, and 0 skips.
+Its bounded job passed in 26.744591 seconds and left zero children.
+Independent code review found no blocking issue. Windows pipe access remains unverified.
+The proposed five-file output ledger totals 128 KiB within the existing preparation allowance.
+It is not an active storage reservation or permission grant.
+See [the helper report](../reports/M5_PIPE_POLICY_HELPER.md).
+No full storage scan, permission change, saved-stop change, or broker action ran. Strata remained off.
+
+
 ## Pipe repair proposal reviewed - 18 October 2026
 
 The proposed repair adds one verified application identity to one temporary test pipe.
