@@ -1,5 +1,16 @@
 # Compertum
 
+## Evidence folder code needs two repairs - 18 October 2026
+
+The new writers enforce file limits and reserve failure records.
+Disabled adapters preserve the existing folder checks and add the proposed 8 MiB allowance.
+The final source run passed 25 checks, with zero failures, errors, or skips.
+Independent review found two remaining child-output integration gaps.
+The child helpers still require the old clock path and write one unbounded failure file.
+The proposed folder remains inactive. No full storage scan or broker stage ran.
+See [the implementation report](reports/M5_EVIDENCE_FOLDER_IMPLEMENTATION.md).
+Strata stays off. Existing limits, evidence, permissions, and saved stops remain unchanged.
+
 ## Windows pipe restriction identified - 18 October 2026
 
 The isolated test runs inside Windows AppContainer, a restricted application environment.
