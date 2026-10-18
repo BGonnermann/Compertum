@@ -2,6 +2,8 @@
 import importlib.util
 import json
 import io
+import hashlib
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +21,8 @@ def load(name):
 e = load('evidence_folder')
 c = load('prepare_evidence_candidates')
 capture = load('evidence_capture')
+sys.path.insert(0, str(ROOT/'tools'))
+child = load('evidence_child')
 
 
 @pytest.mark.parametrize('size,expected', [(0, 0), (1, 4096), (4096, 4096), (4097, 8192)])
@@ -196,3 +200,68 @@ def test_prepared_stage_collection_names_match_pytest(tmp_path):
     result=pytest.main(['--collect-only','-q','-p','no:cacheprovider','--rootdir',str(ROOT),str(fixture)],plugins=[Inventory()])
     assert result == 0
     assert collected == [fixture.relative_to(ROOT).as_posix()+'::test_example']
+
+
+def child_fixture(tmp_path):
+    original=tmp_path/'artifacts/m5/risk-dispatch-20261017-01'
+    original.mkdir(parents=True)
+    plan=original/'simclock02-source-history-plan.json'
+    plan.write_text('{}')
+    frozen={'plan_sha256':hashlib.sha256(plan.read_bytes()).hexdigest()}
+    label='simclock02-source-history'
+    (original/'simulated-resumption01-bindings.json').write_text(json.dumps({'bindings':{label:frozen}}))
+    mapping=tmp_path/'output-bindings.json'
+    mapping.write_text(json.dumps({'stages':{label:{'original_binding':frozen,'output_label':'evidence01-source-history'}}}))
+    (tmp_path/'docs').mkdir()
+    (tmp_path/'docs/M5_EVIDENCE_FOLDER_PROPOSAL.json').write_bytes((ROOT/'docs/M5_EVIDENCE_FOLDER_PROPOSAL.json').read_bytes())
+    (tmp_path/e.NAMESPACE).mkdir()
+    return plan,mapping
+
+
+def test_both_children_use_fixed_clock_binding(tmp_path):
+    plan,mapping=child_fixture(tmp_path)
+    assert child.clock_path(tmp_path,plan,mapping)==tmp_path/e.NAMESPACE/'evidence01-source-history-clock.json'
+    for role in ('supervisor','execution'):
+        original=(ROOT/f'tests/helpers/paper_fixture_rehearsal_{role}.py').read_text()
+        candidate=c.child_candidate(original,role)
+        assert 'clock_path==bound_clock_path(master,plan_path,' in candidate
+        assert 'clock_for_plan(plan,' in candidate
+        assert 'hashlib.sha256(clock_raw).hexdigest()' in candidate
+        with pytest.raises(RuntimeError,match='PREPARATION_ONLY'):
+            exec(compile(candidate,role,'exec'),{})
+
+
+def test_child_failure_uses_reserved_file_and_preserves_prior(tmp_path):
+    plan,mapping=child_fixture(tmp_path)
+    child.save_child_failure(tmp_path,plan,mapping,'ValueError',[{'file':'fixture.py','line':1,'function':'run'}])
+    path=tmp_path/e.NAMESPACE/'evidence01-source-history-cleanup.json'
+    before=path.read_bytes()
+    assert json.loads(before)['status']=='FAILED'
+    assert len(before)<=16384
+    with pytest.raises(FileExistsError):
+        child.save_child_failure(tmp_path,plan,mapping,'OtherError',[])
+    assert path.read_bytes()==before
+    assert not list(plan.parent.glob('rehearsal-child-failure-*'))
+
+
+def test_oversize_child_failure_records_explicit_limit_failure(tmp_path):
+    plan,mapping=child_fixture(tmp_path)
+    child.save_child_failure(tmp_path,plan,mapping,'Error',[{'file':'x'*20000}])
+    raw=(tmp_path/e.NAMESPACE/'evidence01-source-history-cleanup.json').read_bytes()
+    assert len(raw)<=16384
+    value=json.loads(raw)
+    assert value['error_type']=='CHILD_FAILURE_DETAIL_LIMIT' and value['frames_recorded'] is False
+
+
+@pytest.mark.parametrize('change',['plan','mapping','frozen'])
+def test_child_binding_refuses_changed_inputs(tmp_path,change):
+    plan,mapping=child_fixture(tmp_path)
+    if change=='plan':plan.write_text('{"changed":true}')
+    elif change=='mapping':
+        value=json.loads(mapping.read_text())
+        value['stages']['simclock02-source-history']['output_label']='escape'
+        mapping.write_text(json.dumps(value))
+    else:
+        path=plan.parent/'simulated-resumption01-bindings.json'
+        path.write_text('{"bindings":{"simclock02-source-history":{"plan_sha256":"changed"}}}')
+    with pytest.raises(ValueError):child.clock_path(tmp_path,plan,mapping)

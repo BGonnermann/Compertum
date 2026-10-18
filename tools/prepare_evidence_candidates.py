@@ -86,6 +86,8 @@ def fixture_candidate(source):
  from evidence_capture import CapturedProcess
  output=context.output;destination=output.folder;name=context.name
  capture=None""")
+    source = replace_once(source, "str(ROOT/'tests/helpers/paper_fixture_rehearsal_supervisor.py')",
+                          "str(Path(__file__).with_name('supervisor_evidence_prepared.py'))")
     source = replace_once(source, "clock_path=O/(plan_path.stem+'-clock.json')", "clock_path=destination/(name+'-clock.json')")
     source = replace_once(source, "  with clock_path.open('x') as out:json.dump(frame,out,indent=2)",
         "  output.save(clock_path.name,frame)")
@@ -174,6 +176,31 @@ binding=dict(original_binding,stage_label=mapping['output_label'],capacity_label
     return '"""Disabled admission adapter. Keep all existing checks."""\n'+GUARD+'\n'+source
 
 
+def child_candidate(source, role):
+    source = replace_once(source, 'master=Path(__file__).parents[2]',
+                          "master=Path(r'C:\\Users\\bgonn\\Desktop\\Compertum')")
+    source = replace_once(source,
+        " assert clock_path==plan_path.with_name(plan_path.stem+'-clock.json')",
+        """ sys.path.insert(0,str(master/'tools'))
+ from evidence_child import clock_path as bound_clock_path
+ assert clock_path==bound_clock_path(master,plan_path,Path(__file__).with_name('output-bindings.json'))""")
+    if role == 'supervisor':
+        source = replace_once(source, "with_name('paper_fixture_rehearsal_execution.py')",
+                              "with_name('execution_evidence_prepared.py')")
+    elif role == 'execution':
+        start = source.index('def failed(kind,value,frames):')
+        end = source.index('sys.excepthook=failed', start)
+        source = source[:start]+"""def failed(kind,value,frames):
+ sys.path.insert(0,str(master/'tools'))
+ from evidence_child import save_child_failure
+ save_child_failure(master,plan_path,Path(__file__).with_name('output-bindings.json'),kind.__name__,
+  [dict(file=f.filename,line=f.lineno,function=f.name) for f in traceback.extract_tb(frames)])
+"""+source[end:]
+    else:
+        raise ValueError('CHILD_ROLE')
+    return '"""Disabled child adapter. No owner process is authorized."""\n'+GUARD+'\n'+source
+
+
 def build(root, destination):
     root, destination = Path(root), Path(destination)
     if destination.exists():
@@ -203,6 +230,13 @@ def build(root, destination):
     pins['run_native_checks_resume01.py']=hashlib.sha256(raw).hexdigest()
     prepared['run_admitted_stage_prepared.py']=admission_candidate(raw.decode('utf-8').replace('\r\n','\n'))
     compile(prepared['run_admitted_stage_prepared.py'],'run_admitted_stage_prepared.py','exec')
+    for role in ('supervisor','execution'):
+        path=root/f'tests/helpers/paper_fixture_rehearsal_{role}.py'
+        raw=path.read_bytes()
+        pins[str(path.relative_to(root))]=hashlib.sha256(raw).hexdigest()
+        target=f'{role}_evidence_prepared.py'
+        prepared[target]=child_candidate(raw.decode('utf-8').replace('\r\n','\n'),role)
+        compile(prepared[target],target,'exec')
     destination.mkdir()
     for name, source in prepared.items():
         (destination/name).write_text(source, encoding='utf-8')

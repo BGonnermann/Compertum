@@ -1,5 +1,15 @@
 # Current Compertum checkpoint
 
+## Child output repairs verified - 18 October 2026
+
+Both child programs now use the checked clock-file location.
+Child failure records use the existing 16 KiB cleanup allowance and cannot replace existing evidence.
+The fresh source run passed 31 checks, with zero failures, errors, or skips.
+Independent review found no remaining issue in these two repairs.
+The prepared programs remain disabled. The proposed folder remains inactive.
+See [the repair report](../reports/M5_CHILD_OUTPUT_REPAIR.md).
+No full scan, permission change, saved-stop change, or broker action ran. Strata remained off.
+
 ## Evidence folder code needs two repairs - 18 October 2026
 
 The new writers enforce file limits and reserve failure records.
