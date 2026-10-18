@@ -1,0 +1,59 @@
+{
+  "status": "PREPARED_NOT_ACTIVE",
+  "namespace": "artifacts/m5/simulated-evidence-next-01",
+  "folder_limit_bytes": 8388608,
+  "category": "records",
+  "category_limit_bytes": 5368709120,
+  "total_limit_bytes": 53687091200,
+  "existing_folder_checks": 28,
+  "required_folder_checks": 29,
+  "forecast_bytes": {
+    "preparation_and_bindings": 1048576,
+    "ten_stage_outputs": 3932160,
+    "ten_capacity_outputs": 2621440,
+    "independent_review": 524288,
+    "final_closure": 131072,
+    "directory_charge": 4096
+  },
+  "forecast_total_bytes": 8261632,
+  "unassigned_margin_bytes": 126976,
+  "per_capacity_output_charged_bytes": {
+    "NAME-child-progress.jsonl": 65536,
+    "NAME-parent-progress.jsonl": 65536,
+    "NAME-measurement.json": 32768,
+    "NAME-result.json": 8192,
+    "NAME.closure.json": 65536,
+    "NAME.job.json": 4096,
+    "NAME.log": 8192,
+    "NAME-postresult-failure.json": 8192,
+    "NAME.queue.json": 4096
+  },
+  "per_stage_output_charged_bytes": {
+    "NAME.xml": 32768,
+    "NAME.log": 65536,
+    "NAME-receipt.json": 32768,
+    "NAME-supervisor.stderr": 65536,
+    "NAME.closure.json": 65536,
+    "NAME.job.json": 8192,
+    "NAME-cleanup.json": 16384,
+    "NAME-parent-progress.jsonl": 65536,
+    "NAME-supervisor.stdout": 16384,
+    "NAME-attempt.json": 4096,
+    "NAME-admission.json": 8192,
+    "NAME.queue.json": 4096,
+    "NAME-wrapper.log": 8192
+  },
+  "output_policy": "All listed output paths belong to the proposed folder. Each bound includes 4096-byte file rounding. Bounded writers and closure reservation are required before activation. Refuse excess output; never discard old evidence or report truncated output as success.",
+  "existing_folder_limits_changed": false,
+  "existing_evidence_moved": false,
+  "existing_attempts_reopened": false,
+  "borrow_from_existing_holds": false,
+  "activation_requires": [
+    "An independently reviewed wrapper that retains all 28 existing checks and adds the new folder check.",
+    "An independently reviewed census that charges actual new records plus the unused new folder allowance.",
+    "A complete fresh capacity result and passing closure under unchanged resource limits.",
+    "Explicit stage output bindings without changes to saved runtime paths or old attempt markers.",
+    "Fresh folder checks before writes, during execution, and after child cleanup.",
+    "A decision on any separately blocked Windows security action before simulated work."
+  ]
+}

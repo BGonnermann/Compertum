@@ -1,41 +1,24 @@
-# Continue local access diagnosis
+# Continue bounded evidence preparation
 
-Use `C:\Users\bgonn\Desktop\Compertum`.
-Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md, and reports/M5_STORAGE_AND_SIMULATED_RESUMPTION.md.
+Read docs/CURRENT_CHECKPOINT.md and reports/M5_PIPE_AND_EVIDENCE_PREPARATION.md.
+The current isolated pipe client runs inside Windows AppContainer.
+Its application identity lacks a matching pipe grant. Windows denies access.
+Do not repeat the same pipe launch or change permissions, security context, or saved stops.
+The original failed supervisor token was not captured.
 
-Two full storage checks passed within the unchanged limits.
-The first source simulated history test failed with `NATIVE_CALL_FAILED:CreateFileW:5`.
-Its result was zero passes, one failure, zero errors, and zero skips.
-The other nine stages did not run. The sequence allowance is closed without retry.
-The isolated pipe diagnostic reproduced the failure without starting owners or changing permissions.
-It found zero restricted SIDs in the process token. The exact denial cause remains unproven.
-Independent result review is complete. Earlier review counters remain closed.
+The evidence proposal is docs/M5_EVIDENCE_FOLDER_PROPOSAL.json.
+Prepare wrapper, census, bounded output writers, and bindings against its explicit ledger.
+Preserve all 28 existing folder checks and add the proposed 8 MiB folder check.
+Keep the records category at 5 GiB and C: total at 50 GiB.
+Keep scratch at 15 GiB, backups at 21 GiB, and D: archive at 200 GiB.
+Retain existing evidence paths, hashes, attempt markers, and runtime identities.
+Charge actual new records and unused allowance in the census.
+Reserve closure space before starting a child.
+Get independent review before activation.
+Do not activate the folder, run another full scan, or reopen the stopped sequence during preparation.
 
-Prepare an isolated Windows access-check investigation.
-Use the failed supervisor error and `pipe-access-diagnostic01.json` as the starting evidence.
-Preserve client access `0x00100083` and the original generated security rule.
-Check the actual launch context before attributing the error to security policy or product code.
-Do not change permissions, tokens, access flags, or administrator settings without evidence and separate authority.
-Do not rerun the closed sequence or reset its exclusive attempt marker.
-
-Prepare an evidence-storage proposal before another broker-stage proposal.
-The diagnostic closure recorded 385,024 bytes of record headroom; the history forecast requires 524,288 bytes.
-Later closeout files reduce this headroom further.
-Preserve all failed records and original runtime paths.
-Do not raise folder limits, delete evidence, or use the D: archive as runtime capacity.
-
-Keep C: within 50 GiB total, 15 GiB scratch, and 21 GiB backups.
-Keep the separate D: archive within 200 GiB.
-Create no additional full project or GiB reserve.
-Run one heavy job at a time.
-Require 16 GiB free host memory before launch. Stop below 12 GiB.
-Keep capacity jobs within one CPU, 128 MiB RAM, and their 110/120-second deadlines.
-Keep broker test jobs within four CPUs, 4 GiB RAM, 16 processes, and 120 seconds.
-Keep original project, test, plan, reserve, and attempt identities.
-Preserve actual clock deadlines, queue warmup, five-second owner calls, and all financial rules.
-
+Keep one heavy job at a time and all original deadlines and resource limits.
+Require 16 GiB available host memory before a bounded job. Stop below 12 GiB.
 Keep Strata off. Keep spending at zero.
-Stop before saved-stop clearance or actual broker, order, and account actions.
-Keep credentials, environments, runtime databases, private outputs, and backups out of Git.
-Refresh the horizontal map after a verified status change.
-Only M0 is accepted. M5 remains incomplete. M6 remains zero of ten actual supervised sessions.
+Do not access credentials or take broker, order, or account actions.
+Only M0 is accepted.

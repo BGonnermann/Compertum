@@ -1,5 +1,17 @@
 # Compertum
 
+## Windows pipe restriction identified - 18 October 2026
+
+The isolated test runs inside Windows AppContainer, a restricted application environment.
+The pipe grants user access but lacks a matching application grant. Windows rejects the connection.
+The final diagnostic completed and closed all children. Two earlier diagnostic failures remain preserved.
+No permissions changed. No new broker tests ran.
+Nine source helper checks passed, with zero failures, errors, or skips.
+An 8 MiB evidence-folder proposal preserves the existing category, total, and folder limits.
+The proposal is not active. See [the diagnosis and proposal](reports/M5_PIPE_AND_EVIDENCE_PREPARATION.md).
+Strata stays off. Saved stops remain intact. Only M0 is accepted.
+
+
 ## Storage check passed - 18 October 2026
 
 Two full storage checks passed within the unchanged deadlines.

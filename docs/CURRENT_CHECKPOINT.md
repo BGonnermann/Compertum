@@ -1,5 +1,24 @@
 # Current Compertum checkpoint
 
+## Windows pipe restriction identified - 18 October 2026
+
+The isolated diagnostic runs inside Windows AppContainer, a restricted application environment.
+The pipe grants the user and logon identities, but lacks a matching application or capability grant.
+Windows AccessCheck and the actual client open both deny access.
+The final diagnostic completed in 50.778809 seconds and closed all children.
+Earlier diagnostic jobs 03 and 04 failed. Their evidence remains preserved.
+Nine source helper checks passed, with zero failures, errors, or skips.
+No permission change, alternate security context, full scan, or broker stage ran.
+The original failed supervisor token was not captured. These observations establish the current isolated restriction.
+
+A prepared allocation proposal adds an 8 MiB evidence folder within the unchanged 5 GiB records category and 50 GiB total.
+Its forecast is 8,261,632 bytes. It preserves all existing folder caps and evidence.
+The proposal is not active. Wrapper, census, output bindings, and fresh capacity admission remain prerequisites.
+Independent preparation review round 3 closed without remaining findings. See reports/M5_PIPE_PREPARATION_REVIEW.md.
+The stopped sequence remains closed. Keep Strata off and saved stops intact. Only M0 is accepted.
+See reports/M5_PIPE_AND_EVIDENCE_PREPARATION.md and docs/M5_EVIDENCE_FOLDER_PROPOSAL.json.
+
+
 ## Storage passed; simulated startup failed - 18 October 2026
 
 The owner requested autonomous local progress. The agent ran the reviewed storage check and then the existing simulated sequence.
