@@ -422,6 +422,7 @@ class PaperReadOwner:
         with _MUTEX:
             cancel_producer(self)
             if self._closed:return
+            if getattr(self,'_fixture_orders',None) is not None:self._fixture_orders.close()
             if self._market is not None:self._market.close()
             if self._presence is not None:self._presence.close()
             if self._intents is not None:self._intents.close()

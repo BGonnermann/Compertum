@@ -27,8 +27,13 @@ def _digest(raw):return hashlib.sha256(raw).hexdigest()
 
 class _FixtureOrderHTTP(_OwnedOrderHTTP):
  def __init__(self,producer,*,_permit):
+  from .paper_fixture_closing import _ParentConsumeCall
   _need(type(producer) is _FixtureOrderProducer and _permit is not None)
-  producer._check();_need(producer._state=='PENDING' and type(producer._call) is _ConsumeCall)
+  producer._check();_need(producer._state=='PENDING' and type(producer._call) in (_ConsumeCall,_ParentConsumeCall))
+  _need(producer._call._source_check is producer._source_check_pin and producer._source_check_pin is not None)
+  _need(canonical([producer._call.p,producer._call.d])==canonical([producer._p,producer._d]))
+  _need((producer._child is None and type(producer._call) is _ConsumeCall)
+   or (producer._child is not None and type(producer._call) is _ParentConsumeCall and producer._call.child is producer._child))
   _need(type(producer._port) is int and 1<=producer._port<=65535,'FIXTURE_ORDER_ENDPOINT_REQUIRED')
   self._producer=producer;self._send_call=producer._call;self._armed=False
   self._source_request=producer._pending;self._request_bytes=producer._pending.content
@@ -54,7 +59,7 @@ class _FixtureOrders:
  def __init__(self,owner):
   from .paper_read_owner import PaperReadOwner
   _need(type(owner) is PaperReadOwner and not owner._closed and not owner.db.in_transaction)
-  self.owner=owner;self.journal=_NativeWriteJournal(owner.store,owner.reserve);self.active=None;self.closed=False
+  self.owner=owner;self.journal=_NativeWriteJournal(owner.store,owner.reserve);self.active=None;self.closed=False;self.parents={}
   self._owners=(owner.store,owner.reserve,owner.health,owner.lease,owner.db)
  def __repr__(self):return '<ControlledLocalOrderComponent private values redacted>'
  def __reduce_ex__(self,protocol):raise RuntimeRefused('FIXTURE_ORDER_SERIALIZATION_FORBIDDEN')
@@ -71,6 +76,7 @@ class _FixtureOrders:
   with _MUTEX:
    if self.closed:return
    if self.active is not None:self.active.close()
+   for parent in self.parents.values():parent.close()
    self.closed=True
  def _retain(self,producer,reply):
   self._same();_need(type(reply) is _PrivateOrderReply and reply.request is producer._pending)
@@ -87,25 +93,34 @@ class _FixtureOrders:
    _need(canonical(_logical_snapshot(self.owner.db))==canonical(expected),'NATIVE_WRITE_UNEXPECTED_MUTATION')
 
 class _FixtureOrderProducer:
- def __init__(self,component,subject,intent_id,activity_id):
+ def __init__(self,component,subject,intent_id,activity_id,*,_child=None):
   component._same();self._component=component;self._owner=component.owner;self._lease=self._owner.lease
   self._subject=subject;self._intent_id=intent_id;self._activity_id=activity_id
-  root=self._owner._intents._read(intent_id);_need(root['subject_key']==subject)
-  _need(root['purpose'] in {'FIXTURE_BUY','FIXTURE_RESTING_BUY','CANCEL'},'FIXTURE_CLOSE_PARENT_REQUIRED')
+  self._child=_child
+  if _child is None:
+   root=self._owner._intents._read(intent_id)
+   _need(root['purpose'] in {'FIXTURE_BUY','FIXTURE_RESTING_BUY','CANCEL'},'FIXTURE_CLOSE_PARENT_REQUIRED')
+  else:
+   from .paper_fixture_closing import _CloseRiskContext
+   _need(type(_child) is _CloseRiskContext and _child.parent.component is component and not _child._closed)
+   root=_child._projection;_need(root['purpose']=='CLOSE_LONG' and root['intent_id']==intent_id)
+  _need(root['subject_key']==subject)
   self._purpose=root['purpose'];self._intent_pin=sha(root)
   self._closed=False;self._state='READY';self._deadline_ns=time.monotonic_ns()+90*10**9
   self._pending=self._native=self._native_pin=self._call=self._protected=self._risk=None;self._result=None
-  self._port=self._header=self._prepared_at=None;self._wire_pin=None
+  self._port=self._header=self._prepared_at=None;self._wire_pin=None;self._source_check_pin=None
  def __repr__(self):return '<ControlledLocalOrderProducer private values redacted>'
  def __reduce_ex__(self,protocol):raise RuntimeRefused('FIXTURE_ORDER_SERIALIZATION_FORBIDDEN')
  def _pure(self):
   self._component._same();_need(self._component.active is self and not self._closed and self._owner is self._component.owner)
   _need(self._lease is self._owner.lease and self._state in {'READY','PENDING'})
   if self._wire_pin is not None:
-   request,content,port,header,prepared,records,protected=self._wire_pin
+   request,content,port,header,prepared,records,protected,call,source_check=self._wire_pin
    _need(self._pending is request and request.content==content and self._port==port and self._header==header
-    and self._prepared_at==prepared and self._protected is protected and canonical([self._p,self._d])==records)
+    and self._prepared_at==prepared and self._protected is protected and canonical([self._p,self._d])==records
+    and self._call is call and self._source_check_pin is source_check)
    _need(self._native is self._native_pin)
+  if self._child is not None:self._child.parent._pure()
  def _check(self):
   self._pure();_need(not self._owner.db.in_transaction,'NATIVE_WRITE_TRANSACTION_OPEN')
   _need(time.monotonic_ns()<self._deadline_ns,'FIXTURE_ORDER_QUEUE_EXPIRED')
@@ -118,11 +133,13 @@ class _FixtureOrderProducer:
  def _before_native_send(self):
   self._check();_need(self._source()==self._source_pin,'FIXTURE_ORDER_SOURCE_CHANGED')
  def _prepare(self):
-  owner=self._owner;root=owner._intents._read(self._intent_id);_need(root['subject_key']==self._subject)
+  owner=self._owner
+  root=owner._intents._read(self._intent_id) if self._child is None else self._child._projection
+  _need(root['subject_key']==self._subject)
   _need(sha(root)==self._intent_pin and root['purpose']==self._purpose)
-  _need(root['purpose']!='CLOSE_LONG','FIXTURE_CLOSE_PARENT_REQUIRED')
+  _need(root['purpose']!='CLOSE_LONG' or self._child is not None,'FIXTURE_CLOSE_PARENT_REQUIRED')
   self._root=root;self._protected=load_paper_slot(self._lease,root['account_alias'])
-  self._risk=fixture_risk_context(owner,subject=self._subject,intent_id=self._intent_id,activity_id=self._activity_id)
+  self._risk=fixture_risk_context(owner,subject=self._subject,intent_id=self._intent_id,activity_id=self._activity_id) if self._child is None else self._child
   _,source,witness,_,_=_account_original(owner,root['account_alias'],root['packet_id'])
   self._port=witness['port'];_need(native_source_peer(self._lease,self._port)==witness['peer'])
   economic,_=source_file(self._lease);orders,_=order_source_file(self._lease)
@@ -141,8 +158,14 @@ class _FixtureOrderProducer:
   validate_pair(self._p,self._d)
   self._header='synthetic_'+client+'_'+economic['ledger']['ledger_head_sha256']+'_'+orders['journal_sha256']
   self._source_pin=self._source()
-  self._wire_pin=(self._pending,self._pending.content,self._port,self._header,self._prepared_at,canonical([self._p,self._d]),self._protected)
-  self._call=_ConsumeCall(owner,self._component.journal,self._p,self._d,self._risk._prepare_proofs())
+  def source_check():
+   self._pure();_need(self._source()==self._source_pin,'FIXTURE_ORDER_SOURCE_CHANGED')
+  self._source_check_pin=source_check
+  if self._child is None:self._call=_ConsumeCall(owner,self._component.journal,self._p,self._d,self._risk._prepare_proofs(),_source_check=source_check)
+  else:
+   from .paper_fixture_closing import _ParentConsumeCall
+   self._call=_ParentConsumeCall(self,self._p,self._d,self._risk._prepare_proofs())
+  self._wire_pin=(self._pending,self._pending.content,self._port,self._header,self._prepared_at,canonical([self._p,self._d]),self._protected,self._call,source_check)
  def dispatch(self):
   with _MUTEX:
    self._check();_need(self._state=='READY','FIXTURE_ORDER_ALREADY_STARTED')

@@ -61,6 +61,27 @@ def _portfolio(owner,p):
  return build_portfolio_bundle(account=grouped['ACCOUNT'][0],positions=grouped['POSITIONS'][0],orders=tuple(grouped['ORDERS']),
   clock=grouped['CLOCK'][-1],calendar=grouped['CALENDAR'][0],as_of=p['created_at'])
 
+def _arithmetic(owner,p,source,calculation,current_presence):
+ """Derive arithmetic inputs only. This function cannot qualify a child grant."""
+ portfolio=_portfolio(owner,p);inputs=None
+ if p['purpose']!='CANCEL':
+  market=owner._market._combined.to_payload()['diagnostic'];ledger=source['ledger']
+  _need(market['asset']['valid'] and market['quote']['valid'])
+  if p['purpose'].startswith('FIXTURE_'):_need(market['observed_conditions_met'])
+  _need(market['symbol']==ledger['symbol']==p['terms']['symbol'] and market['asset']['asset_id']==ledger['asset_id'])
+  _need(ledger['action_events']==[])
+  history=market['history'];quote=market['quote'];asset=market['asset']
+  inputs=build_fixture_inputs(quotes=[dict(symbol=market['symbol'],bid=quote['bid'],ask=quote['ask'],observed_at=quote['observed_at'],feed=market['feed'])],
+   securities=[dict(symbol=market['symbol'],feature_sessions=history['observed_sessions'],raw_close=history['prior_raw_close'],liquidity_sessions=20,
+    mean_dollar_volume=history['mean_dollar_volume'],feature_session=history['prior_session'],tradable=asset['tradable'],
+    actions_verified=ledger['action_events']==[],mapping_verified=asset['asset_id']==ledger['asset_id'])],
+   feed=market['feed'],feature_session=history['prior_session'],created_at=p['created_at'],supervision_at=current_presence['acknowledged_at'])
+ values=dict(portfolio=portfolio,inputs=inputs,purpose=p['purpose'],terms=p['terms'],intent_id=p['intent_id'],now=p['created_at'],outstanding_fees=calculation['outstanding_fees'])
+ expected=canonical(_arguments(**values));risk=calculate_fixture_risk(**values);_need(type(risk) is FixtureRiskCalculation)
+ risk.__post_init__();private=risk.content;result=risk.to_payload()
+ _need(risk.arguments==expected==canonical(_arguments(**values)) and risk.content==private)
+ return private,result
+
 def _capture(owner,subject,intent_id,economic):
  component=owner._intents;_need(type(component) is _NativeIntents and component.parent is owner and component.db is owner.db)
  resources=(owner.store,owner.reserve,owner.health,owner.lease,owner.db)
@@ -78,23 +99,7 @@ def _capture(owner,subject,intent_id,economic):
  calculation=json.loads(economic._calculation)
  _need(economic._binding==_sha(dict(base,source=source_binding,calculation_sha256=_sha(calculation))))
  _need(metadata['provenance']=='LOOPBACK_FIXTURE' and calculation['cash_matches'])
- current_presence=json.loads(presence._content);portfolio=_portfolio(owner,p);inputs=None
- if p['purpose']!='CANCEL':
-  market=owner._market._combined.to_payload()['diagnostic'];ledger=source['ledger']
-  _need(market['asset']['valid'] and market['quote']['valid'])
-  if p['purpose'].startswith('FIXTURE_'):_need(market['observed_conditions_met'])
-  _need(market['symbol']==ledger['symbol']==p['terms']['symbol'] and market['asset']['asset_id']==ledger['asset_id'])
-  _need(ledger['action_events']==[])
-  history=market['history'];quote=market['quote'];asset=market['asset']
-  inputs=build_fixture_inputs(quotes=[dict(symbol=market['symbol'],bid=quote['bid'],ask=quote['ask'],observed_at=quote['observed_at'],feed=market['feed'])],
-   securities=[dict(symbol=market['symbol'],feature_sessions=history['observed_sessions'],raw_close=history['prior_raw_close'],liquidity_sessions=20,
-    mean_dollar_volume=history['mean_dollar_volume'],feature_session=history['prior_session'],tradable=asset['tradable'],
-    actions_verified=ledger['action_events']==[],mapping_verified=asset['asset_id']==ledger['asset_id'])],
-   feed=market['feed'],feature_session=history['prior_session'],created_at=p['created_at'],supervision_at=current_presence['acknowledged_at'])
- values=dict(portfolio=portfolio,inputs=inputs,purpose=p['purpose'],terms=p['terms'],intent_id=p['intent_id'],now=p['created_at'],outstanding_fees=calculation['outstanding_fees'])
- expected=canonical(_arguments(**values));risk=calculate_fixture_risk(**values);_need(type(risk) is FixtureRiskCalculation)
- risk.__post_init__();private=risk.content;result=risk.to_payload()
- _need(risk.arguments==expected==canonical(_arguments(**values)) and risk.content==private)
+ current_presence=json.loads(presence._content);private,result=_arithmetic(owner,p,source,calculation,current_presence)
  evidence=dict(intent=_sha(p),confirmation=_sha(c),presence=_sha(current_presence),opening=base['opening']['sha256'],ownership=_sha(originals),
   economics=_sha(calculation),risk=_sha(result),inputs=p['context_sha256'])
  pin=_sha(dict(evidence=evidence,economic=economic._binding,component=component.instance,activity=economic._activity_id))

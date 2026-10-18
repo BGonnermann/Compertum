@@ -1,6 +1,6 @@
 """Private live observation diagnostic; never an order grant or risk approval."""
 from dataclasses import dataclass
-from datetime import datetime,timezone
+from datetime import datetime,timedelta,timezone
 import hashlib,json,math,sqlite3
 from zoneinfo import ZoneInfo
 from compertum.data.calendar import session_times
@@ -82,20 +82,35 @@ def _history(store):
 def _calendar(records,day):
     by_operation={}
     for r in records:by_operation.setdefault(r['operation'],[]).append(r)
-    rows=by_operation['CALENDAR'][0]['observation'];clocks=by_operation['CLOCK']
+    rows=by_operation['CALENDAR'][0]['observation'];clocks=by_operation.get('CLOCK',[])
     reasons=[]
+    if not clocks:reasons.append('CLOCK_MISSING')
     try:
         times=session_times(day);successor=session_times(times.next_date)
-    except DataError:return 'NO_PINNED_SESSION',['NO_PINNED_CALENDAR_SESSION','MARKET_NOT_OPEN']
+    except DataError:
+        times=None;successor=None
+        # Closed days do not excuse unchecked source clocks. Bound the search;
+        # an unavailable pinned calendar must still refuse clock agreement.
+        for offset in range(1,15):
+            try:successor=session_times((datetime.fromisoformat(day)+timedelta(days=offset)).date().isoformat());break
+            except DataError:continue
+        reasons.extend(('NO_PINNED_CALENDAR_SESSION','MARKET_NOT_OPEN'))
     ny=ZoneInfo('America/New_York')
-    expected=[dict(date=day,open=times.open.astimezone(ny).strftime('%H:%M'),close=times.close.astimezone(ny).strftime('%H:%M'))]
-    agreement='MATCHES_PINNED_CALENDAR' if rows==expected else 'DISAGREES'
+    expected=[] if times is None else [dict(date=day,open=times.open.astimezone(ny).strftime('%H:%M'),close=times.close.astimezone(ny).strftime('%H:%M'))]
+    agreement='NO_PINNED_SESSION' if times is None else 'MATCHES_PINNED_CALENDAR' if rows==expected else 'DISAGREES'
     if rows!=expected:reasons.append('CALENDAR_DISAGREEMENT')
     for r in clocks:
         c=r['observation'];at=_local_time(c['timestamp']);received=_local_time(r['received_at'])
         if not 0<=(received-at).total_seconds()<=5:reasons.append('CLOCK_DISAGREEMENT')
-        if c['is_open']!=(times.open<=at<times.close):reasons.append('CLOCK_SESSION_DISAGREEMENT')
+        if at.astimezone(ny).date().isoformat()!=day:reasons.append('CLOCK_SESSION_DISAGREEMENT')
+        if c['is_open']!=(times is not None and times.open<=at<times.close):reasons.append('CLOCK_SESSION_DISAGREEMENT')
         if not c['is_open']:reasons.append('MARKET_NOT_OPEN')
+        if successor is None:
+            reasons.append('CLOCK_CALENDAR_UNAVAILABLE');continue
+        if times is None:
+            if _local_time(c['next_open'])!=successor.open:reasons.append('CLOCK_OPEN_DISAGREEMENT')
+            if _local_time(c['next_close'])!=successor.close:reasons.append('CLOCK_CLOSE_DISAGREEMENT')
+            continue
         next_open=times.open if at<times.open else successor.open
         next_close=times.close if at<times.close else successor.close
         if _local_time(c['next_open'])!=next_open:reasons.append('CLOCK_OPEN_DISAGREEMENT')

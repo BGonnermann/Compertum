@@ -1,80 +1,67 @@
 # Continue the approved local finish
 
-Continue Compertum in `C:\Users\bgonn\Desktop\Compertum` until the approved local finish plan is complete and verified.
-Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md v1.1, and docs/M5_PAPER_ADMISSION_PLAN.md first.
-Current owner instructions and the current checkpoint override historical restrictions and reports.
+Resume Compertum in `C:\Users\bgonn\Desktop\Compertum` until the approved local finish plan is complete and verified.
+Read AGENTS.md, docs/CURRENT_CHECKPOINT.md, docs/BUILD_SPEC.md v1.1, and docs/M5_PAPER_ADMISSION_PLAN.md.
+Read reports/M5_LOCAL_RISK_DISPATCH.md and docs/M5_NATIVE_REHEARSAL_PLAN.md for current evidence and exact prepared commands.
+Use current owner instructions over historical restrictions. The primary agent owns implementation in master.
 
-Current boundary: economic preparation passed 54 matching source and installed in-process cases, with zero failures, errors, or skips.
-Each inventory contains 35 calculation cases and 19 controlled journal cases. Both complete environments passed.
-Independent preparation review 2/3 is clear. Final native review 3 remains unused. No economic native case is accepted.
-Read reports/M5_LOCAL_ECONOMIC_PREPARATION.md and artifacts/m5/local-economics-20261017-01/economic-preparation-verification01.json.
+Local implementation and verification are complete. The remaining local blocker is the combined native rehearsal's real-clock window.
+Source and installed inventories each passed 285 distinct cases, with zero failures, errors, skips, or remaining children.
+Source contains 257 fresh cases and 28 unchanged cases with verified code and imported test files. All installed cases are fresh.
+Both complete environments passed byte verification. Installed bytes passed again after all tests.
+The 247-file package installed offline with unchanged locked tools and dependencies.
+All final product source reviews, preparation review, and release verification are closed at 3 of 3.
+Preserve all counters and earlier failures. Never silently reset a counter or add overlapping inventories together.
+Do not repeat accepted checks or rebuild solely because results are stored in another folder.
+Recheck current source, installed bytes, and Git state before relying on their saved evidence.
 
-The existing native project's fixed replies lack original accrual, payment, reversal, and complete action history.
-Do not create that history after the fact or change its immutable first opening and credential slot.
-Positive qualification requires one additional native project with its original source established before its first account observation.
-The current approval covers one folder, already used. Active test scratch stays 14 GiB.
-The measured additional request is 15 GiB test scratch and one additional 1072 MiB native namespace.
-Backups stay 21 GiB; total storage stays 50 GiB. No proposed cap, folder, or reserve is active.
-If the owner has not approved that additional request, stop at that concrete authority boundary.
-Do not ask for the earlier 14 GiB approval again.
-After approval, require fresh complete admission before creating .cache/test-runs/native-economic-fresh-20261017-01/native-shared.
-Preserve every earlier native project, reserve, failed result, and halt at its original path.
-Implement the original native source and private proof, verify matching native cases, and then use final review 3.
-Then continue current-input risk, durable dispatch/recovery, and the installed combined local rehearsal below.
+The owner approved 15 GiB scratch and one additional 1072 MiB native folder. That folder already exists.
+Keep backups at 21 GiB and total storage at 50 GiB. Do not ask for either earlier approval again.
+Do not create another full native project or GiB reserve. Require fresh complete storage admission before each native stage.
+Keep original and failed runtimes, source beginnings, identities, opening references, reserves, halts, and test receipts.
+Never recreate consumed attempts, clear retained halts, or renew historical freshness.
 
+Use `.cache/test-runs/native-economic-fresh-20261017-01/native-shared` only.
+Its project identity remains `266b470c104c6b122e2db6d48a7c5946037235feae781ce2a808bda5010f4e39`.
+The stopped project has a fresh verified preservation archive. Its attempt guard is zero and its order source has only its original beginning.
+Preserve the original fee source, order source, first opening, credential slot, allocated reserve, and file identities.
+The project has 11 account packets and nine activity records per owner. Their separate limits remain 32.
+The ten planned stages add 18 of each, ending at 29 account packets and 27 activity records.
+Recheck actual counts before every stage. Do not replace the frozen plans or identities to recover a failed stage.
 
-Declared-fee engineering is verified across 260 matching distinct source and installed cases, with zero failures, errors, or skips.
-Each inventory contains 258 in-process cases and two native stages. Both complete environments passed after the native stages.
-Final declared-fee review 3/3 is clear and closed. Infrastructure review 3/3 remains closed. Never reset either counter.
-The existing current-cost component retains its separate 53 accepted cases per environment. Do not add overlapping inventories.
-Only M0 is fully accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
+The 29 helper cases are included in each combined inventory. Preparation review 3 of 3 is clear and closed.
+Ten native stages and ten preceding capacity jobs are frozen under `artifacts/m5/risk-dispatch-20261017-01`.
+Ten current-date checks refused before starting owners. No positive combined native stage has run.
+Actual native timing fit and native component halt remain unverified.
+Use `run_sequence02.py` and the exact commands in docs/M5_NATIVE_REHEARSAL_PLAN.md. Stop the sequence at its first failure.
+Keep the same frozen package, original sources, exact requests, both source heads, and actual native execution process.
+Use real queue warmup, clocks, calendar times, quote times, deadlines, native presence, and exact confirmation.
 
-The owner explicitly approved 14 GiB test scratch for one fresh native folder on 17 October.
-Do not ask for that approval again. Backups remain 21 GiB, and the total remains 50 GiB.
-The fresh folder is `.cache/test-runs/native-fee-fresh-20261016-01/native-shared`.
-It has a new project identity and its own fully allocated one GiB reserve. Its namespace is capped at 1072 MiB.
-All four separately frozen declared-fee native stages passed. The declared-fee phase has its verified 85-file archive. The posted-fee phase has a newer verified archive and no halt.
-Keep this runtime at its original path. Reuse it only after applicable fresh preservation and capacity checks.
-Never create another native folder, copy a runtime, or reset an identity under this one-folder approval.
-Both older failed native attempts and retained halts remain preserved. Never clear or resume those halted runtimes.
-The first pipe failure's cause remains unproven. All failed receipts and three older archives remain intact.
+Both source and installed HISTORY must finish before 09:25 New York on Monday, 19 October 2026.
+Run these two HISTORY stages before either buying run. Start early enough to complete both bounded stages and capacity checks.
+During 09:35 through 10:05, run source and installed fixture buying. The end of that window is excluded.
+Verify lost-reply recovery, restart with holdings and open orders, historical-grant refusal, exact cancellation, and bounded closing.
+Each child requires fresh original inputs and a reconciled previous child. Keep its parent within one live owner generation.
+REST and CLOSE must explicitly close the native component and prove further dispatch and reinstallation refuse without changing the guard.
+Research stop and actual-broker disarmed flags are separate checks. Neither proves native component halt.
+Finish with resolved fixture orders, zero fixture holdings, a reconciled ledger, closed native components, and disarmed actual-broker admission.
+Do not describe the planned one-child native close as native multi-child verification.
 
-Posted-fee engineering is now verified across 238 matching distinct source and installed cases, with zero failures, errors, or skips.
-Each inventory contains 236 in-process cases and two native stages. Both complete environment byte checks passed.
-Posted-fee final review 3/3 is clear and closed. Never reset these or earlier counters.
-The same fresh native project and allocated reserve were preserved before and after use. Keep its verified archive and original path.
-The installed test output uses a measured 80 MiB hold. Test scratch stays 14 GiB, backups 21 GiB, and total storage 50 GiB.
+Use the admitted 384 MiB source hold and 176 MiB installed output hold inside its existing 384 MiB parent.
+Retain 120-second child Jobs, four CPUs, four GiB, 16 processes, one heavy job, and 16/12 GiB host memory floors.
+Retain five-second owner calls. Native preparation reserves 88 seconds for work, 17 for cleanup, and 15 for the test framework.
+Do not change interpreter, dependencies, clocks, thresholds, financial gates, operation windows, or resource limits to pass a check.
+No scheduled run, unattended service, substituted native clock, automatic delayed launch, or Strata process is approved.
+Keep Strata's files and configuration intact. Keep the cap-only automation paused.
 
-Continue the bounded local fixture economic evidence plan in docs/M5_LOCAL_ECONOMIC_EVIDENCE_PLAN.md.
-Design review 1 and preparation review 2 are complete. Final native review 3 remains unused. Carry these counters forward.
-Derive unpaid fees from original complete accrual and payment records. Do not infer zero liabilities from estimates or posted totals.
-Require the original controlled fixture action calendar. Refuse relevant or unsupported actions and incomplete coverage.
-Keep fixture evidence separate from actual-account qualification and actual broker transport.
+After positive stages pass, verify exact source and installed results, complete environments, all exits, and final stopped preservation.
+Update the README and honest current reports. Refresh and inspect all nine pages of the horizontal project-map PDF.
+Commit and push verified checkpoints to the private BGonnermann/Compertum repository, then update its tracked-files clone.
+Verify the active BGonnermann account before publication. Preserve unrelated dirty work and all Git history.
+Keep credentials, environments, databases, private outputs, receipts, and backups out of Git.
 
-Continue fee billing and corporate-action qualification against original current records.
-Keep declared fee arithmetic separate from actual charges, unpaid liabilities, applicability, reversals, and coverage.
-Reuse the existing fee calculator and action-input boundaries. Unknown or contradictory evidence must prevent admission.
-Preserve actual observed cash and the existing comparison and position-cost behavior.
-Reuse native presence and immutable exact intent records when integrating current-input risk and admission.
-Retain operation windows, expiry, ownership, exposure, cash, one-share/$250 fixture limits, and separate cancel/close requirements.
-Then implement durable consume-before-dispatch, stable client identities, duplicate prevention, and conservative uncertain-result recovery.
-Finish the installed local rehearsal with halt, restart, holdings, open orders, cancellation, and bounded closing.
-End with resolved fixture orders, zero fixture holdings, a reconciled ledger, and disarmed admission.
-Use invented local broker replies. Actual orders, cancellations, and closes require separate scoped approval.
-
-The primary agent owns implementation in master. Use one bounded independent reviewer when useful; no parallel writers.
-Freeze exact cases, commands, input hashes, and resource bounds before each increment.
-Implement, test, repair, review, and freshly verify every required item without routine permission stops.
-Reuse valid unchanged evidence. Keep each increment's review count; never reset counters or frozen gates to manufacture success.
-Keep maintenance measurements at 110 seconds inside 120-second Jobs. Keep production scans at 30 seconds and 35-second freshness.
-Retain host start and stop floors of 16 GiB and 12 GiB, per-job limits, emergency reserves, and one heavy job at a time.
-Do not retry or relabel the terminal M3 audit. Preserve sibling folders, historical runtimes, saved stops, and the original environment.
-Keep spending zero, locked dependencies, and financial gates unchanged. Never start Strata or expose credentials.
-Do not stop unrelated programs, change security, elevate permissions, or create services or schedules.
-
-Report exact distinct pass, fail, error, and skip counts. Separate source, installed, simulated, native, and historical evidence.
-Refresh the horizontal project-map PDF. Inspect all pages and verify navigation after meaningful changes.
-Update honest reports. Commit and push verified checkpoints to the private primary repository using BGonnermann.
-Synchronize the requested tracked-files clone. Preserve unrelated dirty files and exclude private evidence, environments, and credentials from Git.
-Stop only at verified local completion or a real approval boundary or blocker.
-At a blocker, complete reversible preparation and state the exact missing decision and next action.
+Keep new spending zero. Never expose credentials or perform actual broker, order, or account actions.
+Actual paper orders, cancellations, and closes require separate scoped owner approval.
+Only M0 is accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
+Continue every authorized implementation, test, repair, review, and verification step without routine permission stops.
+Stop only at verified completion or a real approval boundary or blocker, after all independent work is complete.

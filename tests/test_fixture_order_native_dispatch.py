@@ -21,6 +21,7 @@ def producer(call,monkeypatch):
  p=object.__new__(_FixtureOrderProducer);p._lease=call.owner.lease;p._closed=False;p._state='READY';p._deadline_ns=time.monotonic_ns()+90*10**9
  p._pending=None;p._native=None;p._call=None;p._port=None;p._header=None;p._prepared_at=None
  p._protected=seal_paper_credentials(p._lease,'fixture',bytearray(KEY.encode()),bytearray(SECRET.encode()))
+ p._child=None;p._p=call.p;p._d=call.d;p._source_check_pin=lambda:None
  monkeypatch.setattr(_FixtureOrderProducer,'_check',lambda self:None)
  monkeypatch.setattr(_FixtureOrderProducer,'_pure',lambda self:None)
  monkeypatch.setattr(_FixtureOrderProducer,'_before_native_send',lambda self:None)
@@ -34,7 +35,8 @@ def pending(f,port):
   request_id=r['request_id'],intent_id=r['intent_id'],operation=r['operation'],created_at=AT,parameters=r['parameters'],body=r['body'])
  assert p._pending.to_payload()==r
  p._prepared_at=time.monotonic();p._port=port;p._header='synthetic_'+call.p['client_order_id']+'_'+'a'*64+'_'+'b'*64
- p._state='PENDING';p._call=prepared(call);bind_producer_permit(p,permit)
+ from compertum.runtime.paper_fixture_send_commit import _ConsumeCall
+ p._state='PENDING';p._call=_ConsumeCall(call.owner,call.journal,call.p,call.d,call.proofs,_source_check=p._source_check_pin);bind_producer_permit(p,permit)
  return permit
 
 def test_native_send_observes_committed_guard_and_database(producer,monkeypatch):

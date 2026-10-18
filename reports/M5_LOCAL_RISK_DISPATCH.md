@@ -1,90 +1,112 @@
-# Local risk and controlled dispatch progress
+# Local risk and controlled dispatch
 
-17 October 2026. The approved local finish plan remains incomplete.
+17 October 2026. Local implementation, source and installed verification, and final source reviews are complete.
+The approved local finish plan remains blocked on the combined native rehearsal's real-clock window.
 
-## Recorded results
+## Current results
 
-The earlier economic checkpoint passed 229 source and 229 installed cases.
-Each inventory included three native Windows stages. It covered the original empty order source.
-Its complete environment checks and economic review 3 passed. That frozen release remains preserved.
+The frozen combined inventory contains 285 distinct cases per environment.
+Source tests run the working folder's code. Installed tests run the frozen package in its existing interpreter.
+Source and installed inventories each passed 285 cases, with zero failures, errors, skips, or remaining children.
+Source contains 257 fresh cases and 28 unchanged cases with verified code and imported test files. All installed cases are fresh.
+Both complete environments passed byte verification. Installed bytes passed again after all tests.
 
-The new risk and order decoder inventory passed 112 source cases before the later source-history extension.
-It had zero failures, errors, or skips. Its 12 bounded jobs closed with zero remaining children.
-It checks current original inputs, fee-adjusted cash, exact confirmation, native presence, durable consumption, and conservative recovery.
-These tests use simulated clocks, source qualification, and reserve capacity with real Windows files and stores.
-They do not establish installed or full native acceptance of the new code.
+The 247-file package passed exact byte checks and installed offline with unchanged locked tools and dependencies.
+Two earlier build-validation checks failed before installation. Their original scripts, build, and failure receipts remain preserved.
+The first check excluded retained native files. The second used a stale file count.
+The final check compares the complete original file sets and hashes. Release verification round 3 of 3 passed and is closed.
+A file launcher failed strict environment verification. The existing `python -c` method passed the same frozen expectations.
+That failed launcher receipt remains preserved. No environment verification rule changed.
 
-The later `recovery-reply-green01` inventory passed 79 source cases, with zero failures, errors, or skips.
-Its job closed with zero remaining children. Do not add these overlapping inventories to earlier reports.
-It checks committed source extensions, exact inventory, causal clocks, coverage boundaries, cancellation, and explicit future rejection.
-It also checks final consumption, service waiting, native send ordering, reply provenance, and cleanup.
-WinHTTP checks use real Windows transport with explicitly simulated producer authority and source peer checks.
+Final source reviews are clear at 3 of 3 for risk, decoding, source binding, sending, and the trusted producer.
+Native reconciliation, its owned wrapper, and finite closing also have clear final source reviews at 3 of 3.
+All review counters remain closed. Failed checks and their original receipts remain preserved.
 
-Writer review 3, binding review 2, and internal send-commit review 2 are clear for their recorded source scopes.
-Producer review 1 found reply provenance and request deadline defects. Focused failing cases reproduced both.
-The repairs pin the original native reply and start the absolute request deadline before exchange preparation.
-The 79-case run includes the repaired reply checks. Four separate source cases also passed without failures, errors, or skips.
-Two join real private risk proofs to consumption. Two refuse exchange preparation delays at and beyond ten seconds.
-Each pair ran in its own bounded job. Both jobs closed with zero remaining children.
-These four cases use simulated source readers, clocks, and reserve capacity. They establish no full native acceptance.
-Producer review 2 and future-rejection review 1 are clear for their recorded source scopes.
+The rehearsal helpers passed 29 matching source and installed checks, with zero failures, errors, skips, or remaining children.
+Their final preparation review is clear at 3 of 3. Those checks belong inside the combined inventory.
+Ten native stages and ten preceding capacity jobs are frozen. All ten current-date checks refused before starting owners.
+No positive native stage has run. Actual native timing fit and native component halt remain unverified.
 
-All failed cases and unused frozen plans remain preserved. Review counters have not been reset.
-Risk and decoder final reviews remain pending. No new installed or complete native dispatch result is claimed.
+Earlier economic verification passed 229 source and 229 installed cases, including three native stages per environment.
+That preserved release covered the original empty order source. Its result does not accept the changed dispatch code.
+The earlier 112-case risk inventory and 79-case source-history inventory remain separate historical results.
+Do not add these overlapping inventories together.
 
-## Implemented local behavior
+## Implemented behavior
 
-The private risk factory resolves original intent, confirmation, current inputs, ownership, economics, and native presence.
-Buying uses cash after documented unpaid fees. Cancellation and closing preserve the original cash observation.
-Existing quantities, exposure limits, calendars, financial gates, and operation windows remain fixed.
+Current risk uses original intent, exact confirmation, account records, fees, market inputs, ownership, and native presence.
+Buying uses cash after documented unpaid fees. Existing quantities, exposure limits, deadlines, and operation windows remain unchanged.
+Cancellation and closing retain their distinct account and ownership requirements.
+Closed-day cancellation still requires a valid current clock and the pinned next session.
 
-The controlled source appends complete linked order transactions. It flushes orders, fills, cancellation, and cash before replying.
-The original beginning, file identities, project, reserve, first opening, and fee source remain unchanged.
-Current account inventory must match the committed order source. Current economic coverage must contain every committed order transaction.
+The controlled source appends linked order transactions and flushes their effects before replying.
+Both original journals retain their beginnings, identities, project, opening, and clock floors.
+Current account inventory must match committed orders. Economic coverage must contain every committed transaction.
 
-Both journals retain a durable clock floor. An order cannot precede an economic record.
-Economic writes cannot later be inserted before a committed order. Reopening preserves that check.
-A failed order append after its clock acknowledgement records no invented order effect.
+The trusted producer binds exact request bytes, endpoint, service permit, source heads, native consumption, and reply identity.
+It checks original source files before and after the database transaction.
+The external attempt guard remains consumed when later local work refuses. A failed or missing reply cannot authorize another send.
 
-The trusted local producer waits for its service permit before preparing a ten-second request.
-It binds exact bytes, method, body, synthetic header, local endpoint, and original source heads.
-The final native hook records consumption in the external guard and SQLite before sending.
-Original clocks, health, identity, and transaction state remain checked through the final native deadline check.
-The call clears its proof callbacks after native setup returns or fails. Consumption cannot grant another send.
+Native reconciliation uses the complete original order source, exact consumed identities, owned economic proofs, and current presence.
+It records matched fills, cash effects, cancellation, and explicit future rejection.
+Missing or ambiguous outcomes remain unknown. Neither a missing response nor HTTP 404 proves absence.
+Original source checks also run after reconciliation writes.
 
-Reply retention requires the original completed native transport and its exact result.
-It retains qualified reply metadata and hashes. It does not establish a reconciled financial effect.
-An uncertain consumed client can receive an explicit future rejection from the complete controlled source.
-That rejection uses its actual time and denies future effects. A missing reply alone proves no absence.
+The closing parent retains the accepted quantity, child limits, original confirmation, stable child identities, and operation deadline.
+Each child requires fresh original inputs and a reconciled previous child.
+The source tests include two children, fresh proofs after the original start deadline, and a final flat ledger.
+Restart cannot restore the parent or renew consumed authority. Native preparation currently plans one child only.
+Do not call that native multi-child verification.
 
-## Open work
+Final review reproduced and repaired a late mutation of the closing target.
+The parent transaction now pins the original child, target, source, and private call identity through its final checks.
+Focused failed receipts remain failed; passing repairs do not replace them.
 
-Finish controlled-source reconciliation of native outcomes and the durable closing parent.
-Each closing child needs its own stable identity, fresh original inputs, and a reconciled previous child.
-The accepted parent must retain its original quantity, child limits, confirmation, and operation deadline.
-Restart and an older database restore must not renew submission or input freshness.
+## Remaining native work
 
-Then complete matching source and installed checks, complete environment byte checks, and remaining bounded reviews.
-Prepare and verify the compatible native sequence in the existing approved project.
-End that rehearsal with resolved fixture orders, zero fixture holdings, a reconciled ledger, and disarmed admission.
+Use the existing project in `.cache/test-runs/native-economic-fresh-20261017-01/native-shared`.
+Its project identity is `266b470c104c6b122e2db6d48a7c5946037235feae781ce2a808bda5010f4e39`.
+Keep the original fee source, order source, credential slot, first opening, allocated reserve, and file identities.
+No additional native project or GiB reserve is approved.
 
-The accepted plan retains real owner clocks. Historical collection must finish before Monday, 19 October, at 09:25 New York.
-Buying requires that day's 09:35 through 10:05 window. The end of the window is excluded.
-Complete independent implementation and testing before stopping for that external timing condition.
+The stopped project has 11 account packets and nine activity records per owner. Each separate limit is 32.
+The frozen sequence adds 18 of each, ending at 29 account packets and 27 activity records.
+Recheck actual counts and complete storage admission before each native launch.
 
-Only M0 is fully accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
-Actual financial acceptance and actual broker transport remain false. Strata stays off.
+Both source and installed HISTORY must finish before 09:25 New York on Monday, 19 October 2026.
+Fixture buying requires 09:35 or later and strictly before 10:05. Native clocks and queue warmup remain real.
+Then prove lost-reply recovery, restart with holdings and open orders, exact cancellation, resolved outcomes, and bounded closing.
+Finish with zero fixture holdings and a reconciled ledger.
 
-## Storage and receipts
+REST and CLOSE must explicitly close the native order component.
+Further dispatch and component reinstallation must refuse without changing the guard.
+Research stop and actual-broker disarmed flags are separate evidence. They do not prove native component halt.
 
-Fresh complete capacity admission passed before internal test holds increased.
-Source scratch has 384 MiB. Installed test output has 176 MiB inside its 384 MiB parent hold.
-The local economic backup hold has 128 MiB. The dispatch receipt namespace has 16 MiB.
-Category limits remain 15 GiB test scratch, 21 GiB backups, and 50 GiB total.
-No additional full native project or GiB reserve was created. All original and failed runtime evidence remains preserved.
+The prepared controller reserves 88 seconds for work, 17 for cleanup, and 15 for the test framework.
+Each outer child Job stays at 120 seconds, four CPUs, four GiB, and 16 processes.
+Owner calls remain five seconds or less. Positive native timing fit remains unverified.
+See [the prepared native sequence](../docs/M5_NATIVE_REHEARSAL_PLAN.md).
+
+## Limits and evidence
+
+Test scratch stays 15 GiB. Backups stay 21 GiB. Total storage stays 50 GiB.
+The existing approved 1072 MiB native folder is already present. No new full native folder or reserve was created.
+Source scratch has 384 MiB. Installed output has 176 MiB within its existing 384 MiB parent hold.
+Backups have 128 MiB for this continuation. Dispatch receipts have 16 MiB.
+Require 16 GiB free host memory before bounded jobs. Stop below 12 GiB. Keep one heavy job at a time.
 
 Private receipts remain under `artifacts/m5/risk-dispatch-20261017-01`.
-The complete capacity result is `risk-capacity03-result.json`; its closed job is `risk-capacity03.closure.json`.
-The measurement hash is `c5bd67e1cf8cca49a2b773d0172092b5cd2a66bf267a79fd1dc96d0c5b1858cf`.
-Use `run_sequence02.py` for new admitted jobs. Earlier wrappers retain their original smaller limits.
-Keep these receipts, environments, credentials, databases, and backups out of Git.
+The combined frozen input manifest is `dispatch-final01-inputs.json`.
+The exact results are `dispatch-final01-source-inventory.json` and `dispatch-final01-installed-inventory.json`.
+Complete byte checks are `dispatch-environment01-source-verified.json` and `dispatch-environment01-final-wheel-verified.json`.
+Fresh storage admission is `dispatch-capacity04-result.json`. Its measurement hash is `ef5f3581e4f37553deced36de5c69792a3dcf37b1b81e82ab425afe60c2f1f23`.
+Scratch has 87,127,968 bytes left after all holds. Backups have 488,257,568 bytes left.
+The stopped native archive contains 135 files. Its hash is `288f9c097ad54dd9d064fb7f62bb07c900a22f30fb74ad7288a485b484a97c2d`.
+The archive preserves the project and reserve identities. No retained halt was cleared and no native owner was started.
+The native preparation records are `native-preparation01-verified.json`, `native-rehearsal01-ready.json`, and `native-preparation-review03.json`.
+The combined evidence check is `local-preparation-final02.json`. The earlier failed review-format check remains preserved.
+Keep receipts, credentials, environments, runtime databases, data, and backups out of Git.
+
+Only M0 is accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
+Actual financial acceptance and actual broker-write authority remain false. Strata stays off.
+No schedule, automatic delayed launch, unattended service, or actual broker action is approved.

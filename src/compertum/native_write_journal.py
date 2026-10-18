@@ -2,6 +2,7 @@
 from copy import deepcopy
 from contextlib import contextmanager
 import json,sqlite3
+from decimal import Context,Decimal,Inexact,InvalidOperation,Overflow,Rounded,localcontext
 from .data.encoding import canonical
 from .domain import ContractError
 from .events import uuid
@@ -15,6 +16,8 @@ from .native_attempt_records import validate_pair,STATES
 from .runtime.execution_health import execution_durable
 from .runtime.owners import require_live_owner
 from .runtime.errors import RuntimeRefused
+from .paper_contracts import utc
+from .runtime.paper_read_packet import _nanoseconds
 
 def _need(value,code='NATIVE_WRITE_RECORD_UNVERIFIED'):
  if not value:raise RuntimeRefused(code)
@@ -197,3 +200,67 @@ class _NativeWriteJournal:
    _replace(rows['state'],'fake_attempt_guard_head',['fake_attempt_guard_head',canonical(dict(sequence=after_guard['sequence'],sha256=after_guard['sha256'])).decode()])
    _need(canonical(_logical_snapshot(self.db))==canonical(expected),'NATIVE_WRITE_UNEXPECTED_MUTATION')
    return dict(first_consumption=True,record=self._row(*key),transport_authorized=False,financial_accepted=False)
+ def _observe_source(self,raw,*,economic_heads,now):
+  """Backend accounting only. The runtime must first qualify both original sources."""
+  from .fixture_order_journal import decode_order_journal
+  _need(self.db is self.store.conn and self.db.in_transaction,'NATIVE_WRITE_TRANSACTION_REQUIRED')
+  _need(type(now) is str and utc(now)==now)
+  source=decode_order_journal(raw,economic_heads=economic_heads);begin=source['origin']
+  _need(begin['project_id']==self.store.lease.project_id)
+  _need(all(_nanoseconds(tx['at'])<=_nanoseconds(now) for tx in source['transactions']))
+  with self.store._live(),localcontext(Context(prec=160,traps=[InvalidOperation,Overflow,Inexact,Rounded])):
+   require_live_owner(self.store.lease,'execution');before=_logical_snapshot(self.db)
+   execution_durable(self.store,self.reserve);guard=require_attempt_guard(self.store)
+   _need(canonical(_logical_snapshot(self.db))==canonical(before),'NATIVE_WRITE_UNEXPECTED_MUTATION')
+   native=[record for record in guard['records'] if is_native(record['intent']) and record['intent']['account_alias']==begin['account_alias']]
+   _need(all(record in native for record in source['attempts']))
+   orders=source['inventory']['orders'];fills=source['inventory']['fills'];expected=deepcopy(before);unresolved=0
+   source_key='native_fixture_source:'+begin['account_alias']
+   prior=self.store.get_state(source_key)
+   descriptor=dict(version=1,producer_id=begin['producer_id'],genesis_sha256=source['genesis_sha256'],journal_sha256=source['journal_sha256'])
+   if prior is not None:
+    _need(type(prior) is dict and set(prior)==set(descriptor) and prior['version']==1
+     and prior['producer_id']==descriptor['producer_id'] and prior['genesis_sha256']==descriptor['genesis_sha256']
+     and prior['journal_sha256'] in source['prefix_sha256'],'NATIVE_SOURCE_HISTORY_REGRESSED')
+   if prior!=descriptor:
+    raw_descriptor=canonical(descriptor).decode()
+    changed=self.db.execute('INSERT INTO state VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',(source_key,raw_descriptor))
+    _need(changed.rowcount==1,'NATIVE_WRITE_IGNORED')
+    _replace(expected['rows']['state'],source_key,[source_key,raw_descriptor])
+   _need(canonical(_logical_snapshot(self.db))==canonical(expected),'NATIVE_WRITE_UNEXPECTED_MUTATION')
+   states={'new':'NATIVE_ACKNOWLEDGED','partially_filled':'NATIVE_PARTIALLY_FILLED','filled':'NATIVE_FILLED','canceled':'NATIVE_CANCELED','rejected':'NATIVE_REJECTED'}
+   terminal={'NATIVE_FILLED','NATIVE_CANCELED','NATIVE_EXPIRED','NATIVE_REJECTED'}
+   for record in native:
+    p=record['intent'];key=(p['account_alias'],p['intent_id']);old=self._row(*key)
+    _need(old['intent']==p and old['binding']==record['decision'] and not old['conflicting_observation'])
+    outcome=source['request_outcomes'].get(p['intent_id'])
+    if outcome is None:
+     _need(old['status'] in {'NATIVE_CONSUMED','NATIVE_UNKNOWN'},'NATIVE_SOURCE_HISTORY_REGRESSED')
+     state='NATIVE_UNKNOWN';order_id=old['order_id'];quantity=old['filled_quantity'];notional=old['filled_notional'];unresolved+=1
+    elif p['request']['operation']=='CANCEL_ORDER':
+     _need(outcome in {'CANCELED','REJECTED'} and record in source['attempts'])
+     order_id=p['request']['parameters']['order_id'];_need(len([row for row in orders if row['id']==order_id])==1)
+     state='NATIVE_'+outcome;quantity=0;notional='0'
+    else:
+     _need(record in source['attempts']);matches=[row for row in orders if row['client_order_id']==p['client_order_id']]
+     _need(len(matches)==1);row=matches[0];_need(row['status'] in states)
+     state=states[row['status']];order_id=row['id'];filled=number(row['filled_qty'])
+     _need(filled==filled.to_integral_value());quantity=int(filled)
+     amount=sum((number(fill['qty'],positive=True)*number(fill['price'],positive=True) for fill in fills if fill['order_id']==order_id),Decimal(0))
+     notional=format(amount,'f');notional=notional.rstrip('0').rstrip('.') if '.' in notional else notional
+    current=(state,order_id,quantity,notional);previous=(old['status'],old['order_id'],old['filled_quantity'],old['filled_notional'])
+    _need(quantity>=old['filled_quantity'] and number(notional)>=number(old['filled_notional']),'NATIVE_SOURCE_HISTORY_REGRESSED')
+    if old['status'] in terminal:_need(current==previous,'NATIVE_SOURCE_HISTORY_REGRESSED')
+    if current!=previous:
+     changed=self.db.execute('UPDATE fake_intents SET state=?,order_id=?,filled=?,notional=? WHERE account=? AND intent_id=?',(*current,*key))
+     _need(changed.rowcount==1,'NATIVE_WRITE_IGNORED')
+     rows=[row for row in expected['rows']['fake_intents'] if tuple(row[:2])==key];_need(len(rows)==1)
+     rows[0][5:9]=list(current);expected['rows']['fake_intents'].sort(key=canonical)
+     event=dict(at=now,source_journal_sha256=source['journal_sha256'],status=state,order_id=order_id,
+      filled_quantity=quantity,filled_notional=notional,automatic_send=False)
+     FakeIntentJournal._event(self,*key,'NATIVE_SOURCE_RECONCILED',event);_expected_event(expected,key,'NATIVE_SOURCE_RECONCILED',event)
+    _need(canonical(_logical_snapshot(self.db))==canonical(expected),'NATIVE_WRITE_UNEXPECTED_MUTATION')
+    self._row(*key)
+   _need(canonical(require_attempt_guard(self.store))==canonical(guard),'EXECUTION_COMPROMISED')
+   return dict(scope='RETAINED_CONTROLLED_SOURCE_ACCOUNTING_ONLY',observed_native_count=len(native),unresolved_count=unresolved,
+    source_journal_sha256=source['journal_sha256'],financial_accepted=False,transport_authorized=False,automatic_send=False)

@@ -1,6 +1,35 @@
 # Local finish progress
 
-## Current economic preparation and approval boundary - 17 October 2026
+## Current local integration - 17 October 2026
+
+Local implementation and verification are complete. The approved local finish plan remains blocked on Monday's native rehearsal.
+The owner approved 15 GiB scratch and one additional 1072 MiB native folder. That folder already exists.
+Backups stay 21 GiB. Total storage stays 50 GiB. No additional full native project or GiB reserve was created.
+
+Source and installed inventories each passed 285 distinct cases, with zero failures, errors, skips, or remaining children.
+Source contains 257 fresh cases and 28 unchanged cases with verified code and imported test files. All installed cases are fresh.
+The 247-file package installed offline. Both complete environments passed; installed bytes passed again after all tests.
+All final product source reviews and native preparation review are clear at 3 of 3. Their counters remain closed.
+The 29 helper cases are included in each inventory. Ten native stages are frozen but unrun.
+Ten current-date checks refused before starting owners. Actual native timing fit and component halt remain unverified.
+
+- [x] Preserve both original sources, the first opening, project identity, and allocated reserve.
+- [x] Implement conservative outcome reconciliation and the finite closing parent.
+- [x] Verify matching source and installed inventories, complete environments, and final source reviews.
+- [x] Prepare and review the combined native helper with real queue warmup and clocks.
+- [x] Pass complete storage admission and verify a fresh stopped preservation archive.
+- [ ] Run the combined native rehearsal within the unchanged operation and resource limits.
+- [ ] Finish native closing, halt, and disarmed checks. Verify final results and preserve the stopped project again.
+
+The map and repository synchronization receipts record documentation completion separately.
+The native project has 11 account records and nine activity records per owner. Planned totals are 29 and 27, within limits of 32.
+Both HISTORY stages must finish before 09:25 New York on Monday, 19 October 2026.
+Buying requires 09:35 or later and strictly before 10:05. Keep native clocks unchanged.
+Only M0 is accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
+See reports/M5_LOCAL_RISK_DISPATCH.md, docs/M5_NATIVE_REHEARSAL_PLAN.md, and the continuation prompt.
+Strata stays off. Actual broker actions, financial acceptance, and automatic delayed work remain unauthorized.
+
+## Earlier economic preparation and approval boundary - 17 October 2026
 
 **Economic preparation is verified. Native qualification and the approved local finish plan remain incomplete.**
 Source and installed checks each passed 54 distinct in-process cases, with zero failures, errors, or skips.

@@ -2,26 +2,36 @@
 
 ## Local risk and controlled dispatch - 17 October 2026
 
-The local finish plan remains incomplete. New risk and decoder checks passed 112 source cases before the later history extension.
-The later controlled-source and dispatch inventory passed 79 source cases, with zero failures, errors, or skips.
-These inventories overlap earlier work. Keep their recorded source versions and simulated authority separate from native acceptance.
-Every completed final job has zero remaining children. The new code has no installed or full native acceptance yet.
+Local implementation and verification are complete. The approved local finish plan remains blocked on the combined native rehearsal.
+Source and installed inventories each passed 285 distinct cases, with zero failures, errors, skips, or remaining children.
+The source total contains 257 fresh cases and 28 unchanged cases with verified code and imported test files.
+All 285 installed cases are fresh. Both complete environments passed byte verification; the installed environment passed again after testing.
+The frozen package contains 247 files. It installed offline with unchanged locked tools and dependencies.
 
-Original source extensions, exact inventory, causal clocks, economic coverage, and final consumption checks are implemented.
-The trusted local producer binds its service permit, exact request, original endpoint, final consumption, and native reply.
-Writer review 3, binding review 2, and internal send-commit review 2 are clear for their recorded source scopes.
-Four separate private-factory and deadline cases also passed, with zero failures, errors, or skips and zero remaining children.
-Their source readers, clocks, and reserve capacity are simulated. Producer review 2 and future-rejection review 1 are clear.
-Final risk and decoder reviews remain pending. Native outcome reconciliation and the closing parent remain unfinished.
+Current risk, exact consumption, original-source outcome reconciliation, and the finite closing parent are implemented.
+All final product source reviews and native preparation review are clear at 3 of 3. Keep their counters closed.
+The 29 helper cases are included in each inventory. Earlier failed checks, scripts, and original receipts remain preserved.
+Ten native stages and ten preceding capacity jobs are frozen. Ten current-date checks refused before starting owners.
+No positive combined native stage has run. Actual native timing fit and native component halt remain unverified.
 
-Next, finish native outcome reconciliation and the durable closing parent, then matching source and installed verification.
-Prepare the compatible combined native rehearsal before stopping for Monday's unchanged real-clock window.
-Storage remains 15 GiB test scratch, 21 GiB backups, and 50 GiB total. Fresh internal hold admission passed.
-No additional native project or reserve was created. Preserve all identities, failures, reserves, and halts.
+Use `.cache/test-runs/native-economic-fresh-20261017-01/native-shared` only.
+Its project identity remains `266b470c104c6b122e2db6d48a7c5946037235feae781ce2a808bda5010f4e39`.
+The first opening, original sources, source beginnings, credential slot, and allocated reserve remain intact.
+A fresh stopped archive passed verification. The external attempt guard remains at zero; the order source still contains only its original beginning.
+There are 11 account records and nine activity records per owner. The planned sequence ends at 29 and 27, within separate limits of 32.
+
+Both HISTORY stages must finish before 09:25 New York on Monday, 19 October 2026.
+Buying requires 09:35 or later and strictly before 10:05. Do not substitute clocks or create an automatic delayed launch.
+Then verify restart with holdings and open orders, exact cancellation, resolved outcomes, bounded closing, and native component halt.
+Finish flat and disarmed, verify complete environments, and preserve the stopped project again.
+
+Fresh complete storage admission passed. Scratch has 87,127,968 bytes left after all recorded holds.
+Backups have 488,257,568 bytes left. Limits remain 15 GiB scratch, 21 GiB backups, and 50 GiB total.
+No additional full native project or GiB reserve was created. Strata stays off.
 Only M0 is accepted. M5 gates 2 through 5 remain open. M6 remains zero of ten actual supervised sessions.
-See reports/M5_LOCAL_RISK_DISPATCH.md. Strata stays off.
+See reports/M5_LOCAL_RISK_DISPATCH.md, docs/M5_NATIVE_REHEARSAL_PLAN.md, and docs/LOCAL_FINISH_CONTINUATION_PROMPT.md.
 
-## Native economic continuation - 17 October 2026
+## Earlier native economic continuation - 17 October 2026
 
 The owner approved 15 GiB test scratch and one additional 1072 MiB native folder.
 Fresh complete storage admission passed. Backups stay 21 GiB; total storage stays 50 GiB.

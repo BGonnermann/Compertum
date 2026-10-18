@@ -22,19 +22,23 @@ The [initial Hub plan](docs/HUB_PLAN.md) and [initial saved-record verification]
 
 ## Current local risk and controlled dispatch - 17 October 2026
 
-The approved local finish plan remains incomplete. New risk and decoder checks passed 112 source cases before later history changes.
-The later controlled-source and dispatch inventory passed 79 source cases, with zero failures, errors, or skips.
-Keep these overlapping inventories separate. The new code has no installed or complete native acceptance yet.
+Local implementation and verification are complete. The approved local finish plan still requires its combined native rehearsal.
+Source and installed inventories each passed **285 distinct cases**, with zero failures, errors, skips, or remaining children.
+Source contains 257 fresh cases and 28 unchanged cases with verified code and imported test files. All installed cases are fresh.
+The 247-file package installed offline with unchanged locked tools and dependencies. Both complete environments passed byte verification.
+The installed environment passed again after all tests. Earlier failed checks and their original evidence remain preserved.
 
-The local source preserves committed history, causal clocks, current inventory, and coverage through each order event.
-The trusted local producer binds exact requests, final durable consumption, request deadlines, and original native replies.
-Writer review 3, binding review 2, and internal send-commit review 2 are clear for their recorded source scopes.
-Four separate private-factory and deadline source cases also passed, with zero failures, errors, or skips.
-Producer review 2 and future-rejection review 1 are clear for source scope.
-Native outcome reconciliation, the closing parent, matching installed verification, and final reviews remain open.
-Complete independent work before the unchanged Monday native window. Storage stays 15/21/50 GiB. Strata stays off.
+Current risk, exact consumption, outcome reconciliation, and finite closing are implemented and tested.
+Final product source reviews and native preparation review are clear at 3 of 3. Their counters remain closed.
+The 29 helper cases belong inside each 285-case inventory. They do not establish full native acceptance.
+Ten native stages are prepared. Actual native timing fit and native component halt remain unverified.
+
+Both HISTORY stages must finish before **09:25 New York on Monday, 19 October 2026**.
+Fixture buying requires **09:35 or later and strictly before 10:05**. Keep clocks and operation windows unchanged.
+The continuing native project is stopped and has a fresh verified preservation archive. No additional project or GiB reserve was created.
+Fresh complete storage admission passed. Limits stay 15 GiB scratch, 21 GiB backups, and 50 GiB total. Strata stays off.
 Only M0 is accepted. M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions.
-See [the current progress report](reports/M5_LOCAL_RISK_DISPATCH.md).
+See [the report](reports/M5_LOCAL_RISK_DISPATCH.md), [prepared native commands](docs/M5_NATIVE_REHEARSAL_PLAN.md), and [continuation prompt](docs/LOCAL_FINISH_CONTINUATION_PROMPT.md).
 
 ## Earlier native economic continuation - 17 October 2026
 
