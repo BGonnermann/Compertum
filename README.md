@@ -1,5 +1,90 @@
 # Compertum
 
+## Saved review plans verified in source - 19 October 2026
+
+The new storage attempt passed in 116.543130 seconds. No permission change was needed.
+All 58 source tests passed, with zero failures, errors, or skips. Independent review round 3 is clear.
+Both successful jobs observed exit 0 and left zero children. All failed attempts remain preserved.
+The saved review-plan connection now has source verification. Registration and automatic dispatch remain unfinished.
+The nine-page project map is refreshed and checked. Paper operation and financial qualification remain blocked.
+Only M0 is fully accepted. M6 remains zero of ten actual supervised sessions. Strata stays off.
+See [the verified source report](reports/AI_REVIEW_VERIFICATION_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Local verification blocked - 19 October 2026
+
+The single prepared capacity attempt failed before child startup because Windows denied access to a preserved test folder.
+The failed job took 1.588822599966079 seconds and left zero children. No source test or retry ran.
+Three preparation repairs passed independent static review and remain untested.
+The saved AI review-plan connection still lacks passing revised tests.
+The project-map PDF refresh is blocked and remains pending.
+Paper operation remains blocked. M6 requires ten actual supervised sessions, and its count remains zero.
+See [the current batch report](reports/AUTONOMOUS_BATCH_20261019.md) and [checkpoint](docs/CURRENT_CHECKPOINT.md).
+
+Earlier entries below retain their original dates and evidence.
+
+## Saved review plans implemented; verification blocked - 18 October 2026
+
+The accepted-proposal connection is implemented but has no passing test result yet.
+The expected failing test recorded 0 passes, 1 failure, 0 errors, and 0 skips before implementation.
+The test wrapper wrote its final result without reserving space first.
+The evidence folder exceeds its 8 MiB limit by 12,288 bytes. All evidence remains intact.
+Further jobs are stopped. A reviewed evidence allocation must precede fresh tests and the diagram refresh.
+Full access remains enabled, and Strata stays off.
+See [the report](reports/AI_REVIEW_PLAN_STORAGE.md) for the implementation, review, and remaining checks.
+
+
+## AI proposal translation verified - 18 October 2026
+
+The roadmap now has a proposal-to-settings translation component for review only.
+Source tests passed 29 cases, with zero failures, errors, or skips. Independent code review found no blocking issue.
+It keeps all twelve variants and fixed synthetic settings. Registration and automatic dispatch remain unfinished.
+Full access stays enabled. The earlier permission-change proposal is superseded by owner direction.
+M5 pipe work remains blocked. No security change, full scan, saved-stop change, or broker action ran.
+Strata stayed off. See [the component report](reports/AI_EXPERIMENT_TRANSLATION.md).
+Next, connect accepted manual receipts to bounded saved review plans and proposal history.
+
+
+## Launch-context correction reviewed - 18 October 2026
+
+The failed pipe attempt inherited this chat's Full access context. Its launcher did not remove an AppContainer identity.
+Saved Codex defaults specify workspace-write, but this chat's recorded permission profile disables sandboxing.
+The smallest proposed fix changes only this chat to Ask for approval, then checks the exact pinned identities first.
+Independent review accepted that proposal. Thirteen artifact and configuration checks passed, with zero failures or skips.
+No permission changed. No new native check, full scan, or experiment ran.
+A setting change alone does not prove that the earlier identity returns.
+The prepared approval covers the session change and one bounded query-only identity check, with zero retries.
+It excludes pipe creation, access grants, production changes, and broker actions. Strata stays off.
+See [the diagnosis and review](reports/M5_PIPE_LAUNCH_CONTEXT_REVIEW.md) and [the exact approval](docs/M5_PIPE_LAUNCH_CONTEXT_PLAN.md).
+
+## Approved pipe attempt stopped at identity check - 18 October 2026
+
+The fresh storage check passed. The single pipe attempt failed with `APPCONTAINER_REQUIRED`.
+The launched process lacked the required Windows isolation identity.
+The runner stopped before creating its client or pipe. No pipe permission changed.
+Storage passed in 88.753094 seconds. The pipe job stopped in 19.795012 seconds.
+Both jobs observed child exit and left zero children. No retries ran.
+All six older evidence files and all 16 prepared source bindings remain unchanged.
+Paper trading and unattended production work remain blocked. Only M0 remains accepted.
+The approved attempt is consumed. A new launch context and attempt require review and explicit authority.
+No production change or broker action ran. Strata stayed off.
+See [the execution report](reports/M5_PIPE_EXPERIMENT_EXECUTION.md).
+
+## Disabled communication experiment prepared - 18 October 2026
+
+The two-process experiment is prepared and remains disabled.
+Final source verification passed 132 checks, with zero failures, errors, or skips.
+Its bounded job passed in 15.966749 seconds, observed exit 0, and left zero children.
+Independent review round 3 accepted preparation with no blocking finding.
+The earlier failed fake-test run remains preserved.
+The exact temporary-pipe request adds only the observed application identity with access mask 0x00100083.
+The five experiment files use 128 KiB inside the existing preparation allowance.
+Full conservative commitments leave 45,056 bytes in the proposed evidence folder.
+Security approval and fresh complete storage evidence remain required before native execution.
+No pipe, permission change, full scan, saved-stop change, or broker action ran. Strata stayed off.
+See [the preparation report](reports/M5_PIPE_EXPERIMENT_PREPARATION.md).
+
 ## Pipe identity observed - 18 October 2026
 
 The observer and parent share an unpackaged AppContainer identity at integrity level 4096.
@@ -191,7 +276,7 @@ The 61 shutdown checks are included in each inventory. All failed attempts and o
 
 The local finish plan remains incomplete. Continue risk, durable dispatch and recovery, and the installed combined rehearsal.
 Real owner clocks and operation windows remain required.
-Historical inputs must finish before 09:25. Native buying must occur during 09:35–10:05 New York on an eligible exchange day.
+Historical inputs must finish before 09:25. Native buying must occur during 09:35â€“10:05 New York on an eligible exchange day.
 The next eligible day is Monday, 19 October. Complete independent implementation and tests before that timing boundary.
 M5 gates 2 through 5 remain open. M6 stays zero of ten actual supervised sessions. Only M0 is fully accepted.
 See [the current native report](reports/M5_NATIVE_ECONOMICS.md). Strata stays off.

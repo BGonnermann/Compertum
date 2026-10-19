@@ -58,8 +58,9 @@ class ManualBridge:
             if old:
                 item=json.loads(old[0]);path=checked_path(self.store.root,self.store.root/relative)
                 if item['sha256']!=hashlib.sha256(raw).hexdigest() or item['size_bytes']!=len(raw): raise RuntimeRefused('AI_ARTIFACT_CONFLICT')
-                with path.open('rb') as stream: digest=hashlib.file_digest(stream,'sha256').hexdigest()
-                if digest!=item['sha256']: raise RuntimeRefused('AI_ARTIFACT_CONFLICT')
+                with path.open('rb') as stream: existing=stream.read(MAX_PACKET+1)
+                if len(existing)!=len(raw) or hashlib.sha256(existing).hexdigest()!=item['sha256']:
+                    raise RuntimeRefused('AI_ARTIFACT_CONFLICT')
                 return item
             budget=self.store.conn.execute('SELECT maximum FROM ai_budgets WHERE task_id=?',(task_id,)).fetchone()
             used=self.store.conn.execute("SELECT COALESCE(sum(CASE WHEN status IN ('PUBLISHED','ABANDONED') THEN written ELSE maximum END),0) FROM reservations WHERE task=? AND category='records' AND status!='SPLIT'",(task_id,)).fetchone()[0]
@@ -68,6 +69,60 @@ class ManualBridge:
             writer=self.storage.open_artifact(grant,relative)
             try: writer.write(raw);return writer.publish()
             finally: writer.close()
+
+    def _read_published_ai(self, task_id, name, manifest):
+        """Read bounded evidence from its exact published reservation."""
+        relative = f'artifacts/runs/{task_id}/ai/{name}'
+        row = self.store.conn.execute(
+            "SELECT manifest FROM reservations WHERE path=? AND status='PUBLISHED'",
+            (relative,)).fetchone()
+        if not row or read_json(row[0]) != manifest or manifest.get('path') != relative:
+            raise RuntimeRefused('AI_EVIDENCE_MISMATCH')
+        path = checked_path(self.store.root, self.store.root/relative)
+        try:
+            with path.open('rb') as stream:
+                raw = stream.read(MAX_PACKET+1)
+        except OSError:
+            raise RuntimeRefused('AI_EVIDENCE_MISMATCH') from None
+        if (len(raw) > MAX_PACKET or len(raw) != manifest['size_bytes']
+                or hashlib.sha256(raw).hexdigest() != manifest['sha256']):
+            raise RuntimeRefused('AI_EVIDENCE_MISMATCH')
+        return raw
+
+    def save_review_plan(self, task_id, selection_raw):
+        """Save one review-only plan from accepted manual evidence.
+
+        This does not register a trial or grant execution authority.
+        The existing task output budget includes the selection and plan.
+        """
+        from compertum.ai.experiment import translate_proposal
+        uuid(task_id)
+        with self.store._live():
+            row = self.store.conn.execute(
+                'SELECT task,prompt_sha256,status,response FROM ai_tasks WHERE task_id=?',
+                (task_id,)).fetchone()
+            if not row or row[2] != 'PROPOSAL_ONLY' or not row[3]:
+                raise RuntimeRefused('AI_PROPOSAL_NOT_ACCEPTED')
+            task = read_json(row[0])
+            receipt = read_json(row[3])
+            retained = dict(receipt)
+            manifest = retained.pop('receipt_artifact')
+            receipt_raw = self._read_published_ai(task_id, 'receipt.json', manifest)
+            if (receipt_raw != canonical(retained) or receipt['task_id'] != task_id
+                    or receipt['status'] != 'PROPOSAL_ONLY' or receipt['executed'] is not False
+                    or task['task_id'] != task_id or task['kind'] != 'AI_PROPOSAL'
+                    or task['model_identity']['provider'] != 'manual_subscription'):
+                raise RuntimeRefused('AI_EVIDENCE_MISMATCH')
+            original = receipt['original']
+            raw = self._read_published_ai(task_id, 'response-'+original['sha256']+'.json', original)
+            proposal = read_json(raw)
+            if proposal != receipt['proposal'] or proposal['role'] != task['role']:
+                raise RuntimeRefused('AI_EVIDENCE_MISMATCH')
+            plan = translate_proposal(raw, selection_raw, task_id=task_id,
+                prompt_sha256=row[1], input_hashes=task['input_hashes'])
+            # A fixed name refuses replacement. Repeated saves verify existing bytes.
+            self._retain(task_id, 'review-selection.json', selection_raw)
+            return self._retain(task_id, 'review-plan.json', plan)
 
     def admit_task(self,task_id):
         with self.store._live(),self.store.conn:

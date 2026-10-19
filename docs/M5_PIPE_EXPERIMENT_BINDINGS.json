@@ -1,0 +1,109 @@
+{
+  "status": "PREPARED_NOT_AUTHORIZED",
+  "prepared": {
+    "status": "PREPARED_NOT_AUTHORIZED",
+    "native_execution_enabled": false,
+    "pipe_name": "\\\\.\\pipe\\compertum-policy-4c9002b9d6e14c048c7949ecc069eb74",
+    "client_access": 1048707,
+    "application_sid_sha256": "a8a235d10300e7a19727847502efee994cbbe242c37dba6240969f6f9035e92f",
+    "identity_fields_sha256": "9bd495b617e7853759fa83d080dd340eb557941ec0f1c40b71e208c44d30ff18",
+    "observation_sha256": "e1d039d2bc82e83bc6e2a94c5a75b82ec52910bddec6722965c49420b0c36b26",
+    "historical_peer_records_sha256": "7a56548bd412b6c4ab74743e21ec9a08b4641f97e2e0d7ca65f5381bad4c55c9",
+    "fresh_retained_peer_checks_required": true,
+    "bounds": {
+      "cpus": 1,
+      "memory_mib": 128,
+      "processes": 16,
+      "seconds": 120,
+      "start_memory_gib": 16,
+      "stop_memory_gib": 12,
+      "operation_seconds": 5,
+      "cancellation_seconds": 1,
+      "retry_limit": 0
+    },
+    "evidence": {
+      "existing_file_bytes": 81920,
+      "forecast_bytes": 8261632,
+      "total_committed_bytes": 8343552,
+      "remaining_bytes": 45056,
+      "preparation": {
+        "pipe-isolated01": 131072,
+        "pipe-isolated01-capacity01": 262144,
+        "remaining_preparation": 655360
+      },
+      "outputs": {
+        "pipe-isolated01.plan.json": 8192,
+        "pipe-isolated01.result.json": 32768,
+        "pipe-isolated01.log": 16384,
+        "pipe-isolated01.progress.jsonl": 8192,
+        "pipe-isolated01.closure.json": 65536
+      },
+      "reservation_active": false,
+      "global_admission": false
+    },
+    "namespace_verified": false,
+    "authority_required": "One temporary pipe with the exact application grant."
+  },
+  "identity_file_sha256": "4792035e658e893f8fc124dd3a30105375b2403859f0dc7b748f6ca19967883b",
+  "proposal_file_sha256": "f8e981e286522c22997058c612e76225a74b4cc8c301789ee1130b13d00f4250",
+  "python_sha256": "9b7bffc26240463c965a2a2a5fada1d8e741c21c25cd2e977728c339b82d9977",
+  "source_sha256": {
+    "tools/prepare_pipe_experiment.py": "163d9441ecfaca24e4ccaab7940cc03f1394e46a0f75f2f7dcd5aa0465c3c760",
+    "tools/prepare_pipe_launcher.py": "71f67e88c449460a4e4aa542a34b9a5ef60661a2c5573049614ce5485cf3f62b",
+    "tools/pipe_experiment_identity.py": "4c3e307dff2010936d6e67e865b3a1d563db84ed5849e91b8c3cd6a4c04ea6f9",
+    "tools/pipe_experiment_native.py": "886fcbddc05c88be416edd355df325218c70940ae71e4d78b8e5800205537ca5",
+    "tools/pipe_experiment_evidence.py": "5b0f3126604bedf9b0ffe3425c00814a46acebb4fe00f767ec0e78042d67945f",
+    "tools/prepare_pipe_policy.py": "87223ae13fb7eb0262e07208a05e1a039f25ee42336e2050c181e5eee52de94c",
+    "tools/evidence_folder.py": "911a793377b9b7cdb8d57f5bbe76c071e47e1d81f96e3c3cf5feb0ee5036deb8",
+    "tests/test_pipe_experiment_preparation.py": "1d8aabbc46c10b368d758d42fcd7b0e1f6d8a4dab003599e93f75d2ecdb8aa95",
+    "tests/test_pipe_policy_preparation.py": "cedf0183d58ac5f7a132673d1fdb39374c30daa6ba334fd063e41beb1ff2e51c",
+    "tests/test_evidence_folder.py": "f55d7cf8e4580aaedefc4445bcba7d8847048c820c58bf9e44515aafa50d9855",
+    "src/compertum/runtime/_pipes.py": "2f77fe8fdbdfec28444e274c61e3c6a09368189c078058e7352897bce7915c27",
+    "src/compertum/runtime/_windows.py": "dcf57f682f2b9202a4d7f5509cb63080c0671b2f705508bb804f6f61c0e18802",
+    "src/compertum/runtime/jobs.py": "530dff6b9e850886df98b9fa5ff5773f8d50459a97637f348535258b0c159d4a",
+    "src/compertum/runtime/errors.py": "ede3d3f079ce15a84ba0268adee8a2bbd0545df70cf91aee8f251ade8bdaa292",
+    "docs/M5_PIPE_EXPERIMENT_OUTPUTS.json": "e00837fd5be990ef0aeb93abe1104aff18f5c877173bb139b28eb09b63ee6bb3",
+    "docs/M5_EVIDENCE_FOLDER_PROPOSAL.json": "f8e981e286522c22997058c612e76225a74b4cc8c301789ee1130b13d00f4250"
+  },
+  "existing_files": [
+    {
+      "name": "storage-evidence-admission01-child-progress.jsonl",
+      "bytes": 6118,
+      "charged_bytes": 8192,
+      "sha256": "4c556a9c081f734213bf909534983708e85c2dd28cc7f24140deb58cd58f5be6"
+    },
+    {
+      "name": "storage-evidence-admission01-measurement.json",
+      "bytes": 24386,
+      "charged_bytes": 24576,
+      "sha256": "7d4b064a9347002a96a6927452ee628022776a60e220e04ba53af38b4da0d7fe"
+    },
+    {
+      "name": "storage-evidence-admission01-parent-progress.jsonl",
+      "bytes": 2353,
+      "charged_bytes": 4096,
+      "sha256": "678fcb3ee6ece9346d64e67c15f5d91752a8c8ad1e83c6c926e6eb4ff33a9b26"
+    },
+    {
+      "name": "storage-evidence-admission01-result.json",
+      "bytes": 1523,
+      "charged_bytes": 4096,
+      "sha256": "907d6b781def98597c5e7444ef5e5075e572496bbf2ab505ab8ffb8136a92408"
+    },
+    {
+      "name": "storage-evidence-admission01.closure.json",
+      "bytes": 33551,
+      "charged_bytes": 36864,
+      "sha256": "0a312b3c2adc207f3ec0cc1dce97dc0c4259aab2689442cf68e9fc88aa5c9fcd"
+    },
+    {
+      "name": "storage-evidence-admission01.job.json",
+      "bytes": 927,
+      "charged_bytes": 4096,
+      "sha256": "5cfe9ec879f3f83e5d1eb82e34cfa6389fd15ef475ca271ad077944a2090ba51"
+    }
+  ],
+  "prepared_launcher_sha256": "9e985b17ed509daf38c04f3fd7de19d03cff6c7d0d80b14ad8e9767f6d3ec761",
+  "capacity_activation_status": "BLOCKED_PENDING_SEPARATE_AUTHORITY_AND_FRESH_BOUND_RECEIPTS",
+  "capacity_completion_timestamp_available": false
+}

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1",
+  "status": "SOURCE_VERIFIED_MAP_REFRESHED",
+  "namespace": "artifacts/ai/review-plan-verification-20261018-01",
+  "category": "records",
+  "folder_limit_bytes": 1048576,
+  "category_limit_bytes": 5368709120,
+  "total_limit_bytes": 53687091200,
+  "allocation_unit_bytes": 4096,
+  "directory_charge_bytes": 4096,
+  "preparation_bytes": 65536,
+  "review_bytes": 65536,
+  "diagram_job_bytes": 131072,
+  "final_result_bytes": 65536,
+  "test_attempts": 3,
+  "per_attempt": {
+    "job.json": 8192,
+    "source-pins.json": 8192,
+    "results.xml": 65536,
+    "stdout.log": 32768,
+    "stderr.log": 16384,
+    "closure.json": 65536
+  },
+  "forecast_bytes": 921600,
+  "unassigned_bytes": 126976,
+  "test_files": [
+    "tests/test_ai_review_plan_storage.py",
+    "tests/test_ai_manual.py",
+    "tests/test_ai_experiment_translation.py",
+    "tests/test_ai_review_runner_preparation.py"
+  ],
+  "resources": {
+    "cpus": 1,
+    "memory_mib": 128,
+    "processes": 16,
+    "deadline_seconds": 120,
+    "host_start_floor_gib": 16,
+    "host_running_floor_gib": 12
+  },
+  "existing_limits_changed": false,
+  "existing_evidence_moved": true,
+  "borrow_existing_holds": false,
+  "activation_authorized": true,
+  "activation_blockers": [],
+  "capacity_attempt": {
+    "label": "ai-review-capacity01",
+    "status": "FAILED",
+    "closure": "artifacts/m5/simulated-evidence-next-01/ai-review-capacity01.closure.json",
+    "elapsed_seconds": 1.588822599966079,
+    "child_started": false,
+    "remaining_children": 0,
+    "retry_run": false
+  },
+  "additional_tests_pending_review": [],
+  "writer_requirements": [
+    "Reserve all output allowances, including the closure, before starting a child.",
+    "Retain every existing folder check and add this folder check.",
+    "Charge actual records and the unused allowance against category and total limits.",
+    "Use exclusive file creation and refuse changes to old evidence.",
+    "Use bounded output streams and stop on excess output.",
+    "Check folders before writes, during execution, and after child cleanup.",
+    "Write the final result within its reserved allowance, including failure results."
+  ],
+  "relocated_evidence": {
+    "manifest": "artifacts/ai/review-plan-verification-20261018-01/relocation.json",
+    "original_index": "artifacts/m5/local-economics-20261017-01/ai-review-red01-relocated.json",
+    "files": 5,
+    "hashes_verified": true
+  },
+  "active_capacity": {
+    "label": "ai-review-capacity02",
+    "result": "artifacts/m5/simulated-evidence-next-01/ai-review-capacity02-result.json",
+    "result_sha256": "be2caef6931d04e79dc821673aa29179068ee8244b3c4094722c3a0369af1a10",
+    "closure": "artifacts/m5/simulated-evidence-next-01/ai-review-capacity02.closure.json",
+    "closure_sha256": "b39581c3436b6a981034859245ee4d8eb80e8adf0487e8e22551eaae5a1d236b",
+    "elapsed_seconds": 116.54313010000624,
+    "status": "PASSED",
+    "remaining_children": 0
+  },
+  "final_source_result": {
+    "label": "ai-review-tests03",
+    "passed": 58,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "independent_review": "CLEAR_3_OF_3"
+  }
+}

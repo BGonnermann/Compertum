@@ -1,18 +1,15 @@
-# Continue after pipe identity observation
+# Continue from verified saved review plans
 
-Read reports/M5_PIPE_IDENTITY_REVIEW.md and docs/M5_PIPE_REPAIR_PLAN.md.
-Prepare the isolated experiment runner with native execution disabled.
-Resolve the launcher namespace choice without claiming that package absence proves eligibility.
-Bind retained peer identities, process creation times, the exact name, and mask 0x00100083.
-Refuse changed or unreadable identities.
-Reconcile every preparation commitment before binding the five output files.
-Keep 131,072 bytes inside the 1,048,576-byte preparation allowance.
-Preserve the full forecast and existing files; conservative remaining margin is 45,056 bytes.
-Do not treat the point-in-time folder observation as fresh global admission.
-Get independent review of the runner, identity checks, and bounded output handling.
-Then present one exact temporary-pipe permission request with zero retries.
-Stop before permission changes, pipe creation, a full scan, saved-stop changes, or broker actions.
-Keep Strata off and preserve evidence.
-Keep existing deadlines, folder limits, and category limits.
-Keep C: at 50 GiB and the separate D: archive at 200 GiB.
-Keep one heavy job at a time, with 16 GiB starting memory and a 12 GiB stop floor.
+Read `docs/CURRENT_CHECKPOINT.md` and `reports/AI_REVIEW_VERIFICATION_20261019.md` first.
+The accepted saved review-plan batch has passing source verification and independent review.
+All 58 source cases passed, with zero failures, errors, or skips.
+Storage attempt `ai-review-capacity02` passed. Preserve capacity01 and all failed test and documentation attempts.
+The project-map PDF has nine checked pages. Follow `docs/PROJECT_MAP_REFRESH.md` for later meaningful changes.
+Do not rerun valid tests solely because another folder contains their evidence.
+
+The next proposed local connection is linked proposal, trial, and result history.
+Define its accepted scope before implementation. Registration and automatic dispatch remain unfinished.
+Keep the consumed pipe attempt and its separate Windows identity requirement intact.
+Actual account actions, orders, cancellations, closes, security changes, and new permissions retain separate approval gates.
+Keep Strata off. Preserve the interpreter, dependency lock, financial checks, identities, and all resource and storage limits.
+Only M0 is fully accepted. M6 remains zero of ten actual supervised sessions.
