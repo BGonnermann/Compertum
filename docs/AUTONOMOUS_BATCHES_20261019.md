@@ -1,5 +1,14 @@
 # Autonomous work batches, 19 October 2026
 
+## Current result
+
+The saved-plan batch is complete. Its 58 passing source cases and checked project map are recorded in AI_REVIEW_VERIFICATION_20261019.md.
+The accepted day plan then added linked research history. Its final source inventory passed 121 cases with zero failures, errors, or skips.
+Independent review is clear. See DAY_PLAN_20261019.md and ../reports/DAY_PROGRESS_20261019.md for current work and evidence.
+The older unchecked items below describe the earlier failed capacity attempt. They are historical, not current blockers.
+
+## Original batch record
+
 The owner requested autonomous progress toward operation by tomorrow.
 The primary agent owns changes and runs one heavy job at a time.
 

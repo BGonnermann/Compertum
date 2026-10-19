@@ -1,15 +1,23 @@
-# Continue from verified saved review plans
+# Continue from verified linked research history
 
-Read `docs/CURRENT_CHECKPOINT.md` and `reports/AI_REVIEW_VERIFICATION_20261019.md` first.
-The accepted saved review-plan batch has passing source verification and independent review.
-All 58 source cases passed, with zero failures, errors, or skips.
-Storage attempt `ai-review-capacity02` passed. Preserve capacity01 and all failed test and documentation attempts.
-The project-map PDF has nine checked pages. Follow `docs/PROJECT_MAP_REFRESH.md` for later meaningful changes.
-Do not rerun valid tests solely because another folder contains their evidence.
+Read docs/CURRENT_CHECKPOINT.md and reports/DAY_PROGRESS_20261019.md first.
+The saved-plan and explicit campaign-history connection has passing source verification and independent review.
+The final inventory passed 121 cases, with zero failures, errors, or skips.
+Preserve the original missing-method failure, the failed interruption test, and the sealed-history regression failure.
+Do not reuse their consumed labels or change their evidence.
 
-The next proposed local connection is linked proposal, trial, and result history.
-Define its accepted scope before implementation. Registration and automatic dispatch remain unfinished.
-Keep the consumed pipe attempt and its separate Windows identity requirement intact.
-Actual account actions, orders, cancellations, closes, security changes, and new permissions retain separate approval gates.
-Keep Strata off. Preserve the interpreter, dependency lock, financial checks, identities, and all resource and storage limits.
-Only M0 is fully accepted. M6 remains zero of ten actual supervised sessions.
+The next local implementation is docs/AI_RUNNER_CONNECTION_PLAN.md.
+It prepares explicit registration through the existing campaign owner. Automatic dispatch remains unfinished.
+History reads do not register, resume, or execute work.
+Strict execution seal checks still require the current runtime identity.
+Historical readers validate the retained identity, ticket, receipt, journal, and mirror.
+
+The next Windows approval is docs/M5_IDENTITY_CHECK_REQUEST_20261019.md.
+Do not run its distinct query-only attempt until explicitly authorized.
+Do not infer pipe, security-change, broker, or supervised-session authority from local source verification.
+
+Future storage scans must preserve old release bindings using their checked archives.
+The current batch changed manual.py, development_seals.py, and simulation/campaign_runs.py.
+Do not compare a historical manifest to changed current source or weaken its identity checks.
+Keep all category, folder, total, deadline, memory, and process limits. Keep Strata off.
+Only M0 is fully accepted. M3 remains terminally blocked. M6 remains zero of ten actual sessions.

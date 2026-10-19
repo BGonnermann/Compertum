@@ -1,5 +1,25 @@
 # Current Compertum checkpoint
 
+## Linked research history verified - 19 October 2026
+
+The new explicit link connects a saved review plan to one existing synthetic campaign.
+Identical repeated links are safe. Conflicting links cannot replace retained evidence.
+The read-only view checks proposal, plan, campaign, seal, and published result evidence.
+It retains all twelve variants, attempts, failures, skipped dependencies, and pending results.
+Historical seal checks preserve recorded identities. Execution still refuses a changed current identity.
+All 121 source cases passed, with zero failures, errors, or skips. Independent review round 3 is clear.
+The source job passed in 117.677234 seconds, observed exit 0, and left zero children.
+Fresh capacity admission passed in 114.402827 seconds. Earlier failed and intentional failing tests remain preserved.
+Source verification used native Windows ownership and bounded jobs. No installed-package or broker integration check ran.
+The starting checkpoint was published as 94e772b. Final publication and map receipts appear in today's report and local final receipt.
+Runner registration is prepared in AI_RUNNER_CONNECTION_PLAN.md. Automatic dispatch, feedback, and revision remain unfinished.
+The exact query-only request is M5_IDENTITY_CHECK_REQUEST_20261019.md. Its distinct attempt still needs explicit authority.
+Only M0 is fully accepted. M3 remains terminally blocked. M6 remains zero of ten actual sessions.
+Strata stayed off. No security change, broker action, or service ran.
+See [today's report](../reports/DAY_PROGRESS_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
 ## Saved review plans verified in source - 19 October 2026
 
 The new storage attempt passed in 116.543130 seconds. No permission change was needed.

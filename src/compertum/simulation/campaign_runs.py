@@ -161,16 +161,16 @@ def _binding(body,bundle,index,dependency_body=None):
 
 
 
-def _owner_binding(runs,state,body,bundle,index,dependency_body=None):
+def _owner_binding(runs,state,body,bundle,index,dependency_body=None,*,historical=False):
     """Use worker validation only after the current committed proof chain passes."""
     if UNITS[index].phase!='fit' or state.get('clean_environment') is None:
         return _binding(body,bundle,index,dependency_body)
-    from compertum.development_seals import check_campaign_seal
+    from compertum.development_seals import check_campaign_seal,check_campaign_history_seal
     from compertum.review_evidence import successful_receipt
     from .fit_record import read_binding
     validate_state(state)
     if runs._load(state['run_id'])!=state:raise DataError('CAMPAIGN_EXECUTION_UNVERIFIED')
-    check_campaign_seal(runs.store,state)
+    (check_campaign_history_seal if historical else check_campaign_seal)(runs.store,state)
     selected=[a for a in state['attempts'] if a['unit']==index]
     if not selected:raise DataError('CAMPAIGN_EXECUTION_UNVERIFIED')
     attempt=selected[-1];native=attempt.get('native_execution')
@@ -200,14 +200,14 @@ def read_bundle(state,raw):
     return bundle
 
 
-def verify(runs,state,raw,*,decode):
+def verify(runs,state,raw,*,decode,historical=False):
     bundle=read_bundle(state,raw);previous=None;previous_index=None
     for index,u in enumerate(UNITS):
         record=state['outcomes'].get(u.key)
         if record is None or record['status']!='COMPLETED':continue
         dependency=_dependency(state,index);expected=dependency['payload_sha256'] if dependency else None
         if record['dependency_sha256']!=expected:raise DataError('CAMPAIGN_DEPENDENCY_INVALID')
-        body=payload(runs,state,record);_owner_binding(runs,state,body,bundle,index,previous if u.fit_unit==previous_index else None)
+        body=payload(runs,state,record);_owner_binding(runs,state,body,bundle,index,previous if u.fit_unit==previous_index else None,historical=historical)
         previous=body if u.phase=='fit' else None;previous_index=index if u.phase=='fit' else None
     return bundle if decode else None
 

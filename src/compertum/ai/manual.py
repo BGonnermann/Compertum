@@ -124,6 +124,16 @@ class ManualBridge:
             self._retain(task_id, 'review-selection.json', selection_raw)
             return self._retain(task_id, 'review-plan.json', plan)
 
+    def link_review_campaign(self, task_id, run_id, *, runs):
+        """Link an existing synthetic campaign. This grants no execution authority."""
+        from compertum.ai.history import link_campaign
+        return link_campaign(self, task_id, run_id, runs=runs)
+
+    def review_history(self, task_id, *, runs):
+        """Read linked evidence through the existing campaign owner without writes."""
+        from compertum.ai.history import read_history
+        return read_history(self, task_id, runs=runs)
+
     def admit_task(self,task_id):
         with self.store._live(),self.store.conn:
             day=datetime.now().astimezone().date().isoformat()

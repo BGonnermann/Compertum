@@ -1,5 +1,18 @@
 # Compertum
 
+## Linked research history verified - 19 October 2026
+
+Explicit links now connect accepted saved plans to existing synthetic campaigns.
+The read-only history shows all twelve trials, attempts, checked results, failures, and pending work.
+All 121 source tests passed, with zero failures, errors, or skips. Independent review round 3 is clear.
+Historical seal checks use recorded identities. Execution checks still require the current identity.
+Fresh storage admission passed. Both successful jobs observed exit 0 and left zero children.
+Runner registration and the next Windows identity check have prepared plans. Neither has executed under this batch.
+Only M0 is fully accepted. Paper operation and financial qualification remain blocked. M6 remains zero of ten actual sessions.
+See [today's report](reports/DAY_PROGRESS_20261019.md) for results, publication, map evidence, and next actions.
+
+Earlier entries retain their original evidence and dates.
+
 ## Saved review plans verified in source - 19 October 2026
 
 The new storage attempt passed in 116.543130 seconds. No permission change was needed.

@@ -104,6 +104,16 @@ def validate_binding(binding):
 
 
 def check_campaign_seal(store,state):
+    """Require checked evidence and the current execution identity."""
+    return _check_campaign_seal(store,state,historical=False)
+
+
+def check_campaign_history_seal(store,state):
+    """Validate retained evidence against its recorded runtime. No execution grant."""
+    return _check_campaign_seal(store,state,historical=True)
+
+
+def _check_campaign_seal(store,state,*,historical):
     """A missing field cannot downgrade a ticketed or owner-admitted run."""
     from .evaluation_seals import seal_receipt
     with store._live() as guard:
@@ -129,8 +139,8 @@ def check_campaign_seal(store,state):
         binding={'seal_id':sid,'protocol_sha256':receipt['protocol_sha256'],'ticket_sha256':ticket['sha256'],
             'admission_event_sha256':receipt['admission_event_sha256']}
         if supplied!=binding or state.get('input_kind')!='synthetic-campaign' or state['request_sha256']!=receipt['development_sha256']:raise DataError('SEAL_ADMISSION_REQUIRED')
-        current=json.loads(canonical(runtime_identity()))
-        if state['identity']!=ticket['protocol']['runtime'] or current!=state['identity']:raise DataError('SEAL_RUNTIME_CHANGED')
+        if state['identity']!=ticket['protocol']['runtime']:raise DataError('SEAL_RUNTIME_CHANGED')
+        if not historical and json.loads(canonical(runtime_identity()))!=state['identity']:raise DataError('SEAL_RUNTIME_CHANGED')
         _mirror(guard.project,evidence)
         return binding
 
