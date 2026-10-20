@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "id": {"type": "string", "format": "uuid"},
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "properties": {
+    "schema_version": {"const": "1"},
+    "record_type": {"const": "ResearchCycle"},
+    "cycle_id": {"$ref": "#/$defs/id"},
+    "run_id": {"$ref": "#/$defs/id"},
+    "approval_request_id": {"$ref": "#/$defs/id"},
+    "registration_request_id": {"$ref": "#/$defs/id"},
+    "first_start_request_id": {"$ref": "#/$defs/id"},
+    "operator": {"$ref": "#/$defs/hash"},
+    "generation": {"type": "integer", "minimum": 1},
+    "prepared_sha256": {"$ref": "#/$defs/hash"},
+    "plan_sha256": {"$ref": "#/$defs/hash"},
+    "seal_id": {"$ref": "#/$defs/id"},
+    "schedule_sha256": {"$ref": "#/$defs/hash"},
+    "maximum_bytes": {"type": "integer", "minimum": 1, "maximum": 134217728},
+    "deadline": {"type": "string", "format": "utc-time"},
+    "scorecard_task_id": {"$ref": "#/$defs/id"},
+    "aggregate_task_id": {"$ref": "#/$defs/id"},
+    "state": {"enum": ["APPROVED", "RUNNING", "PAUSED", "STOPPED", "BLOCKED", "CHECKING_RESULTS", "WAITING_FOR_ASSESSMENT", "AWAITING_OWNER_REVIEW"]},
+    "sequence": {"type": "integer", "minimum": 0, "maximum": 10001},
+    "dispatch": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "additionalProperties": false,
+          "properties": {
+            "task_id": {"$ref": "#/$defs/id"},
+            "kind": {"enum": ["RESEARCH", "UNIT_AUDIT", "SCORECARD", "AGGREGATE"]},
+            "unit": {"type": ["integer", "null"], "minimum": 0, "maximum": 62},
+            "history_sha256": {"$ref": "#/$defs/hash"}
+          }, "required": ["task_id", "kind", "unit", "history_sha256"]}
+      ]
+    },
+    "reason": {"type": "string", "minLength": 1, "maxLength": 256},
+    "updated_at": {"type": "string", "format": "utc-time"},
+    "financial_acceptance": {"const": false},
+    "execute_next": {"const": false}
+  },
+  "required": ["schema_version", "record_type", "cycle_id", "run_id", "approval_request_id", "registration_request_id", "first_start_request_id", "operator", "generation", "prepared_sha256", "plan_sha256", "seal_id", "schedule_sha256", "maximum_bytes", "deadline", "scorecard_task_id", "aggregate_task_id", "state", "sequence", "dispatch", "reason", "updated_at", "financial_acceptance", "execute_next"],
+  "allOf": [
+    {"if": {"properties": {"state": {"enum": ["APPROVED", "RUNNING", "CHECKING_RESULTS"]}}},
+     "then": {"properties": {"sequence": {"maximum": 9999}}}},
+    {"if": {"properties": {"state": {"const": "PAUSED"}}},
+     "then": {"properties": {"sequence": {"maximum": 10000}}}}
+  ]
+}

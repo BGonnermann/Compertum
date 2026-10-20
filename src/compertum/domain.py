@@ -29,7 +29,7 @@ class ContractError(ValueError):
         super().__init__(reason)  # Never echo caller-controlled values.
 
 
-_SCHEMAS = frozenset({"task.v1", "control_receipt.v1", "artifact_manifest.v1",
+_SCHEMAS = frozenset({"task.v1", "control_receipt.v1", "artifact_manifest.v1", "research_cycle.v1",
                       "recovery_manifest.v1", "ai_proposal.v1", "consumption_event.v1", "execution_observation.v1", "execution_intent.v1", "execution_plan.v1", "execution_authorization.v1", "execution_calendar.v1", "execution_inputs.v1", "execution_start.v1", "execution_decision.v1"})
 _FORMATS = FormatChecker()
 _UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|\+00:00)$")
