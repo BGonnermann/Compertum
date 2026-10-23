@@ -115,8 +115,15 @@ Label `m3-repair-20261023-02`. Folders: `m3-repair-release-20261023-02`, `m3-rep
 The scripts are the reviewed `-01` scripts, changed only in folder names, label, and release commit.
 
 - [x] Step 1: release built from `a81c9b4` and installed. Wheel SHA-256 `3664c8bea0697b326b901776d98e5f6422cfc2f9adb12ca598fa1876ad412b2c`.
-- [ ] Step 2: regressions and environment qualification.
-- [ ] Step 3: storage check, pinned inputs, independent review.
-- [ ] Step 4: long chain.
-- [ ] Step 3: storage check, pinned inputs, independent review.
+- [x] Step 2: regressions and environment qualification.
+  - Installed-package lane: 21 of 21 groups, 592 passed, 0 failed, 0 errors, 0 skipped.
+  - Source lane (clean copy): 21 of 21 groups, 592 passed, 0 failed, 0 errors, 0 skipped.
+  - Group `installed_negative01` passed all 218 tests in 316 s. The repaired hang did not occur.
+  - Qualification returned `REPAIR_RELEASE_QUALIFIED_NEW_RUNTIME_NOT_YET_ADMITTED` at 10:15 EDT. Both environments verified.
+- [ ] Step 3: storage check, pinned inputs, independent review. **Storage admission refused, stopped.**
+  - `storage-admission01` failed the check `scratch + reserved growth <= 13 GiB`. It wrote no admission record.
+  - Scratch 11.669 GiB plus reserved growth 1.465 GiB equals 13.134 GiB. That is 137 MiB over the run cap.
+  - Total use 33.31 GiB. Free space 86.09 GiB.
+  - Proposed cleanup under `docs/TEST_RETENTION.md`: the 42 `*-pytest` temporary folders in `m3-repair-regressions-20261023-02`, about 248 MiB.
+    All 42 groups passed. Only the storage admission reads this folder, and it reads only `progress01.jsonl`. The agent waits for the owner's decision.
 - [ ] Step 4: long chain.
