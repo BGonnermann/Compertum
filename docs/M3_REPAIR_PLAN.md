@@ -120,7 +120,15 @@ The scripts are the reviewed `-01` scripts, changed only in folder names, label,
   - Source lane (clean copy): 21 of 21 groups, 592 passed, 0 failed, 0 errors, 0 skipped.
   - Group `installed_negative01` passed all 218 tests in 316 s. The repaired hang did not occur.
   - Qualification returned `REPAIR_RELEASE_QUALIFIED_NEW_RUNTIME_NOT_YET_ADMITTED` at 10:15 EDT. Both environments verified.
-- [ ] Step 3: storage check, pinned inputs, independent review. **Storage admission refused, stopped.**
+- [x] Step 3: storage check, pinned inputs, independent review.
+  - The owner approved the cleanup. Script `.cache/test-runs/m3-repair-cleanup-20261023-01/cleanup01.py` passed review in round 3 of 3 (`APPLY_OK`).
+    It removed the 42 folders and 300 pytest links. All 216 evidence files kept their hashes. Scratch fell by 202.6 MiB. Record: `cleanup01.json`.
+  - `storage-admission02` admitted the run: scratch 11.471 GiB plus reserved growth 1.465 GiB equals 12.936 GiB.
+  - Pair `105ae8ddfc4c255a78d359ec1417e34061f56446f863997211d3aa4d15e58f51`, 77 audit tasks. Three-ridge plan `7c767d859c327ef947afe3f130a74b83c27707570cf69dbce7195cdc3d03286c`.
+  - `execution-pins01.json`: 37 inputs, SHA-256 `98cb9562a077c231de0b23a42a46ca9a9d3d927a539c0115947267ac1d7886d0`.
+  - One independent review returned `LAUNCH_OK`. The agent then made its two launcher fixes: `#Requires -Version 7`, a pins check before `try`, and `-NoClobber` for the transcript.
+    Launcher `Launch-Chain01.ps1` SHA-256 `2aaecc3dc410a1e5c38ad6eff7eaa942c484b0e33d7216ea9049e10d76e7e8b2`. `install-editable01.py` SHA-256 `d918282ad60ecf30f556973a0667297c9231c8eba5bb4bd3fdba86be2de051c6`.
+- Earlier step 3 record, before the cleanup: **Storage admission refused, stopped.**
   - `storage-admission01` failed the check `scratch + reserved growth <= 13 GiB`. It wrote no admission record.
   - Scratch 11.669 GiB plus reserved growth 1.465 GiB equals 13.134 GiB. That is 137 MiB over the run cap.
   - Total use 33.31 GiB. Free space 86.09 GiB.
