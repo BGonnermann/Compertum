@@ -100,5 +100,23 @@ Storage:
   - This test last passed on 13 October 2026, before the Windows upgrade restart on 14 October. It has not run since then.
   - Evidence: `.cache/test-runs/m3-repair-regressions-20261023-01/installed/installed_negative01*` and `.cache/test-runs/m3-repair-diagnosis-20261023-01`.
   - The source lane did not run.
+- [x] Root cause found and repaired (owner chose option 1).
+  - The blocked run's 13 October source passes the same test today, on the same Windows build. Windows is not the cause.
+  - Commit `cc96a88` (16 October) gave the client connect wait the 300 s command deadline.
+    A stale `supervisor.json` endpoint then blocked `control()` for 300 s.
+  - Repair commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`: the client connect wait keeps 5 s, as the resource report states.
+    One independent review returned `COMMIT_OK`. Five targeted tests passed in a diagnosis copy.
+- [x] Attempt `-01` closed. The source environment was restored, byte-identical (9,975 files). Its evidence stays unchanged.
+
+## Attempt -02
+
+Label `m3-repair-20261023-02`. Folders: `m3-repair-release-20261023-02`, `m3-repair-regressions-20261023-02`,
+`m3-repair-native-20261023-02`, and runtime `m3-repair-runtime-20261023-02`.
+The scripts are the reviewed `-01` scripts, changed only in folder names, label, and release commit.
+
+- [x] Step 1: release built from `a81c9b4` and installed. Wheel SHA-256 `3664c8bea0697b326b901776d98e5f6422cfc2f9adb12ca598fa1876ad412b2c`.
+- [ ] Step 2: regressions and environment qualification.
+- [ ] Step 3: storage check, pinned inputs, independent review.
+- [ ] Step 4: long chain.
 - [ ] Step 3: storage check, pinned inputs, independent review.
 - [ ] Step 4: long chain.
