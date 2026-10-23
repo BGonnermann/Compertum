@@ -64,10 +64,41 @@ Controls for the new run:
 - Leave the 10 unrelated uncommitted files alone.
 - If a stage fails, stop and report. Preserve the failed evidence. Do not reset identifiers.
 
+## Owner decisions from 23 October 2026, later the same day
+
+Release source:
+
+- One reviewer checked the dispatch-owner and registration-complete gates. The verdict was `COMMIT_SET_OK`.
+- Commit `b3a688cb3ffbe0b2436532e752a308d5b17ac0bd` holds only the gate files: `auditor.py`, `research.py`,
+  `simulation/campaign_runs.py`, `campaign_review.py`, `ai/cycle_ownership.py`, and `ai/registration.py`.
+- The release is built from that commit, never from the working tree. Other uncommitted work stays in master, untouched.
+- `git archive` exports the commit to `.cache/test-runs/m3-repair-release-20261023-01/commit-tree01`, called the clean copy.
+  The only added file is the untracked `src/compertum/_native/storage_scan.dll`. The commit pins its SHA-256 in `storage_scan.json`.
+- The source lane, the regression tests, and the run tooling import code only from the clean copy.
+- For this run, the source environment's editable install (`.cache/clean-env-m0`) points to the clean copy.
+  `install-editable01.py restore` puts back the original bytes after the run, pass or fail. It proves that the whole environment matches its first snapshot.
+
+Storage:
+
+- Drive C had 87.37 GiB free. The run needs about 1.8 GiB, and the code keeps 50 GiB free.
+- The scratch cap is 13 GiB only in this run's scripts. Product code keeps 12 GiB. The run record states this approval.
+- The 13 GiB cap ends when the run ends, pass or fail.
+- After the run, scratch stays above 12 GiB. The owner accepts this. The agent proposes a reviewed cleanup and waits for approval.
+- The lineage reserve in `m5-lineage-installed-native-20261014-11` stays pinned.
+
 ## Progress
 
 - [x] Plan saved and committed.
-- [ ] Step 1: release built and installed.
-- [ ] Step 2: regressions and environment qualification.
+- [x] Gate files reviewed and committed as `b3a688c`.
+- [x] Step 1: release built from `b3a688c` and installed. Wheel SHA-256 `29c884e3684ece0ecba65293863c596523ba4560c7981a64f6c6c929df6fec6e`.
+  The source environment points to the clean copy until the restore.
+- [ ] Step 2: regressions and environment qualification. **FAILED, stopped.**
+  - The installed lane passed 20 of 21 groups (374 tests, 0 failures, 0 skips).
+  - Group `installed_negative01` passed 69 tests. Then `tests/test_final_public_control.py::test_public_final_control_idempotence_no_redispatch_and_restart` hung, and the 360 s group deadline ended it.
+  - The client waits in `runtime/control.py` `_connect` for the supervisor pipe. The holder process exits normally after 30 s.
+  - The same hang occurs with parent commit `5017440`, which has no gates. Thus the gate commit is not the cause.
+  - This test last passed on 13 October 2026, before the Windows upgrade restart on 14 October. It has not run since then.
+  - Evidence: `.cache/test-runs/m3-repair-regressions-20261023-01/installed/installed_negative01*` and `.cache/test-runs/m3-repair-diagnosis-20261023-01`.
+  - The source lane did not run.
 - [ ] Step 3: storage check, pinned inputs, independent review.
 - [ ] Step 4: long chain.
