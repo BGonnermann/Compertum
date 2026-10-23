@@ -16,7 +16,7 @@ These rules apply to all contributors and agents. Include them in instructions f
 
 ## Owner direction from 14 October 2026
 
-- Work in `C:\Users\bgonn\Desktop\Vesper`, called master. The owner renamed it from `Desktop\Compertum` in October 2026. Keep master and GitHub current. Avoid unnecessary desktop checkouts.
+- Work in `C:\Users\bgonn\Desktop\Compertum`, called master. The owner renamed it to `Desktop\Vesper` and back in October 2026. Keep master and GitHub current. Avoid unnecessary desktop checkouts.
   Do not restart valid tests solely because their results are in another folder.
 - Use the private primary repository, [BGonnermann/Compertum](https://github.com/BGonnermann/Compertum), through master's `origin`.
   Use the existing `BGonnermann` account. Verify the active account before publication.
