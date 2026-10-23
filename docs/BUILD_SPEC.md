@@ -27,6 +27,13 @@ Later on 17 October, the owner approved 15 GiB test scratch for one additional 1
 Fresh complete admission passed before that folder was created. Backups remain 21 GiB; total storage remains 50 GiB.
 This test-only approval preserves published program limits, historical runtimes, allocated reserves, and all other operating gates.
 
+## Test retention amendment - 19 October 2026
+
+The owner approved `docs/TEST_RETENTION.md` for routine cleanup of verified disposable test files.
+It replaces blanket preservation of those files. Keep results, unresolved failure evidence, and real runtime data.
+The 50 GiB total and existing category limits remain unchanged.
+Historical preservation statements above describe the authority at those dates.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:
