@@ -10,7 +10,8 @@ Independent closeout review: `CLOSEOUT_OK` in round 2. Evidence: [the acceptance
 
 The 19 October registration and cycle work is committed as `3310653` after 253 source tests passed today (zero failures, errors or skips) and one independent review.
 Scratch is 11.890 GiB after a reviewed cleanup. The chain's 13 GiB run cap ended. Product code keeps 12 GiB.
-Known follow-ups: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet; the project-map PDF refresh is due.
+The project-map PDF was refreshed on 23 October 2026: nine pages, 81 navigation links and 91 source notes inspected.
+Known follow-up: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet.
 
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
 Exact next action: build section 19 stage E1, the loopback model interface with `config/models.toml`, per-call ledger records and the memory check. See [the engine plan](ENGINE_PLAN.md).
