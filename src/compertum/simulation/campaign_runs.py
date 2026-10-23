@@ -214,6 +214,8 @@ def verify(runs,state,raw,*,decode,historical=False):
 
 def prepare(runs,run_id,*,reserved=False,_verification=None):
     with runs.store._live():
+        from compertum.ai.registration import require_complete
+        require_complete(runs,run_id)
         state=runs._load(run_id)
         if not is_campaign(state) or state['state']!='READY':raise DataError('RUN_NOT_READY')
         if _verification is None:runs._verify(state,decode=False)
@@ -320,6 +322,8 @@ def interrupt(runs,run_id,reason,*,terminal=False):
 def control(runs,run_id,request_id,action,state,*,_verification=None):
     # SavedRuns already checked role, request deduplication and state/control bounds.
     if action=='resume':
+        from compertum.ai.registration import require_complete
+        require_complete(runs,run_id)
         if _verification is None:runs._verify(state,decode=False)
         else:_verification.check(runs,state)
         if state['attempts']:

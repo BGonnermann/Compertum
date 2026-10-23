@@ -14,6 +14,8 @@ class AuditorController:
         self.coordinator=coordinator;self.storage=storage;self.runs=AuditRuns(storage);self.active=None
 
     def step(self,task_id):
+        from .ai.cycle_ownership import require_dispatch_owner
+        require_dispatch_owner(self)
         if self.coordinator.status()['research_state']!='RUNNING':raise RuntimeRefused('RESEARCH_PAUSED')
         self.coordinator.require_health()
         if self.active or job_slot_busy(self.storage.lease):raise RuntimeRefused('JOB_SLOT_BUSY')
@@ -42,6 +44,8 @@ class AuditorController:
 
     def tick(self):
         if self.active is None:return
+        from .ai.cycle_ownership import require_dispatch_owner
+        require_dispatch_owner(self)
         task,writer,job=self.active
         if job.api.active(job.job):return
         try:

@@ -37,6 +37,8 @@ class ResearchController:
             self.runs._save(state,'JOB_EXIT_VERIFIED')
 
     def step(self,run_id):
+        from .ai.cycle_ownership import require_dispatch_owner
+        require_dispatch_owner(self)
         self._require_recovery_clear()
         if self.coordinator.status()['research_state']!='RUNNING':raise RuntimeRefused('RESEARCH_PAUSED')
         self.coordinator.require_health()
@@ -123,6 +125,9 @@ class ResearchController:
         return interrupt(self.runs,run_id,reason,terminal=terminal)
 
     def tick(self):
+        if self.pending is not None or self.active is not None:
+            from .ai.cycle_ownership import require_dispatch_owner
+            require_dispatch_owner(self)
         if self.pending is not None:
             self._advance_pending();return
         if self.active is None:return
@@ -177,7 +182,12 @@ class ResearchController:
             if self.pending is not None and self.pending.run_id==run_id:result['pending_operation']=self.pending_status()
             if self.last_operation_error is not None and self.last_operation_error['run_id']==run_id:result['last_operation_error']=self.last_operation_error
             return result
-        if operation in {'step','resume'}:self._require_recovery_clear()
+        if operation in {'step','resume'}:
+            from .ai.cycle_ownership import require_dispatch_owner
+            require_dispatch_owner(self)
+            self._require_recovery_clear()
+            from .ai.registration import require_complete
+            require_complete(self.runs,run_id)
         if operation=='step':return self.step(run_id)
         if operation not in {'resume','pause','stop'}:raise RuntimeRefused('CONTROL_PAYLOAD_DENIED')
         if self.pending is not None and self.pending.run_id==run_id and operation in {'pause','stop'}:self.pause()
