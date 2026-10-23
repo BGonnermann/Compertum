@@ -16,7 +16,7 @@ These rules apply to all contributors and agents. Include them in instructions f
 
 ## Owner direction from 14 October 2026
 
-- Work in `C:\Users\bgonn\Desktop\Compertum`, called master. Keep master and GitHub current. Avoid unnecessary desktop checkouts.
+- Work in `C:\Users\bgonn\Desktop\Vesper`, called master. The owner renamed it from `Desktop\Compertum` in October 2026. Keep master and GitHub current. Avoid unnecessary desktop checkouts.
   Do not restart valid tests solely because their results are in another folder.
 - Use the private primary repository, [BGonnermann/Compertum](https://github.com/BGonnermann/Compertum), through master's `origin`.
   Use the existing `BGonnermann` account. Verify the active account before publication.
@@ -38,7 +38,7 @@ These rules apply to all contributors and agents. Include them in instructions f
 
 ## Execution
 
-Read `docs/CURRENT_CHECKPOINT.md`, `docs/BUILD_SPEC.md` v1.1, and the relevant component plan.
+Read `docs/CURRENT_CHECKPOINT.md`, `docs/BUILD_SPEC.md` v1.2, and the relevant component plan.
 Complete accepted work, tests, repairs, and fresh verification without routine approval stops.
 Keep a short checklist and exact next action. Update the README when verified status changes.
 
@@ -50,6 +50,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 - Keep new spending at $0.
 - Require explicit authority for new account permissions, account actions, orders, paid data, administrator access, or security changes.
   Require explicit authority for unattended services or Strata configuration changes.
+  Bounded autoresearch runs under `docs/BUILD_SPEC.md` section 19 are not services. The owner starts each run.
 - Existing read-only Alpaca permission and the approved V20 credential-file source remain authorized.
   Never display, log, commit, or publish secrets. Never copy secrets into the repository.
   Do not dump authentication stores or environment variables.
@@ -59,6 +60,17 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
   Keep the automation for cap-only continuation paused.
 - Preserve the 50 GiB total and category budgets. Use fresh, checked folders under `.cache/test-runs` for temporary test files.
   Never change the interpreter, lock, thresholds, or financial checks merely to pass checks.
+
+## Autoresearch engine
+
+- Automated search over strategies, features, and models is allowed under `docs/BUILD_SPEC.md` section 19.
+- Never let the engine change the judge, the Auditor, the baseline, the vault, the data tiers, the ledger, or the rules.
+- Run AI-written code only in the section 19 sandbox. Promote code only after automated tests and the Auditor pass.
+- Open the vault only in batches, with the owner's OK. Count every look before the vault opens.
+- Start unattended runs only with a cycle or hour limit, an owner-approved AI request limit, the kill switch, Auditor freeze, and a daily summary.
+- Never raise the per-run hard maximum for AI requests. Only the owner raises it.
+- Use loopback model addresses only. Check host memory before every job. Strata stays off.
+- Engine work starts after M3 acceptance and finishes before M5.
 
 ## Project diagram refresh
 

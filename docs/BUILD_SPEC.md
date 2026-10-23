@@ -1,6 +1,6 @@
 # Supervised solo quant build specification
 
-Specification version: 1.1. Initial setup inspection and documentation revision date: 7 October 2026 Eastern. Status: proposed implementation contract, with previously verified setup evidence. Revision 1.1 resolves timing, scoring, covariance, closing, recovery, ownership and resource-enforcement review findings. It does not refresh hardware/provider observations. This document does not authorize implementation, credentials access, brokerage actions, purchases, publishing, or live trading. The M0-only execution plan is `docs/M0_IMPLEMENTATION_PLAN.md`; its existence is not implementation authority.
+Specification version: 1.2. Initial setup inspection and documentation revision date: 7 October 2026 Eastern. Status: proposed implementation contract, with previously verified setup evidence. Revision 1.1 resolves timing, scoring, covariance, closing, recovery, ownership and resource-enforcement review findings. It does not refresh hardware/provider observations. This document does not authorize implementation, credentials access, brokerage actions, purchases, publishing, or live trading. The M0-only execution plan is `docs/M0_IMPLEMENTATION_PLAN.md`; its existence is not implementation authority.
 
 Starting requirements: `Solo_Quant_System_Build_Preparation.md`, SHA-256 `668c66e3e6122b948db6beb679df96c16d0e753e5962daefd4dd4fb1e6fe641c`. The preparation brief is dated 8 October; inspection occurred on 7 October. The user's current instructions take precedence over its draft allocations and open-ended suggestions.
 
@@ -34,6 +34,13 @@ It replaces blanket preservation of those files. Keep results, unresolved failur
 The 50 GiB total and existing category limits remain unchanged.
 Historical preservation statements above describe the authority at those dates.
 
+## Autoresearch amendment - 22 October 2026
+
+The owner approved six rule changes for an autoresearch engine. Section 19 holds the full design.
+They change sections 1, 4, 10, 12 and 16. They add section 19.
+The judge, the Auditor, the baseline, the vault, the data tiers, the ledger, and the rules stay under owner control.
+Engine work starts after M3 acceptance and finishes before M5. Paper trading only. Live allocation stays zero.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:
@@ -47,7 +54,7 @@ Required: native Windows 11; Ryzen 7 7700X; RTX 5070 Ti; 64 GB DDR5; plan within
 
 Default: one local repository named Compertum, one supervised desktop, daily-bar stock features, long-only whole-share positions, no leverage, no shorting, no derivatives, and no automatic horizon switching. No external repository or cloud service is needed. Live allocation remains zero. Local scheduling must not change Windows power settings or create an unattended service without a separate operating decision.
 
-The first end-to-end deliverable includes a data snapshot, deterministic baseline, bounded ML comparison, mathematical review, protected evaluation, independent audit, and controlled paper operation. Implement it in the milestones in section 16. AVO-style search, DREAM replay, neural model training, automatic self-modification, distributed services, live trading, and subscription renewal decisions are outside version 1.
+The first end-to-end deliverable includes a data snapshot, deterministic baseline, bounded ML comparison, mathematical review, protected evaluation, independent audit, and controlled paper operation. Implement it in the milestones in section 16. DREAM replay, neural model training, distributed services, live trading, and subscription renewal decisions are outside version 1. Automated search over strategies, features, and models is allowed under section 19. Automatic changes to the judge, the Auditor, the baseline, the vault, the data tiers, the ledger, or the rules stay forbidden.
 
 Engineering completion and strategy acceptance are separate records. Valid outcomes include `ENGINEERING_READY / NO_CANDIDATE_QUALIFIES` and `ENGINEERING_READY / STRATEGY_EVIDENCE_PENDING`. Neither is permission to relax a test or start live trading.
 
@@ -168,7 +175,7 @@ Research state: `RUNNING`, `PAUSE_REQUESTED`, `PAUSED`, `AI_UNAVAILABLE`, `RESOU
 
 Run state: `REGISTERED -> QUEUED -> RUNNING | WAITING_FOR_OPERATOR -> COMPLETED | FAILED | TIMED_OUT | PAUSED | UNVERIFIED`. Candidate evidence state: `DEVELOPMENT_ONLY -> FROZEN -> EVALUATED -> AUDITED -> PAPER_ELIGIBLE | REJECTED | EVIDENCE_PENDING`. `STRATEGY_ACCEPTED` additionally requires the forward gate in section 10. Owner authorization is separate from either evidence state.
 
-Research workers submit messages and artifacts through a validated dispatcher. They cannot mutate shared databases, risk limits, holdouts, registry approval, or broker state. Each attempt has its own directory. No worker has arbitrary shell, inherited environment secrets, unrestricted filesystem access, or an unrestricted network client. Initial executable experiments are trusted templates selected by validated configuration. Proposed source patches are quarantined artifacts and require human review, tests, and independent audit before a new trusted release. Do not execute arbitrary AI-generated Python as the desktop user.
+Research workers submit messages and artifacts through a validated dispatcher. They cannot mutate shared databases, risk limits, holdouts, registry approval, or broker state. Each attempt has its own directory. No worker has arbitrary shell, inherited environment secrets, unrestricted filesystem access, or an unrestricted network client. Initial executable experiments are trusted templates selected by validated configuration. AI-written code runs only inside the engine sandbox in section 19. It never runs as the desktop user outside that sandbox. Code leaves the sandbox only after automated tests and the Auditor pass. This gate replaces per-change human review. The owner reviews a daily summary instead.
 
 Protected data are absent from worker bundles, prompts, retrieval tools, and logs. Evaluation and audit are trusted deterministic processes. Same-user Windows process separation alone is not a filesystem security boundary. An automatic Codex adapter is disabled until its effective read/tool permissions are proved against protected files. If that cannot be enforced without new OS/account permissions, use the manual subscription workflow and model-only Strata calls. Do not claim holdout isolation on the strength of a prompt instruction. The owner can deliberately access local files; any premature access to protected outcomes invalidates that evaluation receipt.
 
@@ -414,7 +421,7 @@ Loss controls use the same economic-cash/action accounting with the freshest per
 
 Before development execution, seal universe, dataset profile, interval rules, features, 12 variants, seeds, metrics, costs, split dates, selection procedure and numeric thresholds in `protocol-v1`. Historical final period is 2024-01-01 through 2025-12-31, held outside development bundles. Reserve 2026 observations outside this campaign; they are not another holdout to probe after failure. If anyone has already used the nominated final period to select this strategy, label it compromised and require a fresh prospective final window. A sealed date interval does not cure present-day-universe selection bias.
 
-After development, freeze at most one candidate per H using greatest mean net benchmark excess over the concatenated development fold equity returns. Break ties by lower turnover, then simpler momentum model, then lexicographic candidate ID. Only candidates with complete reproducibility, math/risk checks and development audit enter the shortlist. Record the shortlist and all 12 attempts before final access. Evaluate the shortlist in one batch, including predeclared yearly fits; workers never receive per-period protected predictions or iterative failure feedback. The operator/auditor receive the full report after the evaluation is consumed. Further design changes require a new campaign and untouched future evidence, not another query on this final period.
+After development, freeze at most one candidate per H using greatest mean net benchmark excess over the concatenated development fold equity returns. Break ties by lower turnover, then simpler momentum model, then lexicographic candidate ID. Only candidates with complete reproducibility, math/risk checks and development audit enter the shortlist. Record the shortlist and all 12 attempts before final access. Evaluate the shortlist in one batch, including predeclared yearly fits; workers never receive per-period protected predictions or iterative failure feedback. The operator/auditor receive the full report after the evaluation is consumed. Further design changes require a new campaign. A new campaign may test new strategies on TRAIN and VALIDATION without new data. Engine candidates reach the vault only through the queue in section 19. No candidate is evaluated in the vault more than once. After the current vault period is used, the next protection is forward paper trading on new data.
 
 Default historical paper-eligibility thresholds, all required:
 
@@ -463,7 +470,7 @@ Get-Content -LiteralPath 'artifacts\ai\TASK_ID\prompt.md' -Raw |
 
 This invocation alone does not enforce the entire worker contract. Before enabling automation, verify read/tool boundaries, inherited configuration/hooks, billing method, model selection, response exit/event semantics and protected-file denial. If any cannot be established, retain manual subscription operation. Do not use an undocumented ChatGPT HTTP endpoint or assume Codex's built-in `--oss` providers support Strata. This task did not run a hosted inference request or change login.
 
-Strata adapter directly uses loopback `/v1/chat/completions`, exact advertised model ID, no MCP and only dispatcher-approved fictional/tool proposals. Default `reasoning_effort=none`, temperature 0, no streaming for initial tasks. Use `json_object` plus project-side JSON Schema validation; tools use a separate request and never execute inside Strata. The current smoke checks qualify interface reachability only. M0 full fallback suite requires valid schemas, two-turn tool-result handling, malformed-output rejection, context overflow, timeout/cancel recovery, isolation between task conversations, math-domain checks and budget enforcement. Pin binary/model/tokenizer/template/config identities. Check actual health before each use; don't start/reconfigure the existing service automatically.
+The local model adapter uses `/v1/chat/completions` at a configured loopback address: `127.0.0.1` or `localhost`, on any port. It refuses every other host. Strata, LM Studio, and other OpenAI-compatible local servers share this adapter. It uses the exact advertised model ID, no MCP, and only dispatcher-approved fictional/tool proposals. Default `reasoning_effort=none`, temperature 0, no streaming for initial tasks. Use `json_object` plus project-side JSON Schema validation; tools use a separate request and never execute inside Strata. The current smoke checks qualify interface reachability only. M0 full fallback suite requires valid schemas, two-turn tool-result handling, malformed-output rejection, context overflow, timeout/cancel recovery, isolation between task conversations, math-domain checks and budget enforcement. Pin binary/model/tokenizer/template/config identities. Check actual health before each use; don't start/reconfigure the existing service automatically.
 
 On subscription quota/availability failure: retain the same task ID, record provider change, use local fallback only if the task's capability requirements and budgets fit its qualified profile. At most one transport retry per provider and one schema-repair request per task, all inside the stated total request/attempt budgets. Do not reinterpret incomplete hosted output as a completed task. Record usage only if reported; missing quota/cost telemetry is `UNKNOWN`, not fabricated.
 
@@ -541,6 +548,7 @@ Milestones are implementation stages for a later authorized task. Passing a stag
 | M1: reproducible data and evaluation pipeline | Authorized free-data sample verifies all 12 stocks and SPY across normal/early-close/DST/split/missing-row cases, feed, schema, minute execution reference and action coverage. Publish snapshot/seal; complete baseline for all 3 H; rerun gives exact trades and declared numeric agreement. Commands pause/resume/stop preserve history. | Inject future feature, overlapping label, duplicate row, wrong adjustment, missing fill, stale bar and train-on-final access; each must fail or become explicit diagnostic. Zero-return/cash candidate must fail strategy qualification without a threshold change. |
 | M2: bounded ML and mathematics | Exactly 12 registered strategy variants; three ridge alphas x three H and three baselines complete within budgets or record failures; full predictive/trading scorecards; covariance claim with derivation/counterexamples and independent checks. No holdout feedback to workers. | Non-finite/asymmetric/materially indefinite covariance rejected; finite symmetric singular PSD accepted for quadratic forecasts and rejected only for inversion when its separate gate fails. Monthly 12-by-12 centered-sample fixture verifies rank at most 11. Unjustified identity rejected; author cannot approve; missing run evidence remains unverified; retry cannot duplicate promotion. |
 | M3: protected evaluation and independent audit | Frozen shortlist up to 3; one consumed final evaluation; approximate CI/stress/coverage gates; clean reruns of all shortlisted bundles; registry accurately emits none/provisional/pending. Read attempt and protocol modification denied or invalidates seal. | Repeat final query refused, including after restoring a pre-consumption backup or losing latest status; changed seed/cost/threshold/data requires new identity. Hand-calculated NAV/returns/metrics and exact cutoff/revision fixtures pass; losing candidates produce `NO_CANDIDATE_QUALIFIES` with engineering checks still passed. |
+| E: autoresearch engine (after M3, before M5) | Section 19 stages E1–E6 pass. A bounded run on a synthetic market finds a planted pattern. Every step has a ledger record with its model. | A sandbox escape, a write to a fixed part, a vault read without the owner's OK, an AI request count above the run limit, or an unbounded run fails and freezes the engine. |
 | M4: execution against deterministic fake broker | Persistent intentions, risk controls, operator plans, cancellation/close distinctions, mutual watchdog and full recovery matrix. For every tested crash boundary, no more than one broker acceptance per logical intent and no falsely confirmed effect. | Halted owned close above $2,000 uses bounded serial children; one-share-over-cap, changed price/quantity and child accepted-then-timeout produce explicit residual/unknown states. Simultaneous execution startup and restart overlap retain one owner. Partial fill/cancel race; double click; process crash; out-of-order event; stale mark; offline/suspend/foreign activity keep gates conservative. |
 | M5: controlled supervised Alpaca paper walkthrough | Separate authority for credentials/account reads and each concrete order/cancel/close plan; verified paper endpoint/account; small real paper fixture; all receipts map intent -> broker -> ledger; no live calls. Run walkthrough below and resolve all holdings/orders created by it. | Real restart with holdings/open orders; read-only disconnected status shows uncertainty; controls never confuse halt/cancel/flat; outside-window orders rejected. Timeout acceptance race stays a fake-broker test, not an intentionally ambiguous real order. |
 | M6: supervised daily operation and forward evidence | Ten consecutive supervised sessions without unexplained ledger/order/heartbeat discrepancies; restore a verified multi-DB/message/artifact recovery set; AI-off session still runs data/risk/monitoring and trusted computations. Frozen 252-session forward evidence pending until elapsed. | Older execution snapshot never replays POSTs or preserves arms; pending durable message restores once; absent consumption evidence compromises affected seals. Disk growth, missed supervision, holiday/early close/DST, provider limits and revisions are detected without spending or automatic renewal. |
@@ -586,3 +594,144 @@ The first implementation task should be M0 only under subsequent implementation 
 Inspection used read-only PowerShell commands, metadata/package-availability queries, registry/.NET/NVIDIA inventory, existing Strata source/build metadata, GET health/model/status, and three small model-only inference probes. Representative commands were `python --version`, `py -0p`, `git --version`, `git rev-parse --show-toplevel`, `uv --version`, `nvcc --version`, `nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,memory.free --format=csv,noheader`, `codex --version`, `codex exec --help`, `powercfg /getactivescheme`, `powercfg /query SCHEME_CURRENT SUB_SLEEP STANDBYIDLE`, and `.NET DriveInfo.GetDrives()`. Sources were accessed on 7 October 2026 Eastern. Public API documentation supports proposed contracts; authenticated entitlement and broker behavior remain integration checks.
 
 The initial inspection wrote only `docs/BUILD_SPEC.md`. The documentation revision updates that file and adds `docs/M0_IMPLEMENTATION_PLAN.md`. No dependency installation, purchase, API configuration, brokerage setting change, external repository, product code, power change, credential extraction, authenticated Alpaca request, order, cancellation or liquidation is authorized or performed by this documentation task. Before implementation, reconcile delivered modules/commands/records/data/evidence/failure behavior against sections 3-16. Fresh milestone receipts, rather than this specification or its plan, establish engineering completion.
+
+## 19. Autoresearch Engine
+
+Status: target design, 22 October 2026. Nothing in this section is built yet.
+Engine work starts after M3 acceptance and finishes before M5. Research cycles on TRAIN and VALIDATION may run before paper trading.
+Paper trading only. Live allocation stays zero. No order route starts from an AI role.
+
+### Terms
+
+- **Judge:** the deterministic scoring code, which is `compertum.evaluation`, the scorecards, the sealed protocol thresholds, and the Validator.
+- **Auditor:** the deterministic audit entry point in section 15.
+- **Ledger:** `state/*.sqlite`, the consumption guard, and the saved receipts.
+- **Rules:** this specification, `AGENTS.md`, sealed protocols, threshold settings, and the per-run hard maximum for AI requests.
+- **Cycle:** one pass through the seven steps below.
+- **Bounded run:** a fixed number of cycles or hours that the owner starts.
+
+### Fixed parts
+
+The engine never changes the judge, the Auditor, the baseline, the vault, the data tiers, the ledger, or the rules.
+Only the owner changes them, through a reviewed commit.
+If engine code attempts a write to a fixed part, the run fails and the engine freezes.
+
+### Model interface
+
+- Every AI role calls its model through one OpenAI-compatible Chat Completions interface.
+- The address must be loopback: `127.0.0.1` or `localhost`, on any port. LM Studio's default `http://127.0.0.1:1234` works.
+- One file, `config/models.toml`, sets the model for each role. Any model can run any role.
+- Recursive Flint (`RecursiveSI/flint`, Apache 2.0, a mixture-of-experts model with 40B total and 2.5B active parameters) is one option. It gets no special code.
+- The manual subscription workflow in section 12 stays available as a provider.
+- For each step, the ledger records the role, provider, address, server-reported model ID, settings, prompt hash, and response hash.
+- If an operator types a model name, the ledger labels it as operator-typed.
+- Before every job, the engine checks free host memory. If memory is below the floor, the job does not start.
+- Strata stays off under the owner's ban.
+
+```toml
+[roles.engineer]
+base_url = "http://127.0.0.1:1234/v1"
+model = "MODEL_ID_REPORTED_BY_SERVER"
+```
+
+### Roles
+
+| Role | Kind | Does | Cannot |
+| --- | --- | --- | --- |
+| Director | AI | Reads the ledger summary. Picks at most 3 hypotheses per cycle. Builds on partial successes. Avoids repeated dead ends. Approves or rejects memos. Updates the agenda every 10 cycles. | See vault results. |
+| Researcher | AI | Writes a one-page memo for each hypothesis: the idea, why it might work, and what would disprove it. | Write code. |
+| Mathematician | AI | Turns approved memos into feature and model specifications, including expert models and a master allocator. States assumptions and failure modes. Reviews the Engineer's code. | Approve its own work. |
+| Engineer | AI | Writes and runs code in the sandbox, on TRAIN and VALIDATION only. | Read the vault. Write outside the sandbox. |
+| Validator | Code | Scores candidates walk-forward with costs and slippage against the fixed baseline. Counts all trials. Opens the vault only with the owner's OK. | Change thresholds. |
+| Archivist | Code | Records each step in the ledger: idea, code version, model, scores, decision, and reason. | Delete or rewrite records. |
+
+The Mathematician's code review is advice only. The tests and the Auditor are the binding gate.
+
+### Cycle
+
+1. The Director reads the ledger and picks up to 3 hypotheses.
+2. The Researcher writes one memo for each hypothesis. The Director approves or rejects each memo.
+3. The Mathematician turns each approved memo into a specification.
+4. The Engineer builds each specification in the sandbox and runs it on TRAIN and VALIDATION. The Mathematician reviews the code.
+5. The Validator scores each candidate.
+6. The Archivist records every step, including rejected memos and failed runs.
+7. Every 10 cycles, the Director reviews the repeated failures and updates the agenda.
+
+Each cycle records its candidate list in the ledger before any run. Every candidate counts as a trial, including failures.
+
+### Data tiers
+
+| Tier | Current dates | Readers | Use |
+| --- | --- | --- | --- |
+| TRAIN | Training window of each development fold, from 2016 | Engineer, Validator | Fit models. |
+| VALIDATION | Development test years 2021, 2022 and 2023 | Engineer, Validator | Score ideas as often as needed. |
+| VAULT | Protected period 2024-01-01 to 2025-12-31 | Validator only | Rare batch looks with the owner's OK. |
+
+### Vault and candidate queue
+
+- A candidate enters the queue only after it beats the baseline on VALIDATION and passes the tests and the Auditor.
+- Queued candidates wait. There is no monthly allowance.
+- The vault opens rarely, in batches, and only with the owner's OK.
+- Each batch is one consumed evaluation with its own seal. The ledger counts the look before the vault opens.
+- No candidate is evaluated in the vault more than once.
+- The Validator raises the bar as the total number of tried ideas grows. It uses the deflated Sharpe ratio (Bailey and López de Prado, 2014) with the total trial count across all campaigns.
+- The section 10 confidence-bound family size also grows to that total. These additions never lower a section 10 threshold.
+- The owner decides when the current vault period is used up. After that, the next protection is forward paper trading on new data under section 10.
+
+### Sandbox
+
+- Each Engineer job runs in its own folder under the sandbox root.
+- The job has no network access.
+- The existing Job Object controls in section 6 limit CPU, memory, time, and disk.
+- The job cannot read the vault. It cannot write to the judge, the Auditor, the ledger, or the rules.
+- Section 4 states that same-user process separation is not a file boundary. So the sandbox needs an operating-system boundary, such as a Windows AppContainer.
+- The owner authorized the AppContainer sandbox on 22 October 2026. This authority covers no other security change.
+- Before first use, deliberate escape tests must prove the sandbox.
+- Code leaves the sandbox only after automated tests and the Auditor pass. Promoted code becomes a new versioned trusted template.
+- Code that fails stays in quarantine as evidence.
+
+### Bounded unattended runs
+
+- The owner starts each run with a cycle limit or an hour limit. The run stops at the first limit it reaches.
+- Each run states its own AI request limit. The owner approves that limit when the run starts.
+- A hard maximum for each run caps that limit. Only the owner can raise the hard maximum. The owner sets its first value before stage E5.
+- If a run reaches its AI request limit, the run stops and records the reason.
+- Kill switch: `research stop` or `research pause` stops dispatch within 30 seconds (section 5).
+- Auditor freeze: if the Auditor fails, if code attempts to escape the sandbox, or if code attempts a write to a fixed part, the run stops. Only the owner clears the freeze.
+- Each run writes a plain-English daily summary. It lists cycles, ideas tried, results, failures, the queue, freezes, and the models used.
+- The summary is private local evidence. It is not committed to Git.
+- No unbounded background run, scheduled task, or service is allowed.
+- Only one heavy job runs at a time. Each job keeps its own deadline and resource limits.
+
+### What exists on 22 October 2026
+
+| Item | State |
+| --- | --- |
+| One loopback interface with a configurable address | Partly: `ai/strata.py` uses Chat Completions but fixes `127.0.0.1:8080`. |
+| Model file for each role | Missing. |
+| Model recorded for each step | Partly: proposals store `model_identity`. Manual names are typed by the operator. |
+| Director | Missing. |
+| Researcher memos | Partly: research proposer with schema checks. The owner approves. |
+| Mathematician | Partly: the role and claim packets exist. It cannot add new features or models. |
+| Engineer and sandbox | Missing. |
+| Walk-forward Validator, costs, baseline | Exists. |
+| Trial count, deflated Sharpe, queue | Missing. A fixed family of 12 exists. |
+| Archivist ledger | Mostly exists. |
+| Agenda review every 10 cycles | Missing. |
+| Bounded runs, AI request limits, daily summary | Missing. Pause and stop exist. |
+| TRAIN and VALIDATION | Exist. |
+| Vault guard against a repeat look | Exists. The batch queue is missing. |
+
+### Build stages
+
+Each stage ends with tests, one independent review, and a stop for the owner's OK.
+The supervised research cycle in progress is the base for stage E3.
+
+| Stage | Deliverable | Acceptance check |
+| --- | --- | --- |
+| E1 | Model interface and `config/models.toml` | Any loopback port works. Other hosts are refused. The ledger records the model for each step. The memory check blocks a job below the floor. |
+| E2 | Sandbox | Escape tests fail for network access, vault reads, writes to fixed parts, and resource overruns. |
+| E3 | Roles and cycle | One supervised cycle with real models on a synthetic market, with a complete ledger trail. |
+| E4 | Validator additions | Total trial count, deflated Sharpe, and the queue pass hand-calculated test cases. |
+| E5 | Bounded runs | Cycle, hour, and AI request limits, the hard maximum, kill switch, Auditor freeze, daily summary, and the 10-cycle agenda review work. |
+| E6 | Engine acceptance | A bounded run on a synthetic market finds a planted pattern. It makes no forbidden change and no vault look without the owner's OK. |
