@@ -139,7 +139,9 @@ The scripts are the reviewed `-01` scripts, changed only in folder names, label,
   - Restore: `SOURCE_ENVIRONMENT_RESTORED_BYTE_IDENTICAL`, 9,975 files. The editable install points to master `src` again.
   - The 13 GiB run cap ended. Product `config.py` keeps `scratch_bytes` 12884901888 in master and in the clean copy.
   - After the run, scratch is 12.637 GiB, 0.637 GiB over the product cap. The owner accepted this. The agent proposes a cleanup and waits for approval.
-- [ ] Acceptance reconciliation: update the M3 acceptance map and checkpoint from these records.
+- [x] Acceptance reconciliation. Report `reports/M3_REPAIR_ACCEPTANCE.md`. One independent reviewer: round 1 `CHANGES_REQUIRED`, round 2 `CLOSEOUT_OK`.
+  The acceptance map now states M3 engineering acceptance. README and `docs/CURRENT_CHECKPOINT.md` hold the owner's uncommitted work, so the agent did not edit them.
+- [ ] Post-run cleanup to bring scratch under 12 GiB. The owner approved it. Dry run done; independent review pending.
 - Earlier step 3 record, before the cleanup: **Storage admission refused, stopped.**
   - `storage-admission01` failed the check `scratch + reserved growth <= 13 GiB`. It wrote no admission record.
   - Scratch 11.669 GiB plus reserved growth 1.465 GiB equals 13.134 GiB. That is 137 MiB over the run cap.

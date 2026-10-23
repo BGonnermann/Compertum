@@ -1,5 +1,22 @@
 # M3 fresh master acceptance map
 
+## Current state, 23 October 2026: M3 engineering accepted
+
+Repair attempt `m3-repair-20261023-02` passed every requirement below on one release, built from commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`.
+It supplies the installed-package Final audit that the 14 October attempt could not complete. The 14 October attempt stays terminally BLOCKED and was not resumed.
+Reconciliation and evidence: [M3 repair acceptance](../reports/M3_REPAIR_ACCEPTANCE.md). Independent closeout review: `CLOSEOUT_OK` in round 2.
+
+- 592 passed per source and installed lane, 0 failures, errors or skips. Both environments verified.
+- Campaigns 63/63 per lane with 63 exact payloads. Late prefix verified. All 77 audits verified, 72 independent unit audits.
+- One consumed Final, terminal restart refusal, and paired native Final audits with pause, resume and restart: all verified.
+- Three-ridge check verified, with 3 candidates and 6 fits. It grants no authority.
+- All three momentum candidates failed the money gates. Every record has `financial_accepted: false`.
+
+This is engineering acceptance only. Financial qualification, the vault, paper permissions and supervised sessions stay separate open gates.
+The table and text below are the 14 October record. They stay unchanged as history.
+
+## Record of 14 October 2026
+
 14 October 2026. Current repaired release: 592 distinct matching tests per source/installed lane, both complete environment qualifications and both 63-outcome campaigns verified. All 63 mathematical payloads match exactly. **All 77 audits/reviews, Final calculation and its terminal restart passed. The source Final audit passed pause/resume. The installed audit lost its exit receipt; acceptance remains blocked.** The original 12-result pause prefix was preserved and verified before resume. Continuation admission review cleared on pass 1 of 3. Supported closure, source terminal restart and separate four-job three-ridge verification passed. The installed audit remains terminally BLOCKED. See reports/M3_FINAL_INTERRUPTION.md. Admission review cleared on pass 1 of 3. Strata stays off.
 
 U = `.cache/test-runs/m3-pair-native-20261013-01`; V = `.cache/test-runs/m3-pair-runtime-20261013-01`. All paths are under master. V is now a historical prefix: files are preserved at `backups/m3-interrupted-runtime-20261014-01/runtime`. All file bytes/IDs match, but all 183 directory IDs changed in a failed identity-preserving move; that tree is evidence only and cannot resume. Release, environment and 37 execution-input pins are in [the native plan](M3_MASTER_NATIVE_PLAN.md). Paired campaign proof: `artifacts/m3/pair_validation_campaign_pair.json`.
