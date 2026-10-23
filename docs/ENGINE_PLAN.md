@@ -55,15 +55,22 @@ E7 is new. It needs the owner's OK to add it to section 19 before work starts. I
 - Measure tokens per second, VRAM, RAM and free host memory with the model loaded. The model must leave free memory above the floor.
 - Run the E1 interface against it with fixed test prompts. Record the server-reported model ID.
 
-## Owner decisions needed
+## Owner decisions
 
-1. **Dependencies.** Deep Agents needs `deepagents`, `langgraph`, `langchain` and `langchain-openai`. GEPA needs `gepa`. These are new dependencies.
-   They download from PyPI at $0. Proposal: install them in a separate engine environment, so the qualified product lock and environments stay unchanged.
-2. **Stage E7.** Add GEPA prompt improvement as stage E7 in section 19.
-3. **Request limits.** Approve the first per-run AI request hard maximum before E5 (section 19 requires this).
+Decided on 23 October 2026:
+
+1. **Dependencies:** a separate engine environment. Deep Agents needs `deepagents`, `langgraph`, `langchain` and `langchain-openai`. GEPA needs `gepa`.
+   They download from PyPI at $0. The qualified product lock and the M3 environments stay unchanged.
+2. **Stage E7:** approved. Section 19 of `docs/BUILD_SPEC.md` now lists E7.
+3. **Pending work:** verify the owner's uncommitted 19 October work (registration repair and supervised research cycle), get one independent review, and commit it. E1 builds on that commit.
+
+Still open:
+
+4. **Request limits.** Approve the first per-run AI request hard maximum before E5 (section 19 requires this).
 
 ## Current state
 
 - [x] M3 engineering acceptance closed.
-- [x] Plan written.
+- [x] Plan written and pushed.
+- [ ] Verify and commit the 19 October work.
 - [ ] E1 started.

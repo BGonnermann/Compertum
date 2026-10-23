@@ -735,3 +735,4 @@ The supervised research cycle in progress is the base for stage E3.
 | E4 | Validator additions | Total trial count, deflated Sharpe, and the queue pass hand-calculated test cases. |
 | E5 | Bounded runs | Cycle, hour, and AI request limits, the hard maximum, kill switch, Auditor freeze, daily summary, and the 10-cycle agenda review work. |
 | E6 | Engine acceptance | A bounded run on a synthetic market finds a planted pattern. It makes no forbidden change and no vault look without the owner's OK. |
+| E7 | GEPA role-prompt improvement (owner approved, 23 October 2026) | Inside a bounded run, GEPA changes AI role prompts only. Scores use TRAIN and VALIDATION only. Every resulting strategy counts as a trial. No fixed part changes. See `docs/ENGINE_PLAN.md`. |
