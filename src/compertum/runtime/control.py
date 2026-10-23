@@ -72,7 +72,9 @@ def disconnected(error):
 
 
 def _request_once(api,endpoint,command,raw,deadline):
-    with _connect(api,endpoint.registration,deadline) as handle,api.peer(handle,server_side=False) as observed:
+    # Connection is part of authentication and retains five seconds. A stale
+    # endpoint must fail fast; only the authenticated reply may wait longer.
+    with _connect(api,endpoint.registration,min(deadline,deadline_after(5))) as handle,api.peer(handle,server_side=False) as observed:
         verify_peer(endpoint.registration,observed)
         with api.open_process(os.getpid()) as process:
             sid,logon=api.token_sids(process)

@@ -27,3 +27,14 @@ def test_reply_ack_retains_five_seconds_after_long_handler(monkeypatch):
     def handler(*args):clock[0]+=200;return {'status':'done'}
     with pytest.raises(RuntimeRefused,match='PIPE_TIMEOUT'):control.serve_control_once(endpoint,handler)
     assert deadlines==[305.0] and reads==[105.0,305.0]
+
+
+def test_client_connect_retains_five_seconds_within_long_request(monkeypatch):
+    clock=[100.0];seen=[]
+    monkeypatch.setattr(control,'deadline_after',lambda seconds:clock[0]+seconds)
+    def connect(api,registration,deadline):
+        seen.append(deadline);raise RuntimeRefused('PIPE_ABSENT')
+    monkeypatch.setattr(control,'_connect',connect)
+    with pytest.raises(RuntimeRefused,match='PIPE_ABSENT'):
+        control._request_once(object(),SimpleNamespace(registration=None),{},b'',clock[0]+300)
+    assert seen==[105.0]
