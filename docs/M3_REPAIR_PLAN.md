@@ -141,7 +141,10 @@ The scripts are the reviewed `-01` scripts, changed only in folder names, label,
   - After the run, scratch is 12.637 GiB, 0.637 GiB over the product cap. The owner accepted this. The agent proposes a cleanup and waits for approval.
 - [x] Acceptance reconciliation. Report `reports/M3_REPAIR_ACCEPTANCE.md`. One independent reviewer: round 1 `CHANGES_REQUIRED`, round 2 `CLOSEOUT_OK`.
   The acceptance map now states M3 engineering acceptance. README and `docs/CURRENT_CHECKPOINT.md` hold the owner's uncommitted work, so the agent did not edit them.
-- [ ] Post-run cleanup to bring scratch under 12 GiB. The owner approved it. Dry run done; independent review pending.
+- [x] Post-run cleanup. Scratch is 12,766,934,512 bytes (11.890 GiB), 112.5 MiB under the 12 GiB product cap.
+  Script `.cache/test-runs/post-m3-cleanup-20261023-01/cleanup01.py`. Record `cleanup01.json`: `REMOVED_AND_EVIDENCE_UNCHANGED`, 22 folders, 773,734,625 bytes, 33,386 evidence files unchanged.
+  Removed: the uv cache from the failed first accounting build, the resource-policy test environment, and 20 passing pytest folders of attempt `-01`.
+  Review round 1 found that `installed-env03` is still used by M5 jobs. It was removed from the selection and stays. Round 2: `APPLY_OK`.
 - Earlier step 3 record, before the cleanup: **Storage admission refused, stopped.**
   - `storage-admission01` failed the check `scratch + reserved growth <= 13 GiB`. It wrote no admission record.
   - Scratch 11.669 GiB plus reserved growth 1.465 GiB equals 13.134 GiB. That is 137 MiB over the run cap.
