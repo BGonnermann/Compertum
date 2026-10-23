@@ -70,3 +70,63 @@ Current matching source/wheel artifacts and an installed environment remain unve
 No full-cycle acceptance, assessment, or revised proposal exists.
 
 Next action: Resolve receipt capacity and cleanup, then finish native fixture preparation and remaining controller work.
+
+## Continued work within existing limits
+
+The owner declined storage increases and authorized continued work.
+All folder and category ceilings remain unchanged. No further size-increase request will be made.
+Other Python processes remain active, so cleanup must wait for its existing process check.
+Ruling: Reduce the planned new receipt allowance to at most 512 KiB rather than increase the 2 MiB folder.
+Existing bounded writers reserve each job's full output allowance before execution. Oversized output still stops the job.
+The cost is less diagnostic output capacity; no existing evidence will be removed or truncated.
+Prepare a fresh capacity03 census, then implement authenticated cycle control and dispatch ownership.
+
+Capacity03 passed in 114.781936 seconds, with observed exit zero and zero remaining children.
+Its completed admission record combines allocated storage with the stricter rounded folder charge.
+Source work passed admission. Native acceptance remained short by 62,099,456 bytes.
+The census alone does not admit native execution.
+
+The controller now authenticates approvals, binds registration and first-start receipts, and preserves duplicate request results.
+Dispatch guards cover `research.py`, `auditor.py`, `campaign_review.py`, and `ai/start.py`.
+These guards preserve exclusive cycle ownership. Transport permissions remain unchanged.
+Tests in `test_research_cycle_control.py` check direct-dispatch refusal and authenticated control.
+The successful first launch in these source tests is simulated.
+
+Control red01 produced 17 expected failures because the controller module was absent.
+Control01 passed five cases in 84.317159 seconds, with observed exit zero and zero children.
+Independent review found non-atomic stop release, illegal waiting pause, and dispatch after failed cleanup.
+Control red02 reproduced all three defects: three failures, zero errors or skips, and zero remaining children.
+The repair saves stop and ownership release together. Pending cleanup prevents dispatch across controller reconstruction.
+Control04 passed four cases in 91.329705 seconds, with zero failures, errors, skips, or remaining children.
+Its test namespace charge was 415,088,640 bytes under the unchanged 469,762,048-byte limit.
+Review then found that waiting control could pause unrelated work after ownership release.
+Control red03 will reproduce that case before repair.
+
+Next action: Verify waiting control, complete approval-refusal checks, then add foreground continuation.
+The native environment, full cycle, assessment, and revised proposal remain unverified.
+
+Control red03 reproduced one waiting-control failure. Control05 passed its repaired case in 87.950249 seconds.
+Review found the same ownership issue in shutdown. Control red05 reproduced it and passed the grouped twelve-refusal check.
+Its result was one passed, one failed, zero errors, and zero skips; elapsed time was 53.283100 seconds.
+Shutdown now pauses children only when the controller still owns the exact cycle claim.
+The final reviewer found no remaining control-scope blocker.
+
+Preparation09 was not executed. Review found that the actual generated runner was missing from current input fingerprints.
+Preparations10 and 11 pin their actual runner and wrapper. Earlier receipts retain that evidence limitation.
+No consumed receipt or generated runner was rewritten.
+The final source output reservation is 98,304 bytes. Exit records retain their complete 65,536-byte allowance.
+Only diagnostic ceilings decreased. Resource limits, folder ceilings, and overflow refusal remain unchanged.
+
+Control08 passed 25 tests: 21 record cases and four control cases, including all twelve approval-refusal variants.
+Zero tests failed, errored, or skipped. The 47.851189-second job observed exit zero and left zero children.
+All 57 current source fingerprints and 141 starting evidence fingerprints match.
+These source tests do not establish native launch, continuation, or actual assessment acceptance.
+
+Further verification is blocked by receipt capacity: 53,248 bytes remain; the next job requires 98,304 bytes.
+The latest test namespace charge is 425,820,160 bytes. Native and preparation holds remain short by 94,470,144 bytes.
+A fresh cleanup dry run refused unrelated Python work before selecting or deleting any file.
+No size increase, cleanup bypass, unrelated process termination, or replacement runtime was used.
+
+Task 2 has verified source control behavior; the complete accepted cycle remains unfinished.
+Tasks 1, 3, 4, 5, and 6 still require their listed deliverables. Task 7 delivery records describe this blocked state.
+Next action: Resume admitted verification after receipt capacity is available and eligible cleanup passes its existing process check.

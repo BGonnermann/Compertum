@@ -41,6 +41,24 @@ class Coordinator:
             raise RuntimeRefused('HEALTH_UNVERIFIED')
         return result
 
+    def register_reviewed_campaign(self, decision, payload, *, controller, bridge, prepared_raw, evaluation):
+        """Register exact reviewed inputs, paused. Execution needs its own control."""
+        from .ai.registration import register
+        return register(self, decision, payload, controller=controller, bridge=bridge,
+            prepared_raw=prepared_raw, evaluation=evaluation)
+
+    def start_reviewed_campaign(self, decision, payload, *, controller):
+        """Start one approved first unit. Repeated requests never dispatch again."""
+        from .ai.start import start
+        return start(self, decision, payload, controller=controller)
+
+    def control_research_cycle(self, decision, payload, *, cycle):
+        """Apply an authenticated cycle decision without widening transport access."""
+        from .ai.cycle import ResearchCycleController
+        if not isinstance(cycle, ResearchCycleController) or cycle.coordinator is not self:
+            raise RuntimeRefused('CYCLE_OWNER_MISMATCH')
+        return cycle.control(decision, payload)
+
     def control(self,decision,action,payload):
         if action not in CONTROL_ACTIONS: raise RuntimeRefused('COMMAND_DENIED')
         if not isinstance(payload,dict): raise RuntimeRefused('CONTROL_PAYLOAD_DENIED')

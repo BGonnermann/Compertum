@@ -449,7 +449,8 @@ def validate_record(schema_name: str, payload: dict, *, project_root: Path | Non
     if schema_name == "recovery_manifest.v1":
         _recovery_rules(plain)
     if schema_name == "control_receipt.v1":
-        if plain["action"] not in _CONTROL_ACTIONS:
+        # This owner-facing receipt does not enable a transport command.
+        if plain["action"] not in _CONTROL_ACTIONS and plain["action"] not in {"register_reviewed_campaign", "start_reviewed_campaign", "control_research_cycle"}:
             if (plain["state"] != "CAPABILITY_UNAVAILABLE" or plain["exit_code"] != 3
                     or plain["confirmed"] or plain["evidence_label"] != "CAPABILITY_UNAVAILABLE"):
                 raise ContractError("CAPABILITY_UNAVAILABLE")

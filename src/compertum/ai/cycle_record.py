@@ -113,6 +113,11 @@ class CycleRecords:
             self.storage._capacity('records', 3*1024**2)
             self.store.conn.execute('UPDATE research_cycles SET record=? WHERE cycle_id=?',
                 (canonical(new).decode(), cycle_id))
+            if state == 'STOPPED':
+                claim = self.store.get_state('active_research_cycle')
+                _need(claim in (None, cycle_id), 'CYCLE_DISPATCH_OWNED')
+                if claim == cycle_id:
+                    self.store.conn.execute("UPDATE state SET value='null' WHERE key='active_research_cycle'")
             return _view(new)
 
     def recover(self):

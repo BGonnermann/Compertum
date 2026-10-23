@@ -1,5 +1,82 @@
 # Supervised research cycle progress
 
+## Current result: control source verified; complete cycle blocked
+
+The owner authorized continued work without another storage increase request. Every existing storage limit remains unchanged.
+Authenticated approval, status, pause, resume, stop, and exclusive dispatch ownership are implemented in the working tree.
+No automatic continuation, audited feedback packet, actual assessment, or linked revised proposal is implemented yet.
+No native cycle or installed-package verification ran. This is not milestone acceptance.
+
+Control uses the existing coordinator owner and authenticated request records. Transport permissions remain unchanged.
+It binds the original registration, first-start receipt, operator, generation, sealed schedule, input hashes, allowance, and deadline.
+Duplicate requests return their saved result. Competing direct research and review dispatch is refused while the cycle owns execution.
+
+Independent review found and reproduced four control defects before repair:
+
+- Stop and ownership release now commit together. A failed release rolls both changes back.
+- Waiting pause is an idle action. It does not request an illegal state transition.
+- Failed cleanup leaves a durable pending control. Dispatch remains blocked after controller reconstruction.
+- Waiting control and shutdown preserve unrelated workers after the cycle releases ownership.
+
+The final review found no remaining blocker within this control scope.
+
+### Fresh execution evidence
+
+| Job | Passed | Failed | Errors | Skipped | Elapsed seconds |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| cycle-control-red01 | 0 | 17 | 0 | 0 | 92.027462 |
+| cycle-control01 | 5 | 0 | 0 | 0 | 84.317159 |
+| cycle-control-red02 | 0 | 3 | 0 | 0 | 91.177922 |
+| cycle-control04 | 4 | 0 | 0 | 0 | 91.329705 |
+| cycle-control-red03 | 0 | 1 | 0 | 0 | 86.879897 |
+| cycle-control05 | 1 | 0 | 0 | 0 | 87.950249 |
+| cycle-control-red05 | 1 | 1 | 0 | 0 | 53.283100 |
+| cycle-control08 | 25 | 0 | 0 | 0 | 47.851189 |
+
+Every listed job observed its exit and left zero children. Expected failures remain preserved; they are not acceptance results.
+The final 25 cases comprise 21 record tests and four control tests. One control case checks twelve distinct approval refusals.
+Those refusal variants share one unchanged fixture. They are not reported as twelve additional passed tests.
+Successful first launch is simulated. The controller restart test reconstructs the controller within the source fixture.
+No complete-cycle, numerical-worker, installed-package, financial, or supervised-market result is inferred from these checks.
+
+Earlier control jobs omitted their generated test runner from current input fingerprints. Their wrapper and product files were pinned.
+The final preparation pins its actual runner and wrapper before and after execution.
+All 57 final input hashes match. All 141 evidence hashes preserved at preparation03 also match.
+Preparation09 and its red04 job were not executed. Their unused files remain preserved.
+
+Final receipts: `artifacts/ai/history-verification-20261019-01/cycle-control08*`.
+Final integrity check: `.cache/test-runs/m5-local-economics-20261017-01/research-cycle-source-preparation11/control-final-verification.json`.
+Capacity03 passed in 114.781936 seconds. Its completed admission combines the census and stricter wrapper folder charge.
+The census alone does not admit native work.
+
+### Current blockers and remaining work
+
+The receipt folder uses 2,043,904 of 2,097,152 bytes. Its remaining 53,248 bytes cannot cover the next 98,304-byte source reservation.
+The shortfall is 45,056 bytes. Smaller diagnostic outputs already preserve the complete 65,536-byte exit-record allowance.
+No existing receipt was truncated or rewritten. Moving output elsewhere to bypass the approved folder limit was not used.
+
+The test namespace uses 425,820,160 of 469,762,048 bytes. Native execution and preparation require 138,412,032 bytes.
+Their remaining shortfall is 94,470,144 bytes. Native environment preparation also remains unverified.
+Cleanup again refused active unrelated Python processes before selecting or removing files. Those processes remain untouched.
+Temporary cleanup will not reclaim permanent receipt space. Both admission conditions must pass before dependent work resumes.
+
+The complete accepted scope remains open:
+
+1. Verify the current native environment and real approved first start.
+2. Complete foreground continuation through all 63 outcomes and required audits.
+3. Export checked development evidence and produce an actual current-session assessment.
+4. Import one linked revised proposal and stop for owner review.
+5. Complete native acceptance, final review, and eligible cleanup.
+
+Changes remain uncommitted because this partial control work depends on existing uncommitted registration and start changes.
+Those earlier changes were preserved. No unrelated work was staged or published.
+Only M0 remains accepted. M3 remains terminally blocked. M6 remains zero of ten actual sessions.
+Strata remains off. Spending, broker actions, services, and security controls remain unchanged.
+
+## Historical record-layer checkpoint
+
+The following account preserves the earlier checkpoint. Current results and owner direction above supersede its pending decisions.
+
 19 October 2026. The approved complete cycle remains unfinished.
 
 ## Verified change

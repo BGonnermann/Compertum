@@ -187,6 +187,19 @@ def test_capability_matrix_cannot_arm_broker(domain):
         domain.M0_CAPABILITIES["paper.arm"] = "AVAILABLE"
 
 
+@pytest.mark.parametrize("action", ["register_reviewed_campaign", "start_reviewed_campaign", "control_research_cycle"])
+def test_registration_receipt_does_not_enable_transport(domain, workspace, action):
+    payload = {"schema_version": "1", "record_type": "ControlReceipt", "request_id": TASK_ID,
+               "action": action, "target": TASK_ID, "state": "PENDING",
+               "evidence_label": "UNVERIFIED", "confirmed": False, "generation": 1,
+               "requested_at": "2026-10-08T20:00:00Z", "observed_at": None,
+               "exit_code": None, "reason": "REGISTRATION_INCOMPLETE", "artifacts": []}
+    assert domain.validate_record("control_receipt.v1", payload, project_root=workspace) == payload
+    assert domain.capability_for(payload["action"]).exit_code == 3
+    payload["confirmed"] = True
+    assert_denied(domain, payload, workspace, "UNCONFIRMED_EFFECT", "control_receipt.v1")
+
+
 def test_resumed_ai_clock_excludes_prior_manual_wait(domain, workspace):
     payload = task()
     payload.update(role="research_proposer", kind="AI_PROPOSAL",

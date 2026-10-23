@@ -1,5 +1,101 @@
 # Compertum
 
+## Cycle control verified in source; further tests blocked - 19 October 2026
+
+Cycle approval, pause, resume, stop, and exclusive dispatch ownership now have source checks.
+The final job passed 25 tests, with zero failures, errors, skips, or remaining children.
+It includes 21 record tests and four control tests. One control test checks twelve approval refusals.
+Continuation, feedback, and revised-proposal import remain unfinished. No complete native cycle ran.
+The receipt folder has 53,248 bytes free; the next source job requires 98,304 bytes.
+Cleanup still refuses unrelated active Python work. No storage limit increased.
+See [the current report](reports/SUPERVISED_RESEARCH_CYCLE_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Cycle records verified; complete cycle unfinished - 19 October 2026
+
+The new cycle-record layer passed 21 source cases and 53 contract cases: 74 passed, zero failed, errors, or skips.
+It preserves approval bindings and interrupted records. It grants no dispatch authority.
+Cycle control, automatic continuation, feedback, and revised-proposal import remain unfinished.
+Native acceptance awaits test cleanup, receipt capacity, and verified current environment preparation.
+See [the progress report](reports/SUPERVISED_RESEARCH_CYCLE_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Explicit research start verified in source - 19 October 2026
+
+The coordinator can start one first unit after separate execution approval and existing runner checks.
+Saved requests prevent duplicate starts, including across owner restarts.
+Fresh final source tests: 120 passed, zero failed, zero errors, and zero skipped. All three whole jobs passed.
+Successful dispatch uses simulation in these tests. Native start integration and actual research execution remain unverified.
+Cleanup waits for other Python processes. Existing limits and transport permissions remain unchanged.
+Only M0 remains accepted. M3 remains terminally blocked. M6 remains zero of ten actual supervised sessions.
+See [the verification report](reports/AI_START_VERIFICATION_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Registration repair verified after cleanup - 19 October 2026
+
+Fresh source verification passed: 173 passed, zero failed, zero errors, and zero skipped.
+All three jobs completed within existing limits, with observed exit zero and no remaining children.
+Cleanup removed 140.2 MiB of old passing test files and all three new test groups' temporary files.
+Results and attempt identities remain preserved. All 120 prior evidence hashes and all 41 current input hashes match.
+The local test folder now uses 326,844,416 bytes, leaving 142,917,632 bytes within its unchanged 448 MiB allowance.
+Fresh complete capacity admission passed. No folder, category, or total limit increased.
+The receipt repair preserves transport denial. Actual registration, execution, and automatic dispatch remain separate work.
+Only M0 remains fully accepted. M3 remains terminally blocked. M6 remains zero of ten actual supervised sessions.
+See [the completion report](reports/REGISTRATION_COMPLETION_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Routine test cleanup verified - 19 October 2026
+
+The owner approved [test retention rules](docs/TEST_RETENTION.md) that replace blanket retention of disposable test files.
+Two completed test jobs' temporary trees were removed. All 114 saved evidence files remained unchanged.
+Net local storage charge fell by 33,308,672 bytes. The existing 448 MiB folder now has 54,992,896 bytes available.
+No folder, category, or total limit increased. Failed registration evidence remains intact.
+Routine eligible cleanup needs no further storage approval. Keep results, unresolved failure evidence, and real runtime data.
+Fresh full admission and registration repair tests remain pending. No new product tests or milestone acceptance occurred.
+See [the cleanup report](reports/TEST_RETENTION_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Approved storage passed; registration verification remains blocked - 19 October 2026
+
+The owner approved only the local-economics test folder increase from 384 MiB to 448 MiB.
+Distinct preparation07 files passed independent review. All other folder, category, and total limits remain unchanged.
+The single capacity07 job passed in 108.189654 seconds, with exit 0 and zero remaining children.
+
+The revised source run recorded 62 passes, 13 failures, zero errors, and zero skips.
+All failures reached the receipt validator, which rejected the registration action as unavailable.
+The overall job also reached its 120-second deadline during its final folder check.
+Exit was observed and zero children remained. All evidence and consumed attempts remain preserved.
+
+A receipt-only repair is prepared and independently reviewed, but remains untested.
+It keeps transport capability checks unchanged. No actual campaign registration or execution occurred.
+Remaining required tests exceed available folder space by at least 2,019,328 bytes before successful registration growth.
+Further tests require a reviewed storage decision and fresh admission. No additional limit change or capacity retry occurred.
+Project-map build and inspection results use the external `ai-registration-map01-review.json` receipt.
+
+One CPU, the 4 GiB test limit, 120-second deadlines, and 16/12 GiB host memory floors remain unchanged.
+Strata stayed off. This session reports restricted access; no security setting changed.
+M3 remains terminally blocked. M6 remains zero of ten actual supervised sessions.
+See [the verification report](reports/AI_REGISTRATION_VERIFICATION_20261019.md).
+
+Earlier entries below retain their original evidence and dates.
+
+## Reviewed registration implemented; verification blocked - 19 October 2026
+
+The coordinator now registers exact reviewed inputs as a paused campaign through the existing campaign owner.
+It preserves twelve variants, the fixed schedule, duplicate prevention, and separate execution authority.
+Independent static review is clear. Revised code remains untested.
+The first source run recorded 62 passes and seven failures, with zero errors or skips.
+Its overall job failed when retained test files exceeded their folder allowance by 2,289,664 bytes.
+All failures remain preserved. Further tests need the reviewed storage decision and fresh capacity admission.
+No actual campaign, broker action, or service ran. The PDF refresh and publication remain pending.
+M3 remains terminally blocked. M6 remains zero of ten actual sessions.
+See [the report](reports/AI_REGISTRATION_20261019.md) and [storage request](docs/AI_REGISTRATION_STORAGE_REQUEST.md).
+
 ## Linked research history verified - 19 October 2026
 
 Explicit links now connect accepted saved plans to existing synthetic campaigns.
