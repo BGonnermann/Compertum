@@ -128,6 +128,18 @@ The scripts are the reviewed `-01` scripts, changed only in folder names, label,
   - `execution-pins01.json`: 37 inputs, SHA-256 `98cb9562a077c231de0b23a42a46ca9a9d3d927a539c0115947267ac1d7886d0`.
   - One independent review returned `LAUNCH_OK`. The agent then made its two launcher fixes: `#Requires -Version 7`, a pins check before `try`, and `-NoClobber` for the transcript.
     Launcher `Launch-Chain01.ps1` SHA-256 `2aaecc3dc410a1e5c38ad6eff7eaa942c484b0e33d7216ea9049e10d76e7e8b2`. `install-editable01.py` SHA-256 `d918282ad60ecf30f556973a0667297c9231c8eba5bb4bd3fdba86be2de051c6`.
+- [x] Step 4: long chain. **`CHAIN_COMPLETED`.**
+  - The agent launched `Launch-Chain01.ps1` in its own PowerShell 7 window, at the owner's request (the owner was away).
+    Started 2026-10-23 12:22:05 EDT. Ended 17:09:18 EDT (4 h 47 min). Release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`.
+  - Campaigns: `PAIR_OUTPUTS_VERIFIED`, 63 source and 63 installed units, 63 exact matching payloads. Late prefix: `PAIRED_LATE_PREFIX_VERIFIED`.
+  - Audits: `ALL77_OUTPUTS_VERIFIED` (77 tasks, 72 independent unit audits).
+  - Final run and its audits: `PAIRED_NATIVE_FINAL_AUDITS_AND_RESTARTS_VERIFIED`. Pause, resume and restart verified. The original Final stayed unchanged.
+  - Three-ridge check: `THREE_RIDGE_PAIRED_NUMERICAL_CHECKS_VERIFIED`, 4 native jobs.
+  - The chain closed with `M3_NATIVE_SEQUENCE_VERIFIED_ACCEPTANCE_RECONCILIATION_PENDING`. Every record has `financial_accepted: false`. This is engineering evidence, not proof of profit.
+  - Restore: `SOURCE_ENVIRONMENT_RESTORED_BYTE_IDENTICAL`, 9,975 files. The editable install points to master `src` again.
+  - The 13 GiB run cap ended. Product `config.py` keeps `scratch_bytes` 12884901888 in master and in the clean copy.
+  - After the run, scratch is 12.637 GiB, 0.637 GiB over the product cap. The owner accepted this. The agent proposes a cleanup and waits for approval.
+- [ ] Acceptance reconciliation: update the M3 acceptance map and checkpoint from these records.
 - Earlier step 3 record, before the cleanup: **Storage admission refused, stopped.**
   - `storage-admission01` failed the check `scratch + reserved growth <= 13 GiB`. It wrote no admission record.
   - Scratch 11.669 GiB plus reserved growth 1.465 GiB equals 13.134 GiB. That is 137 MiB over the run cap.
