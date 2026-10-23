@@ -72,5 +72,19 @@ Still open:
 
 - [x] M3 engineering acceptance closed.
 - [x] Plan written and pushed.
-- [ ] Verify and commit the 19 October work.
-- [ ] E1 started.
+- [x] Verify and commit the 19 October work. 253 source tests passed; review `COMMIT_OK`; commit `3310653`.
+- [ ] E1: loopback model interface. See "Stage E1 design" below.
+
+## Stage E1 design
+
+Files: `config/models.toml`, `src/compertum/ai/models.py`, `tests/test_ai_models_interface.py`. No schema or `domain.py` change in E1; role tasks come in E3.
+
+- `load_models(path, project_root)` reads one bounded TOML file inside the project. It has one table, `roles`, with exactly the four AI roles: `director`, `researcher`, `mathematician`, `engineer`.
+  Each role has `base_url` and `model`. `base_url` must be `http://127.0.0.1:<port>` or `http://localhost:<port>`, with no user, query or fragment. Any port works. The path must be empty or `/v1`.
+- `ModelClient(roles, ledger, memory_floor_bytes, request_limit)` sends one Chat Completions request per call.
+  Before each call it checks free host memory against the floor, checks the request count against the limit, rejects secret-shaped text, and asks the server for its model list. The configured model must be in that list.
+  Responses are bounded to 64 KiB. One choice with `finish_reason: stop` is accepted. Anything else is refused.
+- The ledger records every call and every refusal: role, provider `loopback`, address, requested and server-reported model, settings, prompt SHA-256, response SHA-256, usage, elapsed seconds, free memory, floor, status.
+  `StoreLedger` writes rows to the `engine_model_calls` table in the project store.
+- The adapter process keeps the existing one-thread, 256 MiB, no-child native limits (`constrain_ai_adapter`). Tests may turn this off.
+- The memory floor comes from config `dispatch_available_ram_bytes` (8 GiB) unless the caller gives a higher value. The request limit is per client instance. Stage E5 adds the per-run hard maximum.

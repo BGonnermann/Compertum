@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## M3 engineering accepted; engine stage E1 next - 23 October 2026
+
+Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
+Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
+One consumed Final, terminal restart refusal, paired native Final audits with pause, resume and restart, and the three-ridge check verified.
+All three momentum candidates failed the money gates. Every record has `financial_accepted: false`. The 14 October attempt stays terminally BLOCKED.
+Independent closeout review: `CLOSEOUT_OK` in round 2. Evidence: [the acceptance report](../reports/M3_REPAIR_ACCEPTANCE.md) and [the repair plan](M3_REPAIR_PLAN.md).
+
+The 19 October registration and cycle work is committed as `3310653` after 253 source tests passed today (zero failures, errors or skips) and one independent review.
+Scratch is 11.890 GiB after a reviewed cleanup. The chain's 13 GiB run cap ended. Product code keeps 12 GiB.
+Known follow-ups: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet; the project-map PDF refresh is due.
+
+M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
+Exact next action: build section 19 stage E1, the loopback model interface with `config/models.toml`, per-call ledger records and the memory check. See [the engine plan](ENGINE_PLAN.md).
+
+Earlier entries below retain their original evidence and dates.
+
 ## Cycle control source checks passed; complete cycle blocked - 19 October 2026
 
 Authenticated control and exclusive dispatch ownership are implemented in the working tree.

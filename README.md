@@ -1,5 +1,20 @@
 # Compertum
 
+## M3 engineering accepted; 19 October work committed - 23 October 2026
+
+Repair attempt `m3-repair-20261023-02`, built from commit `a81c9b4`, passed every M3 engineering requirement.
+Per lane, 592 tests passed with zero failures, errors or skips. Both 63-unit campaigns, all 77 audits, the one consumed Final with its paired audits and restarts, and the three-ridge check all verified.
+All three synthetic momentum candidates failed the money gates. Every record has `financial_accepted: false`. This is engineering acceptance, not proof of profit.
+The 14 October attempt stays terminally BLOCKED as history. Independent closeout review: `CLOSEOUT_OK`. See [the acceptance report](reports/M3_REPAIR_ACCEPTANCE.md).
+
+The 19 October registration and research-cycle work passed 253 source tests today, with zero failures, errors or skips, and one independent review. It is committed as `3310653`.
+A reviewed cleanup under `docs/TEST_RETENTION.md` brought scratch to 11.890 GiB, under the 12 GiB cap.
+Autoresearch engine work under section 19 starts now. The owner approved stage E7 (GEPA role-prompt improvement). See [the engine plan](docs/ENGINE_PLAN.md).
+
+M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual supervised sessions) stay open. Strata stays off.
+
+Earlier entries below retain their original evidence and dates.
+
 ## Cycle control verified in source; further tests blocked - 19 October 2026
 
 Cycle approval, pause, resume, stop, and exclusive dispatch ownership now have source checks.
