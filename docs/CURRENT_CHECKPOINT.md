@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-## M3 engineering accepted; engine stages E1 and E2 complete; loopback limitation accepted - 23 October 2026
+## M3 engineering accepted; engine stages E1 and E2 complete; E3 built and reviewed, owner OK pending - 24 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
 Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
@@ -10,7 +10,7 @@ Independent closeout review: `CLOSEOUT_OK` in round 2. Evidence: [the acceptance
 
 The 19 October registration and cycle work is committed as `3310653` after 253 source tests passed today (zero failures, errors or skips) and one independent review.
 Scratch is 11.890 GiB after a reviewed cleanup. The chain's 13 GiB run cap ended. Product code keeps 12 GiB.
-The project-map PDF was refreshed twice on 23 October 2026, last after the E2 decision: nine pages, 81 navigation links and 91 source notes inspected.
+The project-map PDF was refreshed twice on 23 October 2026 and again on 24 October 2026 after E3 was built: nine pages, 91 source notes and 452 source files, pages 1, 2 and 8 inspected at full size.
 Known follow-up: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet.
 
 Engine stage E1 is complete and owner-approved on 23 October 2026: `src/compertum/ai/models.py`, `config/models.toml` and `tests/test_ai_models_interface.py`.
@@ -24,8 +24,19 @@ First run, source lane, native Windows: 19 passed, 1 failed, 0 skipped. The fail
 The owner chose option 1: loopback reach is a documented limitation on this host. The gate now has ten controls; loopback is recorded as an observation with every verification, never gated. After the decision: 20 passed, 0 failed, 0 skipped.
 Limitation: code in a sandbox job can reach the model server the owner starts for a run, outside the ledger. Stage E3 must add the compensating connection check with Auditor freeze. See "Loopback finding" in [the engine plan](ENGINE_PLAN.md).
 
+Engine stage E3 is built and reviewed on 24 October 2026, owner OK pending: `src/compertum/ai/engine/` (roles, cycle, execution, ledger, market), `config/engine_prompts/`, the tool-call extension of `src/compertum/ai/models.py`, the loopback watcher and two new controls in `src/compertum/runtime/sandbox.py`, and `hold_job_slot` in `src/compertum/runtime/jobs.py`.
+The four roles run as Deep Agents over one ledgered loopback model path in the separate environment `.cache/engine-env` (system Python 3.14). One supervised cycle on a synthetic market runs end to end: Director picks, Researcher memos, Director decisions, Mathematician specifications, Engineer code built and run in the AppContainer sandbox, Validator score, Archivist rows for every step. Engineer code that reaches loopback froze the engine in the test on this host.
+Engine environment lane: 12 passed, 0 failed, 0 skipped. Product lane: sandbox 25 passed, model interface 39 passed, engine module 1 skipped (no Deep Agents there). Review round 1 `CHANGES_REQUIRED` with no blocker, six should-fixes and five notes, all applied; round 2 `E3_OK` with two notes.
+Full product suite in `.cache/clean-env-m0` on 24 October 2026: 7162 passed, 3 failed, 12 skipped in 1 h 56 min. The engine lane was rerun on the final code afterwards: 12 passed.
+The three failures are not from E3; E3 changes no module that these tests import.
+1. `tests/test_backup_capacity_amendment.py::test_backup_amendment_preserves_all_other_storage_limits` expects scratch 10 GiB; `config/default.toml` has held 12 GiB since 16 October 2026. The owner decides whether the test follows the config.
+2. `tests/test_fake_economic_recovery.py::test_opening_change_after_staged_hash_refuses_publication` expects the refusal during `STAGING_EXECUTION` but the restore now refuses during `STAGING_COORDINATOR`. It fails alone too. The test last changed on 13 October 2026; `src/compertum/recovery.py` changed on 16 and 17 October 2026. A direct comparison against the committed code was not possible: the runtime identity pins reject a package loaded from another path.
+3. `tests/test_final_transaction.py::test_empty_shortlist_completes_once_with_committed_evidence_and_no_prices` fails only in suite order because an earlier test leaves `compertum.modeling.generated_final` imported. It passes alone.
+Evidence for the three failures is in `.cache/test-runs/e3-full-suite01-failed-evidence` (pytest output and the failed tests' folders). Mistake recorded: the suite's basetemp was placed inside `.cache/test-runs/m5-local-economics-20261017-01`, whose owner-approved cap is 448 MiB, and grew to 2.8 GiB during the run. The passing files were removed after the results were recorded; the folder is back under its cap at about 285 MiB. Future full runs use a fresh folder directly under `.cache/test-runs`; only the eight economic-fixture test files need the capped folder.
+Limitation: the Validator adapter scores the synthetic market only; the real walk-forward Validator and the deflated Sharpe ratio are stage E4. No bounded run, kill switch or request maximum yet (E5).
+
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
-Exact next action: stage E3, Deep Agents roles in the separate engine environment, with the loopback connection check, the heavy-job slot before `run_sandboxed`, and probe targets for the real vault, ledger, rules and pipe paths.
+Exact next action: obtain the owner's OK on E3. Then stage E4: trial count, deflated Sharpe ratio and the candidate queue.
 
 Earlier entries below retain their original evidence and dates.
 

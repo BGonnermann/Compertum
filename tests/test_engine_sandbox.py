@@ -5,19 +5,24 @@ One probe run is shared by the control tests; each resource test launches its ow
 """
 from datetime import date
 import json
+from multiprocessing.connection import Listener
 from pathlib import Path
 import shutil
+import socket
+import threading
 import time
 from uuid import uuid4
 import pytest
 from compertum.runtime.errors import RuntimeRefused
-from compertum.runtime.sandbox import (CONTROLS,OBSERVATIONS,PROFILE_NAME,PROFILE_PREFIX,Profile,SandboxAPI,SandboxResult,controls_from,
-                                       observations_from,packages_folder,remove_stale_profile,require_verified,run_sandboxed,stale_profiles,
-                                       verify_sandbox)
+from compertum.runtime.sandbox import (CONTROLS,OBSERVATIONS,PROFILE_NAME,PROFILE_PREFIX,LoopbackWatcher,Profile,SandboxAPI,SandboxResult,
+                                       controls_from,fixed_target_paths,observations_from,packages_folder,remove_stale_profile,require_verified,
+                                       run_sandboxed,stale_profiles,verify_sandbox)
 
 FLOOR=8*1024**3
 MIB=1024**2
 PROJECT=Path(__file__).resolve().parents[1]
+# Real fixed parts (section 19): the rules and the fixed configuration. The ledger database is added when it exists.
+FIXED_TARGETS=[PROJECT/'docs/BUILD_SPEC.md',PROJECT/'AGENTS.md',PROJECT/'config/default.toml']+[p for p in [PROJECT/'state/research.sqlite'] if p.is_file()]
 
 
 @pytest.fixture(scope='module')
@@ -30,7 +35,11 @@ def root():
 
 @pytest.fixture(scope='module')
 def verification(root):
-    return verify_sandbox(root,memory_floor_bytes=FLOOR)
+    # A live named pipe server stands in for the owner pipe. The probe must fail to open it.
+    pipe=r'\\.\pipe\compertum-e2-'+uuid4().hex[:8]
+    listener=Listener(pipe,'AF_PIPE')
+    try: return verify_sandbox(root,memory_floor_bytes=FLOOR,fixed_targets=FIXED_TARGETS,pipe=pipe)
+    finally: listener.close()
 
 
 def job(root,source,**files):
@@ -84,6 +93,56 @@ def test_write_inside_the_job_folder_is_allowed(verification):
     control(verification,'inside_write_allowed')
 
 
+def test_fixed_part_files_and_the_owner_pipe_are_not_readable(verification):
+    # Section 19: the job cannot read the ledger or write the rules. The real files are the targets, not stand-ins.
+    control(verification,'fixed_targets_read_denied');control(verification,'pipe_open_denied')
+    assert verification['fixed_targets']==[str(p) for p in FIXED_TARGETS] and len(FIXED_TARGETS)>=3
+    for index in range(len(FIXED_TARGETS)):
+        assert verification['report'][f'fixed_read_{index}']['error']=='PermissionError'
+    assert verification['report']['pipe_open']['error']=='PermissionError' and verification['pipe'].startswith(r'\\.\pipe\compertum-e2-')
+
+
+def test_fixed_target_refusals(root):
+    bad=[[Path('relative.txt')],[root/'absent.txt'],[root],[PROJECT/'AGENTS.md']*2,[PROJECT/'AGENTS.md']*17,'AGENTS.md',[42]]
+    for targets in bad:
+        with pytest.raises(RuntimeRefused,match='^SANDBOX_TARGETS_DENIED$'): fixed_target_paths(targets)
+    assert fixed_target_paths(())==[] and fixed_target_paths([PROJECT/'AGENTS.md'])==[str(PROJECT/'AGENTS.md')]
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_TARGETS_DENIED$'): verify_sandbox(root,memory_floor_bytes=FLOOR,pipe='not-a-pipe')
+
+
+def test_loopback_watcher_records_a_connection_the_sandbox_makes_and_a_quiet_job_stays_clean(root):
+    # Loopback is reachable on this host (owner decision, option 1). The watcher is the compensating control, so it must see it.
+    listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(20);port=listener.getsockname()[1]
+    def accept():
+        try: connection,_=listener.accept();time.sleep(.3);connection.close()
+        except OSError: pass
+    waiter=threading.Thread(target=accept,daemon=True);waiter.start()
+    source=f'import socket,time\ns=socket.socket()\ns.settimeout(5)\ntry:\n    s.connect(("127.0.0.1",{port}));time.sleep(.3);print("CONNECTED")\nexcept OSError as e: print("DENIED",e)\ns.close()\n'
+    watcher=LoopbackWatcher()
+    try: result=run(root,job(root,source),watcher=watcher)
+    finally: listener.close();waiter.join(timeout=3)
+    record=watcher.record()
+    assert record['pid']==result.pid and record['verified'] is True and record['samples']>=2 and record['error'] is None
+    if b'CONNECTED' in result.stdout:
+        assert any(c['remote_port']==port and c['remote_address']=='127.0.0.1' for c in record['loopback_connections']),record
+    else: assert record['loopback_connections']==[]  # a host that denies loopback has nothing to catch
+    quiet=LoopbackWatcher();result=run(root,job(root,'print(1)\n'),watcher=quiet)
+    assert result.exit_code==0 and quiet.record()['loopback_connections']==[] and quiet.record()['verified'] is True
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_WATCHER_DENIED$'): run(root,job(root,'print(1)\n'),watcher=object())
+    for pid in (0,-1,'7',None):
+        with pytest.raises(RuntimeRefused,match='^SANDBOX_WATCHER_DENIED$'): LoopbackWatcher().start(pid)
+    started=LoopbackWatcher();started.start(1)
+    try:
+        with pytest.raises(RuntimeRefused,match='^SANDBOX_WATCHER_DENIED$'): started.start(1)
+    finally: started.stop()
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_WATCHER_DENIED$'): LoopbackWatcher(interval=0)
+    # Classification: IPv4, IPv6 and IPv4-mapped loopback count; a listener or a closed row does not; another host does not.
+    crafted=LoopbackWatcher();rows={('ipv4','127.0.0.1',5000,'127.0.0.1',41343):[5],('ipv6','::1',5001,'::1',80):[5],('ipv6','::ffff:127.0.0.1',5002,'::ffff:127.0.0.1',81):[5],
+                                    ('ipv4','0.0.0.0',5003,'0.0.0.0',0):[2],('ipv4','127.0.0.1',5004,'127.0.0.1',82):[1],('ipv4','192.168.1.5',5005,'10.0.0.1',443):[5]}
+    crafted.connections={k:{'family':k[0],'local_address':k[1],'local_port':k[2],'remote_address':k[3],'remote_port':k[4],'states':v} for k,v in rows.items()}
+    assert sorted(c['remote_port'] for c in crafted.loopback_connections())==[80,81,41343]
+
+
 def test_an_earlier_job_folder_is_not_readable_by_the_next_job(verification,root):
     # The identity is the same for every job, so the grant on a finished job folder must be gone.
     control(verification,'previous_job_read_denied')
@@ -101,18 +160,27 @@ def test_controls_do_not_pass_on_the_wrong_error():
           'external_connect':{'ok':False,'error':'PermissionError','detail':'10013'},'loopback_connect':{'ok':False,'error':'PermissionError','detail':'10013'},
           'outside_read':{'ok':False,'error':'PermissionError','detail':''},'outside_write':{'ok':False,'error':'PermissionError','detail':''},
           'previous_read':{'ok':False,'error':'PermissionError','detail':''},'inside_write':{'ok':True,'value':2},
-          'child_process':{'ok':False,'error':'OSError','detail':'[WinError 1816] Not enough quota'},'allocate':{'ok':False,'error':'MemoryError','detail':''}}
-    all_true=controls_from(good,done,escape_exists=False,inside_written=True)
-    assert set(all_true)==set(CONTROLS) and len(CONTROLS)==10 and all(all_true.values())
+          'child_process':{'ok':False,'error':'OSError','detail':'[WinError 1816] Not enough quota'},'allocate':{'ok':False,'error':'MemoryError','detail':''},
+          'fixed_read_0':{'ok':False,'error':'PermissionError','detail':''},'fixed_read_1':{'ok':False,'error':'PermissionError','detail':''},
+          'pipe_open':{'ok':False,'error':'PermissionError','detail':''}}
+    ok=dict(escape_exists=False,inside_written=True,fixed_count=2,pipe_given=True)
+    all_true=controls_from(good,done,**ok)
+    assert set(all_true)==set(CONTROLS) and len(CONTROLS)==12 and all(all_true.values())
     wrong={**good,'external_connect':{'ok':False,'error':'TimeoutError','detail':''},'outside_read':{'ok':False,'error':'FileNotFoundError','detail':''},
-           'child_process':{'ok':False,'error':'FileNotFoundError','detail':''}}
-    bad=controls_from(wrong,done,escape_exists=True,inside_written=False)
-    assert sorted(k for k,v in bad.items() if not v)==['child_process_denied','external_network_denied','inside_write_allowed','outside_file_absent','outside_read_denied']
-    assert set(controls_from({**good,'loopback_connect':{'ok':True,'value':'CONNECTED'}},done,escape_exists=False,inside_written=True).values())=={True}
+           'child_process':{'ok':False,'error':'FileNotFoundError','detail':''},'fixed_read_1':{'ok':False,'error':'FileNotFoundError','detail':''},
+           'pipe_open':{'ok':False,'error':'FileNotFoundError','detail':''}}
+    bad=controls_from(wrong,done,escape_exists=True,inside_written=False,fixed_count=2,pipe_given=True)
+    assert sorted(k for k,v in bad.items() if not v)==['child_process_denied','external_network_denied','fixed_targets_read_denied','inside_write_allowed',
+                                                        'outside_file_absent','outside_read_denied','pipe_open_denied']
+    # No targets and no pipe prove nothing, so those two controls fail even on a perfect report.
+    empty=controls_from(good,done,escape_exists=False,inside_written=True,fixed_count=0,pipe_given=False)
+    assert sorted(k for k,v in empty.items() if not v)==['fixed_targets_read_denied','pipe_open_denied']
+    assert not controls_from(good,done,escape_exists=False,inside_written=True,fixed_count=3,pipe_given=True)['fixed_targets_read_denied']  # a missing third target
+    assert set(controls_from({**good,'loopback_connect':{'ok':True,'value':'CONNECTED'}},done,**ok).values())=={True}
     killed={k:v for k,v in good.items() if k!='allocate'}
-    assert controls_from(killed,SandboxResult('j','S',1,0xC0000017,False,.1,1,1,0,False,b'',b''),escape_exists=False,inside_written=True)['memory_limit_enforced']
-    assert not controls_from(killed,SandboxResult('j','S',1,124,True,.1,1,1,0,False,b'',b''),escape_exists=False,inside_written=True)['memory_limit_enforced']
-    assert not controls_from(killed,done,escape_exists=False,inside_written=True)['memory_limit_enforced']
+    assert controls_from(killed,SandboxResult('j','S',1,0xC0000017,False,.1,1,1,0,False,b'',b''),**ok)['memory_limit_enforced']
+    assert not controls_from(killed,SandboxResult('j','S',1,124,True,.1,1,1,0,False,b'',b''),**ok)['memory_limit_enforced']
+    assert not controls_from(killed,done,**ok)['memory_limit_enforced']
 
 
 def test_child_process_is_denied(verification):
@@ -238,3 +306,27 @@ def test_profile_names_are_fixed_and_stale_profiles_are_listed_then_removed():
     assert name.lower() not in stale_profiles() and not profile.folder.exists()
     with pytest.raises(RuntimeRefused,match='^SANDBOX_PROFILE_UNKNOWN$'): remove_stale_profile(api,name)
     with pytest.raises(RuntimeRefused,match='^SANDBOX_PROFILE_UNKNOWN$'): remove_stale_profile(api,None)
+
+
+def test_engine_jobs_hold_the_one_heavy_job_slot(tmp_path):
+    # Section 19: one heavy job at a time. The engine takes the same slot as the campaign launcher.
+    from compertum.runtime.identity import resolve_project
+    from compertum.runtime.jobs import hold_job_slot,job_slot_busy
+    from compertum.runtime.owners import acquire_owner,release_owner
+    lease=acquire_owner(resolve_project(tmp_path),'coordinator')
+    try:
+        assert job_slot_busy(lease) is False
+        with hold_job_slot(lease,'e3-engineer-job') as hold:
+            assert job_slot_busy(lease) is True and hold.purpose=='e3-engineer-job'
+            with pytest.raises(RuntimeRefused,match='^JOB_SLOT_BUSY$'):
+                with hold_job_slot(lease,'second'): pass
+            assert job_slot_busy(lease) is True
+        assert job_slot_busy(lease) is False
+        for purpose in ('',None,'x'*129):
+            with pytest.raises(RuntimeRefused,match='^JOB_ADMISSION_DENIED$'):
+                with hold_job_slot(lease,purpose): pass
+        try:
+            with hold_job_slot(lease,'failing'): raise KeyError('inside')
+        except KeyError: pass
+        assert job_slot_busy(lease) is False
+    finally: release_owner(lease)

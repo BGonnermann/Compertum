@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import hashlib
 import math
 from pathlib import Path
+import re
 import time
 import tomllib
 from types import MappingProxyType
@@ -20,6 +21,9 @@ from .manual import sanitized,read_json
 ENGINE_ROLES=frozenset({'director','researcher','mathematician','engineer'})
 PROVIDER='loopback'
 MAX_BYTES=65536
+MAX_TOOLS,MAX_TOOL_CALLS,MAX_ARGUMENT_BYTES=16,8,16384
+_TOOL_NAME=re.compile(r'^[A-Za-z0-9_-]{1,64}$')
+_MESSAGE_KEYS={'system':{'role','content'},'user':{'role','content'},'assistant':{'role','content','tool_calls'},'tool':{'role','content','tool_call_id'}}
 
 
 @dataclass(frozen=True)
@@ -52,6 +56,60 @@ def model_id(value):
             or any(ord(ch)<32 or ord(ch)==127 for ch in value)):
         raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
     return value
+
+
+def tool_names(tools):
+    """Validate an allowlist of Chat Completions tool schemas and return the sorted names. None means no tools."""
+    if tools is None: return None
+    if not isinstance(tools,list) or not 1<=len(tools)<=MAX_TOOLS: raise RuntimeRefused('AI_TOOLS_DENIED')
+    names=[]
+    for tool in tools:
+        function=tool.get('function') if isinstance(tool,dict) and tool.keys()=={'type','function'} and tool.get('type')=='function' else None
+        if (not isinstance(function,dict) or not function.keys()<={'name','description','parameters'} or 'name' not in function
+                or not isinstance(function['name'],str) or not _TOOL_NAME.match(function['name'])
+                or not isinstance(function.get('description',''),str) or not isinstance(function.get('parameters',{}),dict)):
+            raise RuntimeRefused('AI_TOOLS_DENIED')
+        names.append(function['name'])
+    try: size=len(canonical(tools))
+    except (ContractError,RuntimeRefused,ValueError,TypeError): raise RuntimeRefused('AI_TOOLS_DENIED') from None
+    if len(set(names))!=len(names) or size>MAX_BYTES: raise RuntimeRefused('AI_TOOLS_DENIED')
+    return sorted(names)
+
+
+def tool_calls_from(value,names):
+    """Validate tool calls from a message. Each call must name an allowlisted tool and carry a JSON object as arguments."""
+    if names is None: raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+    if not isinstance(value,list) or not 1<=len(value)<=MAX_TOOL_CALLS: raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+    calls=[]
+    for call in value:
+        function=call.get('function') if isinstance(call,dict) and call.keys()<={'id','type','function','index'} else None
+        identity=call.get('id') if isinstance(call,dict) else None
+        if (not isinstance(function,dict) or function.keys()!={'name','arguments'} or function['name'] not in names
+                or call.get('type','function')!='function' or not isinstance(identity,str) or not 1<=len(identity)<=128
+                or not isinstance(function['arguments'],str) or len(function['arguments'].encode('utf-8'))>MAX_ARGUMENT_BYTES):
+            raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+        try: arguments=read_json(function['arguments'].encode('utf-8'))
+        except RuntimeRefused: raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED') from None
+        if not isinstance(arguments,dict): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+        calls.append({'id':identity,'name':function['name'],'arguments':arguments})
+    if len({c['id'] for c in calls})!=len(calls): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+    return calls
+
+
+def check_messages(messages,names):
+    """Admit system, user, assistant and tool messages with string content. Assistant tool calls need the allowlist.
+
+    A tool-result message (role tool) is admitted with or without an allowlist: it is text the engine produced, not a call.
+    """
+    if not isinstance(messages,list) or not 1<=len(messages)<=64: raise RuntimeRefused('AI_MESSAGES_DENIED')
+    for m in messages:
+        role=m.get('role') if isinstance(m,dict) else None
+        if role not in _MESSAGE_KEYS or not {'role','content'}<=m.keys()<=_MESSAGE_KEYS[role] or not isinstance(m['content'],str):
+            raise RuntimeRefused('AI_MESSAGES_DENIED')
+        if role=='tool' and (not isinstance(m.get('tool_call_id'),str) or not 1<=len(m['tool_call_id'])<=128): raise RuntimeRefused('AI_MESSAGES_DENIED')
+        if role=='assistant' and 'tool_calls' in m:
+            try: tool_calls_from(m['tool_calls'],names)
+            except RuntimeRefused: raise RuntimeRefused('AI_MESSAGES_DENIED') from None
 
 
 def load_models(path,project_root):
@@ -152,6 +210,15 @@ class ModelClient:
                 return reported,response,raw
 
     def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120):
+        """One text completion. No tools are offered, so any tool call in the reply is refused."""
+        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds)
+        return content,entry
+
+    def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120):
+        """One completion with an allowlist of tools. Returns (content, tool_calls, entry). The engine executes the calls, never the model."""
+        return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True)
+
+    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False):
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
         spec=self.roles.get(role) if isinstance(role,str) else None;started=time.monotonic()
         entry={'call_id':str(uuid4()),'role':role if isinstance(role,str) and len(role)<=64 else 'INVALID_ROLE',
@@ -161,32 +228,40 @@ class ModelClient:
                            'request_seconds':recorded_number(seconds),'stream':False},
                'prompt_sha256':None,'response_sha256':None,'usage':None,'elapsed_seconds':None,
                'available_memory_bytes':None,'memory_floor_bytes':self.memory_floor_bytes,
-               'request_index':self.requests+1,'request_limit':self.request_limit,'status':None}
+               'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None}
         try:
             if spec is None: raise RuntimeRefused('AI_ROLE_DENIED')
             if not isinstance(purpose,str) or not 1<=len(purpose)<=256: raise RuntimeRefused('AI_TASK_DENIED')
             if (type(max_tokens) is not int or not 1<=max_tokens<=16384 or type(seconds) is not int or not 1<=seconds<=600
                     or type(temperature) not in (int,float) or not 0<=temperature<=2): raise RuntimeRefused('AI_SETTINGS_DENIED')
+            if tools_required and tools is None: raise RuntimeRefused('AI_TOOLS_DENIED')
+            names=tool_names(tools);entry['tools']=names
             if self.requests>=self.request_limit: raise RuntimeRefused('AI_REQUEST_BUDGET')
             available=self.available_memory();entry['available_memory_bytes']=available
             if type(available) is not int or available<self.memory_floor_bytes: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
-            if (not isinstance(messages,list) or not 1<=len(messages)<=64
-                    or any(not isinstance(m,dict) or set(m)!={'role','content'} or m['role'] not in {'system','user','assistant'}
-                           or not isinstance(m['content'],str) for m in messages)):
-                raise RuntimeRefused('AI_MESSAGES_DENIED')
+            check_messages(messages,names)
             prompt=canonical(messages);sanitized(prompt);entry['prompt_sha256']=hashlib.sha256(prompt).hexdigest()
+            if tools is not None: sanitized(canonical(tools))
             # The attempt counts before any byte leaves. A failed request still uses a request.
             self.requests+=1
             payload={'model':spec.model,'messages':messages,'temperature':temperature,'max_tokens':max_tokens,'stream':False}
+            if tools is not None: payload.update(tools=tools,tool_choice='auto')
+            tool_calls=[]
             try:
                 reported,response,raw=asyncio.run(self._request(spec,payload,seconds))
                 entry['model_reported']=reported;entry['response_sha256']=hashlib.sha256(raw).hexdigest()
                 choices=response.get('choices') if isinstance(response,dict) else None
                 if not isinstance(choices,list) or len(choices)!=1 or not isinstance(choices[0],dict): raise RuntimeRefused('AI_RESPONSE_INVALID')
                 message=choices[0].get('message')
-                if not isinstance(message,dict) or message.get('tool_calls') or message.get('function_call'): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
-                content=message.get('content')
-                if not isinstance(content,str) or choices[0].get('finish_reason')!='stop': raise RuntimeRefused('AI_RESPONSE_INCOMPLETE')
+                if not isinstance(message,dict) or message.get('function_call'): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+                if message.get('tool_calls'):
+                    tool_calls=tool_calls_from(message['tool_calls'],names)
+                    entry['tool_calls']=[{'id':c['id'],'name':c['name'],'arguments_sha256':hashlib.sha256(canonical(c['arguments'])).hexdigest()} for c in tool_calls]
+                content=message.get('content');finish=choices[0].get('finish_reason')
+                if content is None and tool_calls: content=''
+                if not isinstance(content,str) or finish not in ('stop','tool_calls') or (finish=='tool_calls')!=bool(tool_calls):
+                    raise RuntimeRefused('AI_RESPONSE_INCOMPLETE')
+                sanitized(content.encode('utf-8'))
                 usage=response.get('usage')
                 if usage is not None:
                     if (not isinstance(usage,dict) or type(usage.get('prompt_tokens')) is not int
@@ -201,7 +276,7 @@ class ModelClient:
             except (ContractError,httpx.HTTPStatusError,KeyError,TypeError,ValueError):
                 raise RuntimeRefused('AI_RESPONSE_REJECTED') from None
             entry.update(usage=usage,status='COMPLETED')
-            return content,entry
+            return content,tool_calls,entry
         except RuntimeRefused as error:
             entry['status']='REFUSED_'+error.code;raise
         finally:

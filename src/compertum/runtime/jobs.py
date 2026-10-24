@@ -1,5 +1,6 @@
 """Suspended, owner-bound native Jobs for registered offline fixtures only."""
 import ctypes as c
+from contextlib import contextmanager
 from datetime import datetime, timezone
 import math
 import json,re
@@ -209,6 +210,26 @@ class JobHandle:
 def job_slot_busy(lease):
     require_live_owner(lease,'coordinator')
     return lease.project_id in _ACTIVE
+
+
+class _SlotHold:
+    """Marker that occupies the one heavy-job slot for an engine job. It is not a launched handle."""
+    def __init__(self,lease,purpose): self.lease=lease;self.purpose=purpose;self.started=time.monotonic()
+
+
+@contextmanager
+def hold_job_slot(lease,purpose):
+    """Occupy the heavy-job slot that the campaign launcher uses, for the duration of one engine job.
+
+    Section 19: only one heavy job runs at a time. A busy slot refuses with JOB_SLOT_BUSY before anything starts.
+    """
+    require_live_owner(lease,'coordinator')
+    if not isinstance(purpose,str) or not 1<=len(purpose)<=128: raise RuntimeRefused('JOB_ADMISSION_DENIED')
+    if lease.project_id in _ACTIVE: raise RuntimeRefused('JOB_SLOT_BUSY')
+    hold=_SlotHold(lease,purpose);_ACTIVE[lease.project_id]=hold
+    try: yield hold
+    finally:
+        if _ACTIVE.get(lease.project_id) is hold: _ACTIVE.pop(lease.project_id,None)
 
 
 def preflight_campaign(lease):

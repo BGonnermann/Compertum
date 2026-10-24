@@ -37,6 +37,12 @@ def server(mode='ok',model='synthetic-model'):
             if state['mode']=='bound': return self.send(b'x'*70000)
             message={'role':'assistant','content':'echo: '+p['messages'][-1]['content']}
             if state['mode']=='tool': message['tool_calls']=[{'function':{'name':'read_file','arguments':'{}'}}]
+            if state['mode'] in ('toolcall','toolbad','toolargs','toolmany','toolstop') and 'tools' in p:
+                name={'toolbad':'delete_everything'}.get(state['mode'],'write_file')
+                arguments={'toolargs':'[1,2]'}.get(state['mode'],'{"file_path":"/main.py","content":"print(1)"}')
+                calls=[{'id':f'call_{i}','type':'function','function':{'name':name,'arguments':arguments}} for i in range(9 if state['mode']=='toolmany' else 1)]
+                message={'role':'assistant','content':None,'tool_calls':calls}
+                return self.send({'choices':[{'message':message,'finish_reason':'stop' if state['mode']=='toolstop' else 'tool_calls'}],'usage':{'prompt_tokens':10,'completion_tokens':3}})
             if state['mode']=='two': return self.send({'choices':[{'message':message,'finish_reason':'stop'}]*2})
             usage={'prompt_tokens':10,'completion_tokens':3}
             if state['mode']=='bigusage': usage.update(total_tokens=13,vendor_blob='x'*30000)
@@ -152,6 +158,62 @@ def test_malformed_tool_and_oversized_responses_are_rejected(mode):
         with pytest.raises(RuntimeRefused,match='AI_RESPONSE_REJECTED'):
             client(port,ledger).complete('mathematician',[{'role':'user','content':'x'}],purpose='e1-fixture')
         assert len(state['posts'])==1 and ledger.entries[0]['status']=='REFUSED_AI_RESPONSE_REJECTED'
+
+
+TOOLS=[{'type':'function','function':{'name':'write_file','description':'Write a file.','parameters':{'type':'object','properties':{'file_path':{'type':'string'},'content':{'type':'string'}},'required':['file_path','content']}}},
+       {'type':'function','function':{'name':'run_job','description':'Run the job.','parameters':{'type':'object','properties':{}}}}]
+
+
+def test_tool_calls_need_an_allowlist_and_are_recorded_by_name_and_argument_hash():
+    with server('toolcall') as (port,state):
+        ledger=ListLedger();c=client(port,ledger)
+        messages=[{'role':'system','content':'ROLE: engineer'},{'role':'user','content':'build it'}]
+        content,calls,entry=c.complete_tools('engineer',messages,TOOLS,purpose='e3-fixture',max_tokens=64)
+        assert content=='' and calls==[{'id':'call_0','name':'write_file','arguments':{'file_path':'/main.py','content':'print(1)'}}]
+        assert state['posts'][-1]['tools']==TOOLS and state['posts'][-1]['tool_choice']=='auto'
+        assert entry['status']=='COMPLETED' and entry['tools']==['run_job','write_file']
+        assert entry['tool_calls']==[{'id':'call_0','name':'write_file','arguments_sha256':hashlib.sha256(canonical({'file_path':'/main.py','content':'print(1)'})).hexdigest()}]
+        # The conversation continues with the assistant's tool call and the tool result. Both message shapes are admitted.
+        follow=messages+[{'role':'assistant','content':'','tool_calls':[{'id':'call_0','type':'function','function':{'name':'write_file','arguments':'{"file_path":"/main.py","content":"print(1)"}'}}]},
+                         {'role':'tool','content':'written','tool_call_id':'call_0'}]
+        state['mode']='ok'
+        content,calls,entry=c.complete_tools('engineer',follow,TOOLS,purpose='e3-fixture')
+        assert content=='echo: written' and calls==[] and entry['tool_calls'] is None and entry['tools']==['run_job','write_file']
+        # Without the allowlist, complete() still refuses the same reply.
+        state['mode']='toolcall'
+        content,entry=c.complete('engineer',messages,purpose='e3-fixture')
+        assert content.startswith('echo:') and entry['tools'] is None  # the fake only emits tool calls when tools are offered
+        assert len(state['posts'])==3 and all(e['status']=='COMPLETED' for e in ledger.entries)
+
+
+@pytest.mark.parametrize('mode,code',[('toolbad','AI_RESPONSE_REJECTED'),('toolargs','AI_RESPONSE_REJECTED'),('toolmany','AI_RESPONSE_REJECTED'),('toolstop','AI_RESPONSE_REJECTED')])
+def test_tool_calls_outside_the_allowlist_or_malformed_are_rejected_and_recorded(mode,code):
+    with server(mode) as (port,state):
+        ledger=ListLedger()
+        with pytest.raises(RuntimeRefused,match=f'^{code}$'):
+            client(port,ledger).complete_tools('engineer',[{'role':'user','content':'x'}],TOOLS,purpose='e3-fixture')
+        assert len(state['posts'])==1 and ledger.entries[0]['status']=='REFUSED_'+code
+        # Calls that parsed are kept as evidence even when the reply is rejected; calls that did not parse leave nothing.
+        assert (ledger.entries[0]['tool_calls'] is None)==(mode!='toolstop')
+
+
+def test_tool_allowlists_and_tool_messages_are_checked_before_any_request():
+    with server() as (port,state):
+        ledger=ListLedger();c=client(port,ledger,limit=20)
+        bad_tools=[None,[],TOOLS*9,[{'type':'function','function':{'name':'bad name','parameters':{}}}],[{'type':'retrieval','function':{'name':'x'}}],
+                   [{'type':'function','function':{'name':'x','extra':1}}],TOOLS+[TOOLS[0]],[{'type':'function','function':{'name':'x','parameters':{'blob':'y'*70000}}}]]
+        for tools in bad_tools:
+            with pytest.raises(RuntimeRefused,match='^AI_TOOLS_DENIED$'): c.complete_tools('engineer',[{'role':'user','content':'x'}],tools,purpose='e3-fixture')
+        bad_messages=[[{'role':'tool','content':'r'}],[{'role':'tool','content':'r','tool_call_id':''}],[{'role':'assistant','content':'','tool_calls':[]}],
+                      [{'role':'assistant','content':'','tool_calls':[{'id':'1','type':'function','function':{'name':'other','arguments':'{}'}}]}],
+                      [{'role':'user','content':'x','tool_calls':[]}],[{'role':'system','content':None}]]
+        for messages in bad_messages:
+            with pytest.raises(RuntimeRefused,match='^AI_MESSAGES_DENIED$'): c.complete_tools('engineer',messages,TOOLS,purpose='e3-fixture')
+        # complete() never admits an assistant tool call, because it offers no tools.
+        with pytest.raises(RuntimeRefused,match='^AI_MESSAGES_DENIED$'):
+            c.complete('engineer',[{'role':'assistant','content':'','tool_calls':[{'id':'1','type':'function','function':{'name':'write_file','arguments':'{}'}}]}],purpose='e3-fixture')
+        assert state['posts']==[] and len(ledger.entries)==len(bad_tools)+len(bad_messages)+1
+        assert all(e['status'] in ('REFUSED_AI_TOOLS_DENIED','REFUSED_AI_MESSAGES_DENIED') for e in ledger.entries)
 
 
 def test_timeout_is_reported_as_unverified_completion():

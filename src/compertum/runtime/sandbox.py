@@ -44,7 +44,8 @@ REPARSE_POINT=0x400
 OUT_OF_MEMORY_EXITS=(0xC0000017,0xC000012D)
 CONTROLS=('appcontainer_token','low_integrity','external_network_denied',
           'outside_read_denied','outside_write_denied','outside_file_absent','previous_job_read_denied','inside_write_allowed',
-          'child_process_denied','memory_limit_enforced')
+          'child_process_denied','memory_limit_enforced','fixed_targets_read_denied','pipe_open_denied')
+MAX_FIXED_TARGETS=16
 # Loopback is observed, not gated. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener.
 # The owner accepted this as a documented limitation on 23 October 2026 (option 1 in docs/ENGINE_PLAN.md, "Loopback finding").
 # The engine records the observation with every verification; stage E3 adds the compensating connection check.
@@ -218,12 +219,92 @@ def _bounded(value,low,high,code):
     return value
 
 
-def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None):
+class TcpRow4(c.Structure):
+    _fields_=[('state',DWORD),('local_addr',DWORD),('local_port',DWORD),('remote_addr',DWORD),('remote_port',DWORD),('pid',DWORD)]
+
+
+class TcpRow6(c.Structure):
+    _fields_=[('local_addr',c.c_ubyte*16),('local_scope',DWORD),('local_port',DWORD),('remote_addr',c.c_ubyte*16),('remote_scope',DWORD),
+              ('remote_port',DWORD),('state',DWORD),('pid',DWORD)]
+
+
+class LoopbackWatcher:
+    """Sample the Windows TCP table while a sandbox process runs and keep every row that the process owns.
+
+    This is the compensating control for loopback reach (docs/ENGINE_PLAN.md, "Loopback finding"). A connection shorter than one
+    sample interval can be missed, so a clean record is evidence, not proof. A failed sample makes the watcher unverified.
+    """
+    def __init__(self,interval=.025):
+        self.interval=_bounded(int(interval*1000),1,1000,'SANDBOX_WATCHER_DENIED')/1000
+        self.pid=None;self.samples=0;self.error=None;self.connections={};self._stop=threading.Event();self._thread=None
+        self._iphlpapi=c.WinDLL('iphlpapi',use_last_error=True)
+        self._iphlpapi.GetExtendedTcpTable.argtypes=[c.c_void_p,c.POINTER(DWORD),BOOL,c.c_ulong,c.c_int,c.c_ulong]
+        self._iphlpapi.GetExtendedTcpTable.restype=DWORD
+
+    def _table(self,family,row_type):
+        size=DWORD(0)
+        for _ in range(4):
+            buffer=c.create_string_buffer(max(size.value,4))
+            status=self._iphlpapi.GetExtendedTcpTable(buffer,c.byref(size),False,family,5,0)  # TCP_TABLE_OWNER_PID_ALL
+            if status==0:
+                count=DWORD.from_buffer(buffer).value
+                return (row_type*count).from_buffer(buffer,4)
+            if status!=122: raise OSError(status,'GetExtendedTcpTable')  # ERROR_INSUFFICIENT_BUFFER
+        raise OSError(122,'GetExtendedTcpTable')
+
+    def sample(self):
+        rows=[]
+        for row in self._table(2,TcpRow4):
+            if row.pid==self.pid:
+                rows.append(('ipv4',socket.inet_ntoa(row.local_addr.to_bytes(4,'little')),socket.ntohs(row.local_port&0xFFFF),
+                             socket.inet_ntoa(row.remote_addr.to_bytes(4,'little')),socket.ntohs(row.remote_port&0xFFFF),row.state))
+        for row in self._table(23,TcpRow6):
+            if row.pid==self.pid:
+                rows.append(('ipv6',socket.inet_ntop(socket.AF_INET6,bytes(row.local_addr)),socket.ntohs(row.local_port&0xFFFF),
+                             socket.inet_ntop(socket.AF_INET6,bytes(row.remote_addr)),socket.ntohs(row.remote_port&0xFFFF),row.state))
+        self.samples+=1
+        for family,local,lport,remote,rport,state in rows:
+            key=(family,local,lport,remote,rport);entry=self.connections.get(key)
+            if entry is None: self.connections[key]={'family':family,'local_address':local,'local_port':lport,'remote_address':remote,'remote_port':rport,'states':[state]}
+            elif state not in entry['states']: entry['states'].append(state)
+
+    def _run(self):
+        try:
+            while not self._stop.is_set():
+                self.sample();self._stop.wait(self.interval)
+            self.sample()
+        except BaseException as error: self.error=repr(error)[:200]
+
+    def start(self,pid):
+        if self._thread is not None or type(pid) is not int or pid<=0: raise RuntimeRefused('SANDBOX_WATCHER_DENIED')
+        self.pid=pid;self._thread=threading.Thread(target=self._run,daemon=True);self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=3)
+            if self._thread.is_alive(): self.error=self.error or 'watcher thread did not stop'
+
+    def loopback_connections(self):
+        """Rows with a loopback remote address that were not just listening or closed."""
+        return [dict(v) for v in self.connections.values()
+                if v['states'] and any(s not in (1,2) for s in v['states'])  # 1 CLOSED, 2 LISTEN
+                and (v['remote_address'].startswith('127.') or v['remote_address']=='::1' or v['remote_address'].startswith('::ffff:127.'))]
+
+    def record(self):
+        return {'pid':self.pid,'samples':self.samples,'interval_seconds':self.interval,'error':self.error,
+                'connections':[dict(v) for v in self.connections.values()],'loopback_connections':self.loopback_connections(),
+                'verified':self.error is None and self.samples>=1}
+
+
+def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None,watcher=None):
     """Run the system Python in a fresh AppContainer inside job_dir. Return a SandboxResult after the process ends.
 
     argv names a .py file in job_dir and its arguments; the interpreter runs with -I -B. Any refusal happens before the process exists.
     The caller holds the one heavy-job slot. This function does not check the slot.
+    watcher: an optional LoopbackWatcher. It starts when the process resumes and stops when the process has ended.
     """
+    if watcher is not None and not isinstance(watcher,LoopbackWatcher): raise RuntimeRefused('SANDBOX_WATCHER_DENIED')
     job=_job_folder(root,job_dir);argv=_argv(job,argv)
     seconds=_bounded(seconds,MIN_SECONDS,MAX_SECONDS,'SANDBOX_DEADLINE_DENIED');memory_bytes=_bounded(memory_bytes,MIN_MEMORY,MAX_MEMORY,'SANDBOX_MEMORY_DENIED')
     disk_bytes=_bounded(disk_bytes,1,MAX_DISK,'SANDBOX_DISK_DENIED');_bounded(memory_floor_bytes,1,2**62,'SANDBOX_FLOOR_DENIED')
@@ -276,17 +357,21 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
                 api.DeleteProcThreadAttributeList(attributes)
                 for handle in borrowed: api.set_inheritable(handle,False)
             api.assign(job_object,process)
-            if api.ResumeThread(thread.get())!=1: raise RuntimeRefused('RESUME_UNVERIFIED')
-            thread.close();thread=None
-            timed_out=api.WaitForSingleObject(process.get(),seconds*1000)!=0
-            if timed_out:
-                api.checked(api.TerminateJobObject(job_object.get(),124),'DeadlineTerminateJob')
-                if api.WaitForSingleObject(process.get(),3000)!=0: raise RuntimeRefused('JOB_EXIT_UNVERIFIED')
-            elapsed=time.monotonic()-started
-            deadline=time.monotonic()+3
-            while api.active(job_object):
-                if time.monotonic()>=deadline: raise RuntimeRefused('JOB_EXIT_UNVERIFIED')
-                time.sleep(.01)
+            if watcher is not None: watcher.start(info.pid)
+            try:
+                if api.ResumeThread(thread.get())!=1: raise RuntimeRefused('RESUME_UNVERIFIED')
+                thread.close();thread=None
+                timed_out=api.WaitForSingleObject(process.get(),seconds*1000)!=0
+                if timed_out:
+                    api.checked(api.TerminateJobObject(job_object.get(),124),'DeadlineTerminateJob')
+                    if api.WaitForSingleObject(process.get(),3000)!=0: raise RuntimeRefused('JOB_EXIT_UNVERIFIED')
+                elapsed=time.monotonic()-started
+                deadline=time.monotonic()+3
+                while api.active(job_object):
+                    if time.monotonic()>=deadline: raise RuntimeRefused('JOB_EXIT_UNVERIFIED')
+                    time.sleep(.01)
+            finally:
+                if watcher is not None: watcher.stop()
             code=DWORD();api.checked(api.GetExitCodeProcess(process.get(),c.byref(code)),'GetExitCodeProcess')
             peak=api.limits(job_object).peak_process_memory
         job_total=folder_bytes(job,disk_bytes);package_total=folder_bytes(profile.folder,disk_bytes)
@@ -317,6 +402,7 @@ PROBE=r'''
 import ctypes as c, json, os, socket, subprocess, sys
 with open('targets.json', encoding='utf-8') as stream: targets = json.load(stream)
 port, outside_read, outside_write, previous, megabytes = targets['port'], targets['outside_read'], targets['outside_write'], targets['previous'], targets['megabytes']
+fixed_reads, pipe = targets['fixed_reads'], targets['pipe']
 out = {}
 def attempt(name, fn):
     try: out[name] = {'ok': True, 'value': fn()}
@@ -343,14 +429,22 @@ attempt('loopback_connect', lambda: connect('127.0.0.1', port))
 attempt('outside_read', lambda: open(outside_read, encoding='utf-8').read())
 attempt('outside_write', lambda: open(outside_write, 'w', encoding='utf-8').write('escaped'))
 attempt('previous_read', lambda: open(previous, encoding='utf-8').read())
+for index, target in enumerate(fixed_reads):
+    attempt('fixed_read_%d' % index, lambda target=target: len(open(target, 'rb').read(16)))
+if pipe is not None:
+    attempt('pipe_open', lambda: len(open(pipe, 'rb').read(1)))
 attempt('inside_write', lambda: open('inside.txt', 'w', encoding='utf-8').write('ok'))
 attempt('child_process', lambda: subprocess.run([sys.executable, '-I', '-c', 'pass'], timeout=10).returncode)
 attempt('allocate', lambda: len(bytearray(megabytes * 1024 * 1024)))
 '''
 
 
-def controls_from(report,result,*,escape_exists,inside_written):
-    """Compute the ten controls. Each denial must carry the exact error the boundary produces; any other failure is not a pass."""
+def controls_from(report,result,*,escape_exists,inside_written,fixed_count,pipe_given):
+    """Compute the twelve controls. Each denial must carry the exact error the boundary produces; any other failure is not a pass.
+
+    fixed_count is the number of real fixed-part files the probe tried to read; zero proves nothing and fails the control.
+    pipe_given says whether a named pipe server was offered; without one the pipe control fails.
+    """
     def refused(name,error,detail=''):
         entry=report.get(name)
         return type(entry) is dict and entry.get('ok') is False and entry.get('error')==error and detail in str(entry.get('detail',''))
@@ -361,6 +455,8 @@ def controls_from(report,result,*,escape_exists,inside_written):
             'outside_file_absent':not escape_exists,'previous_job_read_denied':refused('previous_read','PermissionError'),
             'inside_write_allowed':report.get('inside_write',{}).get('ok') is True and inside_written,
             'child_process_denied':refused('child_process','OSError','1816'),
+            'fixed_targets_read_denied':type(fixed_count) is int and fixed_count>=1 and all(refused(f'fixed_read_{i}','PermissionError') for i in range(fixed_count)),
+            'pipe_open_denied':pipe_given is True and refused('pipe_open','PermissionError'),
             'memory_limit_enforced':refused('allocate','MemoryError') or ('allocate' not in report and 'child_process' in report
                                                                           and not result.timed_out and result.exit_code in OUT_OF_MEMORY_EXITS)}
 
@@ -371,12 +467,28 @@ def observations_from(report,*,listener_saw_connection):
     return {'loopback_connected':type(entry) is dict and entry.get('ok') is True,'loopback_seen_by_listener':bool(listener_saw_connection)}
 
 
-def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None):
+def fixed_target_paths(targets):
+    """Admit at most 16 existing, absolute, regular files that the probe must fail to read. These are the real fixed parts."""
+    if not isinstance(targets,(list,tuple)) or len(targets)>MAX_FIXED_TARGETS: raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
+    paths=[]
+    for target in targets:
+        if not isinstance(target,(str,Path)): raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
+        path=Path(target)
+        if not path.is_absolute() or not path.is_file() or path.is_symlink(): raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
+        paths.append(str(path))
+    if len(set(paths))!=len(paths): raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
+    return paths
+
+
+def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None,fixed_targets=(),pipe=None):
     """Run a first job, then the fixed probe in a second job, and return a verification dict. The caller uses require_verified.
 
+    fixed_targets: real fixed-part files (ledger, rules, config) that the probe must fail to read. pipe: a named pipe path
+    with a live server that the probe must fail to open. Without targets or without a pipe the two controls fail.
     The external probe target is 1.1.1.1:53. A packet leaves the host only if the boundary has already failed.
     """
-    root=Path(root).resolve(strict=True);token=str(uuid4())[:8]
+    root=Path(root).resolve(strict=True);token=str(uuid4())[:8];fixed=fixed_target_paths(fixed_targets)
+    if pipe is not None and (not isinstance(pipe,str) or not pipe.startswith('\\\\.\\pipe\\') or not 10<len(pipe)<=256): raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
     previous=root/f'previous-{token}';previous.mkdir()
     (previous/'main.py').write_text("open('inside.txt','w',encoding='utf-8').write('earlier job')\n",encoding='utf-8')
     first=run_sandboxed(root,previous,['main.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api)
@@ -390,17 +502,18 @@ def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2
         except OSError: pass
     waiter=threading.Thread(target=accept,daemon=True);waiter.start()
     (job/'targets.json').write_text(json.dumps({'port':listener.getsockname()[1],'outside_read':str(canary),'outside_write':str(escape),
-                                                'previous':str(previous/'inside.txt'),'megabytes':memory_bytes//1024**2+256}),encoding='utf-8')
+                                                'previous':str(previous/'inside.txt'),'megabytes':memory_bytes//1024**2+256,
+                                                'fixed_reads':fixed,'pipe':pipe}),encoding='utf-8')
     try:
         result=run_sandboxed(root,job,['probe.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api)
     finally:
         listener.close();waiter.join(timeout=2)
     report=json.loads(read_head(job/'probe.json')) if (job/'probe.json').is_file() else {}
-    controls=controls_from(report,result,escape_exists=escape.exists(),inside_written=(job/'inside.txt').is_file())
+    controls=controls_from(report,result,escape_exists=escape.exists(),inside_written=(job/'inside.txt').is_file(),fixed_count=len(fixed),pipe_given=pipe is not None)
     observations=observations_from(report,listener_saw_connection=bool(seen))
     assert set(controls)==set(CONTROLS) and set(observations)==set(OBSERVATIONS)
     return {'controls':controls,'failed':sorted(k for k,v in controls.items() if not v),'observations':observations,'report':report,
-            'result':result.record(),'previous_result':first.record(),'job_folder':str(job)}
+            'result':result.record(),'previous_result':first.record(),'job_folder':str(job),'fixed_targets':fixed,'pipe':pipe}
 
 
 def require_verified(verification):
