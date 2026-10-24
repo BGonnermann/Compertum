@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-## M3 engineering accepted; engine stages E1 and E2 complete; E3 built and reviewed, owner OK pending - 24 October 2026
+## M3 engineering accepted; engine stages E1, E2 and E3 complete; E4 under way - 24 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
 Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
@@ -24,7 +24,7 @@ First run, source lane, native Windows: 19 passed, 1 failed, 0 skipped. The fail
 The owner chose option 1: loopback reach is a documented limitation on this host. The gate now has ten controls; loopback is recorded as an observation with every verification, never gated. After the decision: 20 passed, 0 failed, 0 skipped.
 Limitation: code in a sandbox job can reach the model server the owner starts for a run, outside the ledger. Stage E3 must add the compensating connection check with Auditor freeze. See "Loopback finding" in [the engine plan](ENGINE_PLAN.md).
 
-Engine stage E3 is built and reviewed on 24 October 2026, owner OK pending: `src/compertum/ai/engine/` (roles, cycle, execution, ledger, market), `config/engine_prompts/`, the tool-call extension of `src/compertum/ai/models.py`, the loopback watcher and two new controls in `src/compertum/runtime/sandbox.py`, and `hold_job_slot` in `src/compertum/runtime/jobs.py`.
+Engine stage E3 is complete; the owner gave the OK on 24 October 2026 (commit `38af592`): `src/compertum/ai/engine/` (roles, cycle, execution, ledger, market), `config/engine_prompts/`, the tool-call extension of `src/compertum/ai/models.py`, the loopback watcher and two new controls in `src/compertum/runtime/sandbox.py`, and `hold_job_slot` in `src/compertum/runtime/jobs.py`.
 The four roles run as Deep Agents over one ledgered loopback model path in the separate environment `.cache/engine-env` (system Python 3.14). One supervised cycle on a synthetic market runs end to end: Director picks, Researcher memos, Director decisions, Mathematician specifications, Engineer code built and run in the AppContainer sandbox, Validator score, Archivist rows for every step. Engineer code that reaches loopback froze the engine in the test on this host.
 Engine environment lane: 12 passed, 0 failed, 0 skipped. Product lane: sandbox 25 passed, model interface 39 passed, engine module 1 skipped (no Deep Agents there). Review round 1 `CHANGES_REQUIRED` with no blocker, six should-fixes and five notes, all applied; round 2 `E3_OK` with two notes.
 Full product suite in `.cache/clean-env-m0` on 24 October 2026: 7162 passed, 3 failed, 12 skipped in 1 h 56 min. The engine lane was rerun on the final code afterwards: 12 passed.
@@ -36,7 +36,7 @@ Evidence for the three failures is in `.cache/test-runs/e3-full-suite01-failed-e
 Limitation: the Validator adapter scores the synthetic market only; the real walk-forward Validator and the deflated Sharpe ratio are stage E4. No bounded run, kill switch or request maximum yet (E5).
 
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
-Exact next action: obtain the owner's OK on E3. Then stage E4: trial count, deflated Sharpe ratio and the candidate queue.
+Exact next action: build stage E4 (total trial count, deflated Sharpe ratio, candidate queue with sealed vault batches) with hand-calculated test cases, one independent review, then the owner's OK. The two unexplained suite failures above stay recorded until the owner asks for an investigation.
 
 Earlier entries below retain their original evidence and dates.
 
