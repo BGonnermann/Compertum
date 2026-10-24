@@ -27,7 +27,7 @@ from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
 from .prompts import PROMPT_BYTES,ROLES,load_prompt  # noqa: E402,F401  (re-exported; the loader has no engine library dependency)
 
-FILE_TOOLS=['ls','read_file','write_file','edit_file','glob','grep']
+FILE_TOOLS=['read_file','write_file','edit_file']  # no ls, glob or grep: practice run 6 showed a real model searching its one-file store for 20 rounds
 EXCLUDED_TOOLS=frozenset({'execute','task','delete'})
 TEXT_ROLES=('director','researcher','mathematician')  # one completion, no tools; the Engineer is the only agent
 TASK_BYTES=65536

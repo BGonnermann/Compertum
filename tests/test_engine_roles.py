@@ -60,8 +60,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         tool_results=[m for m in messages if m['role']=='tool'];last_user=[m for m in messages if m['role']=='user'][-1]['content']
         def text(value): return {'role':'assistant','content':value},'stop'
         def call(name,arguments): return {'role':'assistant','content':None,'tool_calls':[{'id':f'call_{len(messages)}','type':'function','function':{'name':name,'arguments':json.dumps(arguments)}}]},'tool_calls'
-        if state['mode']=='loop': return call('ls',{'path':'/'})  # the same call every round
-        if state['mode']=='loopvary': return call('ls',{'path':f'/{len(messages)}'})  # a different call every round
+        if state['mode']=='loop': return call('read_file',{'file_path':'/main.py'})  # the same call every round
+        if state['mode']=='loopvary': return call('read_file',{'file_path':f'/{len(messages)}.py'})  # a different call every round
         if state['mode']=='memofault' and role=='researcher' and '"id": "h2"' in last_user: return None,None  # an unusable reply body for one memo
         if last_user.startswith('Improve the system prompt'):
             # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
@@ -225,7 +225,8 @@ def test_text_roles_get_no_tools_and_the_engineer_gets_file_tools_and_run_job(br
         with pytest.raises(RuntimeRefused,match='^AI_TOOLS_DENIED$'): build_role_agent('director',c,system_prompt=load_prompt(PROJECT,'director'),tools=[run_job_tool(sandbox)])
         built=engineer.run('Build it.')
         assert built['text'].startswith('DONE') and built['tool_calls']==2 and built['files']=={'/main.py':ENGINEER_CODE}
-        assert {t['function']['name'] for t in state['posts'][-1]['tools']}==set(FILE_TOOLS)|{'run_job'}
+        offered={t['function']['name'] for t in state['posts'][-1]['tools']}
+        assert offered==set(FILE_TOOLS)|{'run_job'}=={'read_file','write_file','edit_file','run_job'} and not offered&{'ls','glob','grep','execute','task','delete','write_todos'}
         assert len(sandbox.runs)==1 and sandbox.runs[0]['status']=='COMPLETED' and sandbox.runs[0]['signals_present'] is True
         assert 'signals written' in sandbox.runs[0]['stdout'] and sandbox.completed_signals().startswith('session,position\n')
         assert len(engine.ledger.runs('cycle-tools'))==1 and 'signals' not in engine.ledger.runs('cycle-tools')[0]
