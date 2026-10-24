@@ -158,7 +158,7 @@ class ModelClient:
     256 MiB, no-child Job for the rest of its life. Only a dedicated adapter process may construct it that way.
     The supervisor, the coordinator and tests must pass native_limits=False.
     """
-    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True):
+    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True,gate=None):
         if (not isinstance(roles,Mapping) or roles.keys()!=ENGINE_ROLES
                 or any(not isinstance(spec,RoleModel) or spec.role!=role for role,spec in roles.items())):
             raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
@@ -167,8 +167,11 @@ class ModelClient:
             if loopback_base_url(spec.base_url)!=spec.base_url or model_id(spec.model)!=spec.model: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         if type(memory_floor_bytes) is not int or memory_floor_bytes<1: raise RuntimeRefused('AVAILABLE_RAM_UNVERIFIED')
         if type(request_limit) is not int or not 1<=request_limit<=10000: raise RuntimeRefused('AI_REQUEST_BUDGET')
+        if gate is not None and not callable(gate): raise RuntimeRefused('AI_SETTINGS_DENIED')
         self.roles=roles;self.ledger=ledger;self.memory_floor_bytes=memory_floor_bytes;self.request_limit=request_limit
-        self.available_memory=available_memory;self.requests=0;self.native_limits=None
+        # gate: a callable with no arguments that raises RuntimeRefused when no new request may start (stage E5 kill switch,
+        # hour limit, freeze). It runs before every request, so a stop takes effect at the next request boundary.
+        self.available_memory=available_memory;self.requests=0;self.native_limits=None;self.gate=gate
         if native_limits:
             # The same one-thread, 256 MiB, no-child Job as the Strata adapter. The supervisor never uses this client.
             from compertum.runtime.managed import constrain_ai_adapter
@@ -236,6 +239,7 @@ class ModelClient:
                     or type(temperature) not in (int,float) or not 0<=temperature<=2): raise RuntimeRefused('AI_SETTINGS_DENIED')
             if tools_required and tools is None: raise RuntimeRefused('AI_TOOLS_DENIED')
             names=tool_names(tools);entry['tools']=names
+            if self.gate is not None: self.gate()
             if self.requests>=self.request_limit: raise RuntimeRefused('AI_REQUEST_BUDGET')
             available=self.available_memory();entry['available_memory_bytes']=available
             if type(available) is not int or available<self.memory_floor_bytes: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')

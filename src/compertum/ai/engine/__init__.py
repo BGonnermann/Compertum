@@ -1,7 +1,9 @@
-"""Stage E3: the section 19 autoresearch engine roles, cycle, sandbox tool and Archivist tables.
+"""The section 19 autoresearch engine: roles, cycle, sandbox tool, Archivist tables (E3), deflation and the candidate
+queue (E4), bounded runs, the run gate, the daily summary and the owner commands (E5).
 
-This package needs the separate engine environment (`.cache/engine-env`) for Deep Agents. The product
-environment imports only `harden_environment`, `market` and `ledger`, which have no engine dependency.
+The roles, the cycle and the bounded run need the separate engine environment (`.cache/engine-env`) for Deep Agents.
+The product environment imports `harden_environment`, `market`, `ledger`, `deflation`, `vault`, `limits` and
+`control`, which have no engine library dependency.
 """
 import os
 

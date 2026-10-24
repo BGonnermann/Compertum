@@ -15,6 +15,7 @@ MAX_SUMMARY_CYCLES=20
 SUMMARY_BYTES=16384
 MAX_EXTERNAL_TRIALS=100000
 QUEUE_EVENTS=('QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
+RUN_ID=r'run-[0-9]{8}-[0-9a-f]{8}'
 
 
 def now():
@@ -34,6 +35,7 @@ class EngineLedger:
                 CREATE TABLE IF NOT EXISTS engine_trial_scores(trial_id TEXT PRIMARY KEY,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS engine_queue(event_id TEXT PRIMARY KEY,candidate_id TEXT NOT NULL,event TEXT NOT NULL,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS engine_looks(look_id TEXT PRIMARY KEY,seal_sha256 TEXT NOT NULL,created_at TEXT NOT NULL,record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS engine_bounded_runs(row_id TEXT PRIMARY KEY,run_id TEXT NOT NULL,phase TEXT NOT NULL,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
             ''')
 
     def _insert(self,sql,values):
@@ -141,6 +143,22 @@ class EngineLedger:
         rows=self._rows('SELECT record FROM engine_looks WHERE look_id=?',(look_id,))
         if len(rows)!=1: raise RuntimeRefused('ENGINE_LOOK_UNKNOWN')
         return rows[0]
+
+    # Stage E5: bounded runs. One START row when the owner's run begins, one END row when it stops, never rewritten.
+    def record_run_phase(self,run_id,phase,record):
+        if not isinstance(run_id,str) or not re.fullmatch(RUN_ID,run_id) or phase not in ('START','END'): raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        row={'run_id':run_id,'phase':phase,'recorded_at':now(),**record}
+        self._insert_once('INSERT INTO engine_bounded_runs VALUES(?,?,?,?,?)',(f'{run_id}:{phase}',run_id,phase,row['recorded_at'],canonical(row).decode()),'ENGINE_RUN_DUPLICATE');return row
+
+    def run_rows(self,run_id): return self._rows('SELECT record FROM engine_bounded_runs WHERE run_id=? ORDER BY rowid',(run_id,))
+
+    def open_runs(self):
+        """Run ids with a START row and no END row. A crashed run stays open until the owner closes it."""
+        return self._rows("SELECT record FROM engine_bounded_runs a WHERE phase='START' AND NOT EXISTS (SELECT 1 FROM engine_bounded_runs b WHERE b.run_id=a.run_id AND b.phase='END') ORDER BY rowid")
+
+    def close_run(self,run_id,record):
+        if not any(r['phase']=='START' for r in self.run_rows(run_id)): raise RuntimeRefused('ENGINE_RUN_UNKNOWN')
+        return self.record_run_phase(run_id,'END',record)
 
     def cycles(self): return self._rows('SELECT record FROM engine_cycles ORDER BY rowid')
     def steps(self,cycle_id): return self._rows('SELECT record FROM engine_steps WHERE cycle_id=? ORDER BY rowid',(cycle_id,))

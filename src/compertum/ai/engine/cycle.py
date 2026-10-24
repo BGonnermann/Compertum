@@ -78,6 +78,8 @@ class Engine:
     memory_floor_bytes:int
     recursion_limit:int=40
     max_hypotheses:int=MAX_HYPOTHESES
+    gate:Any=None  # E5: callable that raises when no step may start (kill switch, hour limit, freeze)
+    run_id:Any=None  # E5: the bounded run this cycle belongs to
 
 
 def run_cycle(engine,cycle_index):
@@ -86,7 +88,7 @@ def run_cycle(engine,cycle_index):
     ledger=engine.ledger;ledger.require_unfrozen()
     cycle_id=f'cycle-{cycle_index:04d}-{uuid4().hex[:8]}'
     summary=ledger.summary()
-    ledger.record_cycle(cycle_id,cycle_index,'START',{'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
+    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None}
     prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
@@ -96,6 +98,7 @@ def run_cycle(engine,cycle_index):
                                   recursion_limit=engine.recursion_limit) for role in ROLES}
 
     def step(role,kind,task,record,files=None):
+        if engine.gate is not None: engine.gate()  # E5: a paused or stopped run starts no new step
         state['steps']+=1;index=state['steps']
         ledger.record_step(cycle_id,index,role,kind,{'phase':'REQUEST','task_sha256':sha(task),**record})
         try: reply=agents[role].run(task,files)
@@ -182,7 +185,7 @@ def run_cycle(engine,cycle_index):
         state['status']='FAILED_UNEXPECTED';state['stop_code']=type(error).__name__[:64];raise
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
-        end={'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
+        end={'run_id':engine.run_id,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
              'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}

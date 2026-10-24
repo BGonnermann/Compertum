@@ -1,0 +1,7 @@
+# Section 19 bounded runs. Only the owner edits this file, through a reviewed commit. The engine never changes it.
+# request_hard_maximum caps the AI request limit that any one bounded run may state. The owner approves each run's
+# limit at the start, and that limit can never exceed this value. 0 means unset: no bounded run can start.
+# Only the owner raises this value. The E1 client refuses any limit above 10000.
+
+[run]
+request_hard_maximum = 0

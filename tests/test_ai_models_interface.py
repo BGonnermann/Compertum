@@ -283,3 +283,23 @@ def test_store_ledger_persists_every_call_durably(bridge):
     assert [r['status'] for r in rows]==['COMPLETED','REFUSED_AVAILABLE_RAM_FLOOR']
     assert rows[0]['model_reported']=='synthetic-model' and rows[0]['address']==f'http://127.0.0.1:{port}/v1'
     assert StoreLedger(b.store).rows()==rows
+
+
+def test_gate_runs_before_every_request_and_consumes_nothing():
+    """Stage E5: the run gate refuses before memory is read, before a request counts, and leaves one refusal row."""
+    with server() as (port,state):
+        ledger=ListLedger();looks=[];halted=[False]
+        def gate():
+            if halted[0]: raise RuntimeRefused('ENGINE_STOPPED')
+        def available(): looks.append(1);return FLOOR+1
+        c=ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=5,available_memory=available,native_limits=False,gate=gate)
+        c.complete('engineer',[{'role':'user','content':'x'}],purpose='e5-fixture')
+        assert c.requests==1 and len(looks)==1 and len(state['posts'])==1
+        halted[0]=True
+        with pytest.raises(RuntimeRefused,match='^ENGINE_STOPPED$'): c.complete('engineer',[{'role':'user','content':'y'}],purpose='e5-fixture')
+        assert c.requests==1 and len(looks)==1 and len(state['posts'])==1
+        assert [e['status'] for e in ledger.entries]==['COMPLETED','REFUSED_ENGINE_STOPPED'] and ledger.entries[1]['request_index']==2 and ledger.entries[1]['available_memory_bytes'] is None
+        halted[0]=False
+        c.complete('engineer',[{'role':'user','content':'z'}],purpose='e5-fixture');assert c.requests==2 and len(state['posts'])==2
+        with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'):
+            ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=5,available_memory=available,native_limits=False,gate='not callable')
