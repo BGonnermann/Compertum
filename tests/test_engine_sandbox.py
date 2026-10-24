@@ -11,8 +11,9 @@ import time
 from uuid import uuid4
 import pytest
 from compertum.runtime.errors import RuntimeRefused
-from compertum.runtime.sandbox import (CONTROLS,PROFILE_NAME,PROFILE_PREFIX,Profile,SandboxAPI,SandboxResult,controls_from,packages_folder,
-                                       remove_stale_profile,require_verified,run_sandboxed,stale_profiles,verify_sandbox)
+from compertum.runtime.sandbox import (CONTROLS,OBSERVATIONS,PROFILE_NAME,PROFILE_PREFIX,Profile,SandboxAPI,SandboxResult,controls_from,
+                                       observations_from,packages_folder,remove_stale_profile,require_verified,run_sandboxed,stale_profiles,
+                                       verify_sandbox)
 
 FLOOR=8*1024**3
 MIB=1024**2
@@ -58,9 +59,16 @@ def test_external_network_is_denied(verification):
     assert verification['report']['external_connect']['error']=='PermissionError'
 
 
-def test_loopback_network_is_denied(verification):
-    # Section 19: the job has no network access. Loopback reaches the model server, so it must be denied too.
-    control(verification,'loopback_denied');control(verification,'loopback_unseen_by_listener')
+def test_loopback_reach_is_observed_and_recorded_not_gated(verification):
+    # Owner decision, 23 October 2026 (option 1): loopback reachability is a documented limitation on this host.
+    # The probe still tries loopback, the result is recorded with every verification, and it never passes or fails the gate.
+    assert not any(name.startswith('loopback') for name in CONTROLS) and set(verification['observations'])==set(OBSERVATIONS)
+    assert 'loopback_connect' in verification['report']
+    observed=verification['observations']
+    assert all(type(value) is bool for value in observed.values())
+    assert observed['loopback_seen_by_listener']<=observed['loopback_connected'],observed  # the listener cannot see a connection the probe did not make
+    assert observations_from({},listener_saw_connection=False)=={'loopback_connected':False,'loopback_seen_by_listener':False}
+    assert observations_from({'loopback_connect':{'ok':True,'value':'CONNECTED'}},listener_saw_connection=True)=={'loopback_connected':True,'loopback_seen_by_listener':True}
 
 
 def test_read_outside_the_job_folder_is_denied(verification):
@@ -94,17 +102,17 @@ def test_controls_do_not_pass_on_the_wrong_error():
           'outside_read':{'ok':False,'error':'PermissionError','detail':''},'outside_write':{'ok':False,'error':'PermissionError','detail':''},
           'previous_read':{'ok':False,'error':'PermissionError','detail':''},'inside_write':{'ok':True,'value':2},
           'child_process':{'ok':False,'error':'OSError','detail':'[WinError 1816] Not enough quota'},'allocate':{'ok':False,'error':'MemoryError','detail':''}}
-    all_true=controls_from(good,done,listener_saw_connection=False,escape_exists=False,inside_written=True)
-    assert set(all_true)==set(CONTROLS) and all(all_true.values())
+    all_true=controls_from(good,done,escape_exists=False,inside_written=True)
+    assert set(all_true)==set(CONTROLS) and len(CONTROLS)==10 and all(all_true.values())
     wrong={**good,'external_connect':{'ok':False,'error':'TimeoutError','detail':''},'outside_read':{'ok':False,'error':'FileNotFoundError','detail':''},
-           'child_process':{'ok':False,'error':'FileNotFoundError','detail':''},'loopback_connect':{'ok':False,'error':'ConnectionRefusedError','detail':''}}
-    bad=controls_from(wrong,done,listener_saw_connection=True,escape_exists=True,inside_written=False)
-    assert sorted(k for k,v in bad.items() if not v)==['child_process_denied','external_network_denied','inside_write_allowed','loopback_denied',
-                                                        'loopback_unseen_by_listener','outside_file_absent','outside_read_denied']
+           'child_process':{'ok':False,'error':'FileNotFoundError','detail':''}}
+    bad=controls_from(wrong,done,escape_exists=True,inside_written=False)
+    assert sorted(k for k,v in bad.items() if not v)==['child_process_denied','external_network_denied','inside_write_allowed','outside_file_absent','outside_read_denied']
+    assert set(controls_from({**good,'loopback_connect':{'ok':True,'value':'CONNECTED'}},done,escape_exists=False,inside_written=True).values())=={True}
     killed={k:v for k,v in good.items() if k!='allocate'}
-    assert controls_from(killed,SandboxResult('j','S',1,0xC0000017,False,.1,1,1,0,False,b'',b''),listener_saw_connection=False,escape_exists=False,inside_written=True)['memory_limit_enforced']
-    assert not controls_from(killed,SandboxResult('j','S',1,124,True,.1,1,1,0,False,b'',b''),listener_saw_connection=False,escape_exists=False,inside_written=True)['memory_limit_enforced']
-    assert not controls_from(killed,done,listener_saw_connection=False,escape_exists=False,inside_written=True)['memory_limit_enforced']
+    assert controls_from(killed,SandboxResult('j','S',1,0xC0000017,False,.1,1,1,0,False,b'',b''),escape_exists=False,inside_written=True)['memory_limit_enforced']
+    assert not controls_from(killed,SandboxResult('j','S',1,124,True,.1,1,1,0,False,b'',b''),escape_exists=False,inside_written=True)['memory_limit_enforced']
+    assert not controls_from(killed,done,escape_exists=False,inside_written=True)['memory_limit_enforced']
 
 
 def test_child_process_is_denied(verification):
@@ -118,15 +126,16 @@ def test_memory_limit_is_enforced(verification):
 def test_require_verified_names_every_failed_control(verification):
     passing={'controls':{name:True for name in CONTROLS},'failed':[]}
     assert require_verified(passing) is True
-    failing={'controls':{name:name not in ('loopback_denied','outside_read_denied') for name in CONTROLS},'failed':['loopback_denied','outside_read_denied']}
-    with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:loopback_denied,outside_read_denied$'): require_verified(failing)
+    failing={'controls':{name:name not in ('child_process_denied','outside_read_denied') for name in CONTROLS},'failed':['child_process_denied','outside_read_denied']}
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:child_process_denied,outside_read_denied$'): require_verified(failing)
     for bad in ({},{'controls':{},'failed':[]},{'controls':passing['controls']},None):
         with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED$'): require_verified(bad)
+    stale={'controls':{**passing['controls'],'loopback_denied':True},'failed':[]}  # a verification from before the owner decision does not fit the gate
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED$'): require_verified(stale)
     disagreeing={'controls':{name:name!='outside_read_denied' for name in CONTROLS},'failed':[]}
     with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:outside_read_denied$'): require_verified(disagreeing)
-    if verification['failed']:
-        with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:'): require_verified(verification)
-    else: assert require_verified(verification) is True
+    assert verification['failed']==[],verification['failed']
+    assert require_verified(verification) is True
 
 
 def test_deadline_terminates_the_job(root):

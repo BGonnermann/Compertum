@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-## M3 engineering accepted; engine stage E1 complete; E2 built, loopback decision open - 23 October 2026
+## M3 engineering accepted; engine stages E1 and E2 complete; loopback limitation accepted - 23 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
 Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
@@ -10,7 +10,7 @@ Independent closeout review: `CLOSEOUT_OK` in round 2. Evidence: [the acceptance
 
 The 19 October registration and cycle work is committed as `3310653` after 253 source tests passed today (zero failures, errors or skips) and one independent review.
 Scratch is 11.890 GiB after a reviewed cleanup. The chain's 13 GiB run cap ended. Product code keeps 12 GiB.
-The project-map PDF was refreshed on 23 October 2026: nine pages, 81 navigation links and 91 source notes inspected.
+The project-map PDF was refreshed twice on 23 October 2026, last after the E2 decision: nine pages, 81 navigation links and 91 source notes inspected.
 Known follow-up: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet.
 
 Engine stage E1 is complete and owner-approved on 23 October 2026: `src/compertum/ai/models.py`, `config/models.toml` and `tests/test_ai_models_interface.py`.
@@ -18,13 +18,14 @@ Source lane: 34 new tests passed, 58 with the related adapter tests, zero failed
 Limitation: the installed-package `.venv` holds the M3 release wheel, which predates this module. E1 is verified in the source lane only until a new wheel build.
 Limitation: the 40-request and 8-task daily caps in `manual.py` do not apply to the new client. Its only limit is the per-client request limit until stage E5.
 
-Engine stage E2 is built and under review, not accepted: `src/compertum/runtime/sandbox.py` and `tests/test_engine_sandbox.py`.
-Source lane, native Windows: 19 passed, 1 failed, 0 skipped after two review rounds (round 1 `CHANGES_REQUIRED`: one blocker, seven should-fixes, five notes; round 2: one should-fix, then `E2_OK` on the code). The AppContainer denies reads and writes outside the job folder, reads of an earlier job folder, external network, child processes, memory above the limit and time past the deadline.
-The failed test is the loopback escape. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener. No firewall rule or administrator-free setting restores the block.
-`require_verified` therefore refuses every Engineer job on this host. The owner must choose: accept the documented limitation, authorize a filtering-platform block, or stop. See "Loopback finding" in [the engine plan](ENGINE_PLAN.md).
+Engine stage E2 is complete and owner-decided on 23 October 2026: `src/compertum/runtime/sandbox.py` and `tests/test_engine_sandbox.py`.
+Two review rounds (round 1 `CHANGES_REQUIRED`: one blocker, seven should-fixes, five notes; round 2: one should-fix, then `E2_OK` on the code). The AppContainer denies reads and writes outside the job folder, reads of an earlier job folder, external network, child processes, memory above the limit and time past the deadline.
+First run, source lane, native Windows: 19 passed, 1 failed, 0 skipped. The failed test was the loopback escape. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener. No firewall rule or administrator-free setting restores the block.
+The owner chose option 1: loopback reach is a documented limitation on this host. The gate now has ten controls; loopback is recorded as an observation with every verification, never gated. After the decision: 20 passed, 0 failed, 0 skipped.
+Limitation: code in a sandbox job can reach the model server the owner starts for a run, outside the ledger. Stage E3 must add the compensating connection check with Auditor freeze. See "Loopback finding" in [the engine plan](ENGINE_PLAN.md).
 
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
-Exact next action: obtain the independent E2 review and the owner's loopback decision. Then commit E2 with the decision recorded.
+Exact next action: stage E3, Deep Agents roles in the separate engine environment, with the loopback connection check, the heavy-job slot before `run_sandboxed`, and probe targets for the real vault, ledger, rules and pipe paths.
 
 Earlier entries below retain their original evidence and dates.
 

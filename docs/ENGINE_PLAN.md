@@ -74,7 +74,7 @@ Still open:
 - [x] Plan written and pushed.
 - [x] Verify and commit the 19 October work. 253 source tests passed; review `COMMIT_OK`; commit `3310653`.
 - [x] E1: loopback model interface. 34 new tests passed (58 with the adapter tests), zero failed, zero skipped. Review `E1_OK` in round 2. Owner OK on 23 October 2026. Source lane only; see "Stage E1 design" below.
-- [ ] E2: AppContainer sandbox and escape tests. Built 23 October 2026. Review round 1 `CHANGES_REQUIRED` (one blocker, seven should-fixes, five notes; all applied or recorded). Round 2: one should-fix (revoke on every path), applied; `E2_OK` on the code. 19 tests passed, 1 failed, 0 skipped. The failed test is the loopback escape; see "Stage E2 design" and the owner decision below.
+- [x] E2: AppContainer sandbox and escape tests. Built 23 October 2026. Review round 1 `CHANGES_REQUIRED` (one blocker, seven should-fixes, five notes; all applied or recorded). Round 2: one should-fix (revoke on every path), applied; `E2_OK` on the code. First run 19 tests passed, 1 failed, 0 skipped; the failed test was the loopback escape. Owner decision on 23 October 2026: option 1, loopback accepted as a documented limitation. After the decision: 20 passed, 0 failed, 0 skipped. See "Stage E2 design" and "Loopback finding" below.
 
 ## Stage E2 design
 
@@ -93,9 +93,10 @@ The 18 October plan `docs/M5_PIPE_LAUNCH_CONTEXT_PLAN.md` said "Do not add AppCo
   Inside the container Windows points `LOCALAPPDATA` at the package's own writable folder. Its bytes count toward the disk limit and the folder is deleted with the profile.
 - **Output.** `stdout.txt` and `stderr.txt` in the job folder, through inherited handles; the result keeps the first 64 KiB of each. `SandboxResult.record()` is the plain-JSON ledger entry.
 - **Refusals before any process exists:** job folder not one level under the root, absolute or `..` arguments, deadline outside 1 s to 3600 s, memory outside 64 MiB to 8 GiB, disk limit outside 1 B to 1 GiB, free host memory below the floor, missing Windows variables.
-- **Verification.** `verify_sandbox` runs one plain job, then the fixed probe in a second job, and checks twelve controls: AppContainer token, integrity level 4096, external network denied, loopback denied, listener saw no connection, outside read denied, outside write denied, outside file absent, earlier job folder read denied, inside write allowed, child process denied, memory limit enforced.
+- **Verification.** `verify_sandbox` runs one plain job, then the fixed probe in a second job, and checks ten controls: AppContainer token, integrity level 4096, external network denied, outside read denied, outside write denied, outside file absent, earlier job folder read denied, inside write allowed, child process denied, memory limit enforced.
   Each denial must carry the exact error the boundary produces (`PermissionError`, `WinError 1816`, `MemoryError` or an out-of-memory exit). A timeout, a missing file or a crash never counts as a pass.
-  `require_verified` recomputes the failed list from the controls and refuses with `SANDBOX_UNVERIFIED:<controls>` unless all twelve hold. The engine must call it before the first Engineer job of each run (section 19: "Before first use, deliberate escape tests must prove the sandbox").
+  `require_verified` recomputes the failed list from the controls and refuses with `SANDBOX_UNVERIFIED:<controls>` unless all ten hold. The engine must call it before the first Engineer job of each run (section 19: "Before first use, deliberate escape tests must prove the sandbox").
+  The probe also tries a loopback connection. The result is recorded as two observations, `loopback_connected` and `loopback_seen_by_listener`. Observations never pass or fail the gate; the engine records them with every run. See "Loopback finding".
   The external probe target is `1.1.1.1:53`. A packet leaves the host only if the boundary has already failed.
 - **Not in E2.** `run_sandboxed` does not check the one-heavy-job slot; the engine holds the slot before calling it. The probe does not yet target the real vault, ledger and rules paths or the owner named pipe; E3 adds those targets when it fixes the paths.
 - **Resource overruns.** Memory: `MemoryError` or job kill. Time: exit code 124 and `timed_out`. Processes: `WinError 1816`. Disk: measured after the run; `disk_overrun` marks the job failed. Windows has no live disk quota for a folder.
@@ -108,13 +109,22 @@ Defender Firewall is on for all profiles; Bitdefender Firewall is registered but
 Windows Firewall rules do not filter loopback traffic, so no rule and no administrator-free setting restores the block.
 
 Consequence: the section 19 statement "The job has no network access" is not fully met. Loopback is reachable, so sandboxed code could call the model server outside the ledger. Files, the vault, child processes, memory, time and external network are all denied.
-`require_verified` refuses every Engineer job on this host until the loopback control holds. Stage E3 cannot give the Engineer an execution tool before then.
+Before the decision, `require_verified` refused every Engineer job on this host because the loopback control did not hold.
 
-Owner decision needed, one of:
+The owner was offered three options on 23 October 2026:
 
 1. **Accept loopback reachability as a documented limitation** of section 19 on this host and drop `loopback_denied` and `loopback_unseen_by_listener` from the required controls. Compensating control: the engine records every sandbox job and the E5 request limit stays enforced at the ledger. Code in the sandbox still cannot read the vault or write a fixed part.
 2. **Authorize a loopback block** for the sandbox identity. This needs a Windows Filtering Platform filter, which needs administrator rights and new native code. It is a security change under `AGENTS.md`. I would prepare a reviewed plan first.
 3. **Stop E2 here** until the cause is found. No Engineer execution until then.
+
+**Owner decision, 23 October 2026: option 1.** The owner confirmed that the research and training portions must have no internet access, and accepted loopback reach on this host as a documented limitation. Recorded consequences:
+
+- `CONTROLS` has ten entries. The two loopback controls are gone from the gate. The probe still tries loopback and `verify_sandbox` records `loopback_connected` and `loopback_seen_by_listener` as observations with every verification.
+- The limitation is recorded here and in `docs/CURRENT_CHECKPOINT.md`. `docs/BUILD_SPEC.md` is not changed; its hash must keep matching the preparation brief. Where section 19 says "The job has no network access", read: external network denied and proven; loopback reachable on this host.
+- What loopback reach allows: code in a job can reach a listener on this machine. Compertum has no listener of its own, so the only target that matters is the model server the owner starts for a run. Such calls would bypass the ledger and the per-run AI request maximum.
+- What it does not allow: internet access, reads of the vault, the ledger, the rules or an earlier job folder, writes outside the job folder, child processes, or more memory or time than the limits.
+- **Compensating control, required in E3.** While a job runs, the launcher samples the sandbox process's TCP connections. Any loopback connection fails the job, records the event, and raises an Auditor freeze. Sampling can miss a very short connection, so this is a deterrent with evidence, not a proof. The E5 request limit stays enforced at the ledger.
+- Revisit: if an elevated read-only `netsh wfp show filters` ever shows why the AppContainer loopback block is absent on this build, reopen this record. Only the owner runs elevated commands.
 
 ## Stage E1 design
 

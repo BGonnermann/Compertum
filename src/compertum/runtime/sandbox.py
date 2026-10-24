@@ -42,9 +42,13 @@ MAX_DISK=1024**3
 FILE_MODIFY=0x1301BF  # generic read, write, execute and delete; no WRITE_DAC or WRITE_OWNER
 REPARSE_POINT=0x400
 OUT_OF_MEMORY_EXITS=(0xC0000017,0xC000012D)
-CONTROLS=('appcontainer_token','low_integrity','external_network_denied','loopback_denied','loopback_unseen_by_listener',
+CONTROLS=('appcontainer_token','low_integrity','external_network_denied',
           'outside_read_denied','outside_write_denied','outside_file_absent','previous_job_read_denied','inside_write_allowed',
           'child_process_denied','memory_limit_enforced')
+# Loopback is observed, not gated. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener.
+# The owner accepted this as a documented limitation on 23 October 2026 (option 1 in docs/ENGINE_PLAN.md, "Loopback finding").
+# The engine records the observation with every verification; stage E3 adds the compensating connection check.
+OBSERVATIONS=('loopback_connected','loopback_seen_by_listener')
 
 
 class TRUSTEE(c.Structure):
@@ -345,21 +349,26 @@ attempt('allocate', lambda: len(bytearray(megabytes * 1024 * 1024)))
 '''
 
 
-def controls_from(report,result,*,listener_saw_connection,escape_exists,inside_written):
-    """Compute the twelve controls. Each denial must carry the exact error the boundary produces; any other failure is not a pass."""
+def controls_from(report,result,*,escape_exists,inside_written):
+    """Compute the ten controls. Each denial must carry the exact error the boundary produces; any other failure is not a pass."""
     def refused(name,error,detail=''):
         entry=report.get(name)
         return type(entry) is dict and entry.get('ok') is False and entry.get('error')==error and detail in str(entry.get('detail',''))
     token=report.get('token',{}).get('value') or {}
     return {'appcontainer_token':token.get('is_appcontainer')==1,'low_integrity':token.get('integrity_level')==4096,
-            'external_network_denied':refused('external_connect','PermissionError'),'loopback_denied':refused('loopback_connect','PermissionError'),
-            'loopback_unseen_by_listener':not listener_saw_connection,
+            'external_network_denied':refused('external_connect','PermissionError'),
             'outside_read_denied':refused('outside_read','PermissionError'),'outside_write_denied':refused('outside_write','PermissionError'),
             'outside_file_absent':not escape_exists,'previous_job_read_denied':refused('previous_read','PermissionError'),
             'inside_write_allowed':report.get('inside_write',{}).get('ok') is True and inside_written,
             'child_process_denied':refused('child_process','OSError','1816'),
             'memory_limit_enforced':refused('allocate','MemoryError') or ('allocate' not in report and 'child_process' in report
                                                                           and not result.timed_out and result.exit_code in OUT_OF_MEMORY_EXITS)}
+
+
+def observations_from(report,*,listener_saw_connection):
+    """Record what the probe saw on loopback. These are facts for the ledger, not controls; see OBSERVATIONS."""
+    entry=report.get('loopback_connect')
+    return {'loopback_connected':type(entry) is dict and entry.get('ok') is True,'loopback_seen_by_listener':bool(listener_saw_connection)}
 
 
 def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None):
@@ -387,14 +396,18 @@ def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2
     finally:
         listener.close();waiter.join(timeout=2)
     report=json.loads(read_head(job/'probe.json')) if (job/'probe.json').is_file() else {}
-    controls=controls_from(report,result,listener_saw_connection=bool(seen),escape_exists=escape.exists(),inside_written=(job/'inside.txt').is_file())
-    assert set(controls)==set(CONTROLS)
-    return {'controls':controls,'failed':sorted(k for k,v in controls.items() if not v),'report':report,'result':result.record(),
-            'previous_result':first.record(),'job_folder':str(job)}
+    controls=controls_from(report,result,escape_exists=escape.exists(),inside_written=(job/'inside.txt').is_file())
+    observations=observations_from(report,listener_saw_connection=bool(seen))
+    assert set(controls)==set(CONTROLS) and set(observations)==set(OBSERVATIONS)
+    return {'controls':controls,'failed':sorted(k for k,v in controls.items() if not v),'observations':observations,'report':report,
+            'result':result.record(),'previous_result':first.record(),'job_folder':str(job)}
 
 
 def require_verified(verification):
-    """Refuse unless every control held. The engine calls this before the first Engineer job of a run."""
+    """Refuse unless every control held. The engine calls this before the first Engineer job of a run.
+
+    Observations never pass or fail this check. The engine must still record them with the run.
+    """
     if (type(verification) is not dict or type(verification.get('failed')) is not list or type(verification.get('controls')) is not dict
             or set(verification['controls'])!=set(CONTROLS)): raise RuntimeRefused('SANDBOX_UNVERIFIED')
     failed=sorted(set(verification['failed'])|{k for k,v in verification['controls'].items() if v is not True})
