@@ -5,16 +5,16 @@
 
 [roles.director]
 base_url = "http://127.0.0.1:1234/v1"
-model = "SET_FROM_SERVER_MODEL_LIST"
+model = "flint@q6_k"
 
 [roles.researcher]
 base_url = "http://127.0.0.1:1234/v1"
-model = "SET_FROM_SERVER_MODEL_LIST"
+model = "flint@q6_k"
 
 [roles.mathematician]
 base_url = "http://127.0.0.1:1234/v1"
-model = "SET_FROM_SERVER_MODEL_LIST"
+model = "flint@q6_k"
 
 [roles.engineer]
 base_url = "http://127.0.0.1:1234/v1"
-model = "SET_FROM_SERVER_MODEL_LIST"
+model = "flint@q6_k"

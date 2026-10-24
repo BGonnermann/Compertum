@@ -76,8 +76,9 @@ def write_models(root,entries):
 def test_committed_models_file_loads_with_lm_studio_default_port():
     root=Path(__file__).resolve().parents[1];loaded=load_models(root/'config/models.toml',root)
     assert loaded.keys()==ENGINE_ROLES and {spec.base_url for spec in loaded.values()}=={'http://127.0.0.1:1234/v1'}
-    # The server-reported IDs are set after the first practice run. Until then every probe must refuse.
-    assert {spec.model for spec in loaded.values()}=={'SET_FROM_SERVER_MODEL_LIST'}
+    # The committed IDs are either the placeholder (every probe refuses) or the IDs the owner's server reported
+    # (flint@q6_k since 24 October 2026). Either way each is one bounded string.
+    assert all(isinstance(spec.model,str) and 1<=len(spec.model)<=256 and spec.model.strip()==spec.model for spec in loaded.values())
 
 
 def test_models_file_loads_four_roles_on_any_loopback_port(tmp_path):

@@ -60,7 +60,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         tool_results=[m for m in messages if m['role']=='tool'];last_user=[m for m in messages if m['role']=='user'][-1]['content']
         def text(value): return {'role':'assistant','content':value},'stop'
         def call(name,arguments): return {'role':'assistant','content':None,'tool_calls':[{'id':f'call_{len(messages)}','type':'function','function':{'name':name,'arguments':json.dumps(arguments)}}]},'tool_calls'
-        if state['mode']=='loop': return call('ls',{'path':'/'})
+        if state['mode']=='loop': return call('ls',{'path':'/'})  # the same call every round
+        if state['mode']=='loopvary': return call('ls',{'path':f'/{len(messages)}'})  # a different call every round
         if last_user.startswith('Improve the system prompt'):
             # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
             if state['mode']=='badprompt': return text('An improved prompt without the role marker line.')
@@ -201,7 +202,7 @@ def test_ledger_chat_model_sends_every_call_through_the_e1_client():
         assert to_chat_messages([AIMessage(content=[{'type':'text','text':'a'},'b'])])==[{'role':'assistant','content':'ab'}]
 
 
-def test_role_agents_offer_only_file_tools_and_the_engineer_run_job(bridge,root,verification,market,project):
+def test_text_roles_get_no_tools_and_the_engineer_gets_file_tools_and_run_job(bridge,root,verification,market,project):
     with role_server() as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         sandbox=EngineerSandbox(root,ledger=engine.ledger,lease=engine.lease,verification=verification,cycle_id='cycle-tools',
@@ -209,9 +210,11 @@ def test_role_agents_offer_only_file_tools_and_the_engineer_run_job(bridge,root,
         engineer=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),tools=[run_job_tool(sandbox)])
         researcher=build_role_agent('researcher',c,system_prompt=load_prompt(PROJECT,'researcher'))
         memo=researcher.run('Write the memo.')
-        assert memo['text']==MEMO and memo['tool_calls']==0 and memo['files']=={}
-        offered={t['function']['name'] for t in state['posts'][-1]['tools']}
-        assert offered==set(FILE_TOOLS) and not offered&{'execute','task','delete','write_todos'}
+        assert memo=={'text':MEMO,'files':{},'messages':2,'tool_calls':0}
+        # A text role is one completion: no tools offered, the role prompt as the system message, the task as the only user message.
+        assert 'tools' not in state['posts'][-1] and [m['role'] for m in state['posts'][-1]['messages']]==['system','user'] and c.requests==1
+        with pytest.raises(RuntimeRefused,match='^ENGINE_FILES_DENIED$'): researcher.run('Write the memo.',{'/x.txt':'y'})
+        with pytest.raises(RuntimeRefused,match='^AI_TOOLS_DENIED$'): build_role_agent('director',c,system_prompt=load_prompt(PROJECT,'director'),tools=[run_job_tool(sandbox)])
         built=engineer.run('Build it.')
         assert built['text'].startswith('DONE') and built['tool_calls']==2 and built['files']=={'/main.py':ENGINEER_CODE}
         assert {t['function']['name'] for t in state['posts'][-1]['tools']}==set(FILE_TOOLS)|{'run_job'}
@@ -224,11 +227,23 @@ def test_role_agents_offer_only_file_tools_and_the_engineer_run_job(bridge,root,
 
 
 def test_recursion_limit_bounds_a_looping_agent():
-    with role_server(mode='loop') as (port,state):
+    with role_server(mode='loopvary') as (port,state):
         c=client(port,limit=50)
-        agent=build_role_agent('researcher',c,system_prompt=load_prompt(PROJECT,'researcher'),recursion_limit=6)
+        agent=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),recursion_limit=6)
         with pytest.raises(RuntimeRefused,match='^ENGINE_STEP_LIMIT$'): agent.run('loop')
         assert 1<=c.requests<=4 and len(state['posts'])==c.requests
+
+
+def test_repeated_identical_tool_calls_stop_the_agent_before_the_step_limit():
+    # Practice run 1: a real model repeated the same file reads until the step limit, 20 requests for nothing.
+    with role_server(mode='loop') as (port,state):
+        c=client(port,limit=50)
+        agent=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),recursion_limit=40)
+        with pytest.raises(RuntimeRefused,match='^ENGINE_REPEATED_TOOL_CALL$'): agent.run('loop')
+        assert c.requests==3 and len(state['posts'])==3
+        # The guard starts fresh with the next conversation: three more identical rounds are needed, not one.
+        with pytest.raises(RuntimeRefused,match='^ENGINE_REPEATED_TOOL_CALL$'): agent.run('loop again')
+        assert c.requests==6
 
 
 def test_synthetic_market_and_validator_adapter_are_deterministic_and_strict(market):
@@ -282,6 +297,10 @@ def test_sandbox_tool_refuses_bad_files_and_records_every_run(bridge,root,verifi
 
 
 def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,market,project):
+    # Master's state/engine may hold real practice-run records (since 24 October 2026); this test must add nothing there.
+    master_engine_state=PROJECT/'state'/'engine'
+    def master_listing(): return sorted(str(p) for p in master_engine_state.rglob('*')) if master_engine_state.exists() else []
+    before=master_listing()
     with role_server() as (port,state):
         ledger=ListLedger();c=client(port,ledger);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -302,11 +321,16 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert [c['phase'] for c in cycles]==['START','END'] and cycles[1]['status']=='COMPLETED' and cycles[1]['requests_after']==c.requests
         kinds=[(s['role'],s['kind'],s['phase']) for s in steps]
         assert kinds[:2]==[('director','pick','REQUEST'),('director','pick','REPLY')]
+        # Every idea task carries the fixed market brief (practice run 1 finding), and no text role is ever offered a tool.
+        first_task=state['posts'][0]['messages'][-1]['content']
+        assert first_task.startswith('Pick at most') and 'MARKET\n' in first_task and f'validation.csv ({len(market["validation_rows"])} sessions)' in first_task
+        assert all('MARKET\n' in p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith(('ROLE: researcher','ROLE: director')) and 'Approve' not in p['messages'][1]['content'])
+        assert all('tools' not in p for p in state['posts'] if not p['messages'][0]['content'].startswith('ROLE: engineer'))
         candidates_at=next(i for i,s in enumerate(steps) if s['kind']=='candidates');first_build=next(i for i,s in enumerate(steps) if s['kind']=='build')
         assert candidates_at<first_build and steps[candidates_at]['count']==1
         assert runs[0]['purpose']=='engineer' and runs[0]['status']=='COMPLETED' and runs[0]['recorded_at']>=steps[candidates_at]['recorded_at'] and 'signals' not in runs[0]
         assert set(r['purpose'] for r in runs[1:])<={'audit'}  # E6: the Auditor's reruns follow a candidate that passed the gate
-        assert not (PROJECT/'state'/'engine').exists()  # nothing from this test reaches master's state
+        assert master_listing()==before  # nothing from this test reaches master's state
         scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==1
         # Every model call went through the E1 ledger with a known role, and no excluded tool was ever offered.
         assert ledger.entries and all(e['status']=='COMPLETED' and e['role'] in ROLES for e in ledger.entries) and len(ledger.entries)==c.requests

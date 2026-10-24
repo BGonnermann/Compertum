@@ -18,7 +18,7 @@ from compertum.runtime.errors import RuntimeRefused
 from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
-from .market import score_signals
+from .market import COST,score_signals
 from .promotion import promote
 from .roles import ROLES,build_role_agent,load_prompt
 from .vault import CandidateQueue
@@ -92,6 +92,19 @@ class Engine:
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate); None reads config/engine_prompts
 
 
+def market_brief(engine):
+    """The fixed description of the market and the scoring rule that every idea task carries. Code, not a prompt: GEPA cannot remove it.
+    Practice run 1 (24 October 2026) showed a real model inventing software hypotheses when the task held only the ledger summary."""
+    train=max(engine.train_csv.count('\n')-1,0);validation=len(engine.validation_rows)
+    return ('MARKET\n'
+            f'One asset, daily sessions, synthetic and closed. Two files: train.csv ({train} sessions) and validation.csv ({validation} sessions), '
+            'columns session, close, return (return is the fractional change of close from the previous session). '
+            'A hypothesis is a rule that sets a position of 0 (flat) or 1 (long) for every validation session from data up to that session. '
+            f'Score: the position at session t earns the return of session t+1, minus a cost of {COST} of NAV for each position change. '
+            'A strategy beats the baseline when its Sharpe ratio is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s. '
+            'Only these two files exist; propose nothing that needs other data.')
+
+
 def run_cycle(engine,cycle_index):
     if type(cycle_index) is not int or cycle_index<1: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     if type(engine.max_hypotheses) is not int or not 1<=engine.max_hypotheses<=MAX_HYPOTHESES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
@@ -127,13 +140,14 @@ def run_cycle(engine,cycle_index):
 
     try:
         # 1. Director picks hypotheses from the ledger summary.
-        pick=step('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}. Ledger summary:\n{json.dumps(summary,sort_keys=True)}',{})
+        brief=market_brief(engine)
+        pick=step('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
         try: state['hypotheses']=parse_hypotheses(pick['text'])[:engine.max_hypotheses]
         except RuntimeRefused as error:
             ledger.record_step(cycle_id,state['steps'],'director','pick',{'phase':'INVALID','code':error.code});state['hypotheses']=[]
         # 2. Researcher memos, Director decisions.
         for hypothesis in state['hypotheses']:
-            memo=step('researcher','memo',f'Write the memo for this hypothesis.\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
+            memo=step('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
             state['memos'][hypothesis['id']]=memo['text']
             verdict=step('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']})
             try: decision=parse_decision(verdict['text'])
@@ -144,7 +158,7 @@ def run_cycle(engine,cycle_index):
         # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run.
         for hypothesis in state['hypotheses']:
             if state['decisions'][hypothesis['id']]['decision']!='approve': continue
-            spec=step('mathematician','specify',f'Write the specification for this approved memo.\n\n{state["memos"][hypothesis["id"]]}',{'hypothesis_id':hypothesis['id']})
+            spec=step('mathematician','specify',f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{state["memos"][hypothesis["id"]]}',{'hypothesis_id':hypothesis['id']})
             state['specifications'][hypothesis['id']]=spec['text']
             state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
         state['steps']+=1
@@ -209,7 +223,7 @@ def run_cycle(engine,cycle_index):
                                                                               'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0:
-            agenda=step('director','agenda',f'Review the repeated failures and update the agenda. Ledger summary:\n{json.dumps(summary,sort_keys=True)}',{})
+            agenda=step('director','agenda',f'Review the repeated failures and update the agenda.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
             state['agenda']=agenda['text']
         state['status']='COMPLETED'
     except RuntimeRefused as error:

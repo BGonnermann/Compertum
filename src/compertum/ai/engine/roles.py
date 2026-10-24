@@ -1,9 +1,13 @@
-"""The four AI roles as Deep Agents over one ledgered loopback model path.
+"""The four AI roles over one ledgered loopback model path.
 
-`LedgerChatModel` is the only chat model an agent sees. Every model call, including a tool call, goes through the
-E1 `ModelClient`, so the ledger holds one row per call. A harness profile for the `compertum` provider removes the
-`execute`, `task` and `delete` tools, disables the general-purpose subagent and the summarization middleware.
-File tools work on the in-memory state backend. Nothing an agent writes reaches the file system except through `run_job`.
+`LedgerChatModel` is the only chat model a role sees. Every model call, including a tool call, goes through the
+E1 `ModelClient`, so the ledger holds one row per call.
+The Engineer is a Deep Agent with the file tools on the in-memory state backend and `run_job`. A harness profile for
+the `compertum` provider removes the `execute`, `task` and `delete` tools, disables the general-purpose subagent and
+the summarization middleware. Nothing the agent writes reaches the file system except through `run_job`.
+The Director, the Researcher and the Mathematician are text roles: one completion without tools (practice run 1 on
+24 October 2026 showed a real model searching an empty file store for context instead of answering).
+An agent that repeats the same tool calls `REPEAT_LIMIT` times in a row is stopped with `ENGINE_REPEATED_TOOL_CALL`.
 Role prompts live in `config/engine_prompts/<role>.md`; stage E7 (GEPA) edits those files and nothing else.
 """
 from dataclasses import dataclass
@@ -17,7 +21,7 @@ from langchain_core.messages import AIMessage,HumanMessage,SystemMessage,ToolMes
 from langchain_core.outputs import ChatGeneration,ChatResult
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.errors import GraphRecursionError
-from pydantic import ConfigDict
+from pydantic import ConfigDict,PrivateAttr
 from compertum.domain import ContractError,resolve_project_path  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
@@ -25,8 +29,10 @@ from .prompts import PROMPT_BYTES,ROLES,load_prompt  # noqa: E402,F401  (re-expo
 
 FILE_TOOLS=['ls','read_file','write_file','edit_file','glob','grep']
 EXCLUDED_TOOLS=frozenset({'execute','task','delete'})
+TEXT_ROLES=('director','researcher','mathematician')  # one completion, no tools; the Engineer is the only agent
 TASK_BYTES=65536
 RECURSION_LIMIT=40
+REPEAT_LIMIT=3  # identical consecutive tool-call rounds before the agent is stopped
 PROVIDER='compertum'
 _registered=False
 
@@ -71,9 +77,20 @@ class LedgerChatModel(BaseChatModel):
     max_tokens:int=2048
     seconds:int=120
     temperature:float=0.0
+    _recent:list=PrivateAttr(default_factory=list)  # signatures of the last tool-call rounds of the current conversation
 
     @property
     def _llm_type(self): return 'compertum-loopback'
+
+    def reset(self):
+        """Start a fresh conversation: the repeat guard forgets earlier rounds."""
+        self._recent=[]
+
+    def _guard_repeats(self,calls):
+        if not calls: self._recent=[];return
+        signature=json.dumps(sorted((c['name'],json.dumps(c['arguments'],sort_keys=True,separators=(',',':'))) for c in calls))
+        self._recent=(self._recent+[signature])[-REPEAT_LIMIT:]
+        if len(self._recent)==REPEAT_LIMIT and len(set(self._recent))==1: raise RuntimeRefused('ENGINE_REPEATED_TOOL_CALL')
 
     def _get_ls_params(self,stop=None,**kwargs): return {'ls_provider':PROVIDER,'ls_model_name':self.model_name,'ls_model_type':'chat'}
 
@@ -87,6 +104,7 @@ class LedgerChatModel(BaseChatModel):
         settings=dict(purpose=self.purpose,max_tokens=self.max_tokens,temperature=self.temperature,seconds=self.seconds)
         if tools: content,calls,entry=self.client.complete_tools(self.role,chat,tools,**settings)
         else: content,entry=self.client.complete(self.role,chat,**settings);calls=[]
+        self._guard_repeats(calls)  # the call is already in the ledger; the guard only stops the next round
         message=AIMessage(content=content,tool_calls=[{'name':c['name'],'args':c['arguments'],'id':c['id'],'type':'tool_call'} for c in calls],
                           response_metadata={'call_id':entry['call_id'],'model_reported':entry['model_reported'],'request_index':entry['request_index']})
         return ChatResult(generations=[ChatGeneration(message=message)])
@@ -110,22 +128,40 @@ def agent_path(path):
 
 
 @dataclass
+class TextRole:
+    """A role that answers one task with one completion and no tools. Same `run` contract as `RoleAgent`."""
+    role:str
+    model:Any
+    system_prompt:str
+
+    def run(self,text,files=None):
+        if not isinstance(text,str) or not 1<=len(text.encode('utf-8'))<=TASK_BYTES: raise RuntimeRefused('AI_TASK_DENIED')
+        if files: raise RuntimeRefused('ENGINE_FILES_DENIED')
+        self.model.reset()
+        reply=self.model.invoke([SystemMessage(content=self.system_prompt),HumanMessage(content=text)])
+        return {'text':text_of(reply.content) if isinstance(reply,AIMessage) else '','files':{},'messages':2,'tool_calls':0}
+
+
+@dataclass
 class RoleAgent:
     role:str
     graph:Any
     backend:Any
     recursion_limit:int
+    model:Any=None
 
     def run(self,text,files=None):
         """One fresh conversation: a task text and optional starting files. Returns the final text, the files and counts."""
         from deepagents.backends.utils import create_file_data,file_data_to_string
         if not isinstance(text,str) or not 1<=len(text.encode('utf-8'))<=TASK_BYTES: raise RuntimeRefused('AI_TASK_DENIED')
+        if self.model is not None: self.model.reset()
         state={'messages':[HumanMessage(content=text)]}
         if files:
             if not isinstance(files,dict) or len(files)>32 or any(not isinstance(c,str) for c in files.values()): raise RuntimeRefused('ENGINE_FILES_DENIED')
             state['files']={agent_path(p):create_file_data(c) for p,c in files.items()}
         try: result=self.graph.invoke(state)
         except GraphRecursionError: raise RuntimeRefused('ENGINE_STEP_LIMIT') from None
+        except RuntimeRefused as error: raise RuntimeRefused(error.code) from None  # the graph adds task notes to the message; the code is the contract
         messages=result.get('messages') or [];final=messages[-1] if messages else None
         out_files={p:file_data_to_string(fd) for p,fd in (result.get('files') or {}).items() if isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
         return {'text':text_of(final.content) if isinstance(final,AIMessage) else '','files':out_files,'messages':len(messages),
@@ -133,16 +169,21 @@ class RoleAgent:
 
 
 def build_role_agent(role,client,*,system_prompt,tools=(),recursion_limit=RECURSION_LIMIT):
-    """One Deep Agent for one role over the ledgered model. tools: extra LangChain tools, for the Engineer only."""
+    """One role over the ledgered model: a `TextRole` for the text roles, a Deep Agent for the Engineer.
+    tools: extra LangChain tools, for the Engineer only."""
     if role not in ROLES or role not in client.roles: raise RuntimeRefused('AI_ROLE_DENIED')
     if type(recursion_limit) is not int or not 2<=recursion_limit<=200: raise RuntimeRefused('ENGINE_STEP_LIMIT')
     if not isinstance(system_prompt,str) or not system_prompt.startswith(f'ROLE: {role}\n'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
-    harden_environment();register_profile()
+    harden_environment()
+    model=LedgerChatModel(client=client,role=role,purpose=f'engine:{role}',model_name=client.roles[role].model)
+    if role in TEXT_ROLES:
+        if tools: raise RuntimeRefused('AI_TOOLS_DENIED')
+        return TextRole(role,model,system_prompt)
+    register_profile()
     from deepagents import create_deep_agent
     from deepagents.backends import StateBackend
     from deepagents.middleware.filesystem import FilesystemMiddleware
     backend=StateBackend()
-    model=LedgerChatModel(client=client,role=role,purpose=f'engine:{role}',model_name=client.roles[role].model)
     graph=create_deep_agent(model=model,tools=list(tools),system_prompt=system_prompt,backend=backend,
                             middleware=[FilesystemMiddleware(backend=backend,tools=list(FILE_TOOLS))],name=f'compertum-{role}')
-    return RoleAgent(role,graph.with_config({'recursion_limit':recursion_limit}),backend,recursion_limit)
+    return RoleAgent(role,graph.with_config({'recursion_limit':recursion_limit}),backend,recursion_limit,model)

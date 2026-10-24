@@ -28,10 +28,12 @@ def test_models_report_says_whether_each_role_model_is_listed(tmp_path):
         assert report['servers']=={f'http://127.0.0.1:{port}/v1':{'models':['synthetic-model'],'error':None}}
         assert report['roles']['director']['listed'] is True and report['roles']['engineer']['listed'] is False and report['all_listed'] is False
         assert state['posts']==[]  # no completion was sent
-    # The committed models file points at LM Studio's default port; with no server there the report says so and sends nothing.
+    # The committed models file points at LM Studio's default port. The owner's server may or may not be running there (it was,
+    # with Flint, on 24 October 2026): the report is consistent either way and sends no completion.
     committed=practice.models_report(PROJECT)
-    assert committed['all_listed'] is False and set(committed['roles'])=={'director','researcher','mathematician','engineer'}
-    assert all(s['error'] in ('LOCAL_COMPLETION_UNVERIFIED',None) for s in committed['servers'].values())
+    assert set(committed['roles'])=={'director','researcher','mathematician','engineer'}
+    assert committed['all_listed']==all(r['listed'] for r in committed['roles'].values())
+    assert all(s['error'] in ('LOCAL_COMPLETION_UNVERIFIED',None) and (s['error'] is None or s['models']==[]) for s in committed['servers'].values())
 
 
 def test_run_refuses_below_the_start_floor_before_taking_any_lease(tmp_path):
