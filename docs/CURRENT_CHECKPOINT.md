@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-## M3 engineering accepted; engine stage E1 complete; E2 next - 23 October 2026
+## M3 engineering accepted; engine stage E1 complete; E2 built, loopback decision open - 23 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
 Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
@@ -18,8 +18,13 @@ Source lane: 34 new tests passed, 58 with the related adapter tests, zero failed
 Limitation: the installed-package `.venv` holds the M3 release wheel, which predates this module. E1 is verified in the source lane only until a new wheel build.
 Limitation: the 40-request and 8-task daily caps in `manual.py` do not apply to the new client. Its only limit is the per-client request limit until stage E5.
 
+Engine stage E2 is built and under review, not accepted: `src/compertum/runtime/sandbox.py` and `tests/test_engine_sandbox.py`.
+Source lane, native Windows: 19 passed, 1 failed, 0 skipped after two review rounds (round 1 `CHANGES_REQUIRED`: one blocker, seven should-fixes, five notes; round 2: one should-fix, then `E2_OK` on the code). The AppContainer denies reads and writes outside the job folder, reads of an earlier job folder, external network, child processes, memory above the limit and time past the deadline.
+The failed test is the loopback escape. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener. No firewall rule or administrator-free setting restores the block.
+`require_verified` therefore refuses every Engineer job on this host. The owner must choose: accept the documented limitation, authorize a filtering-platform block, or stop. See "Loopback finding" in [the engine plan](ENGINE_PLAN.md).
+
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
-Exact next action: build section 19 stage E2, the AppContainer sandbox with escape tests that must fail for network access, vault reads, writes outside the sandbox folder and resource overruns. See [the engine plan](ENGINE_PLAN.md).
+Exact next action: obtain the independent E2 review and the owner's loopback decision. Then commit E2 with the decision recorded.
 
 Earlier entries below retain their original evidence and dates.
 
