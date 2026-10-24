@@ -85,6 +85,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
             if 'tools' not in payload: return text('no tools offered')
             if len(tool_results)==0: return call('write_file',{'file_path':'/main.py','content':state['engineer_code']})
             if len(tool_results)==1: return call('run_job',{'entry':'main.py'})
+            # Practice run 5: after a completed run the model hunted for signals.csv in its store until the repeat guard stopped it.
+            if state['mode']=='postloop': return call('read_file',{'file_path':'/signals.csv'})
             return text('DONE The program writes momentum signals.')
         return text('unknown role')
     class Handler(BaseHTTPRequestHandler):
@@ -407,6 +409,23 @@ def test_an_unusable_json_reply_gets_one_retry_that_shows_the_failure(bridge,roo
         # Two unusable replies: two INVALID rows, no hypotheses, the cycle completes with nothing to do, and only two requests were spent.
         assert result['status']=='COMPLETED' and result['hypotheses']==[] and c.requests==2
         assert [s.get('retry') for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='pick' and s['phase']=='INVALID']==[0,1]
+
+
+def test_a_build_fault_after_a_completed_run_still_scores_the_signals(bridge,root,verification,market,project):
+    with role_server(mode='postloop') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        candidate=result['candidates'][0]
+        assert result['status']=='COMPLETED' and candidate['run_statuses']==['COMPLETED'] and candidate['status']!='BUILD_FAILED'
+        assert candidate['status'] in ('QUEUED','REJECTED_AUDIT','REJECTED_DEFLATED','REJECTED') and result['scores']['h1']['sessions']==len(market['validation_rows'])
+        assert result['faults']==[{'role':'engineer','kind':'build','code':'ENGINE_REPEATED_TOOL_CALL','candidate_id':candidate['candidate_id']}]
+        steps=engine.ledger.steps(result['cycle_id'])
+        review=[s for s in steps if s['kind']=='review'][0];assert review['phase']=='REVIEW_SKIPPED' and 'faulted after a completed run' in review['reason']
+        # The Engineer starts from the starter program and run_job's result says the signals are accepted and what to do next.
+        build_task=next(p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: engineer'))
+        assert build_task.startswith('Build this specification') and 'starter program' in build_task and 'SPECIFICATION\n' in build_task
+        tool_results=[m['content'] for p in state['posts'] for m in p['messages'] if m['role']=='tool' and '"signals_present": true' in m['content']]
+        assert tool_results and 'is accepted' in tool_results[0] and 'Reply with the single word DONE' in tool_results[0]
 
 
 def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):

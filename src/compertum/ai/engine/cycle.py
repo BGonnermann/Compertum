@@ -28,6 +28,32 @@ REPLY_BYTES=65536
 REVIEW_TASK_BYTES=49152
 AGENDA_EVERY=10
 TRANSCRIPT_BYTES=8192
+STARTER_MAIN='''"""Starter program for one specification. Edit decide(); keep the file names as they are.
+The job folder holds train.csv and validation.csv next to this file. Open them by these plain names.
+Write signals.csv next to this file. The run is complete when signals.csv exists."""
+import csv
+
+
+def read_rows(name):
+    with open(name,newline='',encoding='utf-8') as handle: return list(csv.DictReader(handle))
+
+
+def decide(train,validation):
+    """Return one position (0 or 1) for every validation row, in order, using only rows up to that session."""
+    return [0 for _ in validation]
+
+
+def main():
+    train=read_rows('train.csv');validation=read_rows('validation.csv')
+    positions=decide(train,validation)
+    with open('signals.csv','w',newline='',encoding='utf-8') as out:
+        out.write('session,position\\n')
+        for row,position in zip(validation,positions): out.write(f"{row['session']},{int(position)}\\n")
+    print('signals written',len(positions))
+
+
+if __name__=='__main__': main()
+'''
 RETRIES=1  # one bounded retry for a JSON-answer step whose reply did not parse
 RETRY_REPLY_BYTES=2048  # how much of the unusable reply the retry task shows the model
 _FENCE=re.compile(r'```(?:json)?\s*(.*?)```',re.S)
@@ -147,9 +173,9 @@ def run_cycle(engine,cycle_index):
         state['transcript'].append({'role':role,'kind':kind,'task':clip_bytes(task),'reply':clip_bytes(reply['text'])})
         return reply
 
-    def attempt(role,kind,task,record):
+    def attempt(role,kind,task,record,files=None):
         """A step whose fault is recorded and tolerated. Returns the reply, or None after a fault in STEP_FAULTS (the FAILED step row is already written)."""
-        try: return step(role,kind,task,record)
+        try: return step(role,kind,task,record,files)
         except RuntimeRefused as error:
             if error.code not in STEP_FAULTS: raise
             state['faults'].append({'role':role,'kind':kind,'code':error.code,**record});return None
@@ -201,24 +227,29 @@ def run_cycle(engine,cycle_index):
         # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
         for candidate in state['candidates']:
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
-            build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\n{state["specifications"][hid]}',{'candidate_id':candidate['candidate_id']})
+            # The Engineer starts from a starter program in its file store (practice run 5: a real model searched an empty store for
+            # fourteen rounds, then opened the data by absolute paths). The job folder is separate from that store.
+            build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\nYour file store holds /main.py, a starter program: edit decide(), keep the file names. '
+                                             'Do not list or search the store. When run_job reports that signals.csv was written, reply DONE.\n\nSPECIFICATION\n{state["specifications"][hid]}',
+                          {'candidate_id':candidate['candidate_id']},files={'/main.py':STARTER_MAIN})
             runs=sandbox.runs[runs_before:];candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
-            if build is None:
-                # The Engineer step faulted (loop, timeout, unusable reply). The candidate stays a counted trial with no score; the cycle goes on.
+            signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
+            if build is None and signals is None:
+                # The Engineer step faulted (loop, timeout, unusable reply) with no completed run. The candidate stays a counted trial with no score.
                 code=state['faults'][-1]['code'];candidate['status']='BUILD_FAILED';state['scores'][hid]=None
                 ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code})
                 state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':candidate['candidate_id']});continue
-            code={p:c for p,c in build['files'].items() if p.endswith('.py')}
+            # A build fault after a completed run (practice run 5: the model hunted for signals.csv after writing it) keeps the signals: they are scored.
+            code={p:c for p,c in build['files'].items() if p.endswith('.py')} if build is not None else {}
             review_task=f'Review this code against the specification.\n\nSPECIFICATION\n{state["specifications"][hid]}\n\nCODE\n{json.dumps(code,sort_keys=True)}'
             if code and len(review_task.encode('utf-8'))<=REVIEW_TASK_BYTES:
                 review=attempt('mathematician','review',review_task,{'candidate_id':candidate['candidate_id']})
                 if review is not None: state['reviews'][hid]=review['text']  # the review is advice only; a faulty review is recorded and skipped
             else:
-                # The review is advice only. Code too large for one task, or no code, skips the review and records why.
+                # The review is advice only. Code too large for one task, no code, or a build fault after a completed run skips the review and records why.
                 state['steps']+=1
-                ledger.record_step(cycle_id,state['steps'],'mathematician','review',{'phase':'REVIEW_SKIPPED','candidate_id':candidate['candidate_id'],
-                                                                                   'reason':'no code' if not code else 'code too large for one review task'})
-            signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
+                reason='build step faulted after a completed run; the signals are scored' if build is None else ('no code' if not code else 'code too large for one review task')
+                ledger.record_step(cycle_id,state['steps'],'mathematician','review',{'phase':'REVIEW_SKIPPED','candidate_id':candidate['candidate_id'],'reason':reason})
             if signals is None:
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
                 ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'NO_SIGNALS'})

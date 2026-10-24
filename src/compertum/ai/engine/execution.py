@@ -166,8 +166,14 @@ def run_job_tool(sandbox):
 
     @tool
     def run_job(entry:str,runtime:ToolRuntime)->str:
-        """Run one of your Python files in the sandbox. entry is the file name without a folder, for example main.py. The job folder also holds train.csv and validation.csv. The result has the status, the exit code, stdout and stderr."""
+        """Run one of your Python files in the sandbox. entry is the file name without a folder, for example main.py. The job folder also holds train.csv and validation.csv next to your file; open them by those names. The result has the status, the exit code, stdout, stderr, whether signals.csv was written, and what to do next. The job folder is not your file store: you cannot read signals.csv yourself; the result tells you about it."""
         files=runtime.state.get('files') or {}
         texts={path:file_data_to_string(fd) for path,fd in files.items() if isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
-        return json.dumps(sandbox.run(texts,entry),sort_keys=True)
+        result=sandbox.run(texts,entry)
+        if result['signals_present']:
+            rows=max((sandbox.runs[-1].get('signals') or '').count('\n')-1,0)
+            result['next']=f'signals.csv was written with {rows} rows and is accepted. The job is complete. Do not search for the file. Reply with the single word DONE and one sentence about the program.'
+        elif result['status']=='COMPLETED': result['next']='The program ran but wrote no signals.csv in its current folder. Fix the program (open files by their plain names, write signals.csv next to the program) and run it again.'
+        else: result['next']='The run did not complete. Read stderr, fix the program with edit_file or write_file, and run it again.'
+        return json.dumps(result,sort_keys=True)
     return run_job
