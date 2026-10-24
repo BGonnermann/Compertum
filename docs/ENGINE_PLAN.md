@@ -49,11 +49,20 @@ Each stage ends with tests, one independent review, and a stop for the owner's O
 
 E7 is new. It needs the owner's OK to add it to section 19 before work starts. It runs after E6, because GEPA needs a working cycle and a fair score.
 
-## Practice runs before E3
+## Practice run with Flint (owner-started, after E6)
 
-- Serve Flint (`flint-Q4_K_M.gguf`, 22.5 GiB, in LM Studio) on a loopback port. Keep the expert weights on the CPU if VRAM is short.
-- Measure tokens per second, VRAM, RAM and free host memory with the model loaded. The model must leave free memory above the floor.
-- Run the E1 interface against it with fixed test prompts. Record the server-reported model ID.
+The command `python -m compertum.ai.engine.practice` (added 24 October 2026, tests `tests/test_engine_practice.py` and `tests/test_engine_practice_run.py`) runs one bounded run against the configured loopback servers on a synthetic market with a planted pattern. It starts no server. The owner's steps:
+
+1. Serve Flint (`flint-Q4_K_M.gguf`, 22.5 GiB) in LM Studio on `127.0.0.1:1234` (the default). Keep the expert weights on the CPU if VRAM is short. With the model loaded, free host memory must stay above 16 GiB; the command refuses below that floor before it takes any lease.
+2. List the model IDs the server reports (read-only, no completion):
+   `.cache\engine-env\Scripts\python.exe -m compertum.ai.engine.practice --project . models`
+3. Put the reported ID into all four roles of `config/models.toml` and commit that change (the file is fixed configuration; the owner edits it).
+4. Start the run (one cycle, at most 80 AI requests, under the hard maximum 450):
+   `.cache\engine-env\Scripts\python.exe -m compertum.ai.engine.practice --project . run --cycles 1 --requests 80 --note "practice run 1"`
+   The command takes the coordinator owner lease, verifies the sandbox with the sixteen fixed-part probe targets, sets the research state to RUNNING for the run and back afterwards, and prints the run record as JSON. The daily summary is under `state/engine/`; the sandbox jobs stay under `.cache/test-runs/engine-practice-<date>-<id>` as evidence.
+5. To stop a run: `New-Item state\engine\STOP`. Remove the file before the next run.
+
+What the run shows: whether a real model follows the role prompts well enough to produce a memo, a specification and runnable code; whether the code finds the planted pattern; the request count per cycle (the scripted fixture uses about 8). Expect refusals: a model reply that is not JSON ends the Director step as `INVALID`; an Engineer that never calls `run_job` yields `NO_SIGNALS`. Those are results, not faults. No vault batch opens in a practice run.
 
 ## Owner decisions
 
