@@ -71,6 +71,10 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
                         f'Round {len(state["posts"])}: state your reasoning in one short paragraph before the required output.\n')
         if role=='director':
             if last_user.startswith('Pick'):
+                # Practice run 3: a one-token glitch inside otherwise valid JSON. Mode 'badjson' glitches the first pick reply of a cycle
+                # and answers the retry (the task then carries PREVIOUS REPLY); mode 'badjson2' glitches every pick reply.
+                if (state['mode']=='badjson' and 'PREVIOUS REPLY' not in last_user) or state['mode']=='badjson2':
+                    return text('{"hypotheses": [{"id": "h1", "title":": "Glitched", "idea": "x"}]}')
                 return text(json.dumps({'hypotheses':[{'id':'h1','title':'Five-session momentum','idea':'Hold after five rising sessions.'},
                                                       {'id':'h2','title':'Mean reversion','idea':'Buy after five falling sessions.'}]}))
             if last_user.startswith('Approve'): return text(json.dumps({'decision':'approve' if 'hypothesis h1' in last_user else 'reject','reason':'fixture decision'}))
@@ -385,6 +389,24 @@ def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root
         steps=engine.ledger.steps(result['cycle_id']);failed=[s for s in steps if s['phase']=='FAILED']
         assert len(failed)==1 and (failed[0]['role'],failed[0]['kind'],failed[0]['code'],failed[0]['hypothesis_id'])==('researcher','memo','AI_RESPONSE_REJECTED','h2')
         assert engine.ledger.cycles()[-1]['faults']==result['faults']
+
+
+def test_an_unusable_json_reply_gets_one_retry_that_shows_the_failure(bridge,root,verification,market,project):
+    with role_server(mode='badjson') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and [h['id'] for h in result['hypotheses']]==['h1','h2'] and result['faults']==[]
+        picks=[s for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='pick']
+        assert [(s['phase'],s.get('retry')) for s in picks]==[('REQUEST',None),('REPLY',None),('INVALID',0),('REQUEST',1),('REPLY',1)]
+        assert picks[2]['code']=='ENGINE_REPLY_INVALID'
+        retry_task=state['posts'][1]['messages'][-1]['content']
+        assert retry_task.startswith('Pick at most') and 'not usable (ENGINE_REPLY_INVALID)' in retry_task and 'PREVIOUS REPLY\n{"hypotheses"' in retry_task
+    with role_server(mode='badjson2') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        # Two unusable replies: two INVALID rows, no hypotheses, the cycle completes with nothing to do, and only two requests were spent.
+        assert result['status']=='COMPLETED' and result['hypotheses']==[] and c.requests==2
+        assert [s.get('retry') for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='pick' and s['phase']=='INVALID']==[0,1]
 
 
 def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):

@@ -77,6 +77,8 @@ Memory finding: with Flint Q6_K loaded, free host memory sat between 15.6 and 19
 
 Live view: `.cache\engine-env\Scripts\python.exe tools\engine_tail.py` prints every new step and model call from the ledger, read-only, until Ctrl+C.
 
+**Practice run 3, 24 October 2026** (`run-20261024-813e5403`, Q6_K, 17.3 GiB free at start): 1 request, 22 seconds, `CYCLE_LIMIT`, cycle completed with no hypotheses. The Director's pick was 1402 bytes of JSON with three good market hypotheses and one glitched token in two places (`"title":": "`), so the strict parser refused it (`ENGINE_REPLY_INVALID`) and the cycle had nothing to do. The model's reasoning read the ledger correctly: it saw that the earlier cycles stopped on infrastructure, not on bad ideas. Fix: a JSON-answer step (pick, approve) gets one bounded retry whose task shows the parse failure and the unusable reply (at most 2048 bytes); nothing in the model's text is repaired by the harness. Each unusable reply is an `INVALID` step row with its retry number. Test: `tests/test_engine_roles.py::test_an_unusable_json_reply_gets_one_retry_that_shows_the_failure`. Engine environment lane 62 passed.
+
 ## Owner decisions
 
 Decided on 23 October 2026:

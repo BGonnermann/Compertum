@@ -28,6 +28,8 @@ REPLY_BYTES=65536
 REVIEW_TASK_BYTES=49152
 AGENDA_EVERY=10
 TRANSCRIPT_BYTES=8192
+RETRIES=1  # one bounded retry for a JSON-answer step whose reply did not parse
+RETRY_REPLY_BYTES=2048  # how much of the unusable reply the retry task shows the model
 _FENCE=re.compile(r'```(?:json)?\s*(.*?)```',re.S)
 
 
@@ -67,9 +69,9 @@ def parse_decision(reply):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-def clip_bytes(text):
+def clip_bytes(text,limit=TRANSCRIPT_BYTES):
     raw=text.encode('utf-8')
-    return text if len(raw)<=TRANSCRIPT_BYTES else raw[:TRANSCRIPT_BYTES].decode('utf-8',errors='ignore')
+    return text if len(raw)<=limit else raw[:limit].decode('utf-8',errors='ignore')
 
 
 @dataclass
@@ -152,28 +154,36 @@ def run_cycle(engine,cycle_index):
             if error.code not in STEP_FAULTS: raise
             state['faults'].append({'role':role,'kind':kind,'code':error.code,**record});return None
 
+    def parsed(role,kind,task,record,parse):
+        """A JSON-answer step with one bounded retry. Practice run 3 (24 October 2026): a real model's pick had a one-token glitch
+        inside otherwise valid JSON; one retry that shows the parse failure recovers that without any repair of the model's text.
+        Returns the parsed value, or None when both replies were unusable (each INVALID row is recorded)."""
+        reply=attempt(role,kind,task,record)
+        for retry in range(RETRIES+1):
+            if reply is None: return None
+            try: return parse(reply['text'])
+            except RuntimeRefused as error:
+                ledger.record_step(cycle_id,state['steps'],role,kind,{'phase':'INVALID','code':error.code,'retry':retry,**record})
+                if retry==RETRIES: return None
+                previous=clip_bytes(reply['text'],RETRY_REPLY_BYTES)
+                reply=attempt(role,kind,f'{task}\n\nYour previous reply was not usable ({error.code}). Reply again with JSON only, no other text, exactly in the format the role prompt gives.'
+                                        f'\n\nPREVIOUS REPLY\n{previous}',{**record,'retry':retry+1})
+
     try:
         # 1. Director picks hypotheses from the ledger summary.
         brief=market_brief(engine)
-        pick=attempt('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
-        if pick is None: state['hypotheses']=[]
-        else:
-            try: state['hypotheses']=parse_hypotheses(pick['text'])[:engine.max_hypotheses]
-            except RuntimeRefused as error:
-                ledger.record_step(cycle_id,state['steps'],'director','pick',{'phase':'INVALID','code':error.code});state['hypotheses']=[]
+        picked=parsed('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{},parse_hypotheses)
+        state['hypotheses']=picked[:engine.max_hypotheses] if picked is not None else []
         # 2. Researcher memos, Director decisions. A faulty memo or verdict rejects that hypothesis and the cycle goes on.
         for hypothesis in state['hypotheses']:
             memo=attempt('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
             if memo is None:
                 state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})'};continue
             state['memos'][hypothesis['id']]=memo['text']
-            verdict=attempt('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']})
-            if verdict is None: decision={'decision':'reject','reason':f'approval step failed ({state["faults"][-1]["code"]})'}
-            else:
-                try: decision=parse_decision(verdict['text'])
-                except RuntimeRefused as error:
-                    decision={'decision':'reject','reason':f'invalid reply ({error.code})'}
-                    ledger.record_step(cycle_id,state['steps'],'director','approve',{'phase':'INVALID','code':error.code,'hypothesis_id':hypothesis['id']})
+            decision=parsed('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']},parse_decision)
+            if decision is None:
+                last=state['faults'][-1]['code'] if state['faults'] and state['faults'][-1].get('hypothesis_id')==hypothesis['id'] and state['faults'][-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
+                decision={'decision':'reject','reason':f'approval step unusable ({last})'}
             state['decisions'][hypothesis['id']]=decision
         # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
         for hypothesis in state['hypotheses']:
