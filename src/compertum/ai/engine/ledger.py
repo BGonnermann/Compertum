@@ -4,6 +4,8 @@ Section 19: the Archivist records each step, including rejected memos and failed
 rewrites a record. A freeze row stops every engine action until the owner clears it (the clearing command is stage E5 work).
 """
 from datetime import datetime,timezone
+import re
+import sqlite3
 from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
@@ -11,6 +13,8 @@ from ..manual import read_json
 
 MAX_SUMMARY_CYCLES=20
 SUMMARY_BYTES=16384
+MAX_EXTERNAL_TRIALS=100000
+QUEUE_EVENTS=('QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
 
 
 def now():
@@ -26,6 +30,10 @@ class EngineLedger:
                 CREATE TABLE IF NOT EXISTS engine_steps(step_id TEXT PRIMARY KEY,cycle_id TEXT NOT NULL,step_index INTEGER NOT NULL,role TEXT NOT NULL,kind TEXT NOT NULL,record TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS engine_runs(run_id TEXT PRIMARY KEY,cycle_id TEXT NOT NULL,status TEXT NOT NULL,record TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS engine_freeze(freeze_id TEXT PRIMARY KEY,created_at TEXT NOT NULL,reason TEXT NOT NULL,cleared_at TEXT,record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS engine_trials(trial_id TEXT PRIMARY KEY,source TEXT NOT NULL,count INTEGER NOT NULL,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS engine_trial_scores(trial_id TEXT PRIMARY KEY,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS engine_queue(event_id TEXT PRIMARY KEY,candidate_id TEXT NOT NULL,event TEXT NOT NULL,recorded_at TEXT NOT NULL,record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS engine_looks(look_id TEXT PRIMARY KEY,seal_sha256 TEXT NOT NULL,created_at TEXT NOT NULL,record TEXT NOT NULL);
             ''')
 
     def _insert(self,sql,values):
@@ -71,6 +79,68 @@ class EngineLedger:
             record=read_json(rows[0][0]);cleared=now();record.update(cleared_at=cleared,owner_note=owner_note)
             self.store.conn.execute('UPDATE engine_freeze SET cleared_at=?,record=? WHERE freeze_id=?',(cleared,canonical(record).decode(),freeze_id))
         return record
+
+    # Stage E4: trials, trial scores, the candidate queue and vault looks. All insert-only.
+    def _insert_once(self,sql,values,code):
+        try: self._insert(sql,values)
+        except sqlite3.IntegrityError: raise RuntimeRefused(code) from None
+
+    def record_trial(self,cycle_id,candidate_id,record):
+        """One engine candidate is one trial, counted when the cycle records its candidate list, before any run."""
+        if not isinstance(cycle_id,str) or not isinstance(candidate_id,str) or not 1<=len(candidate_id)<=128: raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        row={'trial_id':candidate_id,'cycle_id':cycle_id,'candidate_id':candidate_id,'source':'engine','count':1,'recorded_at':now(),**record}
+        self._insert_once('INSERT INTO engine_trials VALUES(?,?,?,?,?)',(candidate_id,'engine',1,row['recorded_at'],canonical(row).decode()),'ENGINE_TRIAL_DUPLICATE');return row
+
+    def record_external_trials(self,source,count,evidence):
+        """Trials from other campaigns (for example the fixed family of 12 in a registered campaign). One row per source, never repeated."""
+        if not isinstance(source,str) or not re.fullmatch(r'[A-Za-z0-9._:-]{1,128}',source) or type(count) is not int or not 1<=count<=MAX_EXTERNAL_TRIALS: raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        row={'trial_id':f'external:{source}','source':source,'count':count,'recorded_at':now(),'evidence':evidence}
+        self._insert_once('INSERT INTO engine_trials VALUES(?,?,?,?,?)',(row['trial_id'],source,count,row['recorded_at'],canonical(row).decode()),'ENGINE_TRIAL_DUPLICATE');return row
+
+    def total_trials(self):
+        with self.store._live(): value=self.store.conn.execute('SELECT COALESCE(SUM(count),0) FROM engine_trials').fetchone()[0]
+        return int(value)
+
+    def record_trial_score(self,candidate_id,record):
+        """The Validator's per-period Sharpe ratio for one engine trial, recorded once. A trial without a score stays counted."""
+        with self.store._live(): known=self.store.conn.execute('SELECT COUNT(*) FROM engine_trials WHERE trial_id=? AND source=?',(candidate_id,'engine')).fetchone()[0]
+        if known!=1: raise RuntimeRefused('ENGINE_TRIAL_UNKNOWN')
+        row={'trial_id':candidate_id,'recorded_at':now(),**record}
+        self._insert_once('INSERT INTO engine_trial_scores VALUES(?,?,?)',(candidate_id,row['recorded_at'],canonical(row).decode()),'ENGINE_TRIAL_DUPLICATE');return row
+
+    def trial_sharpes(self):
+        """Per-period Sharpe ratios of the scored trials, as recorded (strings), None entries excluded."""
+        return [r['sharpe_per_period'] for r in self._rows('SELECT record FROM engine_trial_scores ORDER BY rowid') if r.get('sharpe_per_period') is not None]
+
+    def record_queue_event(self,candidate_id,event,record):
+        if not isinstance(candidate_id,str) or not 1<=len(candidate_id)<=128 or event not in QUEUE_EVENTS: raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        row={'event_id':str(uuid4()),'candidate_id':candidate_id,'event':event,'recorded_at':now(),**record}
+        self._insert('INSERT INTO engine_queue VALUES(?,?,?,?,?)',(row['event_id'],candidate_id,event,row['recorded_at'],canonical(row).decode()));return row
+
+    def queue_events(self,candidate_id=None):
+        if candidate_id is None: return self._rows('SELECT record FROM engine_queue ORDER BY rowid')
+        return self._rows('SELECT record FROM engine_queue WHERE candidate_id=? ORDER BY rowid',(candidate_id,))
+
+    def record_look(self,look_id,seal_sha256,record,counted=()):
+        """The vault look is counted here, before any vault data is read. The look row and the LOOK_COUNTED events of
+        `counted` ([(candidate_id, record), ...]) are one transaction: all rows exist, or none."""
+        if not isinstance(look_id,str) or not isinstance(seal_sha256,str) or not re.fullmatch(r'[0-9a-f]{64}',seal_sha256): raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        if any(not isinstance(cid,str) or not 1<=len(cid)<=128 or not isinstance(extra,dict) for cid,extra in counted): raise RuntimeRefused('ENGINE_RECORD_DENIED')
+        stamp=now();row={'look_id':look_id,'seal_sha256':seal_sha256,'created_at':stamp,**record}
+        events=[{'event_id':str(uuid4()),'candidate_id':cid,'event':'LOOK_COUNTED','recorded_at':stamp,**extra} for cid,extra in counted]
+        try:
+            with self.store._live(),self.store.conn:
+                self.store.conn.execute('INSERT INTO engine_looks VALUES(?,?,?,?)',(look_id,seal_sha256,stamp,canonical(row).decode()))
+                for event in events:
+                    self.store.conn.execute('INSERT INTO engine_queue VALUES(?,?,?,?,?)',(event['event_id'],event['candidate_id'],'LOOK_COUNTED',stamp,canonical(event).decode()))
+        except sqlite3.IntegrityError: raise RuntimeRefused('ENGINE_LOOK_DUPLICATE') from None
+        return row
+
+    def looks(self): return self._rows('SELECT record FROM engine_looks ORDER BY rowid')
+    def look(self,look_id):
+        rows=self._rows('SELECT record FROM engine_looks WHERE look_id=?',(look_id,))
+        if len(rows)!=1: raise RuntimeRefused('ENGINE_LOOK_UNKNOWN')
+        return rows[0]
 
     def cycles(self): return self._rows('SELECT record FROM engine_cycles ORDER BY rowid')
     def steps(self,cycle_id): return self._rows('SELECT record FROM engine_steps WHERE cycle_id=? ORDER BY rowid',(cycle_id,))

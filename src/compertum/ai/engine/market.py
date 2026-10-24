@@ -12,6 +12,7 @@ import random
 from compertum.data.errors import DataError
 from compertum.runtime.errors import RuntimeRefused
 from compertum.simulation.metrics import metrics
+from .deflation import moments
 
 MIN_SESSIONS,MAX_SESSIONS=40,4096
 SIGNALS_BYTES=1024*1024
@@ -49,6 +50,15 @@ def split_market(rows,train_fraction=0.7):
     return rows[:cut],rows[cut:]
 
 
+def split_market_tiers(rows,train_fraction=0.5,validation_fraction=0.3):
+    """TRAIN, VALIDATION and VAULT as consecutive session ranges. The vault is the last range; the Engineer never receives it."""
+    if not 0<train_fraction<1 or not 0<validation_fraction<1 or train_fraction+validation_fraction>=1: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    first=int(len(rows)*train_fraction);second=first+int(len(rows)*validation_fraction)
+    train,validation,vault=rows[:first],rows[first:second],rows[second:]
+    if min(len(train),len(validation),len(vault))<10: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    return train,validation,vault
+
+
 def parse_signals(text,validation_rows):
     """Admit a signals.csv with exactly one position in {0, 1} for every validation session, in order."""
     if not isinstance(text,str) or len(text.encode('utf-8'))>SIGNALS_BYTES: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
@@ -84,7 +94,8 @@ def score_signals(text,validation_rows,*,cost=COST):
             'final_nav':str(navs[-1].quantize(Decimal('0.00000001'))),'benchmark_final_nav':str(benchmark[-1].quantize(Decimal('0.00000001'))),
             'annual_mean_excess':scored['annual_mean_excess'],'sharpe':scored['sharpe'],'sharpe_status':scored['sharpe_status'],'max_drawdown':scored['max_drawdown'],
             'benchmark_sharpe':baseline['sharpe'],'benchmark_sharpe_status':baseline['sharpe_status'],'beats_baseline':bool(beats),
-            'cost_per_change':str(cost),'rule':'beats_baseline: Sharpe defined, annual mean excess > 0, Sharpe above the benchmark Sharpe'}
+            'cost_per_change':str(cost),'rule':'beats_baseline: Sharpe defined, annual mean excess > 0, Sharpe above the benchmark Sharpe',
+            'deflation_inputs':moments(scored['returns'])}
 
 
 def _decimal(value):

@@ -275,8 +275,12 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert [h['id'] for h in result['hypotheses']]==['h1','h2'] and result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']['decision']=='reject'
         assert len(result['candidates'])==1 and result['candidates'][0]['hypothesis_id']=='h1' and result['candidates'][0]['trial'] is True
         candidate=result['candidates'][0]
-        assert candidate['run_statuses']==['COMPLETED'] and candidate['status'] in ('BEATS_BASELINE_PENDING_AUDIT','REJECTED')
-        score=result['scores']['h1'];assert score['sessions']==len(market['validation_rows']) and score['beats_baseline']==(candidate['status']=='BEATS_BASELINE_PENDING_AUDIT')
+        assert candidate['run_statuses']==['COMPLETED'] and candidate['status'] in ('BEATS_BASELINE_PENDING_AUDIT','REJECTED_DEFLATED','REJECTED')
+        score=result['scores']['h1'];assert score['sessions']==len(market['validation_rows']) and score['beats_baseline']==(candidate['status']!='REJECTED')
+        # E4: the candidate is one trial, counted before its run; its deflated Sharpe ratio uses that total.
+        assert result['total_trials']==1 and candidate['deflation']['trials']==1 and candidate['deflation']['status'] in ('PASS','FAIL','UNDEFINED')
+        assert (candidate['status']=='BEATS_BASELINE_PENDING_AUDIT')==(score['beats_baseline'] and candidate['deflation']['status']=='PASS')
+        assert engine.ledger.total_trials()==1 and engine.ledger.trial_sharpes()==[score['deflation_inputs']['sharpe_per_period']]
         assert result['memos']=={'h1':MEMO,'h2':MEMO} and result['specifications']=={'h1':SPEC} and result['reviews']['h1'].startswith('Review')
         # Archivist: START and END rows, every step recorded, the candidate list before the first run.
         store=engine.ledger;cycles=store.cycles();steps=store.steps(result['cycle_id']);runs=store.runs(result['cycle_id'])
@@ -286,7 +290,7 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         candidates_at=next(i for i,s in enumerate(steps) if s['kind']=='candidates');first_build=next(i for i,s in enumerate(steps) if s['kind']=='build')
         assert candidates_at<first_build and steps[candidates_at]['count']==1
         assert len(runs)==1 and runs[0]['status']=='COMPLETED' and runs[0]['recorded_at']>=steps[candidates_at]['recorded_at'] and 'signals' not in runs[0]
-        assert [s for s in steps if s['kind']=='score'][0]['phase']=='SCORED'
+        scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==1
         # Every model call went through the E1 ledger with a known role, and no excluded tool was ever offered.
         assert ledger.entries and all(e['status']=='COMPLETED' and e['role'] in ROLES for e in ledger.entries) and len(ledger.entries)==c.requests
         offered={t['function']['name'] for p in state['posts'] for t in p.get('tools',[])}

@@ -15,6 +15,7 @@ from typing import Any
 from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
+from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
 from .market import score_signals
 from .roles import ROLES,build_role_agent,load_prompt
@@ -128,6 +129,10 @@ def run_cycle(engine,cycle_index):
             state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
         state['steps']+=1
         ledger.record_step(cycle_id,state['steps'],'archivist','candidates',{'phase':'RECORDED','candidates':state['candidates'],'count':len(state['candidates'])})
+        # Every candidate is one trial from this moment, whatever happens to it later (E4).
+        for candidate in state['candidates']:
+            ledger.record_trial(cycle_id,candidate['candidate_id'],{'hypothesis_id':candidate['hypothesis_id'],'specification_sha256':candidate['specification_sha256']})
+        state['total_trials']=ledger.total_trials()
         # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
         for candidate in state['candidates']:
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
@@ -146,13 +151,25 @@ def run_cycle(engine,cycle_index):
             signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
             if signals is None:
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
+                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'NO_SIGNALS'})
                 state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'NO_SIGNALS','candidate_id':candidate['candidate_id']});continue
             try: score=score_signals(signals,engine.validation_rows)
             except RuntimeRefused as error:
                 candidate['status']='INVALID_SIGNALS';state['scores'][hid]=None
+                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
                 state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'INVALID','code':error.code,'candidate_id':candidate['candidate_id']});continue
-            state['scores'][hid]=score;candidate['status']='BEATS_BASELINE_PENDING_AUDIT' if score['beats_baseline'] else 'REJECTED'
-            state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'SCORED','candidate_id':candidate['candidate_id'],'score':score,'status':candidate['status']})
+            # Deflation (E4): the bar uses the total trial count across all campaigns and the variance of every scored trial, this one included.
+            inputs=score['deflation_inputs'];trials=ledger.total_trials()
+            variance=trial_variance(ledger.trial_sharpes()+[inputs['sharpe_per_period']],inputs)
+            deflation=deflated_sharpe(inputs,trials,variance['trial_variance'])
+            ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':inputs['sharpe_per_period'],'observations':inputs['observations'],'status':'SCORED',
+                                                                 'beats_baseline':score['beats_baseline'],'deflation_status':deflation['status']})
+            state['scores'][hid]=score
+            candidate['status']=('BEATS_BASELINE_PENDING_AUDIT' if deflation['status']=='PASS' else 'REJECTED_DEFLATED') if score['beats_baseline'] else 'REJECTED'
+            candidate['deflation']={'trials':trials,'deflated_sharpe':deflation['deflated_sharpe'],'status':deflation['status']}
+            state['steps']+=1
+            ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'SCORED','candidate_id':candidate['candidate_id'],'score':score,'status':candidate['status'],
+                                                                           'deflation':deflation,'trial_variance':variance})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0:
             agenda=step('director','agenda',f'Review the repeated failures and update the agenda. Ledger summary:\n{json.dumps(summary,sort_keys=True)}',{})
@@ -166,7 +183,7 @@ def run_cycle(engine,cycle_index):
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
         end={'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
-             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),
+             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}
         canonical(end);ledger.record_cycle(cycle_id,cycle_index,'END',end)
