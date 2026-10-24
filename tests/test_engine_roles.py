@@ -10,6 +10,7 @@ import json
 from multiprocessing.connection import Listener
 import os
 from pathlib import Path
+import re
 import shutil
 import socket
 import threading
@@ -60,6 +61,12 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         def text(value): return {'role':'assistant','content':value},'stop'
         def call(name,arguments): return {'role':'assistant','content':None,'tool_calls':[{'id':f'call_{len(messages)}','type':'function','function':{'name':name,'arguments':json.dumps(arguments)}}]},'tool_calls'
         if state['mode']=='loop': return call('ls',{'path':'/'})
+        if last_user.startswith('Improve the system prompt'):
+            # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
+            if state['mode']=='badprompt': return text('An improved prompt without the role marker line.')
+            named=re.search(r'for the (\w+) role',last_user).group(1)
+            return text(f'ROLE: {named}\nImproved by the fixture reflection. Keep every output format rule of the original prompt.\n'
+                        f'Round {len(state["posts"])}: state your reasoning in one short paragraph before the required output.\n')
         if role=='director':
             if last_user.startswith('Pick'):
                 return text(json.dumps({'hypotheses':[{'id':'h1','title':'Five-session momentum','idea':'Hold after five rising sessions.'},

@@ -27,6 +27,7 @@ MAX_HYPOTHESES=3
 REPLY_BYTES=65536
 REVIEW_TASK_BYTES=49152
 AGENDA_EVERY=10
+TRANSCRIPT_BYTES=8192
 _FENCE=re.compile(r'```(?:json)?\s*(.*?)```',re.S)
 
 
@@ -66,6 +67,11 @@ def parse_decision(reply):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
+def clip_bytes(text):
+    raw=text.encode('utf-8')
+    return text if len(raw)<=TRANSCRIPT_BYTES else raw[:TRANSCRIPT_BYTES].decode('utf-8',errors='ignore')
+
+
 @dataclass
 class Engine:
     """Everything one cycle needs. Agents are rebuilt for each cycle so that every role starts a fresh conversation."""
@@ -83,6 +89,7 @@ class Engine:
     max_hypotheses:int=MAX_HYPOTHESES
     gate:Any=None  # E5: callable that raises when no step may start (kill switch, hour limit, freeze)
     run_id:Any=None  # E5: the bounded run this cycle belongs to
+    prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate); None reads config/engine_prompts
 
 
 def run_cycle(engine,cycle_index):
@@ -93,8 +100,13 @@ def run_cycle(engine,cycle_index):
     summary=ledger.summary()
     ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
-           'reviews':{},'scores':{},'steps':0,'stop_code':None}
-    prompts={role:load_prompt(engine.project_root,role) for role in ROLES};queue=CandidateQueue(ledger)
+           'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[]}
+    if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
+    else:
+        if not isinstance(engine.prompts,dict) or set(engine.prompts)!=set(ROLES) or any(not isinstance(t,str) or not t.startswith(f'ROLE: {r}\n') for r,t in engine.prompts.items()):
+            raise RuntimeRefused('ENGINE_PROMPT_INVALID')
+        prompts=dict(engine.prompts)
+    queue=CandidateQueue(ledger)
     sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
                             train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes)
     agents={role:build_role_agent(role,engine.client,system_prompt=prompts[role],tools=[run_job_tool(sandbox)] if role=='engineer' else (),
@@ -109,6 +121,8 @@ def run_cycle(engine,cycle_index):
             ledger.record_step(cycle_id,index,role,kind,{'phase':'FAILED','code':error.code,**record});raise
         ledger.record_step(cycle_id,index,role,kind,{'phase':'REPLY','reply_sha256':sha(reply['text']),'reply_bytes':len(reply['text'].encode('utf-8')),
                                                      'messages':reply['messages'],'tool_calls':reply['tool_calls'],'files':sorted(reply['files']),**record})
+        # E7: the in-memory transcript lets GEPA reflect on inputs and outputs. It never enters the ledger; the hashes above do.
+        state['transcript'].append({'role':role,'kind':kind,'task':clip_bytes(task),'reply':clip_bytes(reply['text'])})
         return reply
 
     try:
@@ -210,4 +224,4 @@ def run_cycle(engine,cycle_index):
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}
         canonical(end);ledger.record_cycle(cycle_id,cycle_index,'END',end)
-    return {'cycle_id':cycle_id,**end,'memos':state['memos'],'specifications':state['specifications'],'reviews':state['reviews']}
+    return {'cycle_id':cycle_id,**end,'memos':state['memos'],'specifications':state['specifications'],'reviews':state['reviews'],'transcript':state['transcript']}

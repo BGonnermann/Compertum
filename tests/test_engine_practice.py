@@ -43,6 +43,28 @@ def test_run_refuses_below_the_start_floor_before_taking_any_lease(tmp_path):
     assert practice.START_FLOOR==16*1024**3
 
 
+def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch):
+    """The owner's `gepa` command: the same preamble as `run`, then run_gepa; the printed record summarizes the prompts folder."""
+    from compertum.ai.engine import gepa_run
+    shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+    write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+    seen={}
+    def fake_run_gepa(**kwargs):
+        seen.update(kwargs)
+        return {'run_id':'run-20261024-0123abcd','reason':'CYCLE_LIMIT','cycles':[{'cycle_index':1,'status':'COMPLETED','market':'seed 12','candidates':[{'hypothesis_id':'h1','status':'QUEUED','deflation':{'status':'PASS'},'audit':{'label':'VERIFIED_PASS'}}]}],
+                'requests':9,'elapsed_seconds':12.5,'summary_path':str(tmp_path/'state'/'engine'/'summary.md'),'models':{'director':{'address':'http://127.0.0.1:1234/v1','model':'synthetic-model'}},
+                'prompts':{'folder':str(tmp_path/'state'/'engine'/'prompts'/'run-20261024-0123abcd'),'best_index':1,'mean_scores':[0.7,1.0],'candidate_count':2,
+                           'gepa':{'best_index_in_gepa_pool':1,'best_folder_index':1,'val_aggregate_scores':[0.7,1.0],'total_metric_calls':4}}}
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    record=practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=4,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1)
+    assert record['kind']=='gepa' and record['reason']=='CYCLE_LIMIT' and record['cycles'][0]['candidates'][0]['audit']=='VERIFIED_PASS' and record['research_state_after']=='PAUSED'
+    assert record['prompts']=={'folder':str(tmp_path/'state'/'engine'/'prompts'/'run-20261024-0123abcd'),'best_index':1,'mean_scores':[0.7,1.0],'candidate_count':2,
+                               'gepa_best_folder_index':1,'gepa_val_aggregate_scores':[0.7,1.0],'gepa_total_metric_calls':4}
+    assert [m['label'] for m in seen['markets']]==['seed 12, 500 sessions, strength 0.004','seed 13, 500 sessions, strength 0.004'] and seen['limits'].cycle_limit==4
+    assert all('vault' not in m for m in seen['markets']) and seen['owner_approval']=='GEPA fixture' and record['verification']['failed']==[]
+    json.dumps(record)  # printable
+
+
 def test_command_reports_json_and_exit_codes(tmp_path,capsys):
     with server() as (port,state):
         shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')

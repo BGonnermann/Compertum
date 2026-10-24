@@ -21,29 +21,14 @@ from pydantic import ConfigDict
 from compertum.domain import ContractError,resolve_project_path  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
-ROLES=('director','researcher','mathematician','engineer')
+from .prompts import PROMPT_BYTES,ROLES,load_prompt  # noqa: E402,F401  (re-exported; the loader has no engine library dependency)
+
 FILE_TOOLS=['ls','read_file','write_file','edit_file','glob','grep']
 EXCLUDED_TOOLS=frozenset({'execute','task','delete'})
-PROMPT_BYTES=16384
 TASK_BYTES=65536
 RECURSION_LIMIT=40
 PROVIDER='compertum'
 _registered=False
-
-
-def load_prompt(project_root,role):
-    """Read one bounded role prompt from inside the project. The first line must name the role."""
-    if role not in ROLES: raise RuntimeRefused('AI_ROLE_DENIED')
-    root=Path(project_root).absolute()
-    try:
-        with resolve_project_path(f'config/engine_prompts/{role}.md',root).open('rb') as stream: raw=stream.read(PROMPT_BYTES+1)
-    except ContractError as error: raise RuntimeRefused(error.reason) from None
-    except OSError: raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE') from None
-    if len(raw)>PROMPT_BYTES: raise RuntimeRefused('ENGINE_PROMPT_TOO_LARGE')
-    try: text=raw.decode('utf-8')
-    except UnicodeError: raise RuntimeRefused('ENGINE_PROMPT_INVALID') from None
-    if not text.startswith(f'ROLE: {role}\n') or len(text.strip())<40: raise RuntimeRefused('ENGINE_PROMPT_INVALID')
-    return text
 
 
 def text_of(content):

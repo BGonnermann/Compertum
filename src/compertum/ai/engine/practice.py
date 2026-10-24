@@ -80,15 +80,20 @@ def research_state(store):
     with store._live(): return store.get_state('research_state') or 'PAUSED'
 
 
-def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory):
-    """One owner-started bounded run against the configured model servers on a synthetic market. Returns the printed record."""
+def practice_market(seed,sessions,strength):
+    rows=synthetic_market(seed,sessions,planted={'kind':'momentum','window':5,'strength':strength});train,validation,vault=split_market_tiers(rows)
+    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, strength {strength}'},vault
+
+
+def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False):
+    """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
+    improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). Returns the printed record."""
     root=Path(project_root).absolute()
     available=available_memory()
     if type(available) is not int or available<START_FLOOR: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     if type(seed) is not int or type(sessions) is not int or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
-    from .run import run_bounded  # needs the engine environment; imported after the checks that need none
-    rows=synthetic_market(seed,sessions,planted={'kind':'momentum','window':5,'strength':strength});train,validation,vault=split_market_tiers(rows)
-    market={'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation}
+    market,vault=practice_market(seed,sessions,strength)
+    markets=[market,practice_market(seed+1,sessions,strength)[0]] if gepa else [market]
     roles=load_models(root/'config'/'models.toml',root)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
@@ -99,16 +104,28 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         finally: listener.close()
         previous=research_state(store);set_research_state(store,'RUNNING')
         try:
-            result=run_bounded(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,market=market,
-                               memory_floor_bytes=START_FLOOR,limits=RunLimits(request_limit=requests,cycle_limit=cycles,hour_limit=hours),owner_approval=note)
+            limits=RunLimits(request_limit=requests,cycle_limit=cycles,hour_limit=hours)
+            if gepa:
+                from .gepa_run import run_gepa
+                result=run_gepa(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,markets=markets,
+                                memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note)
+            else:
+                from .run import run_bounded  # needs the engine environment; imported after the checks that need none
+                result=run_bounded(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,market=market,
+                                   memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note)
         finally:
             set_research_state(store,previous);after=research_state(store)
-        candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
+        candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
                      'deflation':x.get('deflation'),'audit':(x.get('audit') or {}).get('label')} for x in c.get('candidates') or []]} for c in result['cycles']]
-        return {'run_id':result['run_id'],'reason':result['reason'],'cycles':candidates,'requests':result['requests'],'elapsed_seconds':result['elapsed_seconds'],
-                'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],'vault_sessions_held_back':len(vault),
-                'verification':{'failed':verification['failed'],'observations':verification['observations']},'research_state_after':after,
-                'free_memory_bytes_at_start':available}
+        record={'run_id':result['run_id'],'kind':'gepa' if gepa else 'cycles','reason':result['reason'],'cycles':candidates,'requests':result['requests'],
+                'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],
+                'vault_sessions_held_back':len(vault),'verification':{'failed':verification['failed'],'observations':verification['observations']},
+                'research_state_after':after,'free_memory_bytes_at_start':available}
+        if gepa and result.get('prompts'):
+            p=result['prompts'];g=p.get('gepa') or {}
+            record['prompts']={'folder':p['folder'],'best_index':p['best_index'],'mean_scores':p['mean_scores'],'candidate_count':p['candidate_count'],
+                               'gepa_best_folder_index':g.get('best_folder_index'),'gepa_val_aggregate_scores':g.get('val_aggregate_scores'),'gepa_total_metric_calls':g.get('total_metric_calls')}
+        return record
     finally: release_owner(lease)
 
 
@@ -117,14 +134,20 @@ def main(argv=None):
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('models')
-    run=commands.add_parser('run')
-    run.add_argument('--cycles',type=int);run.add_argument('--hours',type=float);run.add_argument('--requests',type=int,required=True);run.add_argument('--note',required=True)
-    run.add_argument('--seed',type=int,default=12);run.add_argument('--sessions',type=int,default=500);run.add_argument('--strength',type=float,default=0.004)
+    for name in ('run','gepa'):
+        sub=commands.add_parser(name)
+        sub.add_argument('--cycles',type=int);sub.add_argument('--hours',type=float);sub.add_argument('--requests',type=int,required=True);sub.add_argument('--note',required=True)
+        sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int,default=500);sub.add_argument('--strength',type=float,default=0.004)
+    apply=commands.add_parser('apply-prompts');apply.add_argument('--run',required=True);apply.add_argument('--candidate',type=int,required=True)
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
     try:
         if args.command=='models': result=models_report(root)
-        else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength)
+        elif args.command=='apply-prompts':
+            from .gepa_run import apply_prompts
+            result=apply_prompts(root,args.run,args.candidate)
+        else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
+                                  gepa=args.command=='gepa')
     except RuntimeRefused as error:
         print(json.dumps({'refused':error.code}));return 2
     except (ContractError,ConfigError) as error:
