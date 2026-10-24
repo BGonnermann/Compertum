@@ -73,7 +73,8 @@ Still open:
 - [x] M3 engineering acceptance closed.
 - [x] Plan written and pushed.
 - [x] Verify and commit the 19 October work. 253 source tests passed; review `COMMIT_OK`; commit `3310653`.
-- [ ] E1: loopback model interface. See "Stage E1 design" below.
+- [x] E1: loopback model interface. 34 new tests passed (58 with the adapter tests), zero failed, zero skipped. Review `E1_OK` in round 2. Owner OK on 23 October 2026. Source lane only; see "Stage E1 design" below.
+- [ ] E2: AppContainer sandbox and escape tests. Next.
 
 ## Stage E1 design
 
@@ -86,5 +87,11 @@ Files: `config/models.toml`, `src/compertum/ai/models.py`, `tests/test_ai_models
   Responses are bounded to 64 KiB. One choice with `finish_reason: stop` is accepted. Anything else is refused.
 - The ledger records every call and every refusal: role, provider `loopback`, address, requested and server-reported model, settings, prompt SHA-256, response SHA-256, usage, elapsed seconds, free memory, floor, status.
   `StoreLedger` writes rows to the `engine_model_calls` table in the project store.
-- The adapter process keeps the existing one-thread, 256 MiB, no-child native limits (`constrain_ai_adapter`). Tests may turn this off.
+- The adapter process keeps the existing one-thread, 256 MiB, no-child native limits (`constrain_ai_adapter`).
+  Warning: with `native_limits=True` (the default) construction puts the calling process into that Job for the rest of its life.
+  Only a dedicated adapter process may construct the client that way. The supervisor, the coordinator and tests pass `native_limits=False`.
+- The client rechecks every address and model ID itself. A `RoleModel` built by hand gets no exemption from the loopback rule.
+- Every call, every refusal and every unexpected failure leaves one ledger row. An unknown role is recorded with no address.
+- Installed-package lane: the `.venv` holds the M3 release wheel, which predates this module. The installed lane needs a new wheel build.
+  Until then, E1 verification is source-lane only. The record states this.
 - The memory floor comes from config `dispatch_available_ram_bytes` (8 GiB) unless the caller gives a higher value. The request limit is per client instance. Stage E5 adds the per-run hard maximum.

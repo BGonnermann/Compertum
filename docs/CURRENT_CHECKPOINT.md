@@ -1,6 +1,6 @@
 # Current Compertum checkpoint
 
-## M3 engineering accepted; engine stage E1 next - 23 October 2026
+## M3 engineering accepted; engine stage E1 complete; E2 next - 23 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.
 Source lane 592 passed, installed lane 592 passed, zero failures, errors or skips. Campaigns 63/63 per lane with 63 exact payloads. All 77 audits verified.
@@ -13,8 +13,13 @@ Scratch is 11.890 GiB after a reviewed cleanup. The chain's 13 GiB run cap ended
 The project-map PDF was refreshed on 23 October 2026: nine pages, 81 navigation links and 91 source notes inspected.
 Known follow-up: a research cycle in BLOCKED or AWAITING_OWNER_REVIEW has no release path yet.
 
+Engine stage E1 is complete and owner-approved on 23 October 2026: `src/compertum/ai/models.py`, `config/models.toml` and `tests/test_ai_models_interface.py`.
+Source lane: 34 new tests passed, 58 with the related adapter tests, zero failed, zero skipped. One independent review, two rounds, verdict `E1_OK`; the final should-fix is applied and tested.
+Limitation: the installed-package `.venv` holds the M3 release wheel, which predates this module. E1 is verified in the source lane only until a new wheel build.
+Limitation: the 40-request and 8-task daily caps in `manual.py` do not apply to the new client. Its only limit is the per-client request limit until stage E5.
+
 M0 and M3 engineering are accepted. Financial qualification, paper permission and M6 (zero of ten actual sessions) stay open. Strata stays off.
-Exact next action: build section 19 stage E1, the loopback model interface with `config/models.toml`, per-call ledger records and the memory check. See [the engine plan](ENGINE_PLAN.md).
+Exact next action: build section 19 stage E2, the AppContainer sandbox with escape tests that must fail for network access, vault reads, writes outside the sandbox folder and resource overruns. See [the engine plan](ENGINE_PLAN.md).
 
 Earlier entries below retain their original evidence and dates.
 
