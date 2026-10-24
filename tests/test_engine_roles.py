@@ -83,6 +83,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         if role=='mathematician': return text(SPEC if last_user.startswith('Write') else 'Review: the code follows the specification. Test the first five sessions.')
         if role=='engineer':
             if 'tools' not in payload: return text('no tools offered')
+            # GEPA run 1: the model replied DONE after reading the starter, without any run. Mode 'norun' does that until the retry task arrives.
+            if state['mode']=='norun' and 'PREVIOUS REPLY' not in last_user: return text('DONE I read the starter and it looks fine.')
             if len(tool_results)==0: return call('write_file',{'file_path':'/main.py','content':state['engineer_code']})
             if len(tool_results)==1: return call('run_job',{'entry':'main.py'})
             # Practice run 5: after a completed run the model hunted for signals.csv in its store until the repeat guard stopped it.
@@ -427,6 +429,18 @@ def test_a_build_fault_after_a_completed_run_still_scores_the_signals(bridge,roo
         assert build_task.startswith('Build this specification') and 'starter program' in build_task and 'SPECIFICATION\n' in build_task
         tool_results=[m['content'] for p in state['posts'] for m in p['messages'] if m['role']=='tool' and '"signals_present": true' in m['content']]
         assert tool_results and 'is accepted' in tool_results[0] and 'Reply with the single word DONE' in tool_results[0]
+
+
+def test_an_engineer_reply_without_a_run_gets_one_retry(bridge,root,verification,market,project):
+    with role_server(mode='norun') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        candidate=result['candidates'][0]
+        assert result['status']=='COMPLETED' and result['faults']==[] and candidate['run_statuses']==['COMPLETED'] and candidate['status']!='NO_SIGNALS'
+        builds=[s for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='build']
+        assert [(s['phase'],s.get('retry')) for s in builds]==[('REQUEST',None),('REPLY',None),('INVALID',0),('REQUEST',1),('REPLY',1)] and builds[2]['code']=='ENGINE_NO_RUN'
+        retry_task=[p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: engineer') and 'PREVIOUS REPLY' in p['messages'][1]['content']][0]
+        assert retry_task.startswith('Build this specification') and 'without running the program' in retry_task and 'DONE I read the starter' in retry_task and 'SPECIFICATION\n' in retry_task
 
 
 def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):

@@ -232,7 +232,17 @@ def run_cycle(engine,cycle_index):
             build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\nYour file store holds /main.py, a starter program: edit decide(), keep the file names. '
                                              'Do not list or search the store. When run_job reports that signals.csv was written, reply DONE.\n\nSPECIFICATION\n{state["specifications"][hid]}',
                           {'candidate_id':candidate['candidate_id']},files={'/main.py':STARTER_MAIN})
-            runs=sandbox.runs[runs_before:];candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
+            runs=sandbox.runs[runs_before:]
+            if build is not None and not runs:
+                # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
+                # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
+                ledger.record_step(cycle_id,state['steps'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':candidate['candidate_id']})
+                build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\nYour previous attempt replied without running the program, so nothing was produced. '
+                                                 'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.'
+                                                 f'\n\nPREVIOUS REPLY\n{clip_bytes(build["text"],RETRY_REPLY_BYTES)}\n\nSPECIFICATION\n{state["specifications"][hid]}',
+                              {'candidate_id':candidate['candidate_id'],'retry':1},files={'/main.py':STARTER_MAIN})
+                runs=sandbox.runs[runs_before:]
+            candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
             signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
             if build is None and signals is None:
                 # The Engineer step faulted (loop, timeout, unusable reply) with no completed run. The candidate stays a counted trial with no score.
