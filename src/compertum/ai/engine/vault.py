@@ -79,8 +79,9 @@ class CandidateQueue:
     def evaluate_in_vault(self,look_id,candidate_id,signals_text,read_vault):
         """Score one candidate on the vault rows, once, inside its sealed look.
 
-        read_vault is a callable with no arguments that returns the vault rows. It is called only after the look and the
-        candidate's state pass, so a repeat or a denied attempt never reads the vault.
+        read_vault is a callable with no arguments. It is called only after the look and the candidate's state pass, so a
+        repeat or a denied attempt never reads the vault. It returns the vault rows; when signals_text is None it returns
+        (signals_text, vault_rows), for the Validator that produces the signals by a trusted re-run on the vault (E6).
         """
         if not callable(read_vault): raise RuntimeRefused('ENGINE_VAULT_DENIED')
         look=self.ledger.look(look_id)
@@ -88,7 +89,14 @@ class CandidateQueue:
         state,counted=self.state(candidate_id)
         if state=='VAULT_EVALUATED': raise RuntimeRefused('ENGINE_VAULT_REPEAT')
         if state!='LOOK_COUNTED' or counted!=look_id: raise RuntimeRefused('ENGINE_VAULT_DENIED')
-        try: result=score_signals(signals_text,read_vault())
+        try:
+            produced=read_vault()
+            if signals_text is None: signals_text,rows=produced
+            else: rows=produced
+            result=score_signals(signals_text,rows)
         except RuntimeRefused as error:
             self.ledger.record_queue_event(candidate_id,'VAULT_EVALUATED',{'look_id':look_id,'status':'INVALID','code':error.code});raise
+        except BaseException as error:
+            # Any failure after the checks consumes the candidate's one look. A second call must never read the vault again.
+            self.ledger.record_queue_event(candidate_id,'VAULT_EVALUATED',{'look_id':look_id,'status':'INVALID','code':'FAILED_UNEXPECTED','error':type(error).__name__[:64]});raise
         return self.ledger.record_queue_event(candidate_id,'VAULT_EVALUATED',{'look_id':look_id,'status':'SCORED','result':result})

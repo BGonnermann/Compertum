@@ -114,9 +114,16 @@ def market():
     return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation}
 
 
-def make_engine(bridge,root,verification,market,model_client):
-    b,project=bridge
-    return Engine(client=model_client,ledger=EngineLedger(b.store),lease=b.storage.lease,project_root=PROJECT,sandbox_root=root,verification=verification,
+@pytest.fixture
+def project(tmp_path):
+    """A project folder with the real role prompts. Promotions (E6) land under its state/engine, never under master's."""
+    shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    return tmp_path
+
+
+def make_engine(bridge,root,verification,market,model_client,project_root):
+    b,_=bridge
+    return Engine(client=model_client,ledger=EngineLedger(b.store),lease=b.storage.lease,project_root=project_root,sandbox_root=root,verification=verification,
                   train_csv=market['train_csv'],validation_csv=market['validation_csv'],validation_rows=market['validation_rows'],memory_floor_bytes=FLOOR)
 
 
@@ -187,9 +194,9 @@ def test_ledger_chat_model_sends_every_call_through_the_e1_client():
         assert to_chat_messages([AIMessage(content=[{'type':'text','text':'a'},'b'])])==[{'role':'assistant','content':'ab'}]
 
 
-def test_role_agents_offer_only_file_tools_and_the_engineer_run_job(bridge,root,verification,market):
+def test_role_agents_offer_only_file_tools_and_the_engineer_run_job(bridge,root,verification,market,project):
     with role_server() as (port,state):
-        c=client(port);engine=make_engine(bridge,root,verification,market,c)
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         sandbox=EngineerSandbox(root,ledger=engine.ledger,lease=engine.lease,verification=verification,cycle_id='cycle-tools',
                                 train_csv=market['train_csv'],validation_csv=market['validation_csv'],memory_floor_bytes=FLOOR)
         engineer=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),tools=[run_job_tool(sandbox)])
@@ -267,19 +274,20 @@ def test_sandbox_tool_refuses_bad_files_and_records_every_run(bridge,root,verifi
     assert job_files({'/a/b.py':'x'})=={'a/b.py':'x'}
 
 
-def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,market):
+def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,market,project):
     with role_server() as (port,state):
-        ledger=ListLedger();c=client(port,ledger);engine=make_engine(bridge,root,verification,market,c)
+        ledger=ListLedger();c=client(port,ledger);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
         assert result['status']=='COMPLETED' and result['stop_code'] is None
         assert [h['id'] for h in result['hypotheses']]==['h1','h2'] and result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']['decision']=='reject'
         assert len(result['candidates'])==1 and result['candidates'][0]['hypothesis_id']=='h1' and result['candidates'][0]['trial'] is True
         candidate=result['candidates'][0]
-        assert candidate['run_statuses']==['COMPLETED'] and candidate['status'] in ('BEATS_BASELINE_PENDING_AUDIT','REJECTED_DEFLATED','REJECTED')
+        assert candidate['run_statuses']==['COMPLETED'] and candidate['status'] in ('QUEUED','REJECTED_AUDIT','REJECTED_DEFLATED','REJECTED')
         score=result['scores']['h1'];assert score['sessions']==len(market['validation_rows']) and score['beats_baseline']==(candidate['status']!='REJECTED')
         # E4: the candidate is one trial, counted before its run; its deflated Sharpe ratio uses that total.
         assert result['total_trials']==1 and candidate['deflation']['trials']==1 and candidate['deflation']['status'] in ('PASS','FAIL','UNDEFINED')
-        assert (candidate['status']=='BEATS_BASELINE_PENDING_AUDIT')==(score['beats_baseline'] and candidate['deflation']['status']=='PASS')
+        # E6: a candidate that beats the baseline and passes the gate is audited; it is queued or rejected by the Auditor.
+        assert (candidate['status'] in ('QUEUED','REJECTED_AUDIT'))==(score['beats_baseline'] and candidate['deflation']['status']=='PASS')
         assert engine.ledger.total_trials()==1 and engine.ledger.trial_sharpes()==[score['deflation_inputs']['sharpe_per_period']]
         assert result['memos']=={'h1':MEMO,'h2':MEMO} and result['specifications']=={'h1':SPEC} and result['reviews']['h1'].startswith('Review')
         # Archivist: START and END rows, every step recorded, the candidate list before the first run.
@@ -289,7 +297,9 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert kinds[:2]==[('director','pick','REQUEST'),('director','pick','REPLY')]
         candidates_at=next(i for i,s in enumerate(steps) if s['kind']=='candidates');first_build=next(i for i,s in enumerate(steps) if s['kind']=='build')
         assert candidates_at<first_build and steps[candidates_at]['count']==1
-        assert len(runs)==1 and runs[0]['status']=='COMPLETED' and runs[0]['recorded_at']>=steps[candidates_at]['recorded_at'] and 'signals' not in runs[0]
+        assert runs[0]['purpose']=='engineer' and runs[0]['status']=='COMPLETED' and runs[0]['recorded_at']>=steps[candidates_at]['recorded_at'] and 'signals' not in runs[0]
+        assert set(r['purpose'] for r in runs[1:])<={'audit'}  # E6: the Auditor's reruns follow a candidate that passed the gate
+        assert not (PROJECT/'state'/'engine').exists()  # nothing from this test reaches master's state
         scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==1
         # Every model call went through the E1 ledger with a known role, and no excluded tool was ever offered.
         assert ledger.entries and all(e['status']=='COMPLETED' and e['role'] in ROLES for e in ledger.entries) and len(ledger.entries)==c.requests
@@ -300,7 +310,7 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert store.active_freezes()==[] and verification['observations']['loopback_connected'] in (True,False)
 
 
-def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,verification,market):
+def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,verification,market,project):
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(60);port=listener.getsockname()[1]
     def accept():
         try:
@@ -310,7 +320,7 @@ def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,veri
     waiter=threading.Thread(target=accept,daemon=True);waiter.start()
     try:
         with role_server(engineer_code=ESCAPE_CODE.replace('PORT',str(port))) as (server_port,state):
-            c=client(server_port);engine=make_engine(bridge,root,verification,market,c)
+            c=client(server_port);engine=make_engine(bridge,root,verification,market,c,project)
             result=run_cycle(engine,1)
             store=engine.ledger;runs=store.runs(result['cycle_id'])
             if verification['observations']['loopback_connected']:
@@ -330,9 +340,9 @@ def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,veri
         listener.close();waiter.join(timeout=3)
 
 
-def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market):
+def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):
     with role_server() as (port,state):
-        c=client(port,limit=3);engine=make_engine(bridge,root,verification,market,c)
+        c=client(port,limit=3);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
         assert result['status']=='STOPPED_AI_REQUEST_BUDGET' and result['stop_code']=='AI_REQUEST_BUDGET' and c.requests==3
         cycles=engine.ledger.cycles();steps=engine.ledger.steps(result['cycle_id'])

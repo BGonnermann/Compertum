@@ -10,7 +10,7 @@ deepagents=pytest.importorskip('deepagents')
 from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
 from test_ai_models_interface import FLOOR,roles  # noqa: E402
 from test_engine_limits import set_research_state  # noqa: E402
-from test_engine_roles import market,role_server,root,verification  # noqa: E402,F401  (fixtures)
+from test_engine_roles import market,role_server,root,verification  # noqa: E402,F401  (fixtures; the roles file's own `project` fixture is not imported)
 from compertum.ai.engine import control  # noqa: E402
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.limits import RunLimits  # noqa: E402

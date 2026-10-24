@@ -126,7 +126,7 @@ def summary_text(run,ledger,*,now=None):
     lines.append(f"Progress: {len(cycles)} cycles completed in this run, {run.get('requests',0)} AI requests used"
                  +(f", {elapsed/60:.1f} minutes elapsed." if isinstance(elapsed,(int,float)) else '.'))
     lines.append('');lines.append('Ideas tried:')
-    beat=rejected=deflated=failed=0;stops=[]
+    queued=beat=rejected=deflated=audit_rejected=frozen_count=failed=0;stops=[]
     for cycle in cycles:
         titles={h['id']:h['title'] for h in cycle.get('hypotheses') or [] if isinstance(h,dict)}
         if not cycle.get('candidates') and not titles: lines.append(f"- cycle {cycle['cycle_index']}: no hypotheses ({cycle['status']})")
@@ -137,14 +137,18 @@ def summary_text(run,ledger,*,now=None):
                 deflation=candidate.get('deflation') or {}
                 outcome=f"{candidate.get('status')}"+(f", DSR {deflation.get('deflated_sharpe')} over {deflation.get('trials')} trials" if deflation else '')
                 status=candidate.get('status')
-                if status=='BEATS_BASELINE_PENDING_AUDIT': beat+=1
+                if status=='QUEUED': queued+=1
+                elif status=='BEATS_BASELINE_PENDING_AUDIT': beat+=1
+                elif status=='REJECTED_AUDIT': audit_rejected+=1
+                elif status=='FROZEN': frozen_count+=1
                 elif status=='REJECTED_DEFLATED': deflated+=1
                 elif status=='REJECTED': rejected+=1
                 else: failed+=1
             lines.append(f"- cycle {cycle['cycle_index']}: {title[:120]} ({hid}): {outcome}")
         if cycle.get('stop_code'): stops.append(f"cycle {cycle['cycle_index']} stopped with {cycle['stop_code']}")
     lines.append('');lines.append('Results:')
-    lines.append(f'- {beat} candidates beat the baseline and passed the deflation gate (audit pending).')
+    lines.append(f'- {queued} candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.')
+    lines.append(f'- {audit_rejected} passed the gate but failed the Auditor (not reproducible or lookahead). {beat} await the audit. {frozen_count} froze the engine.')
     lines.append(f'- {deflated} beat the baseline but failed the deflation gate. {rejected} did not beat the baseline. {failed} produced no valid signals.')
     lines.append('');lines.append('Failures:')
     run_statuses={}

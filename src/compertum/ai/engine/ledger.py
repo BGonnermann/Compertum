@@ -99,6 +99,9 @@ class EngineLedger:
         row={'trial_id':f'external:{source}','source':source,'count':count,'recorded_at':now(),'evidence':evidence}
         self._insert_once('INSERT INTO engine_trials VALUES(?,?,?,?,?)',(row['trial_id'],source,count,row['recorded_at'],canonical(row).decode()),'ENGINE_TRIAL_DUPLICATE');return row
 
+    def trial_exists(self,candidate_id):
+        with self.store._live(): return self.store.conn.execute('SELECT COUNT(*) FROM engine_trials WHERE trial_id=? AND source=?',(candidate_id,'engine')).fetchone()[0]==1
+
     def total_trials(self):
         with self.store._live(): value=self.store.conn.execute('SELECT COALESCE(SUM(count),0) FROM engine_trials').fetchone()[0]
         return int(value)

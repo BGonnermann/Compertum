@@ -15,10 +15,13 @@ from typing import Any
 from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
+from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
 from .market import score_signals
+from .promotion import promote
 from .roles import ROLES,build_role_agent,load_prompt
+from .vault import CandidateQueue
 
 MAX_HYPOTHESES=3
 REPLY_BYTES=65536
@@ -91,7 +94,7 @@ def run_cycle(engine,cycle_index):
     ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None}
-    prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
+    prompts={role:load_prompt(engine.project_root,role) for role in ROLES};queue=CandidateQueue(ledger)
     sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
                             train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes)
     agents={role:build_role_agent(role,engine.client,system_prompt=prompts[role],tools=[run_job_tool(sandbox)] if role=='engineer' else (),
@@ -173,6 +176,23 @@ def run_cycle(engine,cycle_index):
             state['steps']+=1
             ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'SCORED','candidate_id':candidate['candidate_id'],'score':score,'status':candidate['status'],
                                                                            'deflation':deflation,'trial_variance':variance})
+            if candidate['status']!='BEATS_BASELINE_PENDING_AUDIT': continue
+            # 5b (E6). The Auditor is the binding gate. Integrity failure freezes the engine; a candidate defect rejects the candidate.
+            audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows)
+            state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'auditor','audit',{'phase':audit['label'],'candidate_id':candidate['candidate_id'],'audit':audit})
+            candidate['audit']={'label':audit['label'],'integrity':audit['integrity'],'reasons':audit['reasons']}
+            if not audit['integrity']:
+                ledger.freeze('AUDITOR_FAILED',{'cycle_id':cycle_id,'candidate_id':candidate['candidate_id'],'checks':audit['checks'],'reasons':audit['reasons']})
+                candidate['status']='FROZEN';raise RuntimeRefused('ENGINE_FROZEN')
+            if audit['label']!='VERIFIED_PASS': candidate['status']='REJECTED_AUDIT';continue
+            # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate enters the queue.
+            source=sandbox.record_for(audit['source_run_id'])
+            promoted=promote(engine.project_root,candidate['candidate_id'],source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
+            queued=queue.admit(candidate['candidate_id'],score,deflation,tests_passed=True,auditor_passed=True)
+            candidate['status']='QUEUED';candidate['promoted_folder']=promoted['folder']
+            state['steps']+=1
+            ledger.record_step(cycle_id,state['steps'],'archivist','promotion',{'phase':'PROMOTED','candidate_id':candidate['candidate_id'],'queue_event_id':queued['event_id'],
+                                                                              'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0:
             agenda=step('director','agenda',f'Review the repeated failures and update the agenda. Ledger summary:\n{json.dumps(summary,sort_keys=True)}',{})

@@ -11,6 +11,7 @@ from uuid import uuid4
 from compertum.runtime.errors import RuntimeRefused
 from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
+from .audit import check_request_invariant
 from .cycle import Engine,run_cycle
 from .ledger import EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
@@ -59,7 +60,10 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         state['reason']='FAILED_UNEXPECTED';state['failure']=type(error).__name__[:64];raise
     finally:
         state['requests']=client.requests;state['elapsed_seconds']=round(gate.elapsed_seconds(),3)
+        # E6 invariant: a count above the approved limit means the limiter failed. The engine freezes; the END row still follows.
+        state['request_invariant']=check_request_invariant(ledger,run_id,client.requests,bounds['request_limit'])
         ledger.close_run(run_id,{'reason':state['reason'],'failure':state.get('failure'),'cycles':len(state['cycles']),'requests':state['requests'],
-                                 'elapsed_seconds':state['elapsed_seconds'],'gate_checks':gate.checks,'stop_trigger':gate.trigger,'ended_at':utc_now()})
+                                 'request_invariant':state['request_invariant'],'elapsed_seconds':state['elapsed_seconds'],'gate_checks':gate.checks,
+                                 'stop_trigger':gate.trigger,'ended_at':utc_now()})
         if summary: state['summary_path']=str(write_summary(project_root,state,ledger))
     return state
