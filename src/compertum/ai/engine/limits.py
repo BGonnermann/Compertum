@@ -145,6 +145,9 @@ def summary_text(run,ledger,*,now=None):
                 elif status=='REJECTED': rejected+=1
                 else: failed+=1
             lines.append(f"- cycle {cycle['cycle_index']}: {title[:120]} ({hid}): {outcome}")
+        for fault in cycle.get('faults') or []:
+            who=fault.get('hypothesis_id') or fault.get('candidate_id') or ''
+            stops.append(f"cycle {cycle['cycle_index']}: {fault['role']} {fault['kind']} step failed with {fault['code']} ({who}); recorded, the cycle went on")
         if cycle.get('stop_code'): stops.append(f"cycle {cycle['cycle_index']} stopped with {cycle['stop_code']}")
     lines.append('');lines.append('Results:')
     lines.append(f'- {queued} candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.')

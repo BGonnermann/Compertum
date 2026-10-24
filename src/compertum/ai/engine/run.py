@@ -16,7 +16,7 @@ from .cycle import Engine,run_cycle
 from .ledger import EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 
-CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','requests_after','total_trials')
+CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','requests_after','total_trials','faults')
 
 
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market,memory_floor_bytes,limits,owner_approval,

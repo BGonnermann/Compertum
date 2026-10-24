@@ -62,6 +62,7 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         def call(name,arguments): return {'role':'assistant','content':None,'tool_calls':[{'id':f'call_{len(messages)}','type':'function','function':{'name':name,'arguments':json.dumps(arguments)}}]},'tool_calls'
         if state['mode']=='loop': return call('ls',{'path':'/'})  # the same call every round
         if state['mode']=='loopvary': return call('ls',{'path':f'/{len(messages)}'})  # a different call every round
+        if state['mode']=='memofault' and role=='researcher' and '"id": "h2"' in last_user: return None,None  # an unusable reply body for one memo
         if last_user.startswith('Improve the system prompt'):
             # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
             if state['mode']=='badprompt': return text('An improved prompt without the role marker line.')
@@ -90,6 +91,7 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         def do_POST(self):
             payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])));state['posts'].append(payload)
             message,finish=reply(payload)
+            if message is None: self.send({'choices':[]});return  # the client refuses this empty-choices body as AI_RESPONSE_REJECTED
             self.send({'choices':[{'message':message,'finish_reason':finish}],'usage':{'prompt_tokens':10,'completion_tokens':3}})
     http=ThreadingHTTPServer(('127.0.0.1',0),Handler);http.daemon_threads=True
     thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
@@ -369,6 +371,20 @@ def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,veri
                 assert result['status']=='COMPLETED' and store.active_freezes()==[] and 'DENIED' in runs[-1]['stdout']
     finally:
         listener.close();waiter.join(timeout=3)
+
+
+def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root,verification,market,project):
+    # Owner direction, 24 October 2026: a step fault is recorded, not a reason to stop the cycle and learn nothing.
+    with role_server(mode='memofault') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and result['stop_code'] is None
+        assert result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']=={'decision':'reject','reason':'memo step failed (AI_RESPONSE_REJECTED)'}
+        assert result['faults']==[{'role':'researcher','kind':'memo','code':'AI_RESPONSE_REJECTED','hypothesis_id':'h2'}]
+        assert [x['hypothesis_id'] for x in result['candidates']]==['h1'] and set(result['memos'])=={'h1'}
+        steps=engine.ledger.steps(result['cycle_id']);failed=[s for s in steps if s['phase']=='FAILED']
+        assert len(failed)==1 and (failed[0]['role'],failed[0]['kind'],failed[0]['code'],failed[0]['hypothesis_id'])==('researcher','memo','AI_RESPONSE_REJECTED','h2')
+        assert engine.ledger.cycles()[-1]['faults']==result['faults']
 
 
 def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):

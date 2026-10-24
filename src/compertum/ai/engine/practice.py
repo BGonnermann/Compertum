@@ -115,7 +115,9 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                                    memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note)
         finally:
             set_research_state(store,previous);after=research_state(store)
-        candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
+        candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'faults':c.get('faults') or [],
+                     'hypotheses':[{'id':h.get('id'),'title':h.get('title')} for h in c.get('hypotheses') or [] if isinstance(h,dict)],
+                     'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
                      'deflation':x.get('deflation'),'audit':(x.get('audit') or {}).get('label')} for x in c.get('candidates') or []]} for c in result['cycles']]
         record={'run_id':result['run_id'],'kind':'gepa' if gepa else 'cycles','reason':result['reason'],'cycles':candidates,'requests':result['requests'],
                 'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],

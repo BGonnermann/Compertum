@@ -92,6 +92,13 @@ class Engine:
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate); None reads config/engine_prompts
 
 
+# A step fault is a model reply the harness could not use: a loop, a timeout, an unusable or oversized reply. The cycle records it and goes
+# on with the other hypotheses (owner direction, 24 October 2026). Every other refusal (budget, memory floor, kill switch, freeze,
+# sandbox, loopback, identity) still stops the cycle, because it is about the run, not about one reply.
+STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE',
+                       'AI_RESPONSE_REJECTED','AI_USAGE_BOUND','LOCAL_COMPLETION_UNVERIFIED','AI_TOOL_EXECUTION_DENIED','AI_MESSAGES_DENIED','AI_TASK_DENIED'})
+
+
 def market_brief(engine):
     """The fixed description of the market and the scoring rule that every idea task carries. Code, not a prompt: GEPA cannot remove it.
     Practice run 1 (24 October 2026) showed a real model inventing software hypotheses when the task held only the ledger summary."""
@@ -113,7 +120,7 @@ def run_cycle(engine,cycle_index):
     summary=ledger.summary()
     ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
-           'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[]}
+           'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[]}
     if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
     else:
         if not isinstance(engine.prompts,dict) or set(engine.prompts)!=set(ROLES) or any(not isinstance(t,str) or not t.startswith(f'ROLE: {r}\n') for r,t in engine.prompts.items()):
@@ -138,27 +145,41 @@ def run_cycle(engine,cycle_index):
         state['transcript'].append({'role':role,'kind':kind,'task':clip_bytes(task),'reply':clip_bytes(reply['text'])})
         return reply
 
+    def attempt(role,kind,task,record):
+        """A step whose fault is recorded and tolerated. Returns the reply, or None after a fault in STEP_FAULTS (the FAILED step row is already written)."""
+        try: return step(role,kind,task,record)
+        except RuntimeRefused as error:
+            if error.code not in STEP_FAULTS: raise
+            state['faults'].append({'role':role,'kind':kind,'code':error.code,**record});return None
+
     try:
         # 1. Director picks hypotheses from the ledger summary.
         brief=market_brief(engine)
-        pick=step('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
-        try: state['hypotheses']=parse_hypotheses(pick['text'])[:engine.max_hypotheses]
-        except RuntimeRefused as error:
-            ledger.record_step(cycle_id,state['steps'],'director','pick',{'phase':'INVALID','code':error.code});state['hypotheses']=[]
-        # 2. Researcher memos, Director decisions.
-        for hypothesis in state['hypotheses']:
-            memo=step('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
-            state['memos'][hypothesis['id']]=memo['text']
-            verdict=step('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']})
-            try: decision=parse_decision(verdict['text'])
+        pick=attempt('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
+        if pick is None: state['hypotheses']=[]
+        else:
+            try: state['hypotheses']=parse_hypotheses(pick['text'])[:engine.max_hypotheses]
             except RuntimeRefused as error:
-                decision={'decision':'reject','reason':f'invalid reply ({error.code})'}
-                ledger.record_step(cycle_id,state['steps'],'director','approve',{'phase':'INVALID','code':error.code,'hypothesis_id':hypothesis['id']})
+                ledger.record_step(cycle_id,state['steps'],'director','pick',{'phase':'INVALID','code':error.code});state['hypotheses']=[]
+        # 2. Researcher memos, Director decisions. A faulty memo or verdict rejects that hypothesis and the cycle goes on.
+        for hypothesis in state['hypotheses']:
+            memo=attempt('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
+            if memo is None:
+                state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})'};continue
+            state['memos'][hypothesis['id']]=memo['text']
+            verdict=attempt('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']})
+            if verdict is None: decision={'decision':'reject','reason':f'approval step failed ({state["faults"][-1]["code"]})'}
+            else:
+                try: decision=parse_decision(verdict['text'])
+                except RuntimeRefused as error:
+                    decision={'decision':'reject','reason':f'invalid reply ({error.code})'}
+                    ledger.record_step(cycle_id,state['steps'],'director','approve',{'phase':'INVALID','code':error.code,'hypothesis_id':hypothesis['id']})
             state['decisions'][hypothesis['id']]=decision
-        # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run.
+        # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
         for hypothesis in state['hypotheses']:
             if state['decisions'][hypothesis['id']]['decision']!='approve': continue
-            spec=step('mathematician','specify',f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{state["memos"][hypothesis["id"]]}',{'hypothesis_id':hypothesis['id']})
+            spec=attempt('mathematician','specify',f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{state["memos"][hypothesis["id"]]}',{'hypothesis_id':hypothesis['id']})
+            if spec is None: continue
             state['specifications'][hypothesis['id']]=spec['text']
             state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
         state['steps']+=1
@@ -170,13 +191,18 @@ def run_cycle(engine,cycle_index):
         # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
         for candidate in state['candidates']:
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
-            build=step('engineer','build',f'Build this specification and run it with run_job.\n\n{state["specifications"][hid]}',{'candidate_id':candidate['candidate_id']})
+            build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\n{state["specifications"][hid]}',{'candidate_id':candidate['candidate_id']})
             runs=sandbox.runs[runs_before:];candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
+            if build is None:
+                # The Engineer step faulted (loop, timeout, unusable reply). The candidate stays a counted trial with no score; the cycle goes on.
+                code=state['faults'][-1]['code'];candidate['status']='BUILD_FAILED';state['scores'][hid]=None
+                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code})
+                state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':candidate['candidate_id']});continue
             code={p:c for p,c in build['files'].items() if p.endswith('.py')}
             review_task=f'Review this code against the specification.\n\nSPECIFICATION\n{state["specifications"][hid]}\n\nCODE\n{json.dumps(code,sort_keys=True)}'
             if code and len(review_task.encode('utf-8'))<=REVIEW_TASK_BYTES:
-                review=step('mathematician','review',review_task,{'candidate_id':candidate['candidate_id']})
-                state['reviews'][hid]=review['text']
+                review=attempt('mathematician','review',review_task,{'candidate_id':candidate['candidate_id']})
+                if review is not None: state['reviews'][hid]=review['text']  # the review is advice only; a faulty review is recorded and skipped
             else:
                 # The review is advice only. Code too large for one task, or no code, skips the review and records why.
                 state['steps']+=1
@@ -223,8 +249,8 @@ def run_cycle(engine,cycle_index):
                                                                               'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0:
-            agenda=step('director','agenda',f'Review the repeated failures and update the agenda.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
-            state['agenda']=agenda['text']
+            agenda=attempt('director','agenda',f'Review the repeated failures and update the agenda.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
+            if agenda is not None: state['agenda']=agenda['text']
         state['status']='COMPLETED'
     except RuntimeRefused as error:
         state['status']='STOPPED_'+error.code;state['stop_code']=error.code
@@ -234,7 +260,7 @@ def run_cycle(engine,cycle_index):
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
         end={'run_id':engine.run_id,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
-             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),
+             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),'faults':state['faults'],
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}
         canonical(end);ledger.record_cycle(cycle_id,cycle_index,'END',end)
