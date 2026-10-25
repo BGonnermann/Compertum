@@ -7,9 +7,11 @@ from pathlib import Path
 import shutil
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
-from compertum.ai.engine.gepa_run import (MAX_RECORDS,PROMPTS_DIR,SCORES,PromptAdapter,QuietLogger,apply_prompts,check_prompt,feedback_for,records_text,score_for_cycle,
-                                          write_candidates)
+from decimal import Decimal
+from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
+                                          feedback_for,records_text,score_for_cycle,write_candidates)
 from compertum.ai.engine.ledger import EngineLedger
+from compertum.ai.engine.market import score_signals,split_market_tiers,synthetic_market
 from compertum.ai.engine.prompts import ROLES,load_prompt
 from compertum.runtime.errors import RuntimeRefused
 
@@ -37,17 +39,103 @@ def test_proposed_prompts_pass_the_committed_prompt_rules_and_the_secret_check()
         with pytest.raises(RuntimeRefused,match=f'^{code}$'): check_prompt(role,text)
 
 
-def test_cycle_score_comes_from_the_outcome_only():
-    # An audit rejection (lookahead, not reproducible) scores below an honest strategy that lost: no gradient toward gaming the judge.
-    assert SCORES=={'QUEUED':1.0,'REJECTED_DEFLATED':0.6,'REJECTED':0.4,'REJECTED_AUDIT':0.3,'INVALID_SIGNALS':0.2,'NO_SIGNALS':0.2} and SCORES['REJECTED_AUDIT']<SCORES['REJECTED']
-    assert score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[{'status':'REJECTED'},{'status':'QUEUED'}]})==1.0
-    assert score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[{'status':'REJECTED_DEFLATED'}]})==0.6
-    assert score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[]})==0.0
+def validator_scores():
+    """Real Validator score records (score_signals) for strategies of known shape on one synthetic market."""
+    rows=synthetic_market(7,300,planted={'kind':'momentum','window':5,'strength':0.004});_,validation,_=split_market_tiers(rows)
+    sessions=[str(r['session']) for r in validation];n=len(validation)
+    def score(positions): return score_signals('session,position\n'+''.join(f'{s},{p}\n' for s,p in zip(sessions,positions)),validation)
+    ahead=[1 if i+1<n and float(validation[i+1]['return'])>0 else 0 for i in range(n)]  # reads tomorrow: only to build a winning score record
+    near=None
+    for k in range(n):  # long on every session but one: a real strategy close to buy-and-hold
+        candidate=score([0 if i==k else 1 for i in range(n)])
+        if not candidate['beats_baseline'] and candidate['sharpe'] is not None and abs(float(candidate['sharpe'])-float(candidate['benchmark_sharpe']))<0.25: near=candidate;break
+    return {'n':n,'long_all':score([1]*n),'flat':score([0]*n),'winner':score(ahead),'loser':score([1-p for p in ahead]),'near':near,
+            'long_but_last':score([1]*(n-1)+[0]),'flat_but_last':score([0]*(n-1)+[1]),'flat_first':score([0]+[1]*(n-1))}
+
+
+def test_ten_levels_come_from_the_validator_numbers_only():
+    s=validator_scores()
+    assert sorted(LEVELS)==list(range(1,11)) and all(len(text)>20 for text in LEVELS.values())
+    assert s['winner']['beats_baseline'] is True and s['loser']['beats_baseline'] is False and s['near'] is not None
+    assert float(s['loser']['sharpe'])<float(s['loser']['benchmark_sharpe'])-0.25  # the precondition of level 5
+    # Statuses first: queued, Auditor failures, no signals.
+    assert candidate_level({'status':'QUEUED'},None)==10
+    assert candidate_level({'status':'REJECTED_AUDIT'},s['winner'])==3==candidate_level({'status':'FROZEN'},s['winner'])
+    for status in ('NO_SIGNALS','INVALID_SIGNALS','BUILD_FAILED'): assert candidate_level({'status':status},None)==2
+    assert candidate_level({'status':'REJECTED'},None)==2
+    # Then the Validator's numbers.
+    assert candidate_level({'status':'REJECTED'},s['long_all'])==4==candidate_level({'status':'REJECTED'},s['flat'])
+    # The last session's position never trades (review, 25 October 2026): these are buy-and-hold and flat in disguise.
+    assert candidate_level({'status':'REJECTED'},s['long_but_last'])==4==candidate_level({'status':'REJECTED'},s['flat_but_last'])
+    assert candidate_level({'status':'REJECTED'},s['flat_first'])!=4  # flat on the first session does trade: not degenerate
+    assert candidate_level({'status':'REJECTED'},s['loser'])==5 and candidate_level({'status':'REJECTED'},s['near'])==6
+    # The 0.25 margin between levels 5 and 6, pinned with hand-built records that are not degenerate.
+    assert CLEARLY_WORSE==Decimal('0.25')
+    def record(sharpe,benchmark='1.00'): return {'sessions':90,'positions_held':40,'position_changes':9,'beats_baseline':False,'sharpe':sharpe,'benchmark_sharpe':benchmark}
+    assert [candidate_level({'status':'REJECTED'},record(v)) for v in ('0.74','0.7499','0.75','0.99',None)]==[5,5,6,6,5]
+    # Levels 7 to 9 need an Auditor pass; otherwise a strategy that beat buy-and-hold stays at 6, so lookahead below the gate earns nothing above 6.
+    passed={'label':'VERIFIED_PASS'}
+    for deflated,level in ((None,7),('0.30',7),('0.4999',7),('0.50',8),('0.79',8),('0.80',9),('0.94',9)):
+        assert candidate_level({'status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':deflated},'audit':passed},s['winner'])==level
+        assert candidate_level({'status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':deflated}},s['winner'])==6
+    assert candidate_level({'status':'BEATS_BASELINE_PENDING_AUDIT','deflation':{'deflated_sharpe':'0.97'},'audit':passed},s['winner'])==9
+    assert candidate_level({'status':'BEATS_BASELINE_PENDING_AUDIT','deflation':{'deflated_sharpe':'0.97'}},s['winner'])==6
+    # Cheating is below every honest strategy.
+    assert all(candidate_level({'status':'REJECTED_AUDIT'},s['winner'])<level for level in range(4,11))
+    # A cycle scores its best candidate; nothing built is level 1; GEPA's score is the level divided by 10.
+    result={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'REJECTED'},{'hypothesis_id':'h2','status':'REJECTED'}],
+            'scores':{'h1':s['long_all'],'h2':s['near']}}
+    assert cycle_level(result)==6 and score_for_cycle(result)==0.6
+    assert cycle_level({'status':'COMPLETED','candidates':[]})==1 and score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[]})==0.1
+    assert score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[{'status':'QUEUED'}]})==1.0
     assert score_for_cycle({'status':'STOPPED_AI_REQUEST_BUDGET','stop_code':'AI_REQUEST_BUDGET','candidates':[{'status':'QUEUED'}]})==0.0
-    text=feedback_for({'status':'COMPLETED','candidates':[{'hypothesis_id':'h1','status':'REJECTED_AUDIT','deflation':{'deflated_sharpe':'0.99','status':'PASS'},
-                                                             'audit':{'label':'VERIFIED_FAIL','reasons':['candidate: signals not reproduced by the frozen code']}}]})
-    assert text=='cycle status COMPLETED. candidate h1: REJECTED_AUDIT, deflated Sharpe 0.99 (PASS), audit VERIFIED_FAIL candidate: signals not reproduced by the frozen code.'
-    assert 'no candidate reached the Engineer' in feedback_for({'status':'COMPLETED','candidates':[]})
+
+
+def test_feedback_explains_the_level_with_the_numbers_behind_it(bridge):
+    s=validator_scores();n=s['n']
+    result={'status':'COMPLETED','hypotheses':[{'id':'h1','title':'Five-session momentum'},{'id':'h2','title':'Mean reversion'}],
+            'candidates':[{'hypothesis_id':'h1','status':'REJECTED','deflation':{'deflated_sharpe':'0.10','trials':12,'status':'FAIL'},'run_statuses':['COMPLETED']}],
+            'scores':{'h1':s['long_all']},'decisions':{'h1':{'decision':'approve','reason':'ok'},'h2':{'decision':'reject','reason':'no falsification criteria'}},
+            'faults':[{'role':'engineer','kind':'build','code':'ENGINE_REPEATED_TOOL_CALL','candidate_id':'c:h1'}]}
+    text=feedback_for(result,{'five session momentum':31})
+    assert text.startswith('Cycle level 4 of 10: Valid signals, but degenerate: the same position on every session.')
+    assert f'long on {n} of {n} sessions' in text and 'Deflated Sharpe 0.10 over 12 trials; the gate is 0.95.' in text and 'Engineer runs: 1 (COMPLETED).' in text
+    assert 'This idea repeats cycle 31.' in text and 'Hypothesis h2 (Mean reversion) was not built: no falsification criteria' in text
+    assert 'The engineer build step failed with ENGINE_REPEATED_TOOL_CALL.' in text and 'Hypothesis h1' not in text
+    held=s['long_all']  # the numbers behind the level, not only headings
+    assert f"Sharpe {held['sharpe']} against buy-and-hold {held['benchmark_sharpe']};" in text
+    assert f"{held['position_changes']} position changes; annual mean excess {held['annual_mean_excess']}." in text
+    beat=feedback_for({'status':'COMPLETED','hypotheses':[{'id':'h1','title':'t'}],'scores':{'h1':s['winner']},
+                       'candidates':[{'hypothesis_id':'h1','status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':'0.80','trials':5}}]})
+    assert beat.startswith('Cycle level 6 of 10') and 'levels 7 to 9 need an Auditor pass' in beat
+    audit=feedback_for({'status':'COMPLETED','hypotheses':[{'id':'h1','title':'t'}],'scores':{'h1':s['winner']},
+                        'candidates':[{'hypothesis_id':'h1','status':'REJECTED_AUDIT','audit':{'label':'VERIFIED_FAIL','reasons':['candidate: signals not reproduced by the frozen code']}}]})
+    assert audit.startswith('Cycle level 3 of 10') and 'Auditor: VERIFIED_FAIL; candidate: signals not reproduced by the frozen code.' in audit
+    empty=feedback_for({'status':'COMPLETED','hypotheses':[],'candidates':[]})
+    assert empty.startswith('Cycle level 1 of 10: Nothing was built') and 'The Director produced no usable hypotheses.' in empty
+    assert len(feedback_for(dict(result,faults=result['faults']*400)).encode('utf-8'))<=4000  # bounded
+    # Repeated ideas are found in the ledger's finished cycles, by normalized title, never in the current cycle.
+    b,_=bridge;ledger=EngineLedger(b.store)
+    ledger.record_cycle('cycle-0031-aaaaaaaa',31,'END',{'hypotheses':[{'id':'h1','title':'Five-Session   Momentum!'}]})
+    ledger.record_cycle('cycle-0032-bbbbbbbb',32,'END',{'hypotheses':[{'id':'h1','title':'Five-session momentum'}]})
+    ledger.record_cycle('cycle-0033-cccccccc',33,'START',{'hypotheses':[{'id':'h9','title':'Started only'}]})
+    assert earlier_titles(ledger,'cycle-0032-bbbbbbbb')=={'five session momentum':31}
+    assert earlier_titles(ledger,'cycle-0031-aaaaaaaa')=={'five session momentum':32}
+
+
+def test_evaluate_scores_a_real_record_and_names_a_repeated_idea(bridge):
+    # Through the adapter: a scored candidate reaches its level, and the ledger's earlier cycles name the repeat.
+    s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
+    ledger.record_cycle('cycle-0007-aaaaaaaa',7,'END',{'hypotheses':[{'id':'h1','title':'Near buy and hold'}]})
+    prompts={role:load_prompt(PROJECT,role) for role in ROLES}
+    def fake_cycle(engine,index):
+        return {'cycle_id':f'cycle-{index:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[{'id':'h1','title':'Near buy-and-hold'}],
+                'candidates':[{'hypothesis_id':'h1','status':'REJECTED','run_statuses':['COMPLETED']}],'scores':{'h1':s['near']},'transcript':[]}
+    adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=None,ledger=ledger,run_id='run-20261025-0123abcd',next_index=8,cycle_limit=2)
+    batch=adapter.evaluate([{'label':'a'}],prompts,capture_traces=True)
+    assert batch.scores==[0.6] and batch.outputs[0]['level']==6 and adapter.candidates[0]['scores']==[{'market':'a','score':0.6,'level':6}]
+    feedback=batch.trajectories[0]['feedback']
+    assert feedback.startswith('Cycle level 6 of 10: A real strategy, close to buy-and-hold but not better.') and 'This idea repeats cycle 7.' in feedback
 
 
 def test_reflective_dataset_is_bounded_and_per_role(bridge):
@@ -100,13 +188,15 @@ def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observation
                                    'runs':1,'requests_after':index,'total_trials':index,'transcript':[]}
     adapter=PromptAdapter(build_engine=lambda prompts,market:None,run_cycle=fake_cycle,client=None,ledger=ledger,run_id='run-20261024-0123abcd',next_index=1,cycle_limit=3)
     markets=[{'label':'a'},{'label':'b'}]
-    # Odd cycle indexes score REJECTED (0.4), even ones QUEUED (1.0).
-    batch=adapter.evaluate(markets,prompts,capture_traces=True);assert batch.scores==[0.4,1.0] and len(batch.trajectories)==2 and seen==[1,2]
+    # Odd cycle indexes are REJECTED with no score record (level 2, 0.2), even ones QUEUED (level 10, 1.0).
+    batch=adapter.evaluate(markets,prompts,capture_traces=True);assert batch.scores==[0.2,1.0] and len(batch.trajectories)==2 and seen==[1,2]
+    assert batch.trajectories[1]['feedback'].startswith('Cycle level 10 of 10') and [o['level'] for o in batch.outputs]==[2,10]
     with pytest.raises(RuntimeRefused,match='^ENGINE_CYCLE_LIMIT$'): adapter.evaluate(markets,other)
-    assert seen==[1,2,3] and len(adapter.evaluations)==3 and [c['scores'] for c in adapter.candidates]==[[{'market':'a','score':0.4},{'market':'b','score':1.0}],[{'market':'a','score':0.4}]]
+    assert seen==[1,2,3] and len(adapter.evaluations)==3
+    assert [c['scores'] for c in adapter.candidates]==[[{'market':'a','score':0.2,'level':2},{'market':'b','score':1.0,'level':10}],[{'market':'a','score':0.2,'level':2}]]
     written=write_candidates(tmp_path,'run-20261024-0123abcd',adapter,'CYCLE_LIMIT')
     folder=Path(written['folder']);assert folder==tmp_path/PROMPTS_DIR/'run-20261024-0123abcd' and written['candidate_count']==2 and written['best_index']==0
-    assert written['mean_scores']==[0.7,0.4] and written['gepa'] is None and written['reason']=='CYCLE_LIMIT'
+    assert written['mean_scores']==[0.6,0.2] and written['gepa'] is None and written['reason']=='CYCLE_LIMIT'
     assert (folder/'candidate-0'/'director.md').read_text(encoding='utf-8')==prompts['director'] and (folder/'candidate-1'/'director.md').read_text(encoding='utf-8')==other['director']
     assert json.loads((folder/'result.json').read_bytes())['candidate_sha256']==written['candidate_sha256']
     # GEPA's own best index is mapped to the folder index by hash, so the owner applies the right candidate.

@@ -6,14 +6,16 @@ candidate to `config/engine_prompts/` with the `apply-prompts` command and commi
 config files.
 
 How GEPA scores a candidate: one supervised cycle (stage E3 to E6 code, unchanged) runs with the candidate prompts on
-one synthetic market. The score comes from the deterministic outcome only: 1.0 when a candidate strategy passed the
-Validator, the deflation gate and the Auditor and was queued; less for earlier stops; 0.0 when no strategy was produced.
-No AI text enters a score. Every strategy a candidate prompt produces counts as a trial (E4). Scores use TRAIN and
+one synthetic market. Code sets a level from 1 to 10 for the cycle from the Validator's numbers (owner decision,
+25 October 2026; see LEVELS), and GEPA's score is the level divided by 10. Failing the Auditor is level 3, below every
+honest strategy. No AI text enters a score. The feedback that GEPA's reflection reads explains the level with the
+numbers behind it, built from the cycle's own records. Every strategy a candidate prompt produces counts as a trial (E4). Scores use TRAIN and
 VALIDATION only; the run has no vault rows. Every model call, including GEPA's reflection calls, goes through the E1
 client under the run's request limit, the owner's hard maximum and the run gate (E5).
 """
 from dataclasses import dataclass,field
 from datetime import datetime,timezone
+from decimal import Decimal,InvalidOperation
 import hashlib
 import json
 from pathlib import Path
@@ -40,8 +42,22 @@ except ImportError:  # the product environment has no GEPA; the adapter's own te
         num_metric_calls:Any=None
 
 PROMPTS_DIR='state/engine/prompts'
-# REJECTED_AUDIT (lookahead or not reproducible) scores below an honest strategy that merely lost: the score must never reward reaching the Auditor by cheating.
-SCORES={'QUEUED':1.0,'REJECTED_DEFLATED':0.6,'REJECTED':0.4,'REJECTED_AUDIT':0.3,'INVALID_SIGNALS':0.2,'NO_SIGNALS':0.2}
+# The ten levels (owner decision, 25 October 2026). Code sets the level from the Validator's numbers; no model judges it.
+# Level 3 (failed the Auditor: lookahead or not reproducible) sits below every honest strategy, so no prompt is rewarded for cheating.
+LEVELS={1:'Nothing was built: the pick failed or every memo was rejected.',
+        2:'A program was built but produced no valid signals: it crashed, never ran, or wrote a bad file.',
+        3:'It failed the Auditor: not reproducible, or it used future data.',
+        4:'Valid signals, but degenerate: the same position on every session.',
+        5:'A real strategy, clearly worse than buy-and-hold.',
+        6:'A real strategy, close to buy-and-hold but not better.',
+        7:'It beat buy-and-hold, but the deflated Sharpe is below 0.50: most likely luck.',
+        8:'It beat buy-and-hold, deflated Sharpe 0.50 to 0.79.',
+        9:'It beat buy-and-hold, deflated Sharpe 0.80 to 0.94: close to the gate.',
+        10:'It passed the deflation gate and the Auditor and was queued.'}
+CLEARLY_WORSE=Decimal('0.25')  # a Sharpe below buy-and-hold by more than this is level 5; within it, level 6
+NO_SIGNAL_STATUSES=frozenset({'NO_SIGNALS','INVALID_SIGNALS','BUILD_FAILED'})
+AUDIT_STATUSES=frozenset({'REJECTED_AUDIT','FROZEN'})
+MINIBATCH=2  # markets per reflection step; every market is still in the validation set
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
 MAX_RECORDS=6
@@ -63,26 +79,97 @@ def check_prompt(role,text):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
+def _decimal(value):
+    try: return Decimal(value) if isinstance(value,str) else None
+    except InvalidOperation: return None
+
+
+def degenerate(score):
+    """The same traded position on every session. score_signals pays the position at session t with the return of t+1, so the last session's
+    position never trades: always long or always flat except on the last session is still degenerate. In position counts that is
+    held N-1 with 2 changes (long, then flat on the last session) or held 1 with 1 change (flat, then long on the last session)."""
+    held=score.get('positions_held');sessions=score.get('sessions');changes=score.get('position_changes')
+    return held in (0,sessions) or (held==sessions-1 and changes==2) or (held==1 and changes==1)
+
+
+def audited(candidate): return (candidate.get('audit') or {}).get('label')=='VERIFIED_PASS'
+
+
+def candidate_level(candidate,score):
+    """The level, 1 to 10, of one candidate: its status, then the Validator's score record for it (None when it has none)."""
+    status=candidate.get('status')
+    if status=='QUEUED': return 10
+    if status in AUDIT_STATUSES: return 3
+    if status in NO_SIGNAL_STATUSES or not isinstance(score,dict): return 2
+    if degenerate(score): return 4
+    if not score.get('beats_baseline'):
+        sharpe=_decimal(score.get('sharpe'));benchmark=_decimal(score.get('benchmark_sharpe'))
+        return 5 if sharpe is None or benchmark is None or sharpe<benchmark-CLEARLY_WORSE else 6
+    # Levels 7 to 9 need an Auditor pass (review, 25 October 2026). The engine audits only candidates at the 0.95 gate, so a strategy that read
+    # future data and beat buy-and-hold below the gate is never checked; graded by its deflated Sharpe it would rise toward 9 with more lookahead.
+    if not audited(candidate): return 6
+    deflated=_decimal((candidate.get('deflation') or {}).get('deflated_sharpe'))
+    if deflated is None or deflated<Decimal('0.50'): return 7
+    return 8 if deflated<Decimal('0.80') else 9  # 0.95 and above with no queue entry means the audit did not finish: still 9
+
+
+def cycle_level(result):
+    """The best candidate's level, or 1 when the cycle built nothing."""
+    scores=result.get('scores') or {}
+    levels=[candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in result.get('candidates') or []]
+    return max(levels) if levels else 1
+
+
 def score_for_cycle(result):
-    """The deterministic score of one cycle: the best candidate status, or 0.0 when the cycle produced no candidate."""
+    """GEPA's score of one cycle: its level divided by 10. A stopped cycle is systemic and is raised, not scored; 0.0 marks it if it is ever asked."""
     if result.get('stop_code') is not None: return 0.0
-    best=0.0
-    for candidate in result.get('candidates') or []: best=max(best,SCORES.get(candidate.get('status'),0.0))
-    return best
+    return cycle_level(result)/10
 
 
 def _clip(text): return text if len(text.encode('utf-8'))<=TEXT_BYTES else text.encode('utf-8')[:TEXT_BYTES].decode('utf-8',errors='ignore')
 
 
-def feedback_for(result):
-    parts=[f"cycle status {result.get('status')}"]
+def _norm(title): return re.sub(r'[^a-z0-9]+',' ',str(title).lower()).strip()
+
+
+def earlier_titles(ledger,current_cycle_id):
+    """Normalized hypothesis titles of every finished cycle except the current one, mapped to the first cycle index that used them."""
+    seen={}
+    for cycle in ledger.cycles():
+        if cycle.get('phase')!='END' or cycle.get('cycle_id')==current_cycle_id: continue
+        for hypothesis in cycle.get('hypotheses') or []:
+            if isinstance(hypothesis,dict) and hypothesis.get('title'): seen.setdefault(_norm(hypothesis['title']),cycle.get('cycle_index'))
+    return seen
+
+
+def feedback_for(result,earlier=None):
+    """Plain sentences for GEPA's reflection: the cycle's level with its meaning, and for each candidate the numbers behind its level.
+    Built from the cycle's own records; earlier maps normalized titles of past cycles to their cycle index, to name repeated ideas."""
+    level=cycle_level(result);scores=result.get('scores') or {};earlier=earlier or {}
+    titles={h.get('id'):str(h.get('title'))[:120] for h in result.get('hypotheses') or [] if isinstance(h,dict)}
+    parts=[f'Cycle level {level} of 10: {LEVELS[level]}']
+    if not titles: parts.append('The Director produced no usable hypotheses.')
     for candidate in result.get('candidates') or []:
-        line=f"candidate {candidate.get('hypothesis_id')}: {candidate.get('status')}"
-        if candidate.get('deflation'): line+=f", deflated Sharpe {candidate['deflation'].get('deflated_sharpe')} ({candidate['deflation'].get('status')})"
-        if candidate.get('audit'): line+=f", audit {candidate['audit'].get('label')} {'; '.join(candidate['audit'].get('reasons') or [])}"
+        hid=candidate.get('hypothesis_id');score=scores.get(hid);candidate_lvl=candidate_level(candidate,score)
+        line=f"Candidate {hid} ({titles.get(hid,'untitled')}): level {candidate_lvl}. {LEVELS[candidate_lvl]}"
+        if isinstance(score,dict):
+            line+=(f" Sharpe {score.get('sharpe')} against buy-and-hold {score.get('benchmark_sharpe')}; long on {score.get('positions_held')} of"
+                   f" {score.get('sessions')} sessions; {score.get('position_changes')} position changes; annual mean excess {score.get('annual_mean_excess')}.")
+        deflation=candidate.get('deflation')
+        if deflation: line+=f" Deflated Sharpe {deflation.get('deflated_sharpe')} over {deflation.get('trials')} trials; the gate is 0.95."
+        if isinstance(score,dict) and score.get('beats_baseline') and candidate_lvl==6:
+            line+=' It beat buy-and-hold, but only candidates at the 0.95 gate are audited, so it stays at level 6: levels 7 to 9 need an Auditor pass.'
+        statuses=candidate.get('run_statuses')
+        if statuses is not None: line+=f" Engineer runs: {len(statuses)}" + (f" ({', '.join(statuses)})." if statuses else '.')
+        if candidate.get('audit'): line+=f" Auditor: {candidate['audit'].get('label')}; {'; '.join(candidate['audit'].get('reasons') or [])}."
+        if hid in titles and _norm(titles[hid]) in earlier: line+=f" This idea repeats cycle {earlier[_norm(titles[hid])]}."
         parts.append(line)
-    if not result.get('candidates'): parts.append('no candidate reached the Engineer: every memo was rejected or the pick was invalid')
-    return '. '.join(parts)+'.'
+    for hid,decision in (result.get('decisions') or {}).items():
+        if isinstance(decision,dict) and decision.get('decision')!='approve':
+            parts.append(f"Hypothesis {hid} ({titles.get(hid,'untitled')}) was not built: {str(decision.get('reason'))[:200]}")
+    for fault in result.get('faults') or []:
+        parts.append(f"The {fault.get('role')} {fault.get('kind')} step failed with {fault.get('code')}.")
+    return _clip(' '.join(parts))
 
 
 @dataclass
@@ -127,9 +214,10 @@ class PromptAdapter:
             if result.get('stop_code') is not None:
                 # A refusal from the model path, the gate or a freeze is systemic: GEPA must stop, not score it.
                 raise RuntimeRefused(result['stop_code'])
-            score=score_for_cycle(result);outputs.append({'cycle_id':result['cycle_id'],'score':score});scores.append(score)
-            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score})
-            trajectories.append({'transcript':result.get('transcript') or [],'feedback':feedback_for(result),'score':score})
+            level=cycle_level(result);score=score_for_cycle(result);outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level});scores.append(score)
+            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level})
+            feedback=feedback_for(result,earlier_titles(self.ledger,result['cycle_id']))
+            trajectories.append({'transcript':result.get('transcript') or [],'feedback':feedback,'score':score})
         return EvaluationBatch(outputs=outputs,scores=scores,trajectories=trajectories if capture_traces else None)
 
     def make_reflective_dataset(self,candidate,eval_batch,components_to_update):
@@ -257,10 +345,11 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
             optimize=gepa_optimize
         # skip_perfect_score=False: a prompt that already scores 1.0 on the fixture markets is still reflected on; the owner's cycle
         # limit bounds the work. No merge, no progress bar, no tracking service, no run directory.
-        # reflection_minibatch_size=len(markets): GEPA's default of 3 would pad a 2-market minibatch and run one market twice.
+        # reflection_minibatch_size: at most MINIBATCH markets per reflection step, never more than there are (GEPA's default of 3 would pad a
+        # 2-market minibatch and run one market twice). Every market stays in the validation set that ranks candidates.
         gepa_result=optimize(seed_candidate=seed_candidate,trainset=markets,valset=markets,adapter=adapter,max_metric_calls=bounds['cycle_limit'],logger=logger,
                              display_progress_bar=False,raise_on_exception=True,track_best_outputs=False,use_merge=False,seed=seed,skip_perfect_score=False,
-                             reflection_minibatch_size=len(markets))
+                             reflection_minibatch_size=min(MINIBATCH,len(markets)))
         state['reason']='GEPA_COMPLETE'
     except RuntimeRefused as error:
         state['reason']='CYCLE_LIMIT' if error.code=='ENGINE_CYCLE_LIMIT' else stop_reason(error.code)

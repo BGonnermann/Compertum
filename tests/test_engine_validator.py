@@ -187,3 +187,23 @@ def test_score_signals_carries_deflation_inputs():
     assert market_csv(validation).startswith('session,close,return\n')
     record=deflated_sharpe(inputs,1,trial_variance([],inputs)['trial_variance'])
     assert record['status'] in ('PASS','FAIL') and record['trials']==1 and record['section_10_family_size']==12
+
+
+def test_reversal_markets_lean_against_the_trend_and_existing_markets_are_unchanged():
+    # Added 25 October 2026 for varied GEPA markets (owner decision). The fingerprints were taken before the change to market.py.
+    import hashlib
+    def fingerprint(rows): return hashlib.sha256(market_csv(rows).encode()).hexdigest()
+    momentum={'kind':'momentum','window':5,'strength':0.004}
+    assert fingerprint(synthetic_market(12,500,planted=momentum))=='5b357c9a66dfe746c67fa3af53e5767e25a01f0ad0fbd6d19e398c2165c12995'
+    assert fingerprint(synthetic_market(7,300,planted=momentum))=='bc283f499e31657972111f51d63b7e4d54145ec82242a4af98a3476708553248'
+    assert fingerprint(synthetic_market(12,500))=='ae82bb66f422e3541296e7252f024bb17f3a208f2874c7e5285a29c7e08b7dae'
+    reversal={'kind':'reversal','window':3,'strength':0.004}
+    rows=synthetic_market(31,500,planted=reversal)
+    assert rows==synthetic_market(31,500,planted=reversal) and rows!=synthetic_market(31,500,planted={**reversal,'kind':'momentum'})
+    # With the same noise, the planted lean is the opposite sign: momentum adds it where reversal subtracts it.
+    # Rows before the window carry no lean; row 3 (the window) is the first one that does, with the same history for both.
+    plain=synthetic_market(31,500);mirror=synthetic_market(31,500,planted={**reversal,'kind':'momentum'})
+    def lean(planted_rows,i): return Decimal(planted_rows[i]['return'])-Decimal(plain[i]['return'])
+    assert all(lean(rows,i)==0==lean(mirror,i) for i in range(3))
+    assert abs(abs(lean(rows,3))-Decimal('0.004'))<=Decimal('0.00000002') and abs(lean(rows,3)+lean(mirror,3))<=Decimal('0.00000002')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): synthetic_market(31,500,planted={**reversal,'kind':'trend'})

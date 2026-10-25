@@ -16,13 +16,16 @@ from .deflation import moments
 
 MIN_SESSIONS,MAX_SESSIONS=40,4096
 SIGNALS_BYTES=1024*1024
+# Planted patterns: the next return leans with the sign of the last `window` returns (momentum) or against it (reversal).
+# Reversal added 25 October 2026 for varied GEPA markets (owner decision); momentum and unplanted markets are unchanged byte for byte.
+PLANTED_KINDS=('momentum','reversal')
 COST=Decimal('0.0005')  # fixed cost for each position change, as a fraction of NAV
 
 
 def synthetic_market(seed,sessions,*,planted=None):
-    """Return rows {session, close, return}. planted: None or {'kind': 'momentum', 'window': k, 'strength': b}."""
+    """Return rows {session, close, return}. planted: None or {'kind': 'momentum' or 'reversal', 'window': k, 'strength': b}."""
     if type(seed) is not int or type(sessions) is not int or not MIN_SESSIONS<=sessions<=MAX_SESSIONS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
-    if planted is not None and (not isinstance(planted,dict) or planted.keys()!={'kind','window','strength'} or planted['kind']!='momentum'
+    if planted is not None and (not isinstance(planted,dict) or planted.keys()!={'kind','window','strength'} or planted['kind'] not in PLANTED_KINDS
                                 or type(planted['window']) is not int or not 1<=planted['window']<=20
                                 or type(planted['strength']) not in (int,float) or not 0<=planted['strength']<=0.05):
         raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -31,7 +34,8 @@ def synthetic_market(seed,sessions,*,planted=None):
         noise=generator.gauss(0.0002,0.01)
         if planted is not None and index>=planted['window']:
             recent=sum(returns[-planted['window']:])
-            noise+=planted['strength']*(1 if recent>0 else -1 if recent<0 else 0)
+            lean=planted['strength']*(1 if recent>0 else -1 if recent<0 else 0)
+            noise+=lean if planted['kind']=='momentum' else -lean
         value=max(-0.5,min(0.5,noise));returns.append(value);close=close*(1+value)
         rows.append({'session':index,'close':f'{close:.6f}','return':f'{value:.8f}'})
     return rows

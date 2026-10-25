@@ -80,9 +80,16 @@ def research_state(store):
     with store._live(): return store.get_state('research_state') or 'PAUSED'
 
 
-def practice_market(seed,sessions,strength):
-    rows=synthetic_market(seed,sessions,planted={'kind':'momentum','window':5,'strength':strength});train,validation,vault=split_market_tiers(rows)
-    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, strength {strength}'},vault
+# GEPA's markets (owner decision, 25 October 2026): different patterns and one with none, so GEPA cannot learn one planted pattern into a prompt.
+# Each entry: planted kind (None: no pattern), window, seed offset from --seed. A good prompt finds nothing on the market with no pattern.
+GEPA_MARKETS=(('momentum',5,0),('momentum',10,9),('reversal',3,19),(None,0,29))
+
+
+def practice_market(seed,sessions,strength,kind='momentum',window=5):
+    planted=None if kind is None else {'kind':kind,'window':window,'strength':strength}
+    rows=synthetic_market(seed,sessions,planted=planted);train,validation,vault=split_market_tiers(rows)
+    pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
+    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}'},vault
 
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False):
@@ -93,7 +100,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     if type(available) is not int or available<START_FLOOR: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     if type(seed) is not int or type(sessions) is not int or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
     market,vault=practice_market(seed,sessions,strength)
-    markets=[market,practice_market(seed+1,sessions,strength)[0]] if gepa else [market]
+    markets=[practice_market(seed+offset,sessions,strength,kind,window)[0] for kind,window,offset in GEPA_MARKETS] if gepa else [market]
     roles=load_models(root/'config'/'models.toml',root)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
