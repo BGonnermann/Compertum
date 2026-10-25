@@ -113,6 +113,14 @@ Fixes, with tests that check content (`tests/test_engine_roles.py`):
 4. `config/engine_prompts/engineer.md` states the two files and that the model cannot open the CSV files itself.
 Engine environment lane 66 passed; product lane 97 passed. The next owner-started runs are the first with a working Engineer task.
 
+**Practice run 11, 25 October 2026** (`run-20261025-cedbea93`, `tools\practice.ps1 -Cycles 8 -Requests 400`, Q4_K_M): the first run with a working Engineer task. It ended after 6 of 8 cycles (30 to 35), 116 requests and 28 minutes with `STOPPED_AVAILABLE_RAM_FLOOR`. No candidate passed the deflation gate (best deflated Sharpe 0.35 over 43 trials; 47 trials counted by the end).
+What worked: the Engineer wrote 17 programs and made 22 runs. A healthy build is four rounds: read `/main.py` and `/spec.md`, write the program (500 to 1700 tokens, 12 to 35 seconds), run it, reply DONE. The server log shows the specification text reaching the model.
+Three faults found in the records:
+1. **The Engineer run limit was shared by the whole cycle.** `EngineerSandbox` counted all Engineer runs in a cycle, up to 3, while the prompt tells each candidate it has three. The first candidate could use every run and the others got `NO_SIGNALS` or kept calling `run_job` into six refusals (`REFUSED_ENGINE_RUN_LIMIT`) until the repeat guard stopped them. Fixed: `begin_candidate()` gives each candidate its own `max_runs`; the cycle total is bounded at three candidates times `max_runs`. Test: `test_each_candidate_has_its_own_engineer_runs_and_the_cycle_total_is_bounded`. Engine lane 67 passed; product lane 97 passed.
+2. **Memory fell by about 12 GiB during the run.** Free memory was 27.8 GiB at request 1, 25.2 at request 60, 19.9 at request 80 and 16.2 at request 100; the next request was refused at 15.3 GiB. The cause is not confirmed. The model was loaded with 4 prediction slots (`lms ps` showed `PARALLEL 4`) because the wrapper never passed `--parallel`, and Bionic keeps 32 context checkpoints per slot at its default. Either that or another program the owner started. Changes: the wrapper loads with `--parallel 1` (`-Parallel`) and reloads a loaded model whose slot count differs; it also writes `.cache/test-runs/practice-<mode>-<time>-memory.csv`, one line every 30 seconds with free memory and the model server's own memory, so the next run shows which one grew.
+3. **The Director repeats itself.** The idea "Short-horizon lagged mean reversion with volatility-scaled deadband and delayed re-entry" came back in five cycles. The Director sees only titles and statuses of earlier cycles, never scores or reasons. A small lessons table written by code is proposed in the harness plan, not built.
+Engineers also rewrite whole programs several times (up to four writes in a build), which costs 30 seconds each; not changed.
+
 ## Owner decisions
 
 Decided on 23 October 2026:

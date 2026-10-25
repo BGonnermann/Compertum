@@ -27,6 +27,7 @@ param(
     [string]$Model='flint@q4_k_m',
     [int]$Port=1234,
     [int]$ContextLength=16384,
+    [int]$Parallel=1,
     [switch]$KeepLoaded
 )
 $ErrorActionPreference='Stop'
@@ -63,11 +64,23 @@ if ($status -notmatch 'ON') {
 }
 
 # 4. Model.
+# One prediction slot by default. The server was loaded with 4 slots until 25 October 2026 (the lms default), and memory fell by about 12 GiB during practice run 11.
 $loaded=(lms ps 2>&1 | Out-String)
 $ownLoad=$false
+if ($loaded -match [regex]::Escape($Model)) {
+    $line=($loaded -split "`n" | Where-Object { $_ -match [regex]::Escape($Model) } | Select-Object -First 1)
+    $fields=($line -split '\s+') | Where-Object { $_ -ne '' }
+    $unit=[array]::IndexOf($fields,'GB')
+    if ($unit -ge 0 -and $fields.Count -gt ($unit+2) -and $fields[$unit+2] -ne "$Parallel") {
+        Write-Host "$Model is loaded with $($fields[$unit+2]) prediction slots; reloading with $Parallel"
+        lms unload $Model 2>&1 | Out-Null
+        Start-Sleep -Seconds 3
+        $loaded=(lms ps 2>&1 | Out-String)
+    }
+}
 if ($loaded -notmatch [regex]::Escape($Model)) {
-    Write-Host "loading $Model with its saved settings"
-    lms load $Model --gpu max --context-length $ContextLength -y 2>&1 | Select-Object -Last 1 | Write-Host
+    Write-Host "loading $Model with its saved settings and $Parallel prediction slot(s)"
+    lms load $Model --gpu max --context-length $ContextLength --parallel $Parallel -y 2>&1 | Select-Object -Last 1 | Write-Host
     $ownLoad=$true
     Start-Sleep -Seconds 5
     $loaded=(lms ps 2>&1 | Out-String)
@@ -81,7 +94,21 @@ if ($free -lt $floorGiB) {
 }
 
 $exit=2
+$sampler=$null
 try {
+    # A memory record, one line every 30 seconds: free host memory and the model server's own memory. It shows what grows during a run.
+    $memoryLog=Join-Path $root (".cache\test-runs\practice-$Mode-"+(Get-Date -Format 'yyyyMMdd-HHmmss')+"-memory.csv")
+    "time,free_gib,model_server_gib" | Set-Content $memoryLog
+    $sampler=Start-Job -ArgumentList $memoryLog -ScriptBlock {
+        param($path)
+        while ($true) {
+            $os=Get-CimInstance Win32_OperatingSystem
+            $server=(Get-Process -Name 'llama-server' -ErrorAction SilentlyContinue | Measure-Object WorkingSet64 -Sum).Sum
+            ('{0},{1:N1},{2:N1}' -f (Get-Date -Format 'HH:mm:ss'),($os.FreePhysicalMemory/1MB),($server/1GB)) | Add-Content $path
+            Start-Sleep -Seconds 30
+        }
+    }
+    Write-Host "memory record: $memoryLog"
     # 5. The engine's own listing check.
     $report=(& $python -m compertum.ai.engine.practice --project . models 2>&1 | Out-String)
     if ($report -notmatch '"all_listed": true') { Write-Host $report; Fail "the server does not list the model named in config\models.toml for every role" }
@@ -97,6 +124,7 @@ try {
     $exit=$LASTEXITCODE
     Write-Host "practice command exit code $exit"
 } finally {
+    if ($sampler) { Stop-Job $sampler -ErrorAction SilentlyContinue; Remove-Job $sampler -Force -ErrorAction SilentlyContinue }
     # 7. Memory back.
     if (-not $KeepLoaded) {
         Write-Host "unloading $Model"

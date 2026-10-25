@@ -17,6 +17,7 @@ SIGNALS_BYTES=1024*1024
 RESERVED=frozenset({'train.csv','validation.csv','signals.csv','stdout.txt','stderr.txt','targets.json','probe.json'})
 MIB=1024**2
 SPEC_FILE='/spec.md'  # the Engineer's copy of the specification; never submitted with the code
+CANDIDATES_PER_CYCLE=3  # at most this many candidates share one sandbox object (one cycle)
 
 
 def head(raw):
@@ -88,7 +89,15 @@ class EngineerSandbox:
         if not isinstance(train_csv,str) or not isinstance(validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         self.train_csv=train_csv;self.validation_csv=validation_csv
         self.memory_floor_bytes=memory_floor_bytes;self.seconds=seconds;self.memory_bytes=memory_bytes;self.max_runs=max_runs
-        self.runs=[]
+        self.runs=[];self._candidate_start=0
+
+    def begin_candidate(self):
+        """A new candidate starts: it gets its own `max_runs` Engineer runs. Practice run 11 (25 October 2026) showed that one count for the whole cycle let
+        the first candidate use every run and left the others `NO_SIGNALS`, while the prompt told each candidate it had three. The cycle total stays bounded."""
+        self._candidate_start=len(self.runs)
+
+    def _launched(self,runs):
+        return sum(1 for r in runs if r['job_folder'] is not None and r['purpose']=='engineer')
 
     def run(self,files,entry):
         """One Engineer run. Returns the bounded record the agent may see. Raises ENGINE_FROZEN after writing the freeze row."""
@@ -111,7 +120,8 @@ class EngineerSandbox:
             self.ledger.require_unfrozen()
             if not isinstance(validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
             # The limit counts launched Engineer jobs. A refused request never reaches the sandbox, so it does not use a run.
-            if count_limit and sum(1 for r in self.runs if r['job_folder'] is not None and r['purpose']=='engineer')>=self.max_runs: raise RuntimeRefused('ENGINE_RUN_LIMIT')
+            if count_limit and (self._launched(self.runs[self._candidate_start:])>=self.max_runs
+                                or self._launched(self.runs)>=self.max_runs*CANDIDATES_PER_CYCLE): raise RuntimeRefused('ENGINE_RUN_LIMIT')
             copied=job_files(files);record['files']=copied  # the code as submitted: the only source for reruns and promotion
             if not isinstance(entry,str) or entry not in copied or '/' in entry or not entry.endswith('.py'): raise RuntimeRefused('ENGINE_ENTRY_DENIED')
             job=self.root/f'job-{len(self.runs)+1:03d}-{uuid4().hex[:8]}';job.mkdir();record['job_folder']=str(job)

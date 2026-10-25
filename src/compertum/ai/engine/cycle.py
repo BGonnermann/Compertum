@@ -247,6 +247,7 @@ def run_cycle(engine,cycle_index):
         # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
         for candidate in state['candidates']:
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
+            sandbox.begin_candidate()  # each candidate has its own Engineer runs
             # The Engineer starts from a starter program and the specification in its file store, and sees a TRAIN sample in the task (practice runs 5 to 10).
             task,start_files=engineer_task(engine,state['specifications'][hid])
             build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id']},files=start_files)

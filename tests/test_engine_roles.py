@@ -311,6 +311,21 @@ def test_sandbox_tool_refuses_bad_files_and_records_every_run(bridge,root,verifi
     assert job_files({'/a/b.py':'x'})=={'a/b.py':'x'}
 
 
+def test_each_candidate_has_its_own_engineer_runs_and_the_cycle_total_is_bounded(bridge,root,verification,market):
+    # Practice run 11: one count for the whole cycle left later candidates with no run at all.
+    b,_=bridge;ledger=EngineLedger(b.store)
+    sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=verification,cycle_id='cycle-budget',
+                            train_csv=market['train_csv'],validation_csv=market['validation_csv'],memory_floor_bytes=FLOOR,max_runs=2)
+    code={'/main.py':'print(1)\n'}
+    for candidate in range(3):
+        sandbox.begin_candidate()
+        assert [sandbox.run(code,'main.py')['status'] for _ in range(3)]==['COMPLETED','COMPLETED','REFUSED_ENGINE_RUN_LIMIT']
+    # Three candidates of two runs each: the cycle total, max_runs times the candidates per cycle, is spent.
+    sandbox.begin_candidate()
+    assert sandbox.run(code,'main.py')['status']=='REFUSED_ENGINE_RUN_LIMIT'
+    assert [r['status'] for r in ledger.runs('cycle-budget')].count('COMPLETED')==6
+
+
 def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,market,project):
     # Master's state/engine may hold real practice-run records (since 24 October 2026); this test must add nothing there.
     master_engine_state=PROJECT/'state'/'engine'
