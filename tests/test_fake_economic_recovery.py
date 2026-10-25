@@ -69,7 +69,13 @@ def test_opening_change_after_staged_hash_refuses_publication(tmp_path):
  result=invoke(tmp_path,'mutate_opening_restore',setup['manifest'])
  assert result=={'refused':'RESTORE_JOURNAL_CHANGED'}
  assert not (tmp_path/'state/active-generation.json').exists()
- assert json.loads((tmp_path/'state/restore-operation.json').read_bytes())['status']=='STAGING_EXECUTION'
+ # The refusal comes after every store is staged and before READY. Since 17 October 2026 (commit 22e41ad, shared recovery artifacts) the
+ # coordinator snapshot is taken last, so the last staging phase is STAGING_COORDINATOR; before it was STAGING_EXECUTION. The refusal
+ # code, the unpublished pointer and the retained opening are the behavior under test and are unchanged.
+ status=json.loads((tmp_path/'state/restore-operation.json').read_bytes())['status']
+ assert status=='STAGING_COORDINATOR' and status not in ('READY','PUBLISHED')
+ history=[json.loads(line)['status'] for line in next((tmp_path/'state').glob('restore-*.jsonl')).read_bytes().splitlines()]
+ assert history[-3:]==['STAGING_EVALUATION','STAGING_EXECUTION','STAGING_COORDINATOR'] and 'READY' not in history
  assert (tmp_path/'retained-opening.json').is_file()
 
 

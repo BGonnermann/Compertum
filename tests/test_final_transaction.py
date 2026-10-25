@@ -126,6 +126,13 @@ def test_recipe_is_constant_bounded_and_has_no_external_input_surface():
 def test_empty_shortlist_completes_once_with_committed_evidence_and_no_prices(owned,pair_inputs,monkeypatch):
     from test_shortlist_owner import make_committed
     from compertum import final_transaction as final
+    # Other test files import the generated numerical module while pytest collects them, so under the whole suite it is always loaded.
+    # Remove it, and the package attribute that would let `from compertum.modeling import generated_final` skip a fresh import, before
+    # the run; monkeypatch restores both afterwards. Any import of it by this path then shows up as a new entry in sys.modules.
+    import sys
+    import compertum.modeling as modeling_package
+    monkeypatch.delitem(sys.modules,'compertum.modeling.generated_final',raising=False)
+    monkeypatch.delattr(modeling_package,'generated_final',raising=False)
     pair_inputs[0]['holdout_manifest_sha256']=recipe_sha256()
     seals,p,ticket,states,reviews=make_committed(owned,pair_inputs,monkeypatch)
     freeze_now(seals,p,ticket);eid=str(uuid4())
@@ -142,8 +149,7 @@ def test_empty_shortlist_completes_once_with_committed_evidence_and_no_prices(ow
     assert verify_seal_journal(seals.project)['sequence']==7
     with pytest.raises(RuntimeRefused,match='FINAL_CONFLICT'):begin(seals,p)
     # The generated numerical module is never imported for an empty selection.
-    import sys
-    assert 'compertum.modeling.generated_final' not in sys.modules
+    assert 'compertum.modeling.generated_final' not in sys.modules and not hasattr(modeling_package,'generated_final')
 
 
 def test_consumption_head_published_before_mirror_fault_recovers_original(ready,monkeypatch):
