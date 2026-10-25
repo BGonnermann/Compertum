@@ -4,10 +4,10 @@ mode = "m0"
 new_spending_usd = "0.00"
 
 [storage]
-total_bytes = 53687091200
+total_bytes = 214748364800
 data_bytes = 16106127360
 models_bytes = 5368709120
-scratch_bytes = 12884901888
+scratch_bytes = 53687091200
 records_bytes = 5368709120
 backups_bytes = 22548578304
 execution_reserve_bytes = 1073741824

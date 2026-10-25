@@ -48,7 +48,7 @@ Do not change permissions or relax operating checks to delete them.
 
 Clean eligible temporary files during test-job completion or before the next admitted test batch.
 Use the saved results to decide eligibility. Folder age alone is insufficient.
-No scheduled service is required. Keep the 50 GiB total and existing category limits unchanged.
+No scheduled service is required. Keep the existing category limits unchanged, except the owner's amendment of 24 October 2026: the scratch ceiling is 50 GiB (it was 12 GiB) and the project total is 200 GiB (it was 50 GiB). The category ceilings now bind before the total, and 50 GiB must stay free on the volume.
 
 ## First cleanup checklist
 

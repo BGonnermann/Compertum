@@ -30,10 +30,12 @@ def default_text():
 
 def test_resolved_defaults_preserve_reserve_inside_project_cap(config):
     value = config.load_config(ROOT / "config/default.toml", ROOT)
-    assert value.storage_total_bytes == 53687091200
-    # Category ceilings overlap; the independently enforced total stays 50 GiB.
-    assert value.storage_categories['scratch'] == 12*1024**3
-    assert value.storage_total_bytes < sum(value.storage_categories.values())
+    assert value.storage_total_bytes == 200*1024**3
+    # The independently enforced total is 200 GiB (owner decision of 24 October 2026; it was 50 GiB, and the category ceilings then overlapped it).
+    # The categories now sum to less than the total, so the category ceilings bind first until the owner raises them. Every category fits inside the total.
+    assert value.storage_categories['scratch'] == 50*1024**3
+    assert all(0 < ceiling <= value.storage_total_bytes for ceiling in value.storage_categories.values())
+    assert value.execution_reserve_bytes < min(value.storage_categories.values())
     assert value.execution_reserve_bytes == 1073741824
     assert value.storage_categories["records"] == 5368709120
     assert value.paths["state"] == ROOT / "state"

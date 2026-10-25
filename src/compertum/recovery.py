@@ -18,7 +18,7 @@ from .persistence import checked_path,STORE_NAMES
 from .runtime.errors import RuntimeRefused
 from .runtime.identity import resolve_project
 from .runtime.owners import _owner_scope,acquire_owner,release_owner,require_live_owner
-from .storage import owner_of_grant,sample_storage,GIB
+from .storage import owner_of_grant,sample_storage,GIB,TOTAL_CAP
 
 
 def utc(): return datetime.now(timezone.utc).isoformat()
@@ -267,7 +267,7 @@ def restore_recovery_set(manifest_path,current_guard,destination,*,project):
         for role in (*STORE_NAMES,'watchdog'): leases[role]=acquire_owner(project,role)
         with _owner_scope(leases['recovery']) as guard:
             observed=sample_storage(project);required=sum(s['size_bytes'] for s in manifest['snapshots'])
-            if observed['categories']['records']+required>5*GIB or observed['total_bytes']+required>50*GIB or observed['free_bytes']-required<50*GIB:
+            if observed['categories']['records']+required>5*GIB or observed['total_bytes']+required>TOTAL_CAP or observed['free_bytes']-required<50*GIB:
                 raise RuntimeRefused('STORAGE_CAPACITY')
             pointer_path=project.root_path/'state/active-generation.json'
             prior_active=_read(pointer_path) if pointer_path.exists() else None
@@ -469,7 +469,7 @@ def _restore_fixture_artifacts(manifest,coordinator,project,*,evaluation):
                 raise RuntimeRefused('RESTORE_ARTIFACT_CONFLICT')
         else: missing.append((original,target,supplied[original['artifact_id']]))
     observed=sample_storage(project);required=sum(max(4096,item[0]['size_bytes']) for item in missing)
-    if observed['free_bytes']-required<50*GIB or observed['total_bytes']+required>50*GIB or observed['categories']['records']+required>5*GIB:
+    if observed['free_bytes']-required<50*GIB or observed['total_bytes']+required>TOTAL_CAP or observed['categories']['records']+required>5*GIB:
         raise RuntimeRefused('STORAGE_CAPACITY')
     for original,target,backup in missing:
         source=checked_path(project.root_path,project.root_path/backup['path'])

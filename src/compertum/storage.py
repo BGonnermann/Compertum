@@ -20,6 +20,7 @@ from .runtime.owners import _owner_scope,require_live_owner
 GIB=1024**3
 _GRANT_OWNERS={}
 CAPS={key:_DEFAULTS['storage'][key+'_bytes'] for key in ('data','models','scratch','records','backups')}
+TOTAL_CAP=_DEFAULTS['storage']['total_bytes']  # the project total; the 50 GiB free-space floor below is a separate rule
 SCAN_SECONDS=_DEFAULTS['resources']['storage_scan_seconds']
 INVENTORY_MAX_AGE=_DEFAULTS['resources']['project_monitor_seconds']
 
@@ -120,7 +121,7 @@ class StorageManager:
         with _owner_scope(lease) as guard:
             self.project=guard.project; self.root=guard.project.root_path
             from .runtime.identity import resolve_project
-            if resolve_project(config.project_root).project_id!=lease.project_id or any(config.storage_categories[k]>v for k,v in CAPS.items()) or config.storage_total_bytes>50*GIB:
+            if resolve_project(config.project_root).project_id!=lease.project_id or any(config.storage_categories[k]>v for k,v in CAPS.items()) or config.storage_total_bytes>TOTAL_CAP:
                 raise RuntimeRefused('STORAGE_POLICY_DENIED')
             self.store=open_store(lease,'coordinator')
             with self.store.conn:
@@ -349,7 +350,7 @@ class JournalReserve:
             else:
                 observed=sample_storage(guard.project);growth=target-unused
                 if (observed['free_bytes']-growth<50*GIB or observed['categories']['records']+growth>5*GIB
-                        or observed['total_bytes']+growth>50*GIB): raise RuntimeRefused('STORAGE_CAPACITY')
+                        or observed['total_bytes']+growth>TOTAL_CAP): raise RuntimeRefused('STORAGE_CAPACITY')
                 self.api.checked(seek(self.handle.get(),unused,None,0),'ReserveSeek')
                 chunk=c.create_string_buffer(min(max(growth,1),8*1024**2))
                 while growth:
@@ -372,7 +373,7 @@ def create_journal_reserve(lease,bytes=GIB):
     with _owner_scope(lease) as guard:
         if shutil.disk_usage(guard.project.root_path).free-bytes<50*GIB: raise RuntimeRefused('STORAGE_CAPACITY')
         observed=sample_storage(guard.project)
-        if observed['categories']['records']+bytes>5*GIB or observed['total_bytes']+bytes>50*GIB: raise RuntimeRefused('STORAGE_CAPACITY')
+        if observed['categories']['records']+bytes>5*GIB or observed['total_bytes']+bytes>TOTAL_CAP: raise RuntimeRefused('STORAGE_CAPACITY')
         path=checked_path(guard.project.root_path,guard.project.root_path/'state/execution-reserve.bin')
         handle=guard.api.open_file(path,0xC0000000,0,disposition=1)
         try:

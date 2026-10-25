@@ -1,6 +1,6 @@
 """Restrictive decisions from measured storage; never enables brokerage."""
 import time
-from .storage import CAPS,GIB,SCAN_SECONDS,INVENTORY_MAX_AGE
+from .storage import CAPS,GIB,SCAN_SECONDS,INVENTORY_MAX_AGE,TOTAL_CAP
 
 
 def check_storage(observation,reservations,*,previous=None):
@@ -9,7 +9,7 @@ def check_storage(observation,reservations,*,previous=None):
             or not 0<=observation['scan_seconds']<=SCAN_SECONDS):
         reason='STORAGE_STALE'
     elif observation['free_bytes']<50*GIB: reason='FREE_SPACE_FLOOR'
-    elif observation['total_bytes']>50*GIB or any(observation['categories'][key]>cap for key,cap in CAPS.items()):
+    elif observation['total_bytes']>TOTAL_CAP or any(observation['categories'][key]>cap for key,cap in CAPS.items()):
         reason='STORAGE_CAPACITY'
     elif previous is not None:
         if set(observation.get('reparse_paths',[]))-set(previous.get('reparse_paths',[])):

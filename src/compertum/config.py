@@ -22,8 +22,8 @@ class ConfigError(ValueError):
 _DEFAULTS = {
     "project": {"schema_version": "1", "mode": "m0", "new_spending_usd": "0.00"},
     "storage": {
-        "total_bytes": 53687091200, "data_bytes": 16106127360, "models_bytes": 5368709120,
-        "scratch_bytes": 12884901888, "records_bytes": 5368709120, "backups_bytes": 22548578304,
+        "total_bytes": 214748364800, "data_bytes": 16106127360, "models_bytes": 5368709120,
+        "scratch_bytes": 53687091200, "records_bytes": 5368709120, "backups_bytes": 22548578304,
         "execution_reserve_bytes": 1073741824, "reserve_release_bytes": 67108864,
         "minimum_unused_reserve_bytes": 268435456, "minimum_free_bytes": 53687091200,
         "ingestion_free_bytes": 107374182400, "maximum_write_chunk_bytes": 8388608,
@@ -106,8 +106,12 @@ def load_config(path: Path, project_root: Path) -> M0Config:
     # The owner revised workload limits on 16 October. Read frozen older
     # configurations without rewriting their bytes or changing runtime identity.
     storage = supplied.get("storage")
-    if isinstance(storage, dict) and storage.get("scratch_bytes") == 5368709120:
+    # Frozen configurations hold the retired scratch limits (5 GiB until 16 October 2026, 12 GiB until 24 October 2026).
+    if isinstance(storage, dict) and storage.get("scratch_bytes") in (5368709120, 12884901888):
         storage["scratch_bytes"] = _DEFAULTS["storage"]["scratch_bytes"]
+    # The project total was 50 GiB until 24 October 2026 (owner decision: 200 GiB). Frozen configurations read as the current total.
+    if isinstance(storage, dict) and storage.get("total_bytes") == 53687091200:
+        storage["total_bytes"] = _DEFAULTS["storage"]["total_bytes"]
     if isinstance(resources, dict):
         if resources.get("project_monitor_seconds") == 5:
             resources["project_monitor_seconds"] = 35

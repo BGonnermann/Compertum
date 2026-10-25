@@ -59,7 +59,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
   Publish only code, tests, plans, and honest reports.
 - No daily research time cap applies. Record elapsed time. Retain job deadlines, processor, memory, storage, and retry limits.
   Keep the automation for cap-only continuation paused.
-- Preserve the 50 GiB total and category budgets. Use fresh, checked folders under `.cache/test-runs` for temporary test files.
+- Preserve the storage budgets. The owner set them on 24 October 2026: 200 GiB total, 50 GiB scratch, and the other category limits unchanged. The 50 GiB free-space minimum stays. Use fresh, checked folders under `.cache/test-runs` for temporary test files.
   Never change the interpreter, lock, thresholds, or financial checks merely to pass checks.
 
 ## Autoresearch engine
