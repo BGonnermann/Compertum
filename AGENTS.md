@@ -32,8 +32,9 @@ These rules apply to all contributors and agents. Include them in instructions f
   This approval excludes later blocked tests and changes to fixed identities.
   Master M3 closed as BLOCKED after losing the installed-audit exit receipt. Preserve that final history.
   Continue independent local M5 engineering from the checkpoint.
-- An out-of-memory crash prompted the owner's Strata prohibition. Never start, restart, or auto-start Strata or its model server.
-  Preserve its files and configuration. Check available host memory before each bounded job. Run one heavy job at a time.
+- An out-of-memory crash prompted the owner's Strata prohibition. The owner removed Strata from this host on 24 October 2026:
+  the folders `D:\Strata` and `C:\Users\bgonn\strata` and the settings folder under AppData were deleted. Do not install, start, or rebuild Strata.
+  Its adapter code and its records in Compertum stay as accepted history. Check available host memory before each bounded job. Run one heavy job at a time.
   If memory becomes unsafe, pause our work.
 
 ## Execution
@@ -49,7 +50,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 
 - Keep new spending at $0.
 - Require explicit authority for new account permissions, account actions, orders, paid data, administrator access, or security changes.
-  Require explicit authority for unattended services or Strata configuration changes.
+  Require explicit authority for unattended services. Install no model server except the owner's local LM Studio, started by the owner or by the owner's wrapper `tools/practice.ps1`.
   Bounded autoresearch runs under `docs/BUILD_SPEC.md` section 19 are not services. The owner starts each run.
 - Existing read-only Alpaca permission and the approved V20 credential-file source remain authorized.
   Never display, log, commit, or publish secrets. Never copy secrets into the repository.
@@ -69,7 +70,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 - Open the vault only in batches, with the owner's OK. Count every look before the vault opens.
 - Start unattended runs only with a cycle or hour limit, an owner-approved AI request limit, the kill switch, Auditor freeze, and a daily summary.
 - Never raise the per-run hard maximum for AI requests. Only the owner raises it.
-- Use loopback model addresses only. Check host memory before every job. Strata stays off.
+- Use loopback model addresses only. Check host memory before every job. The start floor is 16 GiB free.
 - Engine work starts after M3 acceptance and finishes before M5.
 
 ## Project diagram refresh
