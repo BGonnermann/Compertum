@@ -85,8 +85,12 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
             if 'tools' not in payload: return text('no tools offered')
             # GEPA run 1: the model replied DONE after reading the starter, without any run. Mode 'norun' does that until the retry task arrives.
             if state['mode']=='norun' and 'PREVIOUS REPLY' not in last_user: return text('DONE I read the starter and it looks fine.')
-            if len(tool_results)==0: return call('write_file',{'file_path':'/main.py','content':state['engineer_code']})
-            if len(tool_results)==1: return call('run_job',{'entry':'main.py'})
+            n=len(tool_results)
+            if state['mode']=='readspec':  # the model opens the specification file first, as the task tells it it may
+                if n==0: return call('read_file',{'file_path':'/spec.md'})
+                n-=1
+            if n==0: return call('write_file',{'file_path':'/main.py','content':state['engineer_code']})
+            if n==1: return call('run_job',{'entry':'main.py'})
             # Practice run 5: after a completed run the model hunted for signals.csv in its store until the repeat guard stopped it.
             if state['mode']=='postloop': return call('read_file',{'file_path':'/signals.csv'})
             return text('DONE The program writes momentum signals.')
@@ -427,6 +431,13 @@ def test_a_build_fault_after_a_completed_run_still_scores_the_signals(bridge,roo
         # The Engineer starts from the starter program and run_job's result says the signals are accepted and what to do next.
         build_task=next(p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: engineer'))
         assert build_task.startswith('Build this specification') and 'starter program' in build_task and 'SPECIFICATION\n' in build_task
+        # Practice runs 5 to 10 sent the literal text of a template here. The task must hold the specification itself, a TRAIN sample
+        # and no validation row; the placeholder text must not appear.
+        assert build_task.endswith(SPEC) and '{state[' not in build_task and '[hid]' not in build_task
+        sample=build_task.split('TRAIN SAMPLE (the first rows of train.csv)\n',1)[1].split('\n\nSPECIFICATION',1)[0].splitlines()
+        assert sample[0]=='session,close,return' and len(sample)==7 and sample[1].startswith('0,')
+        first_validation=market['validation_rows'][0]
+        assert f"\n{first_validation['session']}," not in build_task and first_validation['close'] not in build_task
         tool_results=[m['content'] for p in state['posts'] for m in p['messages'] if m['role']=='tool' and '"signals_present": true' in m['content']]
         assert tool_results and 'is accepted' in tool_results[0] and 'Reply with the single word DONE' in tool_results[0]
 
@@ -441,6 +452,27 @@ def test_an_engineer_reply_without_a_run_gets_one_retry(bridge,root,verification
         assert [(s['phase'],s.get('retry')) for s in builds]==[('REQUEST',None),('REPLY',None),('INVALID',0),('REQUEST',1),('REPLY',1)] and builds[2]['code']=='ENGINE_NO_RUN'
         retry_task=[p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: engineer') and 'PREVIOUS REPLY' in p['messages'][1]['content']][0]
         assert retry_task.startswith('Build this specification') and 'without running the program' in retry_task and 'DONE I read the starter' in retry_task and 'SPECIFICATION\n' in retry_task
+
+
+def test_the_engineer_can_read_the_specification_file_from_its_store(bridge,root,verification,market,project):
+    with role_server(mode='readspec') as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        result=run_cycle(engine,1)
+        candidate=result['candidates'][0]
+        assert result['status']=='COMPLETED' and result['faults']==[] and candidate['run_statuses']==['COMPLETED']
+        reads=[m['content'] for p in state['posts'] for m in p['messages'] if m['role']=='tool' and 'Features' in m['content'] and 'Failure modes' in m['content']]
+        assert reads and SPEC.splitlines()[0] in reads[0]  # read_file returned the specification text, not an error
+
+
+def test_a_streak_of_read_only_rounds_stops_the_engineer_with_no_progress():
+    # Practice run 10: a real model read different missing files round after round, which the identical-call guard cannot see.
+    with role_server(mode='loopvary') as (port,state):
+        c=client(port,limit=50)
+        agent=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),recursion_limit=40)
+        with pytest.raises(RuntimeRefused,match='^ENGINE_NO_PROGRESS$'): agent.run('look around')
+        assert c.requests==5 and len(state['posts'])==5  # READ_ONLY_LIMIT rounds, the last one already in the ledger
+        with pytest.raises(RuntimeRefused,match='^ENGINE_NO_PROGRESS$'): agent.run('look around again')
+        assert c.requests==10  # the streak starts from zero with the next conversation
 
 
 def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):

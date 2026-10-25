@@ -33,6 +33,7 @@ TEXT_ROLES=('director','researcher','mathematician')  # one completion, no tools
 TASK_BYTES=65536
 RECURSION_LIMIT=40
 REPEAT_LIMIT=3  # identical consecutive tool-call rounds before the agent is stopped
+READ_ONLY_LIMIT=5  # consecutive rounds of only read_file before the agent is stopped: it is looking for files that are not there
 PROVIDER='compertum'
 _registered=False
 
@@ -78,16 +79,19 @@ class LedgerChatModel(BaseChatModel):
     seconds:int=120
     temperature:float=0.0
     _recent:list=PrivateAttr(default_factory=list)  # signatures of the last tool-call rounds of the current conversation
+    _reads:int=PrivateAttr(default=0)  # consecutive rounds of only read_file
 
     @property
     def _llm_type(self): return 'compertum-loopback'
 
     def reset(self):
         """Start a fresh conversation: the repeat guard forgets earlier rounds."""
-        self._recent=[]
+        self._recent=[];self._reads=0
 
     def _guard_repeats(self,calls):
-        if not calls: self._recent=[];return
+        if not calls: self._recent=[];self._reads=0;return
+        self._reads=self._reads+1 if {c['name'] for c in calls}=={'read_file'} else 0
+        if self._reads>=READ_ONLY_LIMIT: raise RuntimeRefused('ENGINE_NO_PROGRESS')
         signature=json.dumps(sorted((c['name'],json.dumps(c['arguments'],sort_keys=True,separators=(',',':'))) for c in calls))
         self._recent=(self._recent+[signature])[-REPEAT_LIMIT:]
         if len(self._recent)==REPEAT_LIMIT and len(set(self._recent))==1: raise RuntimeRefused('ENGINE_REPEATED_TOOL_CALL')

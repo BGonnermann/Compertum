@@ -103,6 +103,16 @@ Three times in those cycles the Engineer read the starter and replied DONE witho
 
 **Day total, 24 October 2026:** nine practice runs and one GEPA run against Flint, cycles 1 to 17 in the ledger, 22 counted trials, eight harness fixes each with a test, no change to the judge, the Auditor, the deflation gate, the vault, the ledger or the owner's limits. No candidate has passed the deflation gate; the one that beat the baseline (run 8, h3) was rejected by the gate as chance, which is the gate doing its job.
 
+**Practice run 10 and GEPA run 2, 25 October 2026, and a fault of mine found through them.**
+Practice run 10 (`run-20261025-9c940f96`, `tools\practice.ps1 -Cycles 8 -Requests 400`, Q4_K_M): 8 cycles (18 to 25), 156 requests, 23.7 minutes, every cycle `COMPLETED`, no candidate past the deflation gate (deflated Sharpe 0.12 and below over 23 to 30 trials). Four Engineer builds stopped on the repeated-tool-call guard, and in cycles 24 and 25 every build failed that way. GEPA run 2 (`run-20261025-675a3639`) started right after and was stopped by the kill switch after 52 requests and 4 cycles, because of what the run 10 analysis found.
+What the Bionic server log showed: the failing Engineers asked for `/spec.json`, `/specifications.json`, `/state/specifications.json`, `/train.csv`, `/validation.csv` and `/job`, found nothing, and read in circles (one different missing file per round, which the identical-call guard cannot see). The cause was mine. In the run 5 fix, the second half of the Engineer's task string had no `f` prefix, so from practice run 6 to GEPA run 2 the task ended with the literal text `SPECIFICATION\n{state["specifications"][hid]}` instead of the specification. The Engineer never saw what it had to build. The test I wrote only checked that the word SPECIFICATION was in the task, so it passed. Practice run 5 and earlier were not affected. **Practice runs 6 to 10, GEPA run 1 and GEPA run 2 therefore say nothing reliable about Flint as an Engineer, and GEPA's scores for those runs are not evidence for or against any prompt.** They stay recorded as history.
+Fixes, with tests that check content (`tests/test_engine_roles.py`):
+1. `engineer_task` in `cycle.py` builds the whole task in one place: the specification, a sample of the first six TRAIN rows (never a validation row: a model that has read the validation returns can type positions from memory, which the Auditor's perturbation check would not catch), and the starting files `/main.py` and `/spec.md`. The test asserts the task ends with the exact specification text, holds no placeholder, shows the train header and rows 0 to 5, and shows no validation row.
+2. `/spec.md` is in the Engineer's store; a test has the model read it and gets the specification back. `run_job` does not submit `/spec.md` with the code (`SPEC_FILE` in `execution.py`), so it is not rerun or promoted.
+3. A streak of five rounds of only `read_file` stops the agent with `ENGINE_NO_PROGRESS` (a step fault: recorded, the cycle goes on).
+4. `config/engine_prompts/engineer.md` states the two files and that the model cannot open the CSV files itself.
+Engine environment lane 66 passed; product lane 97 passed. The next owner-started runs are the first with a working Engineer task.
+
 ## Owner decisions
 
 Decided on 23 October 2026:

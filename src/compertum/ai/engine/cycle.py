@@ -123,7 +123,7 @@ class Engine:
 # A step fault is a model reply the harness could not use: a loop, a timeout, an unusable or oversized reply. The cycle records it and goes
 # on with the other hypotheses (owner direction, 24 October 2026). Every other refusal (budget, memory floor, kill switch, freeze,
 # sandbox, loopback, identity) still stops the cycle, because it is about the run, not about one reply.
-STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE',
+STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','ENGINE_NO_PROGRESS','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE',
                        'AI_RESPONSE_REJECTED','AI_USAGE_BOUND','LOCAL_COMPLETION_UNVERIFIED','AI_TOOL_EXECUTION_DENIED','AI_MESSAGES_DENIED','AI_TASK_DENIED'})
 
 
@@ -138,6 +138,26 @@ def market_brief(engine):
             f'Score: the position at session t earns the return of session t+1, minus a cost of {COST} of NAV for each position change. '
             'A strategy beats the baseline when its Sharpe ratio is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s. '
             'Only these two files exist; propose nothing that needs other data.')
+
+
+SAMPLE_ROWS=6  # train rows shown to the Engineer. Never validation rows: a model that has read the validation returns can type positions from memory.
+
+
+def engineer_task(engine,specification,*,previous_reply=None):
+    """The Engineer's task and its starting files. The specification is in the task text AND in /spec.md. A sample of the TRAIN rows shows the columns.
+    Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix."""
+    sample='\n'.join(engine.train_csv.splitlines()[:SAMPLE_ROWS+1])
+    if previous_reply is None: head='Build this specification and run it with run_job.\n\n'
+    else:
+        head=('Build this specification and run it with run_job.\n\n'
+              'Your previous attempt replied without running the program, so nothing was produced. '
+              'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.\n\n'
+              f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
+    task=(head+'Your file store holds two files: /main.py, a starter program (edit decide(), keep the file names), and /spec.md, the specification below. '
+          'It holds nothing else. You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
+          'When run_job reports that signals.csv was written, reply DONE.\n\n'
+          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}')
+    return task,{'/main.py':STARTER_MAIN,'/spec.md':specification}
 
 
 def run_cycle(engine,cycle_index):
@@ -227,20 +247,16 @@ def run_cycle(engine,cycle_index):
         # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
         for candidate in state['candidates']:
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
-            # The Engineer starts from a starter program in its file store (practice run 5: a real model searched an empty store for
-            # fourteen rounds, then opened the data by absolute paths). The job folder is separate from that store.
-            build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\nYour file store holds /main.py, a starter program: edit decide(), keep the file names. '
-                                             'Do not list or search the store. When run_job reports that signals.csv was written, reply DONE.\n\nSPECIFICATION\n{state["specifications"][hid]}',
-                          {'candidate_id':candidate['candidate_id']},files={'/main.py':STARTER_MAIN})
+            # The Engineer starts from a starter program and the specification in its file store, and sees a TRAIN sample in the task (practice runs 5 to 10).
+            task,start_files=engineer_task(engine,state['specifications'][hid])
+            build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id']},files=start_files)
             runs=sandbox.runs[runs_before:]
             if build is not None and not runs:
                 # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
                 # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
                 ledger.record_step(cycle_id,state['steps'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':candidate['candidate_id']})
-                build=attempt('engineer','build',f'Build this specification and run it with run_job.\n\nYour previous attempt replied without running the program, so nothing was produced. '
-                                                 'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.'
-                                                 f'\n\nPREVIOUS REPLY\n{clip_bytes(build["text"],RETRY_REPLY_BYTES)}\n\nSPECIFICATION\n{state["specifications"][hid]}',
-                              {'candidate_id':candidate['candidate_id'],'retry':1},files={'/main.py':STARTER_MAIN})
+                task,start_files=engineer_task(engine,state['specifications'][hid],previous_reply=build['text'])
+                build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id'],'retry':1},files=start_files)
                 runs=sandbox.runs[runs_before:]
             candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
             signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)

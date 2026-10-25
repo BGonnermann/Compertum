@@ -16,6 +16,7 @@ OUTPUT_HEAD=8192
 SIGNALS_BYTES=1024*1024
 RESERVED=frozenset({'train.csv','validation.csv','signals.csv','stdout.txt','stderr.txt','targets.json','probe.json'})
 MIB=1024**2
+SPEC_FILE='/spec.md'  # the Engineer's copy of the specification; never submitted with the code
 
 
 def head(raw):
@@ -168,7 +169,8 @@ def run_job_tool(sandbox):
     def run_job(entry:str,runtime:ToolRuntime)->str:
         """Run one of your Python files in the sandbox. entry is the file name without a folder, for example main.py. The job folder also holds train.csv and validation.csv next to your file; open them by those names. The result has the status, the exit code, stdout, stderr, whether signals.csv was written, and what to do next. The job folder is not your file store: you cannot read signals.csv yourself; the result tells you about it."""
         files=runtime.state.get('files') or {}
-        texts={path:file_data_to_string(fd) for path,fd in files.items() if isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
+        # /spec.md is the specification the Engineer reads, not part of the program: it is not submitted, rerun or promoted with the code.
+        texts={path:file_data_to_string(fd) for path,fd in files.items() if path!=SPEC_FILE and isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
         result=sandbox.run(texts,entry)
         if result['signals_present']:
             rows=max((sandbox.runs[-1].get('signals') or '').count('\n')-1,0)
