@@ -47,6 +47,10 @@ Each stage is small, has tests and one review, and needs the owner's OK before t
 1. **The variant, no model needed.** One command opens the console. The model, the memory check and the runs start from slash commands:
    `/status`, `/models`, `/load`, `/unload`, `/run`, `/gepa`, `/watch`, `/stop`, `/report`, `/apply-prompts`.
    This replaces `tools\practice.ps1` and the separate PowerShell commands.
+   `/watch` is required (owner request, 25 October 2026). It shows one progress line: cycle n of N, requests used of the limit, elapsed time, the current step and the free memory.
+   Under it, each model call shows a clock time, the role, the seconds, the prompt and completion tokens, the tokens per second and the tool called.
+   The ledger stores no clock time for a model call today, so stage 1 adds one.
+   `/watch` also flags a completion near the 2048 request limit, because a cut-off reply fails.
    Add a **preflight check**: before a run, build each role task from fixture data and refuse if it holds an unfilled placeholder, an empty section or missing content.
    This would have caught the missing specification of 24 October 2026.
 2. **The four tools.** Read, write, edit and sandbox run, plus the read-only result tools. The model can then work and answer questions about runs.
