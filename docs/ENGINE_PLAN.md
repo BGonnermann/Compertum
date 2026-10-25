@@ -121,6 +121,14 @@ Three faults found in the records:
 3. **The Director repeats itself.** The idea "Short-horizon lagged mean reversion with volatility-scaled deadband and delayed re-entry" came back in five cycles. The Director sees only titles and statuses of earlier cycles, never scores or reasons. A small lessons table written by code is proposed in the harness plan, not built.
 Engineers also rewrite whole programs several times (up to four writes in a build), which costs 30 seconds each; not changed.
 
+**Approved for after practice run 12 (owner, 25 October 2026): better information for GEPA.** All changes are in Compertum's own adapter `src/compertum/ai/engine/gepa_run.py` and the practice command. The GEPA library stays as installed (0.1.4; all 98 files match their recorded hashes, checked 25 October 2026).
+1. **A ten-level score.** Code sets the level of the best candidate in a cycle from the Validator's numbers; no model judges it. GEPA's score is the level divided by 10, averaged over the markets.
+   1: nothing built (pick failed or every memo rejected). 2: a program built, no valid signals. 3: failed the Auditor (not reproducible or lookahead). 4: valid signals but degenerate (the same position on every session). 5: a real strategy, clearly worse than buy-and-hold (Sharpe more than 0.25 below it; to be checked against the run records). 6: close to buy-and-hold but not better. 7: beat buy-and-hold, deflated Sharpe below 0.50. 8: 0.50 to 0.79. 9: 0.80 to 0.94. 10: passed the deflation gate (0.95) and the Auditor, queued.
+   Level 3 sits below every honest strategy, so a prompt is never rewarded for cheating.
+2. **Feedback text that explains.** Each cycle's note to GEPA's reflection gives the level, its description and the numbers behind it, built from records the ledger already keeps: Sharpe against buy-and-hold, positions held and changes, deflated Sharpe, failure class, Engineer rounds and runs, and whether an idea repeats an earlier failed one.
+3. **Varied markets.** Synthetic markets with momentum at different windows, mean reversion, and one with no pattern, so GEPA cannot learn the one planted pattern. On the no-pattern market a good prompt produces nothing.
+Tests, one review and the owner's OK come before GEPA run 3.
+
 ## Owner decisions
 
 Decided on 23 October 2026:
