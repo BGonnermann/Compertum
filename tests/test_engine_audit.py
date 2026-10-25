@@ -6,7 +6,8 @@ import json
 from pathlib import Path
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
-from compertum.ai.engine.audit import (FIXED_FILES,PERTURBATIONS,check_request_invariant,engine_fixed_targets,perturbed_rows,register_scorecard_trials)
+from compertum.ai.engine.audit import (FIXED_FILES,PERTURBATIONS,check_request_invariant,deflation_consistent,engine_fixed_targets,perturbed_rows,
+                                       register_scorecard_trials)
 from compertum.ai.engine.execution import agent_paths,forbidden_access,remove_data_tiers
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.ai.engine.market import score_signals
@@ -109,3 +110,22 @@ def test_validator_matches_a_hand_calculated_fixture():
         held=positions[index-1];nav=nav*(1+held*returns[index]-Decimal('0.0005')*abs(held-previous));previous=held
     assert str(nav.quantize(Decimal('0.00000001')))==score['final_nav']
     assert score['beats_baseline'] is False and score['deflation_inputs']['observations']==5
+
+
+def test_deflation_record_must_agree_with_itself_at_the_gate_or_below_it():
+    # Owner decision, 25 October 2026: the Auditor checks every candidate that beats buy-and-hold, so a consistent FAIL is no integrity fault.
+    base={'minimum':'0.95','trials':12}
+    assert deflation_consistent({**base,'status':'PASS','deflated_sharpe':'0.95000000'},12) is True
+    assert deflation_consistent({**base,'status':'FAIL','deflated_sharpe':'0.80000000'},12) is True
+    assert deflation_consistent({**base,'status':'UNDEFINED','deflated_sharpe':None},12) is True
+    assert deflation_consistent({**base,'status':'PASS','deflated_sharpe':'1.00000000','trials':1},1) is True
+    # A FAIL decided on the unrounded value can be stored as exactly the minimum (0.9499999970 rounds to 0.95000000): honest, not a fault.
+    assert deflation_consistent({**base,'status':'FAIL','deflated_sharpe':'0.94999999'},12) is True
+    assert deflation_consistent({**base,'status':'FAIL','deflated_sharpe':'0.95000000'},12) is True
+    # A status that contradicts its value, a wrong minimum, or a trial count beyond the ledger is an integrity fault.
+    for bad,total in (({**base,'status':'PASS','deflated_sharpe':'0.94999999'},12),({**base,'status':'FAIL','deflated_sharpe':'0.95000001'},12),
+                      ({**base,'status':'UNDEFINED','deflated_sharpe':'0.5'},12),({**base,'status':'FAIL','deflated_sharpe':None},12),
+                      ({**base,'status':'PASS','deflated_sharpe':'0.99','minimum':'0.90'},12),({**base,'status':'PASS','deflated_sharpe':'0.99'},11),
+                      ({**base,'status':'PASS','deflated_sharpe':'0.99','trials':0},12),({**base,'status':'PASS','deflated_sharpe':'0.99','trials':'12'},12),
+                      ({**base,'status':'MAYBE','deflated_sharpe':'0.99'},12),({**base,'status':'PASS','deflated_sharpe':'x'},12),(None,12)):
+        assert deflation_consistent(bad,total) is False

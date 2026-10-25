@@ -151,7 +151,7 @@ def summary_text(run,ledger,*,now=None):
         if cycle.get('stop_code'): stops.append(f"cycle {cycle['cycle_index']} stopped with {cycle['stop_code']}")
     lines.append('');lines.append('Results:')
     lines.append(f'- {queued} candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.')
-    lines.append(f'- {audit_rejected} passed the gate but failed the Auditor (not reproducible or lookahead). {beat} await the audit. {frozen_count} froze the engine.')
+    lines.append(f'- {audit_rejected} failed the Auditor (not reproducible or lookahead). {beat} await the audit. {frozen_count} froze the engine.')
     lines.append(f'- {deflated} beat the baseline but failed the deflation gate. {rejected} did not beat the baseline. {failed} produced no valid signals.')
     lines.append('');lines.append('Failures:')
     run_statuses={}

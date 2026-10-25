@@ -150,7 +150,7 @@ def test_non_reproducible_candidate_is_rejected_without_a_freeze(bridge,project,
     assert candidate['status']=='REJECTED_AUDIT' and candidate['audit']['label']=='VERIFIED_FAIL' and candidate['audit']['integrity'] is True
     assert candidate['audit']['reasons']==['candidate: signals not reproduced by the frozen code'] and ledger.active_freezes()==[]
     assert CandidateQueue(ledger).queued()==[] and not (project/'state'/'engine'/'promoted').exists()
-    summary=Path(result['summary_path']).read_text(encoding='utf-8');assert '- 1 passed the gate but failed the Auditor (not reproducible or lookahead).' in summary
+    summary=Path(result['summary_path']).read_text(encoding='utf-8');assert '- 1 failed the Auditor (not reproducible or lookahead).' in summary
 
 
 def test_lookahead_candidate_is_rejected_by_the_perturbation_check(bridge,project,root,verification,tiers):
@@ -165,6 +165,72 @@ def test_lookahead_candidate_is_rejected_by_the_perturbation_check(bridge,projec
     full=next(s for s in ledger.steps(result['cycles'][0]['cycle_id']) if s['kind']=='audit')['audit']
     assert full['checks']['reproducible'] is True and full['checks']['no_lookahead'] is False and full['perturbations'][0]['prefix_equal'] is False
     assert ledger.active_freezes()==[] and CandidateQueue(ledger).queued()==[] and not (project/'state'/'engine'/'promoted').exists()
+
+
+def below_gate(monkeypatch,value='0.80000000'):
+    """The real deflation record, reported as a FAIL at `value`: a candidate that beats buy-and-hold below the 0.95 gate.
+    A value above 0.95 with status FAIL is an inconsistent record, which the Auditor must treat as an integrity fault."""
+    from compertum.ai.engine import cycle as cycle_module
+    real=cycle_module.deflated_sharpe
+    def reported(*args,**kwargs):
+        record=real(*args,**kwargs);record.update(deflated_sharpe=value,status='FAIL');return record
+    monkeypatch.setattr(cycle_module,'deflated_sharpe',reported)
+
+
+FLAT_CODE='''import csv
+rows=list(csv.DictReader(open('validation.csv',encoding='utf-8')))
+with open('signals.csv','w',encoding='utf-8',newline='') as out:
+    out.write('session,position\\n')
+    for r in rows: out.write(f"{r['session']},0\\n")
+print('signals written',len(rows))
+'''
+
+
+def test_a_candidate_that_does_not_beat_buy_and_hold_is_not_audited(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+    with role_server(engineer_code=FLAT_CODE) as (port,state):
+        result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
+    cycle=result['cycles'][0];candidate=cycle['candidates'][0]
+    assert candidate['status']=='REJECTED' and 'audit' not in candidate
+    assert [r['purpose'] for r in ledger.runs(cycle['cycle_id'])]==['engineer'] and not any(s['kind']=='audit' for s in ledger.steps(cycle['cycle_id']))
+
+
+def test_an_integrity_failure_below_the_gate_still_freezes_the_engine(bridge,project,root,verification,tiers,monkeypatch):
+    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+    below_gate(monkeypatch,'0.97000000')  # status FAIL with a value above the minimum: the record contradicts itself
+    with role_server() as (port,state):
+        result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=2))
+    candidate=result['cycles'][0]['candidates'][0]
+    assert result['reason']=='FROZEN' and candidate['status']=='FROZEN' and candidate['audit']['reasons']==['integrity: deflation_consistent']
+    frozen=ledger.active_freezes();assert len(frozen)==1 and frozen[0]['reason']=='AUDITOR_FAILED' and CandidateQueue(ledger).queued()==[]
+    control.clear_freeze(store,frozen[0]['freeze_id'],'owner cleared after review (fixture)');assert ledger.active_freezes()==[]
+
+
+def test_an_honest_strategy_below_the_gate_is_audited_kept_and_never_queued(bridge,project,root,verification,tiers,monkeypatch):
+    # Owner decision, 25 October 2026: the Auditor checks every candidate that beats buy-and-hold, not only those at the gate.
+    from compertum.ai.engine.gepa_run import candidate_level
+    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
+    with role_server() as (port,state):
+        result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
+    cycle=result['cycles'][0];candidate=cycle['candidates'][0]
+    assert candidate['status']=='REJECTED_DEFLATED' and candidate['deflation']['status']=='FAIL' and candidate['audit']['label']=='VERIFIED_PASS'
+    assert candidate['audit']['integrity'] is True and ledger.active_freezes()==[]
+    runs=ledger.runs(cycle['cycle_id']);assert [r['purpose'] for r in runs]==['engineer','audit','audit','audit','audit']
+    assert CandidateQueue(ledger).queued()==[] and not (project/'state'/'engine'/'promoted').exists()  # below the gate: never promoted or queued
+    score=next(s for s in ledger.steps(cycle['cycle_id']) if s['kind']=='score')['score']
+    assert candidate_level(candidate,score)==9  # beat buy-and-hold, audited, deflated Sharpe 0.80
+
+
+def test_a_lookahead_strategy_below_the_gate_is_rejected_without_a_freeze(bridge,project,root,verification,tiers,monkeypatch):
+    from compertum.ai.engine.gepa_run import candidate_level
+    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
+    with role_server(engineer_code=LOOKAHEAD_CODE) as (port,state):
+        result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
+    cycle=result['cycles'][0];candidate=cycle['candidates'][0]
+    assert candidate['deflation']['status']=='FAIL' and candidate['status']=='REJECTED_AUDIT' and candidate['audit']['integrity'] is True
+    assert candidate['audit']['reasons']==['candidate: positions before the perturbed tail changed (k=1)'] and ledger.active_freezes()==[]
+    score=next(s for s in ledger.steps(cycle['cycle_id']) if s['kind']=='score')['score']
+    assert candidate_level(candidate,score)==3  # cheating sits below every honest strategy at any deflated Sharpe
 
 
 def test_auditor_integrity_failure_freezes_the_engine(bridge,project,root,verification,tiers,monkeypatch):

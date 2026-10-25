@@ -105,8 +105,8 @@ def candidate_level(candidate,score):
     if not score.get('beats_baseline'):
         sharpe=_decimal(score.get('sharpe'));benchmark=_decimal(score.get('benchmark_sharpe'))
         return 5 if sharpe is None or benchmark is None or sharpe<benchmark-CLEARLY_WORSE else 6
-    # Levels 7 to 9 need an Auditor pass (review, 25 October 2026). The engine audits only candidates at the 0.95 gate, so a strategy that read
-    # future data and beat buy-and-hold below the gate is never checked; graded by its deflated Sharpe it would rise toward 9 with more lookahead.
+    # Levels 7 to 9 need an Auditor pass (review, 25 October 2026): graded by its deflated Sharpe alone, a strategy that read future data would
+    # rise toward 9 with more lookahead. The Auditor checks every candidate that beats buy-and-hold (owner decision the same day).
     if not audited(candidate): return 6
     deflated=_decimal((candidate.get('deflation') or {}).get('deflated_sharpe'))
     if deflated is None or deflated<Decimal('0.50'): return 7
@@ -158,7 +158,7 @@ def feedback_for(result,earlier=None):
         deflation=candidate.get('deflation')
         if deflation: line+=f" Deflated Sharpe {deflation.get('deflated_sharpe')} over {deflation.get('trials')} trials; the gate is 0.95."
         if isinstance(score,dict) and score.get('beats_baseline') and candidate_lvl==6:
-            line+=' It beat buy-and-hold, but only candidates at the 0.95 gate are audited, so it stays at level 6: levels 7 to 9 need an Auditor pass.'
+            line+=' It beat buy-and-hold but has no Auditor pass, so it stays at level 6: levels 7 to 9 need an Auditor pass.'
         statuses=candidate.get('run_statuses')
         if statuses is not None: line+=f" Engineer runs: {len(statuses)}" + (f" ({', '.join(statuses)})." if statuses else '.')
         if candidate.get('audit'): line+=f" Auditor: {candidate['audit'].get('label')}; {'; '.join(candidate['audit'].get('reasons') or [])}."

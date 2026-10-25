@@ -298,8 +298,10 @@ def run_cycle(engine,cycle_index):
             state['steps']+=1
             ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'SCORED','candidate_id':candidate['candidate_id'],'score':score,'status':candidate['status'],
                                                                            'deflation':deflation,'trial_variance':variance})
-            if candidate['status']!='BEATS_BASELINE_PENDING_AUDIT': continue
+            if not score['beats_baseline']: continue
             # 5b (E6). The Auditor is the binding gate. Integrity failure freezes the engine; a candidate defect rejects the candidate.
+            # Since 25 October 2026 (owner decision) it checks every candidate that beat buy-and-hold, at the gate or below it, so a strategy
+            # that read future data is caught at any deflated Sharpe. Only a candidate at the gate can be promoted and queued.
             audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows)
             state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'auditor','audit',{'phase':audit['label'],'candidate_id':candidate['candidate_id'],'audit':audit})
             candidate['audit']={'label':audit['label'],'integrity':audit['integrity'],'reasons':audit['reasons']}
@@ -307,6 +309,7 @@ def run_cycle(engine,cycle_index):
                 ledger.freeze('AUDITOR_FAILED',{'cycle_id':cycle_id,'candidate_id':candidate['candidate_id'],'checks':audit['checks'],'reasons':audit['reasons']})
                 candidate['status']='FROZEN';raise RuntimeRefused('ENGINE_FROZEN')
             if audit['label']!='VERIFIED_PASS': candidate['status']='REJECTED_AUDIT';continue
+            if deflation['status']!='PASS': continue  # audited and honest, below the gate: stays REJECTED_DEFLATED with its audit record; never promoted
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate enters the queue.
             source=sandbox.record_for(audit['source_run_id'])
             promoted=promote(engine.project_root,candidate['candidate_id'],source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])

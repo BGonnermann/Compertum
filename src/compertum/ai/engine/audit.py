@@ -62,8 +62,21 @@ def _rerun(sandbox,source,*,validation_csv=None):
         return None,error.code
 
 
+def deflation_consistent(deflation,total_trials):
+    """The deflation record agrees with itself, the fixed minimum and the trial count. Its status must match its value: PASS at or above
+    the minimum, FAIL below it, UNDEFINED with no value. Until 25 October 2026 this check demanded PASS, because only candidates at the gate
+    were audited; the owner then decided that every candidate that beats buy-and-hold is audited, so a consistent FAIL is not an integrity fault."""
+    try:
+        status=deflation.get('status');value=deflation.get('deflated_sharpe')
+        # deflated_sharpe() decides PASS or FAIL on the unrounded value and stores it rounded to 8 places, so an honest FAIL just below the
+        # minimum can be stored as exactly 0.95000000 (review, 25 October 2026). Rounding never lifts a FAIL above the minimum.
+        matches=((status=='PASS' and Decimal(value)>=DSR_MIN) or (status=='FAIL' and Decimal(value)<=DSR_MIN) or (status=='UNDEFINED' and value is None))
+        return bool(matches and deflation.get('minimum')==str(DSR_MIN) and type(deflation.get('trials')) is int and 1<=deflation['trials']<=total_trials)
+    except (InvalidOperation,TypeError,ValueError,AttributeError): return False
+
+
 def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validation_rows):
-    """Audit one candidate that beat the baseline and passed the deflation gate. Returns the audit record.
+    """Audit one candidate that beat the baseline, at the deflation gate or below it (owner decision, 25 October 2026). Returns the audit record.
 
     record['integrity'] False means the engine must freeze. record['label'] is VERIFIED_PASS only when every check passed.
     """
@@ -80,12 +93,8 @@ def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validati
     source=completed[-1] if completed else None
     try: checks['score_recomputed']=source is not None and canonical(score_signals(source['signals'],validation_rows))==canonical(score)
     except RuntimeRefused: checks['score_recomputed']=False
-    # 4. The deflation record is consistent with the fixed minimum and the trial count.
-    try:
-        checks['deflation_consistent']=(deflation.get('status')=='PASS' and deflation.get('minimum')==str(DSR_MIN)
-                                        and Decimal(deflation.get('deflated_sharpe'))>=DSR_MIN and type(deflation.get('trials')) is int
-                                        and 1<=deflation['trials']<=ledger.total_trials())
-    except (InvalidOperation,TypeError,ValueError): checks['deflation_consistent']=False
+    # 4. The deflation record is consistent with itself, the fixed minimum and the trial count.
+    checks['deflation_consistent']=deflation_consistent(deflation,ledger.total_trials())
     # 5. No run of this candidate reached loopback or a denied path.
     checks['no_forbidden_access']=bool(mine) and all(r['status'] not in ('FROZEN','FORBIDDEN_ACCESS') and not ((r.get('watcher') or {}).get('loopback_connections')) for r in mine)
     integrity=all(checks[name] for name in INTEGRITY_CHECKS)
