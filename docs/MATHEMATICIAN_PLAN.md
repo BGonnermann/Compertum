@@ -66,6 +66,28 @@ The owner wants to fine-tune a model to the way Compertum works, in the future. 
 
 S1 and S3 come after fixes 1 and 2 and before change A. S1 changes the model's replies, so the bench run for change A also measures S1. S3 changes no reply.
 
+## Two speed steps (added 26 October 2026)
+
+The owner asked whether GEPA can make the runs faster. During bench baseline 1, 11 cycles took 51.6 minutes, about 4.7 minutes each, and about 21 model calls each. Flint writes about 46 tokens each second. A cycle gets faster only with more tokens each second, fewer tokens, or fewer calls.
+
+**Step V1: move some of Flint's expert layers to the GPU (the largest gain expected).**
+- Today: `llm.load.numCpuExpertLayersRatio = 1` in Flint's saved settings (`C:\Users\bgonn\.lmstudio\apps\bionic\.internal\user-concrete-model-default-config\lmstudio-community\flint-GGUF\flint-Q4_K_M.gguf.json`). All 47 expert layers keep their experts in host memory and run on the CPU. The GPU (16 GiB) used 3.8 GiB during the bench.
+- Change: lower the ratio in steps, for example 0.8 (about 9 layers on the GPU), then 0.6 (about 19 layers). Each expert layer is about 0.45 GiB. Keep at least 2 GiB of GPU memory free for the display and the cache.
+- Second benefit: each layer moved off the CPU frees about 0.45 GiB of host memory, the memory that the 16 GiB start floor checks. Bench baseline 1 had only 17.5 GiB free after 11 cycles.
+- The weights stay the same, so the replies should not change in quality. The bench still checks this.
+- Who acts: the owner changes the setting in Bionic, or approves the change. A changed setting takes effect at the next model load. The wrapper `tools\practice.ps1` unloads and loads the model for each run.
+- Measure, before and after, with the model alone on the PC: tokens each second from the server log, minutes for each cycle, free host memory and used GPU memory (the wrapper's memory record), and the bench report.
+- Stop rule: if free GPU memory falls under 2 GiB, or the server fails to load, go back to the previous ratio.
+
+**Step V2: GEPA run 3 with speed as a tie-breaker.**
+- Today GEPA's score is the outcome level divided by 10 (`gepa_run.score_for_cycle`). Time does not count, so GEPA has no reason to prefer a faster prompt.
+- Change: add a small speed bonus from the cycle's own records (requests, completion tokens and minutes, all in the ledger). The bonus is always smaller than the smallest possible difference between two level scores, so a faster prompt can win only when its levels are equal. GEPA can never trade research quality for speed.
+- What GEPA can shorten through the prompts: long Mathematician reviews, Engineers that rewrite the whole program several times instead of one edit, memos that the Director then rejects, Director JSON retries, and Engineer loops.
+- What GEPA cannot change: Flint's token speed (step V1), the sandbox, and the server.
+- The change is in our GEPA adapter, not in the judge. Tests prove that a lower level always scores below a higher level, whatever the speed.
+
+Order: fix 2 (review length) first, then V1, then GEPA run 3 with V2. Each step gets its own bench comparison.
+
 ## Change A: a power check in every specification (first, smallest)
 
 **What.** The specification gets a fifth heading, "5. Detectability". The Mathematician states the edge the rule expects and compares it with the edge the sample can detect. Code puts the reference numbers into the specify task, so the model does not compute them:
