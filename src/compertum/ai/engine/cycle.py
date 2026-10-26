@@ -140,6 +140,11 @@ def market_brief(engine):
             'Only these two files exist; propose nothing that needs other data.')
 
 
+def market_sha256(engine):
+    """One fingerprint of the two files a cycle sees. Never a vault file: the engine has none."""
+    return sha(canonical({'train_csv':engine.train_csv,'validation_csv':engine.validation_csv}).decode())
+
+
 SAMPLE_ROWS=6  # train rows shown to the Engineer. Never validation rows: a model that has read the validation returns can type positions from memory.
 
 
@@ -165,8 +170,10 @@ def run_cycle(engine,cycle_index):
     if type(engine.max_hypotheses) is not int or not 1<=engine.max_hypotheses<=MAX_HYPOTHESES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     ledger=engine.ledger;ledger.require_unfrozen()
     cycle_id=f'cycle-{cycle_index:04d}-{uuid4().hex[:8]}'
-    summary=ledger.summary()
-    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
+    # The market fingerprint scopes the Director's lessons table to cycles on the same TRAIN and VALIDATION files (owner request, 25 October 2026).
+    market=market_sha256(engine)
+    summary=ledger.summary(market)
+    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[]}
     if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
@@ -216,7 +223,7 @@ def run_cycle(engine,cycle_index):
                                         f'\n\nPREVIOUS REPLY\n{previous}',{**record,'retry':retry+1})
 
     try:
-        # 1. Director picks hypotheses from the ledger summary.
+        # 1. Director picks hypotheses from the ledger summary and its lessons table.
         brief=market_brief(engine)
         picked=parsed('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{},parse_hypotheses)
         state['hypotheses']=picked[:engine.max_hypotheses] if picked is not None else []
@@ -224,12 +231,12 @@ def run_cycle(engine,cycle_index):
         for hypothesis in state['hypotheses']:
             memo=attempt('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
             if memo is None:
-                state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})'};continue
+                state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})','source':'code'};continue
             state['memos'][hypothesis['id']]=memo['text']
             decision=parsed('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']},parse_decision)
             if decision is None:
                 last=state['faults'][-1]['code'] if state['faults'] and state['faults'][-1].get('hypothesis_id')==hypothesis['id'] and state['faults'][-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
-                decision={'decision':'reject','reason':f'approval step unusable ({last})'}
+                decision={'decision':'reject','reason':f'approval step unusable ({last})','source':'code'}  # a fault, not the Director's verdict (levels.lessons)
             state['decisions'][hypothesis['id']]=decision
         # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
         for hypothesis in state['hypotheses']:
@@ -330,7 +337,7 @@ def run_cycle(engine,cycle_index):
         state['status']='FAILED_UNEXPECTED';state['stop_code']=type(error).__name__[:64];raise
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
-        end={'run_id':engine.run_id,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
+        end={'run_id':engine.run_id,'market_sha256':market,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
              'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),'faults':state['faults'],
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}

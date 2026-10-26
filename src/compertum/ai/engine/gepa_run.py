@@ -15,7 +15,6 @@ client under the run's request limit, the owner's hard maximum and the run gate 
 """
 from dataclasses import dataclass,field
 from datetime import datetime,timezone
-from decimal import Decimal,InvalidOperation
 import hashlib
 import json
 from pathlib import Path
@@ -28,6 +27,7 @@ from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
 from .audit import check_request_invariant
 from .ledger import EngineLedger,RUN_ID
+from .levels import CLEARLY_WORSE,LEVELS,candidate_level,cycle_level,norm_title as _norm
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import PROMPT_BYTES,ROLES,load_prompt
 
@@ -42,21 +42,7 @@ except ImportError:  # the product environment has no GEPA; the adapter's own te
         num_metric_calls:Any=None
 
 PROMPTS_DIR='state/engine/prompts'
-# The ten levels (owner decision, 25 October 2026). Code sets the level from the Validator's numbers; no model judges it.
-# Level 3 (failed the Auditor: lookahead or not reproducible) sits below every honest strategy, so no prompt is rewarded for cheating.
-LEVELS={1:'Nothing was built: the pick failed or every memo was rejected.',
-        2:'A program was built but produced no valid signals: it crashed, never ran, or wrote a bad file.',
-        3:'It failed the Auditor: not reproducible, or it used future data.',
-        4:'Valid signals, but degenerate: the same position on every session.',
-        5:'A real strategy, clearly worse than buy-and-hold.',
-        6:'A real strategy, close to buy-and-hold but not better.',
-        7:'It beat buy-and-hold, but the deflated Sharpe is below 0.50: most likely luck.',
-        8:'It beat buy-and-hold, deflated Sharpe 0.50 to 0.79.',
-        9:'It beat buy-and-hold, deflated Sharpe 0.80 to 0.94: close to the gate.',
-        10:'It passed the deflation gate and the Auditor and was queued.'}
-CLEARLY_WORSE=Decimal('0.25')  # a Sharpe below buy-and-hold by more than this is level 5; within it, level 6
-NO_SIGNAL_STATUSES=frozenset({'NO_SIGNALS','INVALID_SIGNALS','BUILD_FAILED'})
-AUDIT_STATUSES=frozenset({'REJECTED_AUDIT','FROZEN'})
+# The ten levels, the score's input, live in levels.py; the Director's lessons table uses the same rules.
 MINIBATCH=2  # markets per reflection step; every market is still in the validation set
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
@@ -79,47 +65,6 @@ def check_prompt(role,text):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-def _decimal(value):
-    try: return Decimal(value) if isinstance(value,str) else None
-    except InvalidOperation: return None
-
-
-def degenerate(score):
-    """The same traded position on every session. score_signals pays the position at session t with the return of t+1, so the last session's
-    position never trades: always long or always flat except on the last session is still degenerate. In position counts that is
-    held N-1 with 2 changes (long, then flat on the last session) or held 1 with 1 change (flat, then long on the last session)."""
-    held=score.get('positions_held');sessions=score.get('sessions');changes=score.get('position_changes')
-    return held in (0,sessions) or (held==sessions-1 and changes==2) or (held==1 and changes==1)
-
-
-def audited(candidate): return (candidate.get('audit') or {}).get('label')=='VERIFIED_PASS'
-
-
-def candidate_level(candidate,score):
-    """The level, 1 to 10, of one candidate: its status, then the Validator's score record for it (None when it has none)."""
-    status=candidate.get('status')
-    if status=='QUEUED': return 10
-    if status in AUDIT_STATUSES: return 3
-    if status in NO_SIGNAL_STATUSES or not isinstance(score,dict): return 2
-    if degenerate(score): return 4
-    if not score.get('beats_baseline'):
-        sharpe=_decimal(score.get('sharpe'));benchmark=_decimal(score.get('benchmark_sharpe'))
-        return 5 if sharpe is None or benchmark is None or sharpe<benchmark-CLEARLY_WORSE else 6
-    # Levels 7 to 9 need an Auditor pass (review, 25 October 2026): graded by its deflated Sharpe alone, a strategy that read future data would
-    # rise toward 9 with more lookahead. The Auditor checks every candidate that beats buy-and-hold (owner decision the same day).
-    if not audited(candidate): return 6
-    deflated=_decimal((candidate.get('deflation') or {}).get('deflated_sharpe'))
-    if deflated is None or deflated<Decimal('0.50'): return 7
-    return 8 if deflated<Decimal('0.80') else 9  # 0.95 and above with no queue entry means the audit did not finish: still 9
-
-
-def cycle_level(result):
-    """The best candidate's level, or 1 when the cycle built nothing."""
-    scores=result.get('scores') or {}
-    levels=[candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in result.get('candidates') or []]
-    return max(levels) if levels else 1
-
-
 def score_for_cycle(result):
     """GEPA's score of one cycle: its level divided by 10. A stopped cycle is systemic and is raised, not scored; 0.0 marks it if it is ever asked."""
     if result.get('stop_code') is not None: return 0.0
@@ -127,9 +72,6 @@ def score_for_cycle(result):
 
 
 def _clip(text): return text if len(text.encode('utf-8'))<=TEXT_BYTES else text.encode('utf-8')[:TEXT_BYTES].decode('utf-8',errors='ignore')
-
-
-def _norm(title): return re.sub(r'[^a-z0-9]+',' ',str(title).lower()).strip()
 
 
 def earlier_titles(ledger,current_cycle_id):

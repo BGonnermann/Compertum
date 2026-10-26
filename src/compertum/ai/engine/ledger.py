@@ -10,6 +10,7 @@ from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 from ..manual import read_json
+from .levels import lessons
 
 MAX_SUMMARY_CYCLES=20
 SUMMARY_BYTES=16384
@@ -167,14 +168,17 @@ class EngineLedger:
     def steps(self,cycle_id): return self._rows('SELECT record FROM engine_steps WHERE cycle_id=? ORDER BY rowid',(cycle_id,))
     def runs(self,cycle_id): return self._rows('SELECT record FROM engine_runs WHERE cycle_id=? ORDER BY rowid',(cycle_id,))
 
-    def summary(self):
-        """Compact history for the Director: the last cycles, their hypotheses and candidate outcomes. Bounded to SUMMARY_BYTES. Never vault results."""
-        cycles=self.cycles();ends=[c for c in cycles if c['phase']=='END'][-MAX_SUMMARY_CYCLES:]
+    def summary(self,market_sha256=None):
+        """Compact history for the Director: the last cycles, their hypotheses and candidate outcomes, and the lessons table for this
+        market (levels.lessons). Bounded to SUMMARY_BYTES: the oldest recent cycles go first, then the oldest lessons. Never vault results."""
+        cycles=self.cycles();all_ends=[c for c in cycles if c['phase']=='END'];ends=all_ends[-MAX_SUMMARY_CYCLES:]
         recent=[]
         for c in ends:
             hypotheses=[{'id':str(h.get('id'))[:32],'title':str(h.get('title'))[:120]} for h in (c.get('hypotheses') or [])[:3] if isinstance(h,dict)]
             candidates=[{'hypothesis_id':str(x.get('hypothesis_id'))[:32],'status':str(x.get('status'))[:40]} for x in (c.get('candidates') or [])[:3] if isinstance(x,dict)]
             recent.append({'cycle_index':c['cycle_index'],'status':str(c.get('status'))[:40],'hypotheses':hypotheses,'candidates':candidates})
-        result={'cycles_completed':len([c for c in cycles if c['phase']=='END']),'active_freezes':len(self.active_freezes()),'recent':recent}
+        result={'cycles_completed':len(all_ends),'active_freezes':len(self.active_freezes()),'recent':recent}
+        if market_sha256 is not None: result['lessons']=lessons(all_ends,market_sha256)
         while recent and len(canonical(result))>SUMMARY_BYTES: recent.pop(0)
+        while result.get('lessons') and len(canonical(result))>SUMMARY_BYTES: result['lessons'].pop(0)
         return result

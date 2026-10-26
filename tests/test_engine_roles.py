@@ -371,6 +371,20 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert store.active_freezes()==[] and verification['observations']['loopback_connected'] in (True,False)
 
 
+def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_market(bridge,root,verification,market,project):
+    with role_server() as (port,state):
+        ledger=ListLedger();c=client(port,ledger,limit=120);engine=make_engine(bridge,root,verification,market,c,project)
+        first=run_cycle(engine,1);posts=len(state['posts']);second=run_cycle(engine,2)
+        assert first['status']==second['status']=='COMPLETED' and first['market_sha256']==second['market_sha256']
+        pick=state['posts'][posts]['messages'][-1]['content'];assert pick.startswith('Pick at most')
+        summary=json.loads(pick.split('Ledger summary:\n',1)[1])
+        level=next(r for r in summary['lessons'] if r['idea']=='Five-session momentum')
+        assert level['tries']==1 and level['last_cycle']==1 and level['best_outcome'].startswith(f"Level {level['best_level']} of 10.")
+        assert {'idea':'Mean reversion','tries':1,'last_cycle':1,'best_level':None,'best_outcome':'Not built: the Director rejected the memo.'} in summary['lessons']
+        assert 'lessons' in state['posts'][0]['messages'][-1]['content'] and json.loads(state['posts'][0]['messages'][-1]['content'].split('Ledger summary:\n',1)[1])['lessons']==[]
+        starts=[r for r in engine.ledger.cycles() if r['phase']=='START'];assert all(r['market_sha256']==first['market_sha256'] for r in starts)
+
+
 def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,verification,market,project):
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(60);port=listener.getsockname()[1]
     def accept():
@@ -407,7 +421,7 @@ def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
         assert result['status']=='COMPLETED' and result['stop_code'] is None
-        assert result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']=={'decision':'reject','reason':'memo step failed (AI_RESPONSE_REJECTED)'}
+        assert result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']=={'decision':'reject','reason':'memo step failed (AI_RESPONSE_REJECTED)','source':'code'}
         assert result['faults']==[{'role':'researcher','kind':'memo','code':'AI_RESPONSE_REJECTED','hypothesis_id':'h2'}]
         assert [x['hypothesis_id'] for x in result['candidates']]==['h1'] and set(result['memos'])=={'h1'}
         steps=engine.ledger.steps(result['cycle_id']);failed=[s for s in steps if s['phase']=='FAILED']
