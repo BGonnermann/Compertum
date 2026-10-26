@@ -172,3 +172,13 @@ The Auditor already reruns the frozen code with the last validation rows perturb
 4. The best combination, one holdout run, then the owner decides what to keep.
 
 Each bench run is owner-started. No change here needs new software, spending or account access.
+
+## Order agreed with the owner on 26 October 2026
+
+The cost data of the first DeepSeek runs changed the priority. The Mathematician produced 62% of all v4-pro output tokens, nearly all of it thinking (about 7,000 tokens per full review), and it has no tools: it reasons about the numbers but never calculates them. The owner's direction: focus on the Mathematician, and make it do mathematics, as a quant firm's mathematician does.
+
+1. **Baseline findings first.** The full bench baselines of deepseek-v4-pro and deepseek-flash (4 cycles per market) are compared with Flint's noise run 1 on the same markets and prompts.
+2. **Then changes A, B and C above, one at a time, each measured alone on the bench.** The calculations run as code in the section 19 sandbox, on TRAIN data only; every parameter tried is a counted trial. Expected effect: exact numbers instead of long estimates, which should help quality (the reversal pattern shows directly in lag-1 to lag-3 autocorrelation) and lower thinking cost.
+3. **Every calculation is logged.** Each cycle record states which calculations ran and what they returned, so later analysis and GEPA can see which mathematics helps the firm and which does not.
+4. **Then GEPA, separately per model** (owner rule, 26 October 2026: no mixing of models in one search). After several days of runs, GEPA tunes the Mathematician's instructions: which calculations to use, in what order, and how to read them. GEPA never changes the calculation code itself; a proposal for code is never applied automatically. Choosing among calculation mixes is itself a search, so GEPA's winner gets bench runs and one holdout check before the owner applies it.
+5. **Per-model prompt sets** are built before the first GEPA result is applied, so a prompt tuned for one model never changes another model's prompts.
