@@ -18,10 +18,16 @@ Today the Mathematician turns a memo into a four-part specification (features, m
 ## Two fixes first, from the bench baseline run (added 25 October 2026)
 
 In bench cycle 77 (`run-20261026-84433f03`), the Mathematician review call continued for 43.5 seconds and the client refused it with `AI_RESPONSE_REJECTED`. Flint writes approximately 46 tokens each second, so the reply had approximately 2,000 tokens. The limit for one reply is 2,048 tokens. The server probably stopped the reply at the limit. The record does not show this cause, so the cause is an inference from the call time.
+Research on 26 October 2026 (`docs/HARNESS_TOOLS_RESEARCH.md`) confirmed it from the server log: the three `length` stops on 25 October each had about 518 reasoning tokens and about 1,530 tokens of visible answer. The 512-token reasoning budget works. The visible review was too long.
 
 **Fix 1: record the real cause of a refused reply.**
 - Problem: in `src/compertum/ai/models.py`, `_complete` (used by `complete` and `complete_tools`) changes every refusal inside the request block to `AI_RESPONSE_REJECTED`. Thus, `AI_RESPONSE_INCOMPLETE`, `AI_RESPONSE_INVALID`, `AI_TOOL_EXECUTION_DENIED` and `AI_USAGE_BOUND` are not visible in the ledger.
-- Change: keep the specific refusal code. Record the `finish_reason` from the server and the token counts, if the server sent them, in the model-call record.
+- Change, in four parts:
+  1. Read `usage`, including the reasoning token count, before the stop-reason check, so a truncated reply keeps its counts.
+  2. Record the `finish_reason` from the server in the model-call record.
+  3. Re-raise the specific inner code instead of `AI_RESPONSE_REJECTED`.
+  4. Pass `finish_reason` and the token counts into the LangChain message that `LedgerChatModel` in `roles.py` builds.
+- Tests to update: `tests/test_ai_models_interface.py` and `tests/test_engine_roles.py` name the old code.
 - Rule: no refusal becomes an acceptance. The step-fault list in `cycle.py` (`STEP_FAULTS`) already contains each specific code, so the cycle behavior does not change.
 - Tests: one test for each code, with a scripted server that sends a reply with `finish_reason` "length", a malformed reply, and a reply with a bad usage field.
 - Size: approximately two hours. `models.py` is the stage E1 client, so the change needs its own tests and a short review.
@@ -41,6 +47,7 @@ The owner wants to fine-tune a model to the way Compertum works, in the future. 
 **Step S1: structured output for the JSON replies.**
 - Problem: the Director's pick and approval replies, and the agenda reply, must be JSON. In the early practice runs, many pick replies did not parse. Each failure costs one retry request, and a second failure leaves the cycle with nothing to build.
 - Change: for these three tasks, the client sends a JSON schema with the request (`response_format` with type `json_schema`, which the LM Studio server supports). The server then can only produce text that matches the schema. Today the client in `src/compertum/ai/models.py` sends no `response_format`.
+- Research note (26 October 2026): six LM Studio issues about structured output and reasoning are open, and Flint has no switch to turn reasoning off. If the test shows that the grammar forces `{` before the reasoning, use a two-call step instead: one call reasons in plain text, and a short second call returns the schema-checked JSON. A related open question is the sampling setting: our requests use temperature 0, as `docs/BUILD_SPEC.md` sets, but Flint's publisher says greedy decoding is not validated. The owner decides.
 - The parsers stay. `parse_hypotheses` and `parse_decision` still check every reply, and the retry stays as a second safety.
 - Risk: Flint reasons before it answers. A schema can block or cut the reasoning part, and the answer quality can fall. So the first test is a small owner-started check with a few calls on Flint, before any bench run.
 - Measure: the bench report and the ledger give unusable replies, retries, requests and minutes for each cycle, against the baseline.
