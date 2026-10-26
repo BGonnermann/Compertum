@@ -26,7 +26,7 @@ from compertum.runtime.errors import RuntimeRefused
 from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
 from .audit import check_request_invariant
-from .ledger import EngineLedger,RUN_ID
+from .ledger import EngineLedger,RUN_ID,learning_cycle
 from .levels import CLEARLY_WORSE,LEVELS,candidate_level,cycle_level,norm_title as _norm
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import PROMPT_BYTES,ROLES,load_prompt
@@ -78,7 +78,7 @@ def earlier_titles(ledger,current_cycle_id):
     """Normalized hypothesis titles of every finished cycle except the current one, mapped to the first cycle index that used them."""
     seen={}
     for cycle in ledger.cycles():
-        if cycle.get('phase')!='END' or cycle.get('cycle_id')==current_cycle_id: continue
+        if cycle.get('phase')!='END' or cycle.get('cycle_id')==current_cycle_id or not learning_cycle(cycle): continue  # never bench or holdout ideas
         for hypothesis in cycle.get('hypotheses') or []:
             if isinstance(hypothesis,dict) and hypothesis.get('title'): seen.setdefault(_norm(hypothesis['title']),cycle.get('cycle_index'))
     return seen
@@ -311,12 +311,19 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
     return state
 
 
+def candidate_prompts(project_root,run_id,candidate_index):
+    """One GEPA candidate's four prompts, checked like committed prompts. The bench and the holdout measure a candidate with these."""
+    if not isinstance(run_id,str) or not re.fullmatch(RUN_ID,run_id) or type(candidate_index) is not int or not 0<=candidate_index<MAX_CANDIDATES: raise RuntimeRefused('ENGINE_PROMPT_INVALID')
+    source=Path(project_root).absolute()/PROMPTS_DIR/run_id/f'candidate-{candidate_index}'
+    if not source.is_dir(): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE')
+    try: return {role:check_prompt(role,(source/f'{role}.md').read_text(encoding='utf-8')) for role in ROLES}
+    except (OSError,UnicodeError): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE') from None
+
+
 def apply_prompts(project_root,run_id,candidate_index):
     """Owner action: copy one GEPA candidate's prompts into config/engine_prompts/. The owner commits the change afterwards."""
     if not isinstance(run_id,str) or not re.fullmatch(RUN_ID,run_id) or type(candidate_index) is not int or not 0<=candidate_index<MAX_CANDIDATES: raise RuntimeRefused('ENGINE_PROMPT_INVALID')
-    root=Path(project_root).absolute();source=root/PROMPTS_DIR/run_id/f'candidate-{candidate_index}'
-    if not source.is_dir(): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE')
-    texts={role:check_prompt(role,(source/f'{role}.md').read_text(encoding='utf-8')) for role in ROLES}
+    root=Path(project_root).absolute();texts=candidate_prompts(root,run_id,candidate_index)
     applied={}
     for role,text in texts.items():
         target=root/'config'/'engine_prompts'/f'{role}.md';target.write_text(text,encoding='utf-8',newline='\n');applied[role]=sha(text)

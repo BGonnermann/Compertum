@@ -94,9 +94,20 @@ def check_prompts(project_root):
     return problems
 
 
-def preflight(project_root,markets,*,max_hypotheses=3):
-    """Raise PreflightFailed when any task or prompt has a problem. Returns the number of checked tasks when all are complete."""
-    problems=check_prompts(project_root)
+def check_given_prompts(prompts):
+    """Prompts the run will use instead of the committed ones (a GEPA candidate on the bench): the role line and no unfilled placeholder."""
+    problems=[]
+    for role in ROLES:
+        text=prompts.get(role) if isinstance(prompts,dict) else None
+        if not isinstance(text,str) or not text.startswith(f'ROLE: {role}\n'): problems.append(f'prompt {role}: ENGINE_PROMPT_INVALID');continue
+        for match in PLACEHOLDER.finditer(text): problems.append(f'prompt {role}: unfilled placeholder {match.group(0)}')
+    return problems
+
+
+def preflight(project_root,markets,*,max_hypotheses=3,prompts=None):
+    """Raise PreflightFailed when any task or prompt has a problem. Returns the number of checked tasks when all are complete.
+    prompts: the prompts the run uses instead of the committed ones, or None."""
+    problems=check_prompts(project_root) if prompts is None else check_given_prompts(prompts)
     for market in markets: problems+=check_market(market,max_hypotheses)
     if problems: raise PreflightFailed(problems)
     return {'markets':len(markets),'tasks_per_market':9,'prompts':len(ROLES)}

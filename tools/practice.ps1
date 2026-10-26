@@ -10,17 +10,24 @@ Steps, in order, each one checked before the next:
   3. The LM Studio server (Bionic) starts on the port if it is not running. No window is needed.
   4. The model loads with its saved per-model settings if it is not loaded, then must be listed by the server.
   5. The engine's own `models` check must report all four roles listed.
-  6. The practice command runs (run or gepa) with the limits you give it; its JSON record is saved and printed.
+  6. The practice command runs (run, gepa, bench or holdout) with the limits you give it; its JSON record is saved and printed.
+     bench and holdout measure the prompts on the fixed markets of src\compertum\ai\engine\bench.py. They take -CyclesPerMarket,
+     not -Cycles. A holdout run is counted before its first cycle; the holdout retires after its allowed uses.
   7. The model is unloaded at the end unless -KeepLoaded is given, so the memory comes back.
 The kill switch is unchanged: New-Item state\engine\STOP in a second window.
 
 .EXAMPLE
 tools\practice.ps1 -Requests 80 -Note "practice run 9"
 tools\practice.ps1 -Mode gepa -Cycles 8 -Requests 300 -Note "GEPA run 2"
+tools\practice.ps1 -Mode bench -Requests 450 -Note "bench baseline 1"
+tools\practice.ps1 -Mode holdout -Requests 450 -PromptsRun run-20261026-0123abcd -PromptsCandidate 2 -Note "holdout check of GEPA run 3"
 #>
 param(
-    [ValidateSet('run','gepa')][string]$Mode='run',
+    [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
     [int]$Cycles=1,
+    [int]$CyclesPerMarket=4,
+    [string]$PromptsRun='',
+    [int]$PromptsCandidate=-1,
     [double]$Hours=0,
     [Parameter(Mandatory=$true)][int]$Requests,
     [Parameter(Mandatory=$true)][string]$Note,
@@ -39,6 +46,11 @@ $floorGiB=16
 function Free-GiB { $os=Get-CimInstance Win32_OperatingSystem; [math]::Round($os.FreePhysicalMemory/1MB,1) }
 function Fail($message) { Write-Host "STOP: $message"; exit 2 }
 
+# Options for the wrong mode stop the script before the model loads, so nothing is silently ignored (review, 25 October 2026).
+$evaluationMode=($Mode -eq 'bench' -or $Mode -eq 'holdout')
+if ($evaluationMode -and $PSBoundParameters.ContainsKey('Cycles')) { Fail "-Cycles does not apply to $Mode; use -CyclesPerMarket" }
+if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket') -or $PSBoundParameters.ContainsKey('PromptsRun') -or $PSBoundParameters.ContainsKey('PromptsCandidate'))) { Fail "-CyclesPerMarket, -PromptsRun and -PromptsCandidate apply to bench and holdout only" }
+if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 if (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
 if (-not (Test-Path $python)) { Fail "engine environment missing: $python" }
 if (Test-Path (Join-Path $root 'state\engine\STOP')) { Fail 'state\engine\STOP exists; remove it before a new run' }
@@ -117,8 +129,16 @@ try {
     $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
     $record=Join-Path $root ".cache\test-runs\practice-$Mode-$stamp-record.json"
     $arguments=@('-m','compertum.ai.engine.practice','--project','.',$Mode,'--requests',"$Requests",'--note',$Note)
-    if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") } else { $arguments+=@('--cycles',"$Cycles") }
-    Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
+    $evaluation=($Mode -eq 'bench' -or $Mode -eq 'holdout')
+    if ($evaluation) {
+        $arguments+=@('--cycles-per-market',"$CyclesPerMarket")
+        if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") }
+        if ($PromptsRun -ne '') { $arguments+=@('--prompts-run',$PromptsRun,'--prompts-candidate',"$PromptsCandidate") }
+        Write-Host "starting $Mode ($CyclesPerMarket cycles per market, hours $Hours, requests $Requests): $Note"
+    } else {
+        if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") } else { $arguments+=@('--cycles',"$Cycles") }
+        Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
+    }
     Write-Host "record: $record"
     & $python @arguments 2>&1 | Tee-Object -FilePath $record
     $exit=$LASTEXITCODE

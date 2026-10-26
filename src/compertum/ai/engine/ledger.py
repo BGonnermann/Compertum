@@ -17,6 +17,13 @@ SUMMARY_BYTES=16384
 MAX_EXTERNAL_TRIALS=100000
 QUEUE_EVENTS=('QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
 RUN_ID=r'run-[0-9]{8}-[0-9a-f]{8}'
+PURPOSES=('practice','bench','holdout')
+EVALUATION_PURPOSES=frozenset({'bench','holdout'})  # cycles that measure prompts; nothing learns from them (bench.py)
+
+
+def learning_cycle(cycle):
+    """True for a cycle whose results may teach the engine: not a bench or holdout cycle. Cycles before 25 October 2026 carry no purpose."""
+    return cycle.get('purpose') not in EVALUATION_PURPOSES
 
 
 def now():
@@ -155,6 +162,11 @@ class EngineLedger:
         self._insert_once('INSERT INTO engine_bounded_runs VALUES(?,?,?,?,?)',(f'{run_id}:{phase}',run_id,phase,row['recorded_at'],canonical(row).decode()),'ENGINE_RUN_DUPLICATE');return row
 
     def run_rows(self,run_id): return self._rows('SELECT record FROM engine_bounded_runs WHERE run_id=? ORDER BY rowid',(run_id,))
+    def run_starts(self): return self._rows("SELECT record FROM engine_bounded_runs WHERE phase='START' ORDER BY rowid")
+
+    def holdout_uses(self,holdout_set):
+        """Every holdout run that started, finished or not. The START row is the count: it is written before the first holdout cycle."""
+        return sum(1 for r in self.run_starts() if r.get('purpose')=='holdout' and r.get('holdout_set')==holdout_set)
 
     def open_runs(self):
         """Run ids with a START row and no END row. A crashed run stays open until the owner closes it."""
@@ -171,7 +183,8 @@ class EngineLedger:
     def summary(self,market_sha256=None):
         """Compact history for the Director: the last cycles, their hypotheses and candidate outcomes, and the lessons table for this
         market (levels.lessons). Bounded to SUMMARY_BYTES: the oldest recent cycles go first, then the oldest lessons. Never vault results."""
-        cycles=self.cycles();all_ends=[c for c in cycles if c['phase']=='END'];ends=all_ends[-MAX_SUMMARY_CYCLES:]
+        # Bench and holdout cycles never enter the summary: not the recent list, not the lessons table, not the count.
+        cycles=self.cycles();all_ends=[c for c in cycles if c['phase']=='END' and learning_cycle(c)];ends=all_ends[-MAX_SUMMARY_CYCLES:]
         recent=[]
         for c in ends:
             hypotheses=[{'id':str(h.get('id'))[:32],'title':str(h.get('title'))[:120]} for h in (c.get('hypotheses') or [])[:3] if isinstance(h,dict)]
@@ -182,3 +195,8 @@ class EngineLedger:
         while recent and len(canonical(result))>SUMMARY_BYTES: recent.pop(0)
         while result.get('lessons') and len(canonical(result))>SUMMARY_BYTES: result['lessons'].pop(0)
         return result
+
+    def blank_summary(self):
+        """The summary a bench or holdout cycle sees: no history and no lessons. Freezes still show."""
+        return {'cycles_completed':0,'active_freezes':len(self.active_freezes()),'recent':[],'lessons':[]}
+

@@ -18,6 +18,7 @@ from compertum.runtime.errors import RuntimeRefused
 from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
+from .ledger import EVALUATION_PURPOSES,PURPOSES
 from .market import score_signals
 from .promotion import promote
 from .roles import ROLES,build_role_agent,load_prompt
@@ -87,6 +88,7 @@ class Engine:
     gate:Any=None  # E5: callable that raises when no step may start (kill switch, hour limit, freeze)
     run_id:Any=None  # E5: the bounded run this cycle belongs to
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate); None reads config/engine_prompts
+    purpose:str='practice'  # 'bench' or 'holdout' (bench.py): no history in, no lessons or GEPA feedback out, no agenda step
 
 
 # A step fault is a model reply the harness could not use: a loop, a timeout, an unusable or oversized reply. The cycle records it and goes
@@ -104,12 +106,14 @@ def market_sha256(engine):
 def run_cycle(engine,cycle_index):
     if type(cycle_index) is not int or cycle_index<1: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     if type(engine.max_hypotheses) is not int or not 1<=engine.max_hypotheses<=MAX_HYPOTHESES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
+    if engine.purpose not in PURPOSES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     ledger=engine.ledger;ledger.require_unfrozen()
     cycle_id=f'cycle-{cycle_index:04d}-{uuid4().hex[:8]}'
     # The market fingerprint scopes the Director's lessons table to cycles on the same TRAIN and VALIDATION files (owner request, 25 October 2026).
     market=market_sha256(engine)
-    summary=ledger.summary(market)
-    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
+    # A bench or holdout cycle starts with no history (bench.py), so every evaluation cycle sees the same task whatever ran before it.
+    summary=ledger.summary(market) if engine.purpose not in EVALUATION_PURPOSES else ledger.blank_summary()
+    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[]}
     if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
@@ -251,6 +255,9 @@ def run_cycle(engine,cycle_index):
                 candidate['status']='FROZEN';raise RuntimeRefused('ENGINE_FROZEN')
             if audit['label']!='VERIFIED_PASS': candidate['status']='REJECTED_AUDIT';continue
             if deflation['status']!='PASS': continue  # audited and honest, below the gate: stays REJECTED_DEFLATED with its audit record; never promoted
+            if engine.purpose in EVALUATION_PURPOSES:
+                # A bench or holdout check measures prompts; its strategies never become templates or enter the vault queue (review, 25 October 2026).
+                candidate['status']='EVALUATION_GATE_PASS';continue
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate enters the queue.
             source=sandbox.record_for(audit['source_run_id'])
             promoted=promote(engine.project_root,candidate['candidate_id'],source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
@@ -260,7 +267,7 @@ def run_cycle(engine,cycle_index):
             ledger.record_step(cycle_id,state['steps'],'archivist','promotion',{'phase':'PROMOTED','candidate_id':candidate['candidate_id'],'queue_event_id':queued['event_id'],
                                                                               'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
-        if cycle_index%AGENDA_EVERY==0:
+        if cycle_index%AGENDA_EVERY==0 and engine.purpose not in EVALUATION_PURPOSES:
             agenda=attempt('director','agenda',agenda_task(brief,summary),{})
             if agenda is not None: state['agenda']=agenda['text']
         state['status']='COMPLETED'
@@ -271,7 +278,7 @@ def run_cycle(engine,cycle_index):
         state['status']='FAILED_UNEXPECTED';state['stop_code']=type(error).__name__[:64];raise
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
-        end={'run_id':engine.run_id,'market_sha256':market,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
+        end={'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
              'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),'faults':state['faults'],
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}
