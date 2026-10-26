@@ -167,6 +167,18 @@ Tests: `tests/test_engine_lessons.py` (7, product lane) and `tests/test_engine_r
 5. Each patterned market has a reference rule: the planted rule traded exactly. **Finding:** with 150 validation sessions the reference passes the bench-local 0.95 gate on only 2 of the 6 patterned markets. The real gate is at least as strict: it uses the global count (96 trials) and a trial variance that is never below the same floor. So on these markets even perfect knowledge of the pattern passes the real gate on at most 2 of the 6 patterned markets, and level 10 is rare by design. So a pattern counts as found when an audited candidate beats buy-and-hold and reaches at least half of the reference's Sharpe advantage over buy-and-hold (`capture`).
 6. On a market with no pattern, an audited candidate that passes the bench-local gate is a false discovery. One false discovery makes the verdict `BROKEN`, however good the other markets look.
 7. Commands: `practice bench` and `practice holdout` (`--cycles-per-market`, default 4; `--prompts-run` and `--prompts-candidate` measure a GEPA candidate without applying it). The schedule is interleaved, one cycle per market in turn. `tools\practice.ps1 -Mode bench -Requests 450 -Note "bench baseline 1"` runs 20 cycles, about 85 minutes with Flint. The record holds the report.
+**Bench baseline 1, 25 to 26 October 2026** (`run-20261026-84433f03`, committed prompts, Flint Q4_K_M, temperature 0). The first start refused with `STORAGE_SCAN_DEADLINE` before any run row; after the owner-approved test-folder cleanup the second start ran. The owner stopped it after 3 full rounds (cycle 91) with the stop file; cycle 92 was cut at its first step. 16 cycles, 293 requests, 63.4 minutes, reason `KILL_SWITCH`. The report used the run's configured trial count, 60 (4 cycles per market).
+
+| Market | Cycles | Candidates | Beat buy-and-hold | Audit passed | Bench gate | Found | Best capture | Bench levels |
+|---|---|---|---|---|---|---|---|---|
+| momentum 5 (seed 101) | 4 (1 cut) | 7 | 4 | 4 | 1 | 3 | 0.787 | 8, 10, 8, 1 |
+| momentum 10 (seed 102) | 3 | 8 | 3 | 2 | 0 | 2 | 0.657 | 8, 7, 5 |
+| reversal 3 (seed 103) | 3 | 6 | 2 | 2 | 0 | 1 | 0.739 | 5, 8, 7 |
+| no pattern (seed 104) | 3 | 4 | 4 | 4 | 0 | - | - | 7, 7, 7 |
+| no pattern (seed 105) | 3 | 2 | 2 | 2 | 0 | - | - | 7, 7, 1 |
+
+Verdict `MEASURED`: patterns found 3 of 3, false discoveries 0, mean bench level 6.44, 27 candidates. Every strategy that beat buy-and-hold passed the Auditor's lookahead check. On the two empty markets, every scored candidate beat buy-and-hold, because buy-and-hold has a low or negative Sharpe there; none passed the bench-local gate, so none counts as a false discovery. "Beat buy-and-hold" alone therefore says little on these markets; capture and the gate carry the signal. Three Mathematician reviews in this run stopped at the token cap, which led to fix 2 below. This is the baseline for every later bench comparison: compare at 3 cycles per market, or rerun the baseline at 4.
+
 Independent review, one round, read-only. It found no weakening of the judge, the Auditor or the gate, and seven defects. All are fixed with tests:
 1. A practice or GEPA seed could rebuild a holdout market exactly (for example `--seed 901`). Seeds 100 to 199 and 900 to 999 are now reserved for evaluation sets; a practice or GEPA run that would use one is refused with `ENGINE_SEED_RESERVED`.
 2. `run_bounded` did not tie a schedule to its set. It now compares market fingerprints: a holdout run accepts only its own set, a bench run only bench sets, and a practice run no evaluation market (`ENGINE_MARKET_RESERVED`).
