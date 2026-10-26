@@ -7,6 +7,7 @@
 # Results on DeepSeek are not comparable with Flint results. DeepSeek needs its own bench baseline.
 # max_tokens and seconds (optional) replace the engine's default of 2048 output tokens and 120 seconds for these calls.
 # deepseek-v4-pro thinks before it answers and used all 2048 tokens on thinking in the Mathematician's step (26 October 2026).
+# The cap check then showed 6653 to 7773 thinking tokens per Mathematician review, so the Mathematician has the maximum, 16384.
 
 [roles.director]
 base_url = "https://api.deepseek.com"
@@ -23,8 +24,8 @@ seconds = 300
 [roles.mathematician]
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-pro"
-max_tokens = 8192
-seconds = 300
+max_tokens = 16384
+seconds = 600
 
 [roles.engineer]
 base_url = "https://api.deepseek.com"
