@@ -8,6 +8,17 @@ Status, 25 October 2026: plan only. The owner said not to start now. No code exi
 - No barriers, in the way the pi harness has none: a few plain tools, no permission popups.
 - Keep it barebones. It grows with the project, one small piece at a time.
 
+## Owner direction, 26 October 2026: GEPA as the main improvement tool
+
+The owner read GEPA's `optimize_anything` post (https://gepa-ai.github.io/gepa/blog/2026/02/18/introducing-optimize-anything/) and agreed: "we can use it for our eventual harness, the tools, and really anything we think it can work on."
+
+- `optimize_anything` is in the installed GEPA 0.1.4 (`.cache/engine-env/Lib/site-packages/gepa/optimize_anything.py`). It searches over any text artifact with a user-supplied evaluator. It accepts a callable reflection model, so it runs on Flint through our ledgered client. Its default reflection model is a cloud model name, so every call must pass our own.
+- Prompts, skills and task wording: GEPA searches and scores them. The owner applies the winners.
+- The harness and its tools: GEPA may propose changes. No proposal is applied automatically. Each one becomes an ordinary code change with tests, review and the owner's OK, because harness code runs outside the sandbox.
+- Strategy code: only inside the section 19 sandbox, and every scored candidate counts as a trial.
+- Never a target: the judge (Validator, deflation gate), the Auditor, the vault, the ledger, the rules, and the evaluator of the search itself.
+- GEPA cannot fix code bugs, server features or model weights. Those stay ordinary work (`docs/HARNESS_TOOLS_RESEARCH.md`).
+
 ## What the base is
 
 - **Vesper core.** The folder `C:\Users\bgonn\Desktop\v harness\vesper_core` holds 709 lines of Python.
