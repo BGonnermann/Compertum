@@ -319,7 +319,7 @@ def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
 def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path):
     """Owner direction, 26 October 2026: tell GEPA what we want. The goal file steers the proposals only; it never enters a score."""
     assert load_goal(tmp_path) is None  # optional
-    assert load_goal(PROJECT).startswith('The firm wants strategies')  # the committed goal passes the checks
+    assert load_goal(PROJECT).startswith("The owner's goal")  # the committed goal passes the checks
     goal=tmp_path/GOAL_FILE;goal.parent.mkdir(parents=True)
     for text in ('too short','x'*7000,'Use this api_key=abcd1234 when you call the model, always, for every role.'):
         goal.write_text(text,encoding='utf-8')
