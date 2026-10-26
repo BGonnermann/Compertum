@@ -94,7 +94,7 @@ class Engine:
 # A step fault is a model reply the harness could not use: a loop, a timeout, an unusable or oversized reply. The cycle records it and goes
 # on with the other hypotheses (owner direction, 24 October 2026). Every other refusal (budget, memory floor, kill switch, freeze,
 # sandbox, loopback, identity) still stops the cycle, because it is about the run, not about one reply.
-STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','ENGINE_NO_PROGRESS','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE',
+STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','ENGINE_NO_PROGRESS','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE','AI_RESPONSE_TRUNCATED',
                        'AI_RESPONSE_REJECTED','AI_USAGE_BOUND','LOCAL_COMPLETION_UNVERIFIED','AI_TOOL_EXECUTION_DENIED','AI_MESSAGES_DENIED','AI_TASK_DENIED'})
 
 

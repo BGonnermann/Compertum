@@ -42,7 +42,7 @@ def test_run_refuses_below_the_start_floor_before_taking_any_lease(tmp_path):
     with pytest.raises(RuntimeRefused,match='^AVAILABLE_RAM_FLOOR$'):
         practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=10,note='x',available_memory=lambda:practice.START_FLOOR-1)
     assert not (tmp_path/'state'/'locks').exists()  # no owner lease was taken
-    assert practice.START_FLOOR==16*1024**3
+    assert practice.START_FLOOR==8*1024**3  # owner decision, 26 October 2026 (was 16 GiB)
 
 
 def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch):

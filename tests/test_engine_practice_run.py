@@ -30,7 +30,7 @@ def test_practice_run_as_a_separate_process(tmp_path):
         candidate=result['cycles'][0]['candidates'][0];assert candidate['status']=='QUEUED' and candidate['audit']=='VERIFIED_PASS'
         assert result['research_state_after']=='PAUSED' and result['verification']['failed']==[] and result['vault_sessions_held_back']==100
         assert Path(result['summary_path']).is_relative_to(tmp_path/'state'/'engine') and Path(result['sandbox_root']).is_relative_to(tmp_path/'.cache'/'test-runs')
-        assert result['models']['engineer']['model']=='synthetic-model' and result['free_memory_bytes_at_start']>=16*1024**3
+        assert result['models']['engineer']['model']=='synthetic-model' and result['free_memory_bytes_at_start']>=8*1024**3
         # A second run refuses while the owner's stop file exists, as a separate process too.
         stop=tmp_path/'state'/'engine'/'STOP';stop.write_text('owner stop',encoding='utf-8')
         again=subprocess.run([sys.executable,'-m','compertum.ai.engine.practice','--project',str(tmp_path),'--config','config.toml','run','--cycles','1','--requests','10',

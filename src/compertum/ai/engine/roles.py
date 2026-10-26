@@ -68,6 +68,15 @@ def to_chat_messages(messages):
     return out
 
 
+def usage_metadata(usage):
+    """LangChain's usage record from the client's token counts, or None. Reasoning tokens go under output_token_details."""
+    if not isinstance(usage,dict) or type(usage.get('prompt_tokens')) is not int or type(usage.get('completion_tokens')) is not int: return None
+    value={'input_tokens':usage['prompt_tokens'],'output_tokens':usage['completion_tokens'],
+           'total_tokens':usage['total_tokens'] if type(usage.get('total_tokens')) is int else usage['prompt_tokens']+usage['completion_tokens']}
+    if type(usage.get('reasoning_tokens')) is int: value['output_token_details']={'reasoning':usage['reasoning_tokens']}
+    return value
+
+
 class LedgerChatModel(BaseChatModel):
     """The one model path. Calls the E1 client, which checks the address, the model, memory, the request limit and records the call."""
     model_config=ConfigDict(arbitrary_types_allowed=True,protected_namespaces=())
@@ -110,7 +119,9 @@ class LedgerChatModel(BaseChatModel):
         else: content,entry=self.client.complete(self.role,chat,**settings);calls=[]
         self._guard_repeats(calls)  # the call is already in the ledger; the guard only stops the next round
         message=AIMessage(content=content,tool_calls=[{'name':c['name'],'args':c['arguments'],'id':c['id'],'type':'tool_call'} for c in calls],
-                          response_metadata={'call_id':entry['call_id'],'model_reported':entry['model_reported'],'request_index':entry['request_index']})
+                          response_metadata={'call_id':entry['call_id'],'model_reported':entry['model_reported'],'request_index':entry['request_index'],
+                                             'finish_reason':entry.get('finish_reason')},
+                          usage_metadata=usage_metadata(entry.get('usage')))
         return ChatResult(generations=[ChatGeneration(message=message)])
 
 

@@ -34,13 +34,14 @@ def test_the_cycle_builds_its_tasks_with_the_checked_builders():
 
 
 def test_task_text_is_pinned():
-    """The move from cycle.py to tasks.py kept every task byte-identical. A change to any task text changes this hash on purpose only."""
+    """The move from cycle.py to tasks.py kept every task byte-identical. A change to any task text changes this hash on purpose only.
+    Changed on purpose on 26 October 2026: the review task gained REVIEW_LENGTH_RULE (bench baseline 1)."""
     m=practice.practice_market(12,500,0.004)[0];e=SimpleNamespace(train_csv=m['train_csv'],validation_rows=m['validation_rows'],max_hypotheses=3)
     b=tasks.market_brief(e);s={'a':1}
     parts=[b,tasks.pick_task(3,7,b,s),tasks.memo_task(b,{'id':'h1','title':'T','idea':'I'}),tasks.approve_task('h1','M'),tasks.specify_task(b,'M'),
            tasks.review_task('S',{'/main.py':'x'}),tasks.agenda_task(b,s),tasks.retry_task('T','E','R'),tasks.engineer_task(e,'S')[0],
            tasks.engineer_task(e,'S',previous_reply='R')[0],tasks.STARTER_MAIN]
-    assert hashlib.sha256('\x00'.join(parts).encode()).hexdigest()=='8ff608f36424268f119d28838ed17be9aa0a454409632d11a9eb99045e892235'
+    assert hashlib.sha256('\x00'.join(parts).encode()).hexdigest()=='a1f31a4497218ea81b6e5dd35a4e1df6f24390bb812a849f095efacb20b029f6'
 
 
 def failed(monkeypatch,name,replacement):
@@ -66,6 +67,7 @@ def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
     ('specify_task',lambda brief,memo:'Write the specification.\\n\\n'+brief+memo,'mathematician specify: the task holds a literal backslash-n'),
     ('review_task',lambda spec,code:'x'*(preflight.TASK_BYTES+1)+spec+json.dumps(code,sort_keys=True),f'mathematician review: the task is {preflight.TASK_BYTES+1+len(preflight.SPEC)+len(json.dumps(preflight.CODE,sort_keys=True))} bytes'),
     ('agenda_task',lambda brief,summary:'','director agenda: the task is empty'),
+    ('review_task',lambda spec,code:'Review. '+spec+json.dumps(code,sort_keys=True),'mathematician review: the task does not hold the length limit'),
     ('retry_task',lambda task,code,previous:task+code,'retry: the task does not hold the previous reply'),
     ('market_brief',lambda engine:'MARKET\nno counts','the market brief gives the wrong session counts'),
 ])

@@ -103,7 +103,7 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         def do_POST(self):
             payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])));state['posts'].append(payload)
             message,finish=reply(payload)
-            if message is None: self.send({'choices':[]});return  # the client refuses this empty-choices body as AI_RESPONSE_REJECTED
+            if message is None: self.send({'choices':[]});return  # the client refuses this empty-choices body as AI_RESPONSE_INVALID
             self.send({'choices':[{'message':message,'finish_reason':finish}],'usage':{'prompt_tokens':10,'completion_tokens':3}})
     http=ThreadingHTTPServer(('127.0.0.1',0),Handler);http.daemon_threads=True
     thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
@@ -421,11 +421,11 @@ def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
         assert result['status']=='COMPLETED' and result['stop_code'] is None
-        assert result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']=={'decision':'reject','reason':'memo step failed (AI_RESPONSE_REJECTED)','source':'code'}
-        assert result['faults']==[{'role':'researcher','kind':'memo','code':'AI_RESPONSE_REJECTED','hypothesis_id':'h2'}]
+        assert result['decisions']['h1']['decision']=='approve' and result['decisions']['h2']=={'decision':'reject','reason':'memo step failed (AI_RESPONSE_INVALID)','source':'code'}
+        assert result['faults']==[{'role':'researcher','kind':'memo','code':'AI_RESPONSE_INVALID','hypothesis_id':'h2'}]
         assert [x['hypothesis_id'] for x in result['candidates']]==['h1'] and set(result['memos'])=={'h1'}
         steps=engine.ledger.steps(result['cycle_id']);failed=[s for s in steps if s['phase']=='FAILED']
-        assert len(failed)==1 and (failed[0]['role'],failed[0]['kind'],failed[0]['code'],failed[0]['hypothesis_id'])==('researcher','memo','AI_RESPONSE_REJECTED','h2')
+        assert len(failed)==1 and (failed[0]['role'],failed[0]['kind'],failed[0]['code'],failed[0]['hypothesis_id'])==('researcher','memo','AI_RESPONSE_INVALID','h2')
         assert engine.ledger.cycles()[-1]['faults']==result['faults']
 
 
@@ -513,3 +513,17 @@ def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,
         assert [x['phase'] for x in cycles]==['START','END'] and cycles[1]['status']=='STOPPED_AI_REQUEST_BUDGET'
         assert steps[-1]['phase']=='FAILED' and steps[-1]['code']=='AI_REQUEST_BUDGET' and len(state['posts'])==3
         with pytest.raises(RuntimeRefused,match='^ENGINE_CYCLE_DENIED$'): run_cycle(engine,0)
+
+
+def test_the_chat_message_carries_the_stop_reason_and_the_token_counts():
+    """26 October 2026: LangChain sees what the ledger records, so a capped reply is visible in the agent's own messages too."""
+    from compertum.ai.engine.roles import LedgerChatModel,usage_metadata
+    assert usage_metadata(None) is None and usage_metadata({'prompt_tokens':'x','completion_tokens':1}) is None
+    assert usage_metadata({'prompt_tokens':10,'completion_tokens':3})=={'input_tokens':10,'output_tokens':3,'total_tokens':13}
+    entry={'call_id':'c1','model_reported':'m','request_index':1,'finish_reason':'stop','usage':{'prompt_tokens':900,'completion_tokens':700,'total_tokens':1600,'reasoning_tokens':512}}
+    class Fake:
+        def complete(self,role,chat,**settings): return 'reply',entry
+    model=LedgerChatModel(client=Fake(),role='mathematician',purpose='fixture',model_name='m')
+    message=model.invoke('x')
+    assert message.response_metadata['finish_reason']=='stop' and message.response_metadata['call_id']=='c1'
+    assert message.usage_metadata=={'input_tokens':900,'output_tokens':700,'total_tokens':1600,'output_token_details':{'reasoning':512}}

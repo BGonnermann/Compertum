@@ -11,7 +11,7 @@ import re
 from types import SimpleNamespace
 from compertum.runtime.errors import RuntimeRefused
 from .prompts import ROLES,load_prompt
-from .tasks import (SAMPLE_ROWS,STARTER_MAIN,agenda_task,approve_task,engineer_task,market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
+from .tasks import (REVIEW_LENGTH_RULE,SAMPLE_ROWS,STARTER_MAIN,agenda_task,approve_task,engineer_task,market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 
 TASK_BYTES=65536  # no task may be larger than one reply bound
 # An unfilled Python format field: {name}, {name.attr}, {name[key]} or {name(args)}. JSON text starts with {" and does not match.
@@ -60,7 +60,7 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
         'researcher memo':(memo_task(brief,HYPOTHESIS),{'market brief':brief,'hypothesis':hypothesis_json}),
         'director approve':(approve_task(HYPOTHESIS['id'],MEMO),{'hypothesis id':HYPOTHESIS['id'],'memo':MEMO}),
         'mathematician specify':(specify_task(brief,MEMO),{'market brief':brief,'memo':MEMO}),
-        'mathematician review':(review_task(SPEC,CODE),{'specification':SPEC,'code':code_json}),
+        'mathematician review':(review_task(SPEC,CODE),{'specification':SPEC,'code':code_json,'length limit':REVIEW_LENGTH_RULE}),
         'director agenda':(agenda_task(brief,SUMMARY),{'market brief':brief,'ledger summary':summary_json}),
         'retry':(retry_task(pick,ERROR_CODE,REPLY),{'original task':pick,'error code':ERROR_CODE,'previous reply':REPLY}),
     }

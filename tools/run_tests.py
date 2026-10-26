@@ -34,8 +34,24 @@ import time
 ROOT=Path(__file__).resolve().parents[1]
 TEST_RUNS=ROOT/'.cache'/'test-runs'
 ENVIRONMENTS={'product':ROOT/'.cache'/'clean-env-m0'/'Scripts'/'python.exe','engine':ROOT/'.cache'/'engine-env'/'Scripts'/'python.exe'}
-FLOOR_GIB=16  # the owner's start floor for free host memory
+FLOOR_GIB=8  # the owner's start floor for free host memory (8 GiB since 26 October 2026)
+# Whole test files that never touch the sandbox profile. Only these may run while an engine run is open (--allow-during-run).
+# 26 October 2026: test_engine_practice.py and test_engine_bench.py ran during bench baseline 1; their sandbox verification uses the same
+# fixed profile as the run and could have refused a live job. No job was refused, by luck. A single test node (file::name) is the caller's choice.
+SANDBOX_FREE={'tests/test_engine_preflight.py','tests/test_engine_lessons.py','tests/test_engine_limits.py','tests/test_engine_validator.py',
+              'tests/test_engine_gepa.py','tests/test_engine_audit.py','tests/test_ai_models_interface.py','tests/test_run_tests_tool.py'}
 NAME=re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,80}')
+
+
+def sandbox_files(pytest_args):
+    """Whole test files in the arguments that may use the sandbox profile: every tests/ file that is not in SANDBOX_FREE."""
+    out=[]
+    for arg in pytest_args:
+        if arg.startswith('-') or '::' in arg: continue
+        path=arg.replace('\\','/')
+        if path.startswith('tests/') and path.endswith('.py') and path not in SANDBOX_FREE: out.append(arg)
+        elif path.rstrip('/')=='tests': out.append(arg)
+    return out
 SUMMARY=re.compile(r'^=*\s*(.*\b(passed|failed|error|errors|skipped|no tests ran)\b.*?)\s*=*$')
 BAD=re.compile(r'\b\d+ (failed|errors?|xpassed)\b|\bno tests ran\b|\binterrupted\b',re.I)
 
@@ -168,6 +184,7 @@ def main(argv=None):
     if free<FLOOR_GIB: raise SystemExit(f'refused: {free:.1f} GiB free host memory, under the {FLOOR_GIB} GiB floor')
     running=open_engine_runs()
     if running and not args.allow_during_run: raise SystemExit(f'refused: engine run open ({", ".join(running)}); engine tests share its sandbox profile')
+    if running and sandbox_files(pytest_args): raise SystemExit(f'refused: engine run open; these files may use the sandbox profile: {", ".join(sandbox_files(pytest_args))}')
     python=ENVIRONMENTS[args.env]
     if not python.exists(): raise SystemExit(f'refused: environment missing: {python}')
     job=job_folder(args.name,args.under);job.mkdir(parents=True)

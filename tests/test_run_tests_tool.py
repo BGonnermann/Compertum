@@ -84,10 +84,15 @@ def test_names_and_parents_are_checked(tmp_path,monkeypatch):
 
 def test_refusals_before_any_test_runs(tmp_path,monkeypatch):
     monkeypatch.setattr(tool,'TEST_RUNS',tmp_path)
-    monkeypatch.setattr(tool,'free_gib',lambda:12.0)
-    with pytest.raises(SystemExit,match='under the 16 GiB floor'): tool.main(['--name','x','--','tests/test_x.py'])
+    monkeypatch.setattr(tool,'free_gib',lambda:6.0)
+    with pytest.raises(SystemExit,match='under the 8 GiB floor'): tool.main(['--name','x','--','tests/test_x.py'])
     monkeypatch.setattr(tool,'free_gib',lambda:40.0);monkeypatch.setattr(tool,'open_engine_runs',lambda:['run-20261025-0123abcd'])
     with pytest.raises(SystemExit,match='engine run open'): tool.main(['--name','x','--','tests/test_x.py'])
+    # During an open run, --allow-during-run admits only whole files known to be sandbox-free (26 October 2026).
+    with pytest.raises(SystemExit,match='may use the sandbox profile: tests/test_engine_bench.py'):
+        tool.main(['--name','x','--allow-during-run','--','tests/test_engine_preflight.py','tests/test_engine_bench.py'])
+    with pytest.raises(SystemExit,match='may use the sandbox profile: tests'): tool.main(['--name','x','--allow-during-run','--','tests'])
+    assert tool.sandbox_files(['tests/test_engine_preflight.py','tests\\test_engine_lessons.py','tests/test_engine_roles.py::test_x','-q'])==[]
     monkeypatch.setattr(tool,'open_engine_runs',lambda:[])
     with pytest.raises(SystemExit,match='sets --basetemp itself'): tool.main(['--name','x','--','--basetemp','y','tests/test_x.py'])
     with pytest.raises(SystemExit,match='give the test files'): tool.main(['--name','x'])

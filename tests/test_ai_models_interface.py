@@ -44,6 +44,9 @@ def server(mode='ok',model='synthetic-model'):
                 message={'role':'assistant','content':None,'tool_calls':calls}
                 return self.send({'choices':[{'message':message,'finish_reason':'stop' if state['mode']=='toolstop' else 'tool_calls'}],'usage':{'prompt_tokens':10,'completion_tokens':3}})
             if state['mode']=='two': return self.send({'choices':[{'message':message,'finish_reason':'stop'}]*2})
+            if state['mode']=='length':  # bench baseline 1: a review stopped at the token cap after 518 reasoning tokens
+                return self.send({'choices':[{'message':message,'finish_reason':'length'}],
+                                  'usage':{'prompt_tokens':900,'completion_tokens':2048,'total_tokens':2948,'completion_tokens_details':{'reasoning_tokens':518}}})
             usage={'prompt_tokens':10,'completion_tokens':3}
             if state['mode']=='bigusage': usage.update(total_tokens=13,vendor_blob='x'*30000)
             self.send({'choices':[{'message':message,'finish_reason':'stop'}],'usage':usage})
@@ -152,13 +155,32 @@ def test_request_limit_refuses_before_http_and_counts_failed_attempts():
         assert len(state['posts'])==2 and [e['status'] for e in ledger.entries][-1]=='REFUSED_AI_REQUEST_BUDGET'
 
 
-@pytest.mark.parametrize('mode',['malformed','http','bound','tool','two'])
-def test_malformed_tool_and_oversized_responses_are_rejected(mode):
+# Since 26 October 2026 the reply checks keep their own code; other inner refusals stay AI_RESPONSE_REJECTED with the inner code as refusal_detail.
+@pytest.mark.parametrize('mode,code,detail',[('malformed','AI_RESPONSE_REJECTED','AI_JSON_INVALID'),('http','AI_RESPONSE_REJECTED','HTTPStatusError'),
+                                             ('bound','AI_RESPONSE_BOUND','AI_RESPONSE_BOUND'),('tool','AI_TOOL_EXECUTION_DENIED','AI_TOOL_EXECUTION_DENIED'),
+                                             ('two','AI_RESPONSE_INVALID','AI_RESPONSE_INVALID')])
+def test_malformed_tool_and_oversized_responses_are_rejected(mode,code,detail):
     with server(mode) as (port,state):
         ledger=ListLedger()
-        with pytest.raises(RuntimeRefused,match='AI_RESPONSE_REJECTED'):
+        with pytest.raises(RuntimeRefused,match=f'^{code}$'):
             client(port,ledger).complete('mathematician',[{'role':'user','content':'x'}],purpose='e1-fixture')
-        assert len(state['posts'])==1 and ledger.entries[0]['status']=='REFUSED_AI_RESPONSE_REJECTED'
+        assert len(state['posts'])==1 and ledger.entries[0]['status']=='REFUSED_'+code and ledger.entries[0]['refusal_detail']==detail
+
+
+def test_a_reply_stopped_at_the_token_cap_is_truncated_and_keeps_its_counts():
+    with server('length') as (port,state):
+        ledger=ListLedger()
+        with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_TRUNCATED$'):
+            client(port,ledger).complete('mathematician',[{'role':'user','content':'x'}],purpose='e1-fixture')
+        entry=ledger.entries[0]
+        assert entry['status']=='REFUSED_AI_RESPONSE_TRUNCATED' and entry['finish_reason']=='length' and entry['refusal_detail']=='AI_RESPONSE_TRUNCATED'
+        assert entry['usage']=={'prompt_tokens':900,'completion_tokens':2048,'total_tokens':2948,'reasoning_tokens':518}
+
+
+def test_a_completed_reply_records_its_stop_reason_and_no_detail():
+    with server() as (port,state):
+        ledger=ListLedger();_,entry=client(port,ledger).complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture')
+        assert entry['finish_reason']=='stop' and entry['refusal_detail'] is None and entry['status']=='COMPLETED'
 
 
 TOOLS=[{'type':'function','function':{'name':'write_file','description':'Write a file.','parameters':{'type':'object','properties':{'file_path':{'type':'string'},'content':{'type':'string'}},'required':['file_path','content']}}},
@@ -187,7 +209,7 @@ def test_tool_calls_need_an_allowlist_and_are_recorded_by_name_and_argument_hash
         assert len(state['posts'])==3 and all(e['status']=='COMPLETED' for e in ledger.entries)
 
 
-@pytest.mark.parametrize('mode,code',[('toolbad','AI_RESPONSE_REJECTED'),('toolargs','AI_RESPONSE_REJECTED'),('toolmany','AI_RESPONSE_REJECTED'),('toolstop','AI_RESPONSE_REJECTED')])
+@pytest.mark.parametrize('mode,code',[('toolbad','AI_TOOL_EXECUTION_DENIED'),('toolargs','AI_TOOL_EXECUTION_DENIED'),('toolmany','AI_TOOL_EXECUTION_DENIED'),('toolstop','AI_RESPONSE_INCOMPLETE')])
 def test_tool_calls_outside_the_allowlist_or_malformed_are_rejected_and_recorded(mode,code):
     with server(mode) as (port,state):
         ledger=ListLedger()

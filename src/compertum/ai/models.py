@@ -151,6 +151,24 @@ class StoreLedger:
             return [read_json(row[0]) for row in self.store.conn.execute('SELECT record FROM engine_model_calls ORDER BY rowid')]
 
 
+# Reply checks whose own code reaches the caller (26 October 2026, after bench baseline 1). Each is a step fault in the engine (cycle.STEP_FAULTS).
+# Every other refusal inside the request block still becomes AI_RESPONSE_REJECTED, so the engine's behavior does not change; the inner code is kept
+# in the record as refusal_detail. A reply stopped at the token cap (finish_reason 'length') is AI_RESPONSE_TRUNCATED.
+PASSED_CODES=frozenset({'AI_RESPONSE_INVALID','AI_RESPONSE_INCOMPLETE','AI_RESPONSE_TRUNCATED','AI_RESPONSE_BOUND','AI_TOOL_EXECUTION_DENIED','AI_USAGE_BOUND'})
+FINISH_CHARS=32
+
+
+def usage_counts(usage):
+    """The token counts of a reply, bounded: prompt, completion and total, plus reasoning tokens when the server reports them. None when absent."""
+    if usage is None: return None
+    if not isinstance(usage,dict) or type(usage.get('prompt_tokens')) is not int or type(usage.get('completion_tokens')) is not int: raise RuntimeRefused('AI_USAGE_BOUND')
+    # Keep only the token counts. A server-sized dict must not grow the record past its bound.
+    counts={k:usage[k] for k in ('prompt_tokens','completion_tokens','total_tokens') if type(usage.get(k)) is int}
+    details=usage.get('completion_tokens_details')
+    if isinstance(details,dict) and type(details.get('reasoning_tokens')) is int: counts['reasoning_tokens']=details['reasoning_tokens']
+    return counts
+
+
 class ModelClient:
     """Send one bounded Chat Completions request per call. Check memory, the request limit and the server's model first.
 
@@ -229,7 +247,7 @@ class ModelClient:
                'address':spec.base_url if spec else None,'model_requested':spec.model if spec else None,'model_reported':None,
                'settings':{'temperature':recorded_number(temperature),'max_tokens':recorded_number(max_tokens),
                            'request_seconds':recorded_number(seconds),'stream':False},
-               'prompt_sha256':None,'response_sha256':None,'usage':None,'elapsed_seconds':None,
+               'prompt_sha256':None,'response_sha256':None,'usage':None,'finish_reason':None,'refusal_detail':None,'elapsed_seconds':None,
                'available_memory_bytes':None,'memory_floor_bytes':self.memory_floor_bytes,
                'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None}
         try:
@@ -262,22 +280,23 @@ class ModelClient:
                     tool_calls=tool_calls_from(message['tool_calls'],names)
                     entry['tool_calls']=[{'id':c['id'],'name':c['name'],'arguments_sha256':hashlib.sha256(canonical(c['arguments'])).hexdigest()} for c in tool_calls]
                 content=message.get('content');finish=choices[0].get('finish_reason')
+                # The stop reason and the token counts are recorded before the checks, so a refused reply keeps them (bench baseline 1:
+                # three Mathematician reviews stopped at the cap and the record showed neither).
+                entry['finish_reason']=finish if isinstance(finish,str) and len(finish)<=FINISH_CHARS else (None if finish is None else 'INVALID')
+                usage=usage_counts(response.get('usage'));entry['usage']=usage
                 if content is None and tool_calls: content=''
+                if finish=='length': raise RuntimeRefused('AI_RESPONSE_TRUNCATED')
                 if not isinstance(content,str) or finish not in ('stop','tool_calls') or (finish=='tool_calls')!=bool(tool_calls):
                     raise RuntimeRefused('AI_RESPONSE_INCOMPLETE')
                 sanitized(content.encode('utf-8'))
-                usage=response.get('usage')
-                if usage is not None:
-                    if (not isinstance(usage,dict) or type(usage.get('prompt_tokens')) is not int
-                            or type(usage.get('completion_tokens')) is not int): raise RuntimeRefused('AI_USAGE_BOUND')
-                    # Keep only the token counts. A server-sized dict must not grow the record past its bound.
-                    usage={k:usage[k] for k in ('prompt_tokens','completion_tokens','total_tokens') if type(usage.get(k)) is int}
             except (TimeoutError,httpx.TimeoutException,httpx.TransportError):
                 raise RuntimeRefused('LOCAL_COMPLETION_UNVERIFIED') from None
             except RuntimeRefused as error:
                 if error.code=='MODEL_IDENTITY_MISMATCH': raise
-                raise RuntimeRefused('AI_RESPONSE_REJECTED') from None
-            except (ContractError,httpx.HTTPStatusError,KeyError,TypeError,ValueError):
+                entry['refusal_detail']=error.code
+                raise RuntimeRefused(error.code if error.code in PASSED_CODES else 'AI_RESPONSE_REJECTED') from None
+            except (ContractError,httpx.HTTPStatusError,KeyError,TypeError,ValueError) as error:
+                entry['refusal_detail']=type(error).__name__[:64]
                 raise RuntimeRefused('AI_RESPONSE_REJECTED') from None
             entry.update(usage=usage,status='COMPLETED')
             return content,tool_calls,entry

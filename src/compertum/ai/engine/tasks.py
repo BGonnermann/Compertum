@@ -72,8 +72,14 @@ def specify_task(brief,memo_text):
     return f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{memo_text}'
 
 
+# Bench baseline 1 (26 October 2026): three Mathematician reviews filled the 2,048-token cap with about 1,530 tokens of visible answer and were refused.
+# The review is advice only, so a short one loses nothing. Code adds the limit, so GEPA cannot remove it; the preflight check confirms it.
+REVIEW_LENGTH_RULE='Write at most 150 words.'
+
+
 def review_task(specification,code):
-    return f'Review this code against the specification.\n\nSPECIFICATION\n{specification}\n\nCODE\n{json.dumps(code,sort_keys=True)}'
+    return (f'Review this code against the specification. {REVIEW_LENGTH_RULE}\n\nSPECIFICATION\n{specification}\n\n'
+            f'CODE\n{json.dumps(code,sort_keys=True)}')
 
 
 def agenda_task(brief,summary):

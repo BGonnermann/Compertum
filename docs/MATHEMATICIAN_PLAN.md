@@ -38,6 +38,11 @@ Research on 26 October 2026 (`docs/HARNESS_TOOLS_RESEARCH.md`) confirmed it from
 - Alternative: increase the token limit for one reply. Each long call then takes more time, so this plan does not recommend it.
 - Effect on the bench: the review does not change any score. It changes the requests, the minutes for each cycle and the review faults. The bench report compares these values with the baseline.
 
+**Built on 26 October 2026, during bench baseline 1 (the running process does not reload its files):**
+- Fix 1, in `src/compertum/ai/models.py`: every model-call record now holds `finish_reason` and `refusal_detail` (the inner code). Token counts, including `reasoning_tokens`, are recorded before the reply checks, so a refused reply keeps them. A stop at the token cap is the new code `AI_RESPONSE_TRUNCATED`, added to `STEP_FAULTS`. The reply-check codes `AI_RESPONSE_INVALID`, `AI_RESPONSE_INCOMPLETE`, `AI_RESPONSE_BOUND`, `AI_TOOL_EXECUTION_DENIED` and `AI_USAGE_BOUND` now reach the caller. Every other inner refusal (bad JSON, an HTTP error, a secret in the reply) still raises `AI_RESPONSE_REJECTED`, so no tolerated fault became a cycle stop. `roles.py` passes `finish_reason` and the token counts into the LangChain message.
+- Fix 2, in `src/compertum/ai/engine/tasks.py`: the review task ends its first line with "Write at most 150 words." (`REVIEW_LENGTH_RULE`). The preflight check refuses a review task without it. The pinned task hash changed on purpose.
+- Tests: product lane (model interface, preflight, bench) 81 passed, 0 failed, 1 skipped (the cycle import test needs the engine library). Engine environment, the tests that use no sandbox, 19 passed, 0 failed, 0 skipped. The full engine lane waits until the bench run ends, because its tests share the sandbox profile.
+
 These two fixes come before change A. They do not change what the model knows about the market, so they do not need their own bench run. Change A's bench run measures them together with change A.
 
 ## Two harness steps toward fine-tuning (added 25 October 2026)

@@ -70,7 +70,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 - Open the vault only in batches, with the owner's OK. Count every look before the vault opens.
 - Start unattended runs only with a cycle or hour limit, an owner-approved AI request limit, the kill switch, Auditor freeze, and a daily summary.
 - Never raise the per-run hard maximum for AI requests. Only the owner raises it.
-- Use loopback model addresses only. Check host memory before every job. The start floor is 16 GiB free.
+- Use loopback model addresses only. Check host memory before every job. The start floor is 8 GiB free (the owner lowered it from 16 GiB on 26 October 2026).
 - Engine work starts after M3 acceptance and finishes before M5.
 
 ## Project diagram refresh

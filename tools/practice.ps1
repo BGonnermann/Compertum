@@ -5,7 +5,7 @@ One owner command for a practice run: start the model server, load the model, ru
 .DESCRIPTION
 Owner-started only (section 19: the owner starts each run). Nothing here runs on its own or on a schedule.
 Steps, in order, each one checked before the next:
-  1. Free host memory must be at least the start floor (16 GiB) before the model loads.
+  1. Free host memory must be at least the start floor (8 GiB since 26 October 2026; it was 16 GiB) before the model loads.
   2. The server settings must have on-demand model loading off; otherwise the script stops and says so.
   3. The LM Studio server (Bionic) starts on the port if it is not running. No window is needed.
   4. The model loads with its saved per-model settings if it is not loaded, then must be listed by the server.
@@ -41,7 +41,7 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 Set-Location $root
 $python=Join-Path $root '.cache\engine-env\Scripts\python.exe'
-$floorGiB=16
+$floorGiB=8
 
 function Free-GiB { $os=Get-CimInstance Win32_OperatingSystem; [math]::Round($os.FreePhysicalMemory/1MB,1) }
 function Fail($message) { Write-Host "STOP: $message"; exit 2 }
