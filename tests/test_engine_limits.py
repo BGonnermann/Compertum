@@ -28,8 +28,8 @@ def settings_file(root,text):
 
 
 def test_hard_maximum_comes_only_from_the_owner_file(tmp_path):
-    # The committed file holds the owner's value (450, set 24 October 2026). The engine only reads it.
-    assert load_run_settings(PROJECT)=={'request_hard_maximum':450,'path':'config/engine.toml'}
+    # The committed file holds the owner's value (450 from 24 October 2026; 600 since 26 October 2026). The engine only reads it.
+    assert load_run_settings(PROJECT)=={'request_hard_maximum':600,'path':'config/engine.toml'}
     settings_file(tmp_path,'[run]\nrequest_hard_maximum = 500\n');assert load_run_settings(tmp_path)['request_hard_maximum']==500
     for text,code in (('[run]\nrequest_hard_maximum = 10001\n','INVALID_CONFIG'),('[run]\nrequest_hard_maximum = -1\n','INVALID_CONFIG'),
                       ('[run]\nrequest_hard_maximum = "500"\n','INVALID_CONFIG'),('[run]\nrequest_hard_maximum = 5\nextra = 1\n','UNKNOWN_CONFIG_FIELD'),
