@@ -44,6 +44,24 @@ Fresh full storage admission remains required before subsequent product tests.
 Unclear ownership, missing results, active use, or access denial excludes the affected files from cleanup.
 Do not change permissions or relax operating checks to delete them.
 
+## Routine tool, 25 October 2026
+
+The owner chose cleanup at the end of each passing test job ("Yes, go with step 1"), so test folders stop slowing the storage scan. The scan cost follows the number of folders, and pytest working folders make most of them (see `docs/NATIVE_SCANNER_PLAN.md`).
+
+Run tests with `tools/run_tests.py`:
+
+    python tools/run_tests.py --name <name> [--env product|engine] [--under <existing test-runs folder>] -- <pytest arguments>
+
+- The tool makes a fresh job folder `.cache/test-runs/<name>-<date>-<time>`, sets pytest's `--basetemp` to its `tmp` folder and saves the full output in `output.txt`.
+- It refuses to start below 16 GiB free host memory, or while an engine run is open, because engine tests share the run's sandbox profile.
+- It removes `tmp` only when pytest exited 0 and the summary line shows at least one pass and no failure or error. Skips do not block cleanup.
+- A failed, interrupted or unclear job keeps `tmp` as evidence.
+- Links are removed as links and never followed. A link that points outside `tmp` stops the cleanup.
+- The job folder, `output.txt` and `retention.json` always stay. `retention.json` records the counts, the decision and the output hash.
+- `--under m5-local-economics-20261017-01` places the job inside that capped folder for the economic-fixture files. `--keep` keeps the working files of a passing job.
+
+Tests: `tests/test_run_tests_tool.py`.
+
 ## Completion rule
 
 Clean eligible temporary files during test-job completion or before the next admitted test batch.
