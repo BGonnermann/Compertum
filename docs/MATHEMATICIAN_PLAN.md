@@ -15,6 +15,25 @@ Today the Mathematician turns a memo into a four-part specification (features, m
 - A change that adds a false discovery on an empty market is rejected, however much it helps elsewhere.
 - The holdout is used only once, for the final combination, before the owner applies anything permanent.
 
+## Two fixes first, from the bench baseline run (added 25 October 2026)
+
+In bench cycle 77 (`run-20261026-84433f03`), the Mathematician review call continued for 43.5 seconds and the client refused it with `AI_RESPONSE_REJECTED`. Flint writes approximately 46 tokens each second, so the reply had approximately 2,000 tokens. The limit for one reply is 2,048 tokens. The server probably stopped the reply at the limit. The record does not show this cause, so the cause is an inference from the call time.
+
+**Fix 1: record the real cause of a refused reply.**
+- Problem: in `src/compertum/ai/models.py`, `_complete` (used by `complete` and `complete_tools`) changes every refusal inside the request block to `AI_RESPONSE_REJECTED`. Thus, `AI_RESPONSE_INCOMPLETE`, `AI_RESPONSE_INVALID`, `AI_TOOL_EXECUTION_DENIED` and `AI_USAGE_BOUND` are not visible in the ledger.
+- Change: keep the specific refusal code. Record the `finish_reason` from the server and the token counts, if the server sent them, in the model-call record.
+- Rule: no refusal becomes an acceptance. The step-fault list in `cycle.py` (`STEP_FAULTS`) already contains each specific code, so the cycle behavior does not change.
+- Tests: one test for each code, with a scripted server that sends a reply with `finish_reason` "length", a malformed reply, and a reply with a bad usage field.
+- Size: approximately two hours. `models.py` is the stage E1 client, so the change needs its own tests and a short review.
+
+**Fix 2: a length limit for the Mathematician review.**
+- Problem: the review gives advice only, but a long review uses up to 2,048 tokens and approximately 44 seconds, and it can stop before the end.
+- Change: `tasks.review_task` adds one fixed sentence: "Write at most 150 words." The sentence is in code, so GEPA cannot remove it. The preflight check confirms the sentence.
+- Alternative: increase the token limit for one reply. Each long call then takes more time, so this plan does not recommend it.
+- Effect on the bench: the review does not change any score. It changes the requests, the minutes for each cycle and the review faults. The bench report compares these values with the baseline.
+
+These two fixes come before change A. They do not change what the model knows about the market, so they do not need their own bench run. Change A's bench run measures them together with change A.
+
 ## Change A: a power check in every specification (first, smallest)
 
 **What.** The specification gets a fifth heading, "5. Detectability". The Mathematician states the edge the rule expects and compares it with the edge the sample can detect. Code puts the reference numbers into the specify task, so the model does not compute them:
@@ -65,6 +84,7 @@ The Auditor already reruns the frozen code with the last validation rows perturb
 
 ## Order and cost
 
+0. Fixes 1 and 2, with their tests. No model is necessary.
 1. Change A, then a bench run (about 80 minutes with Flint).
 2. Change B, then a bench run.
 3. The owner decides the trial accounting for change C; then change C and a bench run.
