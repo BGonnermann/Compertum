@@ -8,8 +8,8 @@ import shutil
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
-from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
-                                          feedback_for,records_text,score_for_cycle,write_candidates)
+from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
+                                          feedback_for,load_goal,records_text,score_for_cycle,write_candidates)
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.ai.engine.market import score_signals,split_market_tiers,synthetic_market
 from compertum.ai.engine.prompts import ROLES,load_prompt
@@ -315,3 +315,19 @@ def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
     assert batch.scores==[round(0.6+0.009*speed,6)] and batch.outputs[0]['level']==6
     assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'output_tokens':2048,'candidates_built':1,'tokens_per_candidate':2048.0,'speed':speed}
     assert '2048 output tokens, 2048.0 per candidate built' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4
+
+def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path):
+    """Owner direction, 26 October 2026: tell GEPA what we want. The goal file steers the proposals only; it never enters a score."""
+    assert load_goal(tmp_path) is None  # optional
+    assert load_goal(PROJECT).startswith('The firm wants strategies')  # the committed goal passes the checks
+    goal=tmp_path/GOAL_FILE;goal.parent.mkdir(parents=True)
+    for text in ('too short','x'*7000,'Use this api_key=abcd1234 when you call the model, always, for every role.'):
+        goal.write_text(text,encoding='utf-8')
+        with pytest.raises(RuntimeRefused,match='^(ENGINE_GOAL_INVALID|AI_SENSITIVE_INPUT_DENIED)$'): load_goal(tmp_path)
+    b,_=bridge;current={role:load_prompt(PROJECT,role) for role in ROLES}
+    improved='ROLE: mathematician\nImproved: test both directions and several windows, and state the size of the effect against noise.\n'
+    client=StubClient([improved])
+    adapter=PromptAdapter(build_engine=None,run_cycle=None,client=client,ledger=EngineLedger(b.store),run_id='run-20261026-0123abcd',next_index=1,cycle_limit=6,
+                          goal='Find real patterns; on a market with no pattern the correct result is no strategy.')
+    assert adapter.propose_new_texts(current,{'mathematician':[]},['mathematician'])=={'mathematician':improved}
+    user=client.calls[0]['user'];assert "THE OWNER'S GOAL\nFind real patterns" in user and user.index('GOAL')<user.index('CURRENT PROMPT')
