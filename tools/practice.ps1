@@ -110,13 +110,16 @@ $sampler=$null
 try {
     # A memory record, one line every 30 seconds: free host memory and the model server's own memory. It shows what grows during a run.
     $memoryLog=Join-Path $root (".cache\test-runs\practice-$Mode-"+(Get-Date -Format 'yyyyMMdd-HHmmss')+"-memory.csv")
-    "time,free_gib,model_server_gib" | Set-Content $memoryLog
+    # gpu_used_gib (added 26 October 2026) shows how much of the GPU the offloaded expert layers use; empty when nvidia-smi is not available.
+    "time,free_gib,model_server_gib,gpu_used_gib" | Set-Content $memoryLog
     $sampler=Start-Job -ArgumentList $memoryLog -ScriptBlock {
         param($path)
         while ($true) {
             $os=Get-CimInstance Win32_OperatingSystem
             $server=(Get-Process -Name 'llama-server' -ErrorAction SilentlyContinue | Measure-Object WorkingSet64 -Sum).Sum
-            ('{0},{1:N1},{2:N1}' -f (Get-Date -Format 'HH:mm:ss'),($os.FreePhysicalMemory/1MB),($server/1GB)) | Add-Content $path
+            $gpu=''
+            try { $mib=(& nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>$null | Select-Object -First 1); if ($mib) { $gpu='{0:F1}' -f ([double]$mib/1024) } } catch {}
+            ('{0},{1:F1},{2:F1},{3}' -f (Get-Date -Format 'HH:mm:ss'),($os.FreePhysicalMemory/1MB),($server/1GB),$gpu) | Add-Content $path
             Start-Sleep -Seconds 30
         }
     }

@@ -84,6 +84,15 @@ The owner asked whether GEPA can make the runs faster. During bench baseline 1, 
 - Measure, before and after, with the model alone on the PC: tokens each second from the server log, minutes for each cycle, free host memory and used GPU memory (the wrapper's memory record), and the bench report.
 - Stop rule: if free GPU memory falls under 2 GiB, or the server fails to load, go back to the previous ratio.
 
+**V1 results so far (26 October 2026).** Speed comes from Bionic's server log; memory from the wrapper's memory record.
+
+| Ratio | Run | Generation | Prompt reading | Model server RAM at start | Free RAM at start |
+|---|---|---|---|---|---|
+| 1 (baseline) | bench baseline 1, 228 replies | 48.2 tok/s | about 500 tok/s | 21.6 GiB | 23.6 GiB |
+| 0.8 | `run-20261026-0f3194ec`, 1 cycle, 15 replies | 57.5 tok/s (+19%) | about 617 tok/s | 17.3 GiB | 27.5 GiB |
+
+About 4.3 GiB moved from RAM to the GPU at 0.8. The ratio is now 0.6 for the next one-cycle check (backup: `flint-Q4_K_M.gguf.json.backup-20261026-before-offload`). The wrapper's memory record now has a `gpu_used_gib` column. The check run also showed fix 1 working: an Engineer build stopped with `AI_RESPONSE_TRUNCATED`, a program reply that reached the 2,048-token cap. That cause was hidden before fix 1. Possible follow-ups: a larger reply cap for the Engineer only, or an instruction to write shorter programs and fix them with `edit_file`.
+
 **Step V2: GEPA run 3 with speed as a tie-breaker.**
 - Today GEPA's score is the outcome level divided by 10 (`gepa_run.score_for_cycle`). Time does not count, so GEPA has no reason to prefer a faster prompt.
 - Change: add a small speed bonus from the cycle's own records (requests, completion tokens and minutes, all in the ledger). The bonus is always smaller than the smallest possible difference between two level scores, so a faster prompt can win only when its levels are equal. GEPA can never trade research quality for speed.
