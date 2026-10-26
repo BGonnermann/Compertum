@@ -108,6 +108,11 @@ The same day's log also shows fix 2 working: a Mathematician review reply of 665
 
 **V2 built on 26 October 2026** (`src/compertum/ai/engine/gepa_run.py`): `speed_for_calls` reads the cycle's own model-call records (the calls added to the client's ledger during that cycle) and computes the mean number of output tokens per call. `score_with_speed` adds at most `SPEED_WEIGHT` = 0.009 to the level score, which is below the smallest gap between two mean level scores (0.1 divided by `MAX_MARKETS` = 8, so 0.0125). The measure is per call, not per cycle, so a cycle that builds more candidates is not penalized. The feedback to GEPA's reflection states the calls and the mean tokens. Without token data the score is the level score alone. Tests: product lane GEPA tests 11 passed, including a check over every level and 1 to 8 markets; engine environment, all engine files, 165 passed, 0 failed, 0 skipped; product lane engine files 169 passed, 7 skipped.
 
+**V2 revised on 26 October 2026, after an independent review.** The review found two defects.
+- The per-call mean could be gamed. A prompt that adds short calls lowers the mean, but the cycle gets slower. The measure is now the cycle's total output tokens per candidate built. A call without token counts counts as `UNCOUNTED_CALL_TOKENS` = 2048, so failed calls never look fast. `SPEED_TOKEN_CAP` is now 16384 tokens per candidate.
+- `best_index` ranked candidates by mean score. With unequal evaluation counts, the gap between two means can be smaller than `SPEED_WEIGHT`, for example 0.1/12 for 3 against 4 evaluations. Then a faster candidate with a lower level could win. `best_candidate` now compares exact mean levels first. Mean speed breaks exact ties only. `result.json` also records `mean_levels`.
+GEPA run 3 was not affected: candidate 2 led by 0.6 levels, and speed decided nothing.
+
 Order: fix 2 (review length) first, then V1, then GEPA run 3 with V2. Fix 2, V1 (ratio 0.6) and V2 are done; GEPA run 3 is next. Each step gets its own bench comparison.
 
 ## Change A: a power check in every specification (first, smallest)

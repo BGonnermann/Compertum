@@ -41,17 +41,26 @@ FLOOR_GIB=8  # the owner's start floor for free host memory (8 GiB since 26 Octo
 SANDBOX_FREE={'tests/test_engine_preflight.py','tests/test_engine_lessons.py','tests/test_engine_limits.py','tests/test_engine_validator.py',
               'tests/test_engine_gepa.py','tests/test_engine_audit.py','tests/test_ai_models_interface.py','tests/test_run_tests_tool.py'}
 NAME=re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,80}')
+GENERATION=re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+NO_FILES='(no test file named; pytest would collect its testpaths, the whole suite)'
 
 
-def sandbox_files(pytest_args):
-    """Whole test files in the arguments that may use the sandbox profile: every tests/ file that is not in SANDBOX_FREE."""
-    out=[]
+class LedgerUnreadable(Exception):
+    pass
+
+
+def sandbox_files(pytest_args,root=ROOT):
+    """Arguments that stop a job while an engine run is open. This is an allow-list (review, 26 October 2026): an argument that is
+    not an option must name a SANDBOX_FREE file, or a node in one, by any path form. Anything else is refused, because it may be a
+    folder, a pattern or an option's value; give option values joined, such as -kbench. A job that names no file is refused, because
+    pytest would then collect the whole suite."""
+    allowed={os.path.normcase(os.path.abspath(root/name)) for name in SANDBOX_FREE}
+    out=[];named=0
     for arg in pytest_args:
-        if arg.startswith('-') or '::' in arg: continue
-        path=arg.replace('\\','/')
-        if path.startswith('tests/') and path.endswith('.py') and path not in SANDBOX_FREE: out.append(arg)
-        elif path.rstrip('/')=='tests': out.append(arg)
-    return out
+        if arg.startswith('-'): continue
+        if os.path.normcase(os.path.abspath(os.path.join(root,arg.split('::',1)[0]))) in allowed: named+=1
+        else: out.append(arg)
+    return out if out or named else [NO_FILES]
 SUMMARY=re.compile(r'^=*\s*(.*\b(passed|failed|error|errors|skipped|no tests ran)\b.*?)\s*=*$')
 BAD=re.compile(r'\b\d+ (failed|errors?|xpassed)\b|\bno tests ran\b|\binterrupted\b',re.I)
 
@@ -64,14 +73,31 @@ def free_gib():
     return value.available/1024**3
 
 
+def engine_store(root=ROOT):
+    """The live research store, chosen as src/compertum/persistence.py does: after a restore, the generation named in
+    state/active-generation.json. A restore in progress or a pointer that cannot be read raises LedgerUnreadable."""
+    state=root/'state';operation=state/'restore-operation.json';pointer=state/'active-generation.json'
+    if operation.exists() and json.loads(operation.read_text(encoding='utf-8')).get('status') not in ('PUBLISHED','ABORTED'):
+        raise LedgerUnreadable('a restore is in progress')
+    if not pointer.exists(): return state/'research.sqlite',False
+    generation=json.loads(pointer.read_text(encoding='utf-8')).get('generation')
+    if not isinstance(generation,str) or not GENERATION.fullmatch(generation): raise LedgerUnreadable('state/active-generation.json names no generation')
+    return state/'generations'/generation/'research.sqlite',True
+
+
 def open_engine_runs(root=ROOT):
-    """Engine runs with a START row and no END row, read-only. A missing store means none."""
-    store=root/'state'/'research.sqlite'
-    if not store.exists(): return []
+    """Engine runs with a START row and no END row, read-only. A missing default store, or a store without the engine table, means
+    none. Any other read failure raises, so a locked or damaged ledger never reads as 'no run open' (review, 26 October 2026)."""
+    store,restored=engine_store(root)
+    if not store.exists():
+        if restored: raise LedgerUnreadable(f'the active generation has no store: {store}')
+        return []
     connection=sqlite3.connect(store.as_uri()+'?mode=ro',uri=True,timeout=5)
     try:
         try: rows=[json.loads(r[0]) for r in connection.execute('SELECT record FROM engine_bounded_runs ORDER BY rowid')]
-        except sqlite3.OperationalError: return []
+        except sqlite3.OperationalError as error:
+            if 'no such table' in str(error): return []
+            raise LedgerUnreadable(str(error)) from None
     finally: connection.close()
     ended={r['run_id'] for r in rows if r.get('phase')=='END'}
     return [r['run_id'] for r in rows if r.get('phase')=='START' and r['run_id'] not in ended]
@@ -182,9 +208,11 @@ def main(argv=None):
     if any(a.startswith('--basetemp') for a in pytest_args): raise SystemExit('refused: this tool sets --basetemp itself')
     free=free_gib()
     if free<FLOOR_GIB: raise SystemExit(f'refused: {free:.1f} GiB free host memory, under the {FLOOR_GIB} GiB floor')
-    running=open_engine_runs()
+    try: running=open_engine_runs()
+    except (LedgerUnreadable,OSError,ValueError,KeyError,TypeError,sqlite3.Error) as error:
+        raise SystemExit(f'refused: cannot tell whether an engine run is open ({type(error).__name__}: {error})') from None
     if running and not args.allow_during_run: raise SystemExit(f'refused: engine run open ({", ".join(running)}); engine tests share its sandbox profile')
-    if running and sandbox_files(pytest_args): raise SystemExit(f'refused: engine run open; these files may use the sandbox profile: {", ".join(sandbox_files(pytest_args))}')
+    if running and sandbox_files(pytest_args): raise SystemExit(f'refused: engine run open; only sandbox-free test files may run, and these may use the sandbox profile: {", ".join(sandbox_files(pytest_args))}')
     python=ENVIRONMENTS[args.env]
     if not python.exists(): raise SystemExit(f'refused: environment missing: {python}')
     job=job_folder(args.name,args.under);job.mkdir(parents=True)

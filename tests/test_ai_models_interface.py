@@ -44,6 +44,10 @@ def server(mode='ok',model='synthetic-model'):
                 message={'role':'assistant','content':None,'tool_calls':calls}
                 return self.send({'choices':[{'message':message,'finish_reason':'stop' if state['mode']=='toolstop' else 'tool_calls'}],'usage':{'prompt_tokens':10,'completion_tokens':3}})
             if state['mode']=='two': return self.send({'choices':[{'message':message,'finish_reason':'stop'}]*2})
+            if state['mode'] in ('toollength','lengthbadusage'):  # cut off inside a tool call: the arguments are broken JSON
+                calls=[{'id':'call_0','type':'function','function':{'name':'write_file','arguments':'{"file_path":"/main.py","content":"pri'}}]
+                usage={'prompt_tokens':900,'completion_tokens':2048} if state['mode']=='toollength' else {'prompt_tokens':'many'}
+                return self.send({'choices':[{'message':{'role':'assistant','content':None,'tool_calls':calls},'finish_reason':'length'}],'usage':usage})
             if state['mode']=='length':  # bench baseline 1: a review stopped at the token cap after 518 reasoning tokens
                 return self.send({'choices':[{'message':message,'finish_reason':'length'}],
                                   'usage':{'prompt_tokens':900,'completion_tokens':2048,'total_tokens':2948,'completion_tokens_details':{'reasoning_tokens':518}}})
@@ -175,6 +179,26 @@ def test_a_reply_stopped_at_the_token_cap_is_truncated_and_keeps_its_counts():
         entry=ledger.entries[0]
         assert entry['status']=='REFUSED_AI_RESPONSE_TRUNCATED' and entry['finish_reason']=='length' and entry['refusal_detail']=='AI_RESPONSE_TRUNCATED'
         assert entry['usage']=={'prompt_tokens':900,'completion_tokens':2048,'total_tokens':2948,'reasoning_tokens':518}
+
+
+@pytest.mark.parametrize('mode,usage',[('toollength',{'prompt_tokens':900,'completion_tokens':2048}),('lengthbadusage',None)])
+def test_a_reply_cut_off_inside_a_tool_call_is_truncated_not_a_tool_fault(mode,usage):
+    # Review, 26 October 2026: the tool-call and usage checks ran first, so these replies were recorded as tool faults without counts.
+    with server(mode) as (port,state):
+        ledger=ListLedger()
+        with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_TRUNCATED$'):
+            client(port,ledger).complete_tools('engineer',[{'role':'user','content':'build it'}],TOOLS,purpose='e3-fixture',max_tokens=64)
+        entry=ledger.entries[0]
+        assert entry['status']=='REFUSED_AI_RESPONSE_TRUNCATED' and entry['finish_reason']=='length' and entry['usage']==usage and entry['tool_calls'] is None
+
+
+def test_a_tool_reply_without_offered_tools_keeps_its_stop_reason_and_counts():
+    with server('tool') as (port,state):
+        ledger=ListLedger()
+        with pytest.raises(RuntimeRefused,match='^AI_TOOL_EXECUTION_DENIED$'):
+            client(port,ledger).complete('mathematician',[{'role':'user','content':'x'}],purpose='e1-fixture')
+        entry=ledger.entries[0]
+        assert entry['finish_reason']=='stop' and entry['usage']=={'prompt_tokens':10,'completion_tokens':3}
 
 
 def test_a_completed_reply_records_its_stop_reason_and_no_detail():

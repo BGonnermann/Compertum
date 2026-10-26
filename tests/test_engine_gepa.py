@@ -214,12 +214,24 @@ def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observation
     assert adapter2.candidates[0]['scores']==[] and len(adapter2.evaluations)==1
 
 
+def record_hashes(run_folder,index):
+    """A result.json that records the current files of candidate <index>, as write_candidates does."""
+    from compertum.ai.engine.gepa_run import sha
+    hashes=[None]*index+[{role:sha((run_folder/f'candidate-{index}'/f'{role}.md').read_text(encoding='utf-8')) for role in ROLES}]
+    (run_folder/'result.json').write_text(json.dumps({'candidate_sha256':hashes}),encoding='utf-8')
+
+
 def test_apply_prompts_copies_one_candidate_into_config_after_the_checks(tmp_path):
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
     run_id='run-20261024-0123abcd';folder=tmp_path/PROMPTS_DIR/run_id/'candidate-1';folder.mkdir(parents=True)
     for role in ROLES: (folder/f'{role}.md').write_text(f'ROLE: {role}\nImproved prompt for the {role} role. Keep every output format rule of the original.\n',encoding='utf-8')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_UNAVAILABLE$'): apply_prompts(tmp_path,run_id,1)  # no result.json
+    record_hashes(folder.parent,1)
     result=apply_prompts(tmp_path,run_id,1)
     assert set(result['applied_sha256'])==set(ROLES) and load_prompt(tmp_path,'engineer').startswith('ROLE: engineer\nImproved prompt')
+    # Review, 26 October 2026: a file edited after the GEPA run no longer matches its recorded hash and is refused.
+    (folder/'engineer.md').write_text('ROLE: engineer\nAn edited prompt that the GEPA run never measured, long enough to pass.\n',encoding='utf-8')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_CHANGED$'): apply_prompts(tmp_path,run_id,1)
     (folder/'engineer.md').write_text('ROLE: director\nwrong role\n'*3,encoding='utf-8')
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): apply_prompts(tmp_path,run_id,1)
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_UNAVAILABLE$'): apply_prompts(tmp_path,run_id,2)
@@ -244,12 +256,46 @@ def test_speed_only_breaks_ties_between_equal_levels():
         assert level/10<=score_with_speed(level/10,{'speed':speed})<(level+1)/10
 
 
-def test_speed_comes_from_mean_output_tokens_per_call():
-    from compertum.ai.engine.gepa_run import SPEED_TOKEN_CAP,speed_for_calls
-    calls=[{'usage':{'prompt_tokens':900,'completion_tokens':512}},{'usage':{'prompt_tokens':300,'completion_tokens':1536}},{'usage':None},{'status':'REFUSED_AI_RESPONSE_REJECTED'}]
-    assert speed_for_calls(calls)=={'calls':4,'calls_with_tokens':2,'mean_completion_tokens':1024.0,'speed':0.5}
-    assert speed_for_calls([])is None and speed_for_calls([{'usage':None}]) is None
-    assert speed_for_calls([{'usage':{'completion_tokens':SPEED_TOKEN_CAP*3}}])['speed']==0.0
+def test_speed_comes_from_output_tokens_per_candidate_built():
+    from compertum.ai.engine.gepa_run import SPEED_TOKEN_CAP,UNCOUNTED_CALL_TOKENS,speed_for_calls
+    calls=[{'usage':{'prompt_tokens':900,'completion_tokens':3000}},{'usage':{'prompt_tokens':300,'completion_tokens':1096}},{'usage':None},{'status':'REFUSED_AI_RESPONSE_REJECTED'}]
+    total=3000+1096+2*UNCOUNTED_CALL_TOKENS  # a call without counts never looks fast
+    assert speed_for_calls(calls,2)=={'calls':4,'calls_with_tokens':2,'output_tokens':total,'candidates_built':2,'tokens_per_candidate':total/2,
+                                      'speed':round(1-(total/2)/SPEED_TOKEN_CAP,6)}
+    assert speed_for_calls([],2) is None and speed_for_calls([{'usage':None}],0)['speed']==round(1-UNCOUNTED_CALL_TOKENS/SPEED_TOKEN_CAP,6)
+    assert speed_for_calls([{'usage':{'completion_tokens':SPEED_TOKEN_CAP*3}}],1)['speed']==0.0
+    # Review, 26 October 2026: extra short calls lowered the old per-call mean. Adding calls can now only lower speed.
+    base=[{'usage':{'completion_tokens':600}}]*10;padded=base+[{'usage':{'completion_tokens':20}}]*4
+    assert speed_for_calls(padded,2)['speed']<speed_for_calls(base,2)['speed']
+    # Building more candidates with the same tokens is not slower; building fewer is not faster.
+    assert speed_for_calls(base,3)['speed']>speed_for_calls(base,2)['speed']
+
+
+@pytest.mark.parametrize('name',['bench-1','holdout-1'])
+def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
+    """Review, 26 October 2026: only practice.py's seed check kept GEPA off reserved markets. run_gepa now refuses them itself."""
+    from compertum.ai.engine import bench
+    from compertum.ai.engine.gepa_run import run_gepa
+    market=bench.set_markets(name)[0]
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_RESERVED$'):
+        run_gepa(store=None,lease=None,project_root=PROJECT,sandbox_root=None,verification=None,roles=None,markets=[market],memory_floor_bytes=1,
+                 limits=None,owner_approval='review fixture')
+
+
+def test_the_best_candidate_has_the_highest_mean_level_whatever_the_counts():
+    """Review, 26 October 2026: 3 evaluations against 4 give a mean gap of 0.1/12 in score, below SPEED_WEIGHT, so ranking by
+    mean score picked a faster candidate with a lower level. The ranking now compares exact mean levels first."""
+    from compertum.ai.engine.gepa_run import best_candidate,mean_level,score_with_speed
+    def entries(levels,speed): return [{'level':v,'score':score_with_speed(v/10,{'speed':speed}),'speed':{'speed':speed}} for v in levels]
+    better={'scores':entries([6,6,7],0.0)};faster={'scores':entries([6,6,6,7],1.0)}
+    old=[sum(s['score'] for s in c['scores'])/len(c['scores']) for c in (better,faster)]
+    assert old[1]>old[0]  # the defect: by mean score the lower level won
+    assert best_candidate([better,faster])==0 and best_candidate([faster,better])==1
+    assert mean_level(better['scores'])==6.3333 and mean_level([]) is None
+    # Equal mean levels: the faster candidate wins; equal speed too: the lower index. No scores: never best.
+    assert best_candidate([{'scores':entries([6,7],0.2)},{'scores':entries([7,6],0.4)}])==1
+    assert best_candidate([{'scores':entries([6],0.2)},{'scores':entries([6],0.2)}])==0
+    assert best_candidate([{'scores':[]},{'scores':entries([1],0.0)}])==1 and best_candidate([{'scores':[]}])==0
 
 
 def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
@@ -265,6 +311,7 @@ def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
     client=type('C',(),{'ledger':Rows()})()
     adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=client,ledger=ledger,run_id='run-20261025-0123abcd',next_index=8,cycle_limit=2)
     batch=adapter.evaluate([{'label':'a'}],prompts,capture_traces=True)
-    assert batch.scores==[round(0.6+0.009*0.75,6)] and batch.outputs[0]['level']==6
-    assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'mean_completion_tokens':512.0,'speed':0.75}
-    assert 'a mean of 512.0 output tokens per call' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4
+    speed=round(1-2048/16384,6)  # 4 calls of 512 output tokens, one candidate built
+    assert batch.scores==[round(0.6+0.009*speed,6)] and batch.outputs[0]['level']==6
+    assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'output_tokens':2048,'candidates_built':1,'tokens_per_candidate':2048.0,'speed':speed}
+    assert '2048 output tokens, 2048.0 per candidate built' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4

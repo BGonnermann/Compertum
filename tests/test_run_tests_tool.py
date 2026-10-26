@@ -92,21 +92,61 @@ def test_refusals_before_any_test_runs(tmp_path,monkeypatch):
     with pytest.raises(SystemExit,match='may use the sandbox profile: tests/test_engine_bench.py'):
         tool.main(['--name','x','--allow-during-run','--','tests/test_engine_preflight.py','tests/test_engine_bench.py'])
     with pytest.raises(SystemExit,match='may use the sandbox profile: tests'): tool.main(['--name','x','--allow-during-run','--','tests'])
-    assert tool.sandbox_files(['tests/test_engine_preflight.py','tests\\test_engine_lessons.py','tests/test_engine_roles.py::test_x','-q'])==[]
+    # No file named: pytest would collect the whole suite from its testpaths (review, 26 October 2026).
+    with pytest.raises(SystemExit,match='no test file named'): tool.main(['--name','x','--allow-during-run','--','-q'])
+    monkeypatch.setattr(tool,'open_engine_runs',lambda:(_ for _ in ()).throw(tool.LedgerUnreadable('database is locked')))
+    with pytest.raises(SystemExit,match='cannot tell whether an engine run is open'): tool.main(['--name','x','--','tests/test_x.py'])
     monkeypatch.setattr(tool,'open_engine_runs',lambda:[])
     with pytest.raises(SystemExit,match='sets --basetemp itself'): tool.main(['--name','x','--','--basetemp','y','tests/test_x.py'])
     with pytest.raises(SystemExit,match='give the test files'): tool.main(['--name','x'])
     assert list(tmp_path.iterdir())==[]  # no job folder was made
 
 
+def test_during_a_run_only_named_sandbox_free_files_pass(tmp_path):
+    # Every path form of a sandbox-free file passes, including a node in one.
+    free=['tests/test_engine_preflight.py','tests\\test_engine_lessons.py','./tests/test_engine_gepa.py',str(tool.ROOT/'tests'/'test_engine_audit.py'),
+          'tests/test_engine_limits.py::test_x','-q','-kbench']
+    assert tool.sandbox_files(free)==[]
+    # Anything else is refused: a sandbox file in any path form, a node in one, a folder, an option's separate value, an argument file.
+    for bad in ('./tests/test_engine_bench.py',str(tool.ROOT/'tests'/'test_engine_bench.py'),'tests/test_engine_roles.py::test_x','tests','tests/',
+                'bench','@args.txt','tests/../tests/test_engine_practice.py'):
+        assert tool.sandbox_files(['tests/test_engine_preflight.py','-k',bad] if bad=='bench' else ['tests/test_engine_preflight.py',bad])==[bad]
+    for nothing in ([],['-q'],['-k','-x']): assert tool.sandbox_files(nothing)==[tool.NO_FILES]
+
+
+def make_ledger(path,runs):
+    import sqlite3
+    path.parent.mkdir(parents=True,exist_ok=True);db=sqlite3.connect(path)
+    db.execute('CREATE TABLE engine_bounded_runs(row_id TEXT,run_id TEXT,phase TEXT,recorded_at TEXT,record TEXT)')
+    for run,phase in runs: db.execute('INSERT INTO engine_bounded_runs VALUES(?,?,?,?,?)',(run+phase,run,phase,'',json.dumps({'run_id':run,'phase':phase})))
+    db.commit();db.close()
+
+
 def test_open_engine_runs_reads_the_ledger_read_only(tmp_path):
     assert tool.open_engine_runs(tmp_path)==[]  # no store
-    import sqlite3
-    (tmp_path/'state').mkdir();db=sqlite3.connect(tmp_path/'state'/'research.sqlite')
-    db.execute('CREATE TABLE engine_bounded_runs(row_id TEXT,run_id TEXT,phase TEXT,recorded_at TEXT,record TEXT)')
-    for run,phase in (('run-a','START'),('run-a','END'),('run-b','START')): db.execute('INSERT INTO engine_bounded_runs VALUES(?,?,?,?,?)',(run+phase,run,phase,'',json.dumps({'run_id':run,'phase':phase})))
-    db.commit();db.close()
+    make_ledger(tmp_path/'state'/'research.sqlite',(('run-a','START'),('run-a','END'),('run-b','START')))
     assert tool.open_engine_runs(tmp_path)==['run-b']
+
+
+def test_open_engine_runs_fails_closed(tmp_path):
+    import sqlite3
+    (tmp_path/'state').mkdir();sqlite3.connect(tmp_path/'state'/'research.sqlite').close()
+    assert tool.open_engine_runs(tmp_path)==[]  # a store without the engine table has no run
+    (tmp_path/'state'/'research.sqlite').write_bytes(b'not a database'*100)
+    with pytest.raises(sqlite3.DatabaseError): tool.open_engine_runs(tmp_path)  # main() turns this into a refusal
+
+
+def test_open_engine_runs_follows_the_active_generation(tmp_path):
+    generation='0123abcd-0000-4000-8000-0123456789ab'
+    make_ledger(tmp_path/'state'/'research.sqlite',(('run-old','START'),('run-old','END')))
+    make_ledger(tmp_path/'state'/'generations'/generation/'research.sqlite',(('run-live','START'),))
+    (tmp_path/'state'/'active-generation.json').write_text(json.dumps({'schema_version':1,'project_id':'p','generation':generation,'operation_id':generation}),encoding='utf-8')
+    assert tool.open_engine_runs(tmp_path)==['run-live']
+    (tmp_path/'state'/'restore-operation.json').write_text(json.dumps({'status':'STAGED'}),encoding='utf-8')
+    with pytest.raises(tool.LedgerUnreadable,match='restore is in progress'): tool.open_engine_runs(tmp_path)
+    (tmp_path/'state'/'restore-operation.json').write_text(json.dumps({'status':'PUBLISHED'}),encoding='utf-8')
+    (tmp_path/'state'/'active-generation.json').write_text(json.dumps({'generation':'../x'}),encoding='utf-8')
+    with pytest.raises(tool.LedgerUnreadable,match='names no generation'): tool.open_engine_runs(tmp_path)
 
 
 @pytest.mark.parametrize('body,exit_code,removed',[('def test_ok(tmp_path):\n    (tmp_path/"f.txt").write_text("x")\n',0,True),

@@ -51,6 +51,8 @@ $evaluationMode=($Mode -eq 'bench' -or $Mode -eq 'holdout')
 if ($evaluationMode -and $PSBoundParameters.ContainsKey('Cycles')) { Fail "-Cycles does not apply to $Mode; use -CyclesPerMarket" }
 if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket') -or $PSBoundParameters.ContainsKey('PromptsRun') -or $PSBoundParameters.ContainsKey('PromptsCandidate'))) { Fail "-CyclesPerMarket, -PromptsRun and -PromptsCandidate apply to bench and holdout only" }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
+# GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
+if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }
 if (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
 if (-not (Test-Path $python)) { Fail "engine environment missing: $python" }
 if (Test-Path (Join-Path $root 'state\engine\STOP')) { Fail 'state\engine\STOP exists; remove it before a new run' }
@@ -69,7 +71,8 @@ if (Test-Path $serverConfig) {
 
 # 3. Server.
 $status=(lms status 2>&1 | Out-String)
-if ($status -notmatch 'ON') {
+# Case-sensitive and anchored to the status line, so words such as 'connection' never read as ON (review, 26 October 2026).
+if ($status -cnotmatch 'Server:\s+ON\b') {
     Write-Host "starting the model server on port $Port"
     lms server start --port $Port 2>&1 | Select-Object -Last 1 | Write-Host
     Start-Sleep -Seconds 3
@@ -139,7 +142,9 @@ try {
         if ($PromptsRun -ne '') { $arguments+=@('--prompts-run',$PromptsRun,'--prompts-candidate',"$PromptsCandidate") }
         Write-Host "starting $Mode ($CyclesPerMarket cycles per market, hours $Hours, requests $Requests): $Note"
     } else {
-        if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") } else { $arguments+=@('--cycles',"$Cycles") }
+        # Both limits pass when both are given; the run stops at the first one (review, 26 October 2026: -Cycles was dropped when -Hours was given).
+        if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") }
+        if ($Hours -le 0 -or $PSBoundParameters.ContainsKey('Cycles')) { $arguments+=@('--cycles',"$Cycles") }
         Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
     }
     Write-Host "record: $record"

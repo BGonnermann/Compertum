@@ -110,11 +110,17 @@ def _decimal(value):
     return Decimal(value) if isinstance(value,str) else None
 
 
-def capture(score,reference):
-    """How much of the reference rule's Sharpe advantage over buy-and-hold the candidate reached. 1 is as good as knowing the pattern."""
+def capture_ratio(score,reference):
+    """How much of the reference rule's Sharpe advantage over buy-and-hold the candidate reached, unrounded. 1 is as good as knowing the pattern."""
     own=_decimal(score.get('sharpe'));base=_decimal(score.get('benchmark_sharpe'));ref=_decimal(reference.get('sharpe'))
     if own is None or base is None or ref is None or ref<=base: return None
-    return format(((own-base)/(ref-base)).quantize(Decimal('0.001')),'f')
+    return (own-base)/(ref-base)
+
+
+def capture(score,reference):
+    """The capture rounded to 0.001 for the report. The found rule uses capture_ratio, so 0.4995 is never found (review, 26 October 2026)."""
+    ratio=capture_ratio(score,reference)
+    return None if ratio is None else format(ratio.quantize(Decimal('0.001')),'f')
 
 
 def bench_level(candidate,score,trials=BENCH_TRIALS):
@@ -164,7 +170,7 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
                     share=capture(score,reference)
                     if share is not None:
                         captures.append(share)
-                        if Decimal(share)>=FOUND_CAPTURE: row['found']+=1
+                        if capture_ratio(score,reference)>=FOUND_CAPTURE: row['found']+=1
         row['statuses']=dict(sorted(statuses.items()))
         known=[Decimal(c) for c in captures if c is not None]
         row['best_capture']=format(max(known),'f') if known else None

@@ -15,6 +15,7 @@ client under the run's request limit, the owner's hard maximum and the run gate 
 """
 from dataclasses import dataclass,field
 from datetime import datetime,timezone
+from fractions import Fraction
 import hashlib
 import json
 from pathlib import Path
@@ -65,20 +66,23 @@ def check_prompt(role,text):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-# Speed as a tie-breaker (owner request, 26 October 2026; docs/MATHEMATICIAN_PLAN.md step V2). The measure is the mean number of output tokens per model
-# call in the cycle, from the client's own call records: shorter replies and fewer runaway outputs. Not the number of calls, because a cycle that builds
-# more candidates needs more calls, and GEPA must never learn to build less. SPEED_WEIGHT is below the smallest gap between two mean level scores
-# (0.1 divided by at most MAX_MARKETS markets), so a faster prompt set can only win when its levels are equal.
+# Speed as a tie-breaker (owner request, 26 October 2026; docs/MATHEMATICIAN_PLAN.md step V2). The measure is the cycle's total output tokens per
+# candidate built, from the client's own call records. Review, 26 October 2026: the first measure, mean output tokens per call, could be gamed by
+# extra short calls, which make a cycle slower. A total cannot fall by adding calls, and a call without token counts counts as UNCOUNTED_CALL_TOKENS,
+# so failed calls never look fast. Dividing by the candidates built keeps GEPA from learning to build less. SPEED_WEIGHT is below the smallest gap
+# between two mean level scores over equal markets (0.1 divided by at most MAX_MARKETS markets). write_candidates ranks by mean level first in any case.
 SPEED_WEIGHT=0.009
-SPEED_TOKEN_CAP=2048
+SPEED_TOKEN_CAP=16384  # output tokens per candidate built at which speed reaches 0
+UNCOUNTED_CALL_TOKENS=2048
 
 
-def speed_for_calls(entries):
-    """The speed record of one cycle from its model-call records, or None when no call reported token counts."""
-    tokens=[e['usage']['completion_tokens'] for e in entries if isinstance(e,dict) and isinstance(e.get('usage'),dict) and type(e['usage'].get('completion_tokens')) is int]
-    if not tokens: return None
-    mean=sum(tokens)/len(tokens)
-    return {'calls':len(entries),'calls_with_tokens':len(tokens),'mean_completion_tokens':round(mean,1),'speed':round(1-min(mean,SPEED_TOKEN_CAP)/SPEED_TOKEN_CAP,6)}
+def speed_for_calls(entries,candidates_built):
+    """The speed record of one cycle from its model-call records, or None when the cycle made no call."""
+    if not entries: return None
+    counted=[e['usage']['completion_tokens'] for e in entries if isinstance(e,dict) and isinstance(e.get('usage'),dict) and type(e['usage'].get('completion_tokens')) is int]
+    total=sum(counted)+UNCOUNTED_CALL_TOKENS*(len(entries)-len(counted));built=max(1,candidates_built)
+    return {'calls':len(entries),'calls_with_tokens':len(counted),'output_tokens':total,'candidates_built':candidates_built,
+            'tokens_per_candidate':round(total/built,1),'speed':round(1-min(total/built,SPEED_TOKEN_CAP)/SPEED_TOKEN_CAP,6)}
 
 
 def score_with_speed(score,speed):
@@ -171,7 +175,7 @@ class PromptAdapter:
             engine=self.build_engine(prompts,market)
             rows=getattr(getattr(self.client,'ledger',None),'rows',None);before=len(rows()) if callable(rows) else None
             result=self.run_cycle(engine,self.next_index);self.next_index+=1
-            speed=speed_for_calls(rows()[before:]) if before is not None else None
+            speed=speed_for_calls(rows()[before:],len(result.get('candidates') or [])) if before is not None else None
             record={'cycle_id':result['cycle_id'],'cycle_index':self.next_index-1,'market':market.get('label'),'status':result['status'],'stop_code':result.get('stop_code'),
                     'hypotheses':result.get('hypotheses'),'candidates':result.get('candidates'),'runs':result.get('runs'),'requests_after':result.get('requests_after'),
                     'total_trials':result.get('total_trials'),'prompt_candidate':index}
@@ -185,8 +189,8 @@ class PromptAdapter:
             record['speed']=speed
             feedback=feedback_for(result,earlier_titles(self.ledger,result['cycle_id']))
             if speed is not None:
-                feedback=_clip(feedback+f" Speed: {speed['calls']} model calls, a mean of {speed['mean_completion_tokens']} output tokens per call. "
-                           'Shorter replies break ties between prompts at the same level; they never outweigh a better level.')
+                feedback=_clip(feedback+f" Speed: {speed['calls']} model calls, {speed['output_tokens']} output tokens, {speed['tokens_per_candidate']} per candidate built. "
+                           'Fewer output tokens per candidate break ties between prompts at the same level; they never outweigh a better level.')
             trajectories.append({'transcript':result.get('transcript') or [],'feedback':feedback,'score':score})
         return EvaluationBatch(outputs=outputs,scores=scores,trajectories=trajectories if capture_traces else None)
 
@@ -246,6 +250,22 @@ class QuietLogger:
         if len(self.lines)<self.limit: self.lines.append(str(message)[:400])
 
 
+def mean_level(scores):
+    """The exact mean level of a candidate's evaluations, as a float for the record, or None without evaluations."""
+    return round(float(Fraction(sum(s['level'] for s in scores),len(scores))),4) if scores else None
+
+
+def best_candidate(candidates):
+    """The candidate with the highest mean level; the mean speed breaks exact ties, then the lower index. Review, 26 October 2026: ranking by the
+    mean score let the speed bonus outweigh a level gap when candidates had unequal evaluation counts (3 against 4 gives a gap of 0.1/12)."""
+    def key(item):
+        index,candidate=item;scores=candidate['scores']
+        speeds=[s['speed']['speed'] for s in scores if isinstance(s.get('speed'),dict)]
+        return (Fraction(sum(s['level'] for s in scores),len(scores)),Fraction(sum(Fraction(str(v)) for v in speeds),len(speeds)) if speeds else Fraction(0),-index)
+    scored=[(index,c) for index,c in enumerate(candidates) if c['scores']]
+    return max(scored,key=key)[0] if scored else 0
+
+
 def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
     """Write every prompt set the run evaluated under state/engine/prompts/<run id>/ with a result record. Never touches config/.
 
@@ -259,7 +279,7 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
         target=folder/f'candidate-{index}';target.mkdir()
         for role in ROLES: (target/f'{role}.md').write_text(candidate['prompts'][role],encoding='utf-8',newline='\n')
         values=[s['score'] for s in candidate['scores']];means.append(round(sum(values)/len(values),6) if values else None)
-    scored=[(m,-i) for i,m in enumerate(means) if m is not None];best=-max(scored)[1] if scored else 0
+    best=best_candidate(candidates)
     gepa=None
     if gepa_result is not None:
         # GEPA numbers its own pool of accepted candidates. The folders follow the adapter's list, so the best is mapped by hash.
@@ -268,9 +288,10 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
               'total_metric_calls':gepa_result.total_metric_calls,'candidate_count':len(gepa_result.candidates),
               'note':'best_index_in_gepa_pool is GEPA\'s own numbering; use best_folder_index with apply-prompts'}
     record={'run_id':run_id,'reason':reason,'written_at':datetime.now(timezone.utc).isoformat(),'best_index':best,'mean_scores':means,
-            'scores':[c['scores'] for c in candidates],'candidate_count':len(candidates),'candidate_sha256':[c['sha256'] for c in candidates],
+            'mean_levels':[mean_level(c['scores']) for c in candidates],'scores':[c['scores'] for c in candidates],'candidate_count':len(candidates),'candidate_sha256':[c['sha256'] for c in candidates],
             'proposals':adapter.proposals,'evaluations':len(adapter.evaluations),'gepa':gepa,
-            'note':'best_index is the highest mean over unequal evaluation counts; read scores per market before you apply a candidate'}
+            'note':('best_index has the highest mean level; mean speed breaks exact ties only. Candidates have unequal evaluation counts and few cycles, '
+                    'so read scores per market, and measure on the bench, before you apply a candidate')}
     (folder/'result.json').write_bytes(canonical(record)+b'\n')
     return {'folder':str(folder),**record}
 
@@ -278,11 +299,14 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
 def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,memory_floor_bytes,limits,owner_approval,
              available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None):
     """One bounded GEPA run. cycle_limit bounds the number of evaluation cycles (GEPA metric calls); the request limit and the gate apply to every call."""
-    from .cycle import Engine,run_cycle
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))
     if not isinstance(markets,list) or not 1<=len(markets)<=MAX_MARKETS or any(not isinstance(m,dict) or not {'train_csv','validation_csv','validation_rows','label'}<=m.keys() for m in markets):
         raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    # GEPA learns from its markets, so a bench or holdout market is refused here as in run_bounded, whoever the caller is (review, 26 October 2026).
+    from .bench import fingerprint,reserved_fingerprints
+    if {fingerprint(m['train_csv'],m['validation_csv']) for m in markets}&reserved_fingerprints(): raise RuntimeRefused('ENGINE_MARKET_RESERVED')
+    from .cycle import Engine,run_cycle  # after the cheap checks: a refused call loads no agent libraries
     settings=load_run_settings(project_root);bounds=check_limits(limits,settings['request_hard_maximum'])
     if bounds['cycle_limit'] is None: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')  # GEPA needs a cycle budget
     ledger=EngineLedger(store);ledger.require_unfrozen()
@@ -340,12 +364,18 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
 
 
 def candidate_prompts(project_root,run_id,candidate_index):
-    """One GEPA candidate's four prompts, checked like committed prompts. The bench and the holdout measure a candidate with these."""
+    """One GEPA candidate's four prompts, checked like committed prompts. The bench and the holdout measure a candidate with these.
+    Each file must still match the hash that the GEPA run recorded in result.json, so an edited file is never measured or applied under the
+    run's name (review, 26 October 2026)."""
     if not isinstance(run_id,str) or not re.fullmatch(RUN_ID,run_id) or type(candidate_index) is not int or not 0<=candidate_index<MAX_CANDIDATES: raise RuntimeRefused('ENGINE_PROMPT_INVALID')
-    source=Path(project_root).absolute()/PROMPTS_DIR/run_id/f'candidate-{candidate_index}'
+    folder=Path(project_root).absolute()/PROMPTS_DIR/run_id;source=folder/f'candidate-{candidate_index}'
     if not source.is_dir(): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE')
-    try: return {role:check_prompt(role,(source/f'{role}.md').read_text(encoding='utf-8')) for role in ROLES}
-    except (OSError,UnicodeError): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE') from None
+    try:
+        texts={role:check_prompt(role,(source/f'{role}.md').read_text(encoding='utf-8')) for role in ROLES}
+        recorded=json.loads((folder/'result.json').read_text(encoding='utf-8'))['candidate_sha256'][candidate_index]
+    except (OSError,UnicodeError,ValueError,KeyError,IndexError,TypeError): raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE') from None
+    if not isinstance(recorded,dict) or any(recorded.get(role)!=sha(text) for role,text in texts.items()): raise RuntimeRefused('ENGINE_PROMPT_CHANGED')
+    return texts
 
 
 def apply_prompts(project_root,run_id,candidate_index):

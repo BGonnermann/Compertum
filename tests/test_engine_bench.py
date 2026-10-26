@@ -16,6 +16,7 @@ from compertum.ai.engine.gepa_run import earlier_titles
 from compertum.ai.engine.ledger import EVALUATION_PURPOSES,EngineLedger
 from compertum.ai.engine.market import score_signals
 from compertum.runtime.errors import RuntimeRefused
+from test_engine_gepa import record_hashes
 
 PROJECT=Path(__file__).resolve().parents[1]
 
@@ -95,6 +96,9 @@ def test_the_report_finds_patterns_by_the_reference_and_calls_any_find_in_an_emp
     # Capture is the share of the reference's Sharpe advantage over buy-and-hold. Found needs at least half.
     assert bench.capture({'sharpe':'2.5','benchmark_sharpe':'0.5'},{'sharpe':'4.5'})=='0.500' and bench.capture({'sharpe':'1','benchmark_sharpe':'2'},{'sharpe':'1.5'}) is None
     assert bench.capture({'sharpe':None,'benchmark_sharpe':'0.5'},{'sharpe':'4.5'}) is None
+    # Review, 26 October 2026: 0.4995 shows as 0.500 but is not found; the found rule uses the unrounded ratio.
+    near={'sharpe':'0.4995','benchmark_sharpe':'0'};perfect={'sharpe':'1'}
+    assert bench.capture(near,perfect)=='0.500' and bench.capture_ratio(near,perfect)<bench.FOUND_CAPTURE<=bench.capture_ratio({'sharpe':'0.5','benchmark_sharpe':'0'},perfect)
     idle=bench.report([candidate_cycle(markets[0],[0]*len(markets[0]['validation_rows']))],markets)['markets'][0];assert idle['found']==0 and idle['beat_buy_and_hold']==0
     assert unaudited['verdict']=='INCOMPLETE: a market has no finished cycle'
     # An audited pass on a market with no pattern is a false discovery: the whole bench says BROKEN.
@@ -184,12 +188,17 @@ def test_the_bench_command_runs_an_interleaved_schedule_and_prints_the_report(tm
 def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_path,fake_run):
     root=project(tmp_path);folder=root/'state'/'engine'/'prompts'/'run-20261025-00001111'/'candidate-2';folder.mkdir(parents=True)
     for role in ('director','researcher','mathematician','engineer'): (folder/f'{role}.md').write_text(f'ROLE: {role}\nA candidate prompt from a GEPA fixture, long enough to pass.\n',encoding='utf-8',newline='\n')
+    record_hashes(folder.parent,2)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='holdout fixture',purpose='holdout',cycles_per_market=1,
                                  prompts_run='run-20261025-00001111',prompts_candidate=2,available_memory=lambda:practice.START_FLOOR+1)
     assert fake_run['holdout_set']=='holdout-1' and [m['label'] for m in fake_run['schedule']]==[m['label'] for m in bench.set_markets('holdout-1')]
     assert fake_run['prompts']['engineer'].startswith('ROLE: engineer\nA candidate prompt') and record['prompts_source']=='run-20261025-00001111 candidate 2'
     # A candidate prompt with an unfilled placeholder is refused by the preflight check before the lease.
     (folder/'director.md').write_text('ROLE: director\nPick hypotheses for cycle {cycle_index} and reply with JSON only.\n',encoding='utf-8',newline='\n')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_CHANGED$'):  # edited after the run: refused before anything else
+        practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='x',purpose='holdout',prompts_run='run-20261025-00001111',prompts_candidate=2,
+                              available_memory=lambda:practice.START_FLOOR+1)
+    record_hashes(folder.parent,2)  # as if the GEPA run itself had written the placeholder
     with pytest.raises(RuntimeRefused,match='^ENGINE_PREFLIGHT_FAILED$'):
         practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='x',purpose='holdout',prompts_run='run-20261025-00001111',prompts_candidate=2,
                               available_memory=lambda:practice.START_FLOOR+1)

@@ -274,18 +274,23 @@ class ModelClient:
                 entry['model_reported']=reported;entry['response_sha256']=hashlib.sha256(raw).hexdigest()
                 choices=response.get('choices') if isinstance(response,dict) else None
                 if not isinstance(choices,list) or len(choices)!=1 or not isinstance(choices[0],dict): raise RuntimeRefused('AI_RESPONSE_INVALID')
+                # The stop reason and the token counts are recorded before every reply check, so a refused reply keeps them (bench baseline 1:
+                # three Mathematician reviews stopped at the cap and the record showed neither). The cap check comes before the tool-call
+                # and usage checks: a reply cut off inside a tool call has broken arguments, and it is truncated, not a tool fault (review, 26 October 2026).
+                finish=choices[0].get('finish_reason')
+                entry['finish_reason']=finish if isinstance(finish,str) and len(finish)<=FINISH_CHARS else (None if finish is None else 'INVALID')
+                try: usage=usage_counts(response.get('usage'));usage_fault=None
+                except RuntimeRefused as error: usage=None;usage_fault=error
+                entry['usage']=usage
+                if finish=='length': raise RuntimeRefused('AI_RESPONSE_TRUNCATED')
+                if usage_fault is not None: raise usage_fault
                 message=choices[0].get('message')
                 if not isinstance(message,dict) or message.get('function_call'): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
                 if message.get('tool_calls'):
                     tool_calls=tool_calls_from(message['tool_calls'],names)
                     entry['tool_calls']=[{'id':c['id'],'name':c['name'],'arguments_sha256':hashlib.sha256(canonical(c['arguments'])).hexdigest()} for c in tool_calls]
-                content=message.get('content');finish=choices[0].get('finish_reason')
-                # The stop reason and the token counts are recorded before the checks, so a refused reply keeps them (bench baseline 1:
-                # three Mathematician reviews stopped at the cap and the record showed neither).
-                entry['finish_reason']=finish if isinstance(finish,str) and len(finish)<=FINISH_CHARS else (None if finish is None else 'INVALID')
-                usage=usage_counts(response.get('usage'));entry['usage']=usage
+                content=message.get('content')
                 if content is None and tool_calls: content=''
-                if finish=='length': raise RuntimeRefused('AI_RESPONSE_TRUNCATED')
                 if not isinstance(content,str) or finish not in ('stop','tool_calls') or (finish=='tool_calls')!=bool(tool_calls):
                     raise RuntimeRefused('AI_RESPONSE_INCOMPLETE')
                 sanitized(content.encode('utf-8'))
