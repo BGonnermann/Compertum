@@ -35,7 +35,7 @@ def server(mode='ok',model='synthetic-model'):
             if state['mode']=='timeout': time.sleep(1.5)
             if state['mode']=='malformed': return self.send(b'{no')
             if state['mode']=='http': return self.send({},503)
-            if state['mode']=='bound': return self.send(b'x'*70000)
+            if state['mode']=='bound': return self.send(b'x'*270000)
             message={'role':'assistant','content':'echo: '+p['messages'][-1]['content']}
             if state['mode']=='tool': message['tool_calls']=[{'function':{'name':'read_file','arguments':'{}'}}]
             if state['mode'] in ('toolcall','toolbad','toolargs','toolmany','toolstop') and 'tools' in p:
@@ -187,10 +187,31 @@ def test_the_key_goes_only_into_the_header_and_never_into_the_record(monkeypatch
             ModelClient({**remote,'director':bad},ListLedger(),memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False)
 
 
+def test_a_model_file_can_raise_the_output_cap_and_time_limit_for_its_model(tmp_path):
+    # 26 October 2026: deepseek-v4-pro used all 2048 output tokens on thinking. The model file's cap replaces the caller's.
+    with server() as (port,state):
+        url=f'http://127.0.0.1:{port}/v1'
+        path=write_models(tmp_path,[(role,url,'synthetic-model') for role in sorted(ENGINE_ROLES)])
+        path.write_text(path.read_text(encoding='utf-8').replace('model = "synthetic-model"\n','model = "synthetic-model"\nmax_tokens = 8192\nseconds = 300\n',1),encoding='utf-8')
+        loaded=load_models(path,tmp_path);capped=[spec for spec in loaded.values() if spec.max_tokens]
+        assert len(capped)==1 and capped[0].max_tokens==8192 and capped[0].seconds==300 and sum(1 for spec in loaded.values() if spec.max_tokens is None)==3
+        ledger=ListLedger();c=ModelClient(loaded,ledger,memory_floor_bytes=FLOOR,request_limit=5,available_memory=lambda:FLOOR+1,native_limits=False)
+        c.complete(capped[0].role,[{'role':'user','content':'x'}],purpose='e1-fixture',max_tokens=2048)
+        other=next(spec.role for spec in loaded.values() if spec.max_tokens is None)
+        c.complete(other,[{'role':'user','content':'x'}],purpose='e1-fixture',max_tokens=2048)
+        assert [p['max_tokens'] for p in state['posts']]==[8192,2048] and ledger.entries[0]['settings']['max_tokens']==8192
+        assert ledger.entries[0]['settings']['request_seconds']==300 and ledger.entries[1]['settings']['request_seconds']==120
+    for bad in ('max_tokens = 0\n','max_tokens = 20000\n','max_tokens = "8192"\n','seconds = 601\n','seconds = 1.5\n','temperature = 1\n'):
+        path=write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)])
+        path.write_text(path.read_text(encoding='utf-8').replace('model = "m"\n','model = "m"\n'+bad,1),encoding='utf-8')
+        with pytest.raises(RuntimeRefused,match='AI_SETTINGS_DENIED|UNKNOWN_CONFIG_FIELD'): load_models(path,tmp_path)
+
+
 def test_the_committed_provider_and_deepseek_files_load_and_hold_no_key():
     root=Path(__file__).resolve().parents[1];loaded=load_models(root/'config/models-deepseek.toml',root)
     assert {(spec.base_url,spec.provider,spec.key_env) for spec in loaded.values()}=={('https://api.deepseek.com','deepseek','DEEPSEEK_API_KEY')}
     assert {spec.model for spec in loaded.values()}=={'deepseek-v4-pro'}
+    assert {(spec.max_tokens,spec.seconds) for spec in loaded.values()}=={(8192,300)}
     for name in ('config/models-deepseek.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
 
 

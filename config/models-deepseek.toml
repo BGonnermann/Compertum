@@ -5,19 +5,29 @@
 # model is the default ID; the service listed deepseek-v4-pro and deepseek-flash on 26 October 2026. Pick another for one run with
 # tools\practice.ps1 -Model ID or -Pick, without editing this file.
 # Results on DeepSeek are not comparable with Flint results. DeepSeek needs its own bench baseline.
+# max_tokens and seconds (optional) replace the engine's default of 2048 output tokens and 120 seconds for these calls.
+# deepseek-v4-pro thinks before it answers and used all 2048 tokens on thinking in the Mathematician's step (26 October 2026).
 
 [roles.director]
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-pro"
+max_tokens = 8192
+seconds = 300
 
 [roles.researcher]
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-pro"
+max_tokens = 8192
+seconds = 300
 
 [roles.mathematician]
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-pro"
+max_tokens = 8192
+seconds = 300
 
 [roles.engineer]
 base_url = "https://api.deepseek.com"
 model = "deepseek-v4-pro"
+max_tokens = 8192
+seconds = 300

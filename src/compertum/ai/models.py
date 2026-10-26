@@ -24,6 +24,8 @@ from .manual import sanitized,read_json
 ENGINE_ROLES=frozenset({'director','researcher','mathematician','engineer'})
 PROVIDER='loopback'
 MAX_BYTES=65536
+MAX_OUTPUT_TOKENS,MAX_SECONDS=16384,600
+RESPONSE_BYTES=262144  # a reply, thinking text included; raised from 65536 with the per-model caps (26 October 2026)
 MAX_TOOLS,MAX_TOOL_CALLS,MAX_ARGUMENT_BYTES=16,8,16384
 _TOOL_NAME=re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 _MESSAGE_KEYS={'system':{'role','content'},'user':{'role','content'},'assistant':{'role','content','tool_calls'},'tool':{'role','content','tool_call_id'}}
@@ -36,6 +38,10 @@ class RoleModel:
     model:str
     provider:str=PROVIDER  # 'loopback', or the name of an owner-listed remote provider
     key_env:str|None=None  # the user environment variable that holds the provider's key; None sends no key
+    # Optional per-model limits from the model file (26 October 2026): a model that thinks before it answers (deepseek-v4-pro) used
+    # all 2048 output tokens on thinking. When set, they replace the caller's output-token cap and time limit for this model's calls.
+    max_tokens:int|None=None
+    seconds:int|None=None
 
 
 # Remote providers (owner standard, 26 October 2026: the engine runs on any local model, API key or sign-in). The owner lists each
@@ -104,6 +110,8 @@ def checked_spec(spec):
     """Check a RoleModel again at the sender: a loopback model has no key; a remote one has an exact HTTPS address, a provider name
     and, if any, a well-formed key variable. Which remote addresses are allowed is decided when load_models reads the owner's files."""
     if not isinstance(spec,RoleModel) or model_id(spec.model)!=spec.model: return False
+    if not (spec.max_tokens is None or (type(spec.max_tokens) is int and 1<=spec.max_tokens<=MAX_OUTPUT_TOKENS)): return False
+    if not (spec.seconds is None or (type(spec.seconds) is int and 1<=spec.seconds<=MAX_SECONDS)): return False
     if spec.provider==PROVIDER: return loopback_base_url(spec.base_url)==spec.base_url and spec.key_env is None
     return (isinstance(spec.provider,str) and bool(_PROVIDER_NAME.fullmatch(spec.provider)) and remote_base_url(spec.base_url)==spec.base_url
             and (spec.key_env is None or (isinstance(spec.key_env,str) and bool(_KEY_ENV.fullmatch(spec.key_env)))))
@@ -226,9 +234,12 @@ def load_models(path,project_root):
     result={}
     for role in sorted(ENGINE_ROLES):
         entry=roles[role]
-        if not isinstance(entry,dict) or entry.keys()!={'base_url','model'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        if not isinstance(entry,dict) or not {'base_url','model'}<=entry.keys()<={'base_url','model','max_tokens','seconds'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        limits={k:entry.get(k) for k in ('max_tokens','seconds')}
+        if not (limits['max_tokens'] is None or (type(limits['max_tokens']) is int and 1<=limits['max_tokens']<=MAX_OUTPUT_TOKENS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
+        if not (limits['seconds'] is None or (type(limits['seconds']) is int and 1<=limits['seconds']<=MAX_SECONDS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         base=model_base_url(entry['base_url'],providers);provider,key_env=providers.get(base,(PROVIDER,None))
-        result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env)
+        result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env,limits['max_tokens'],limits['seconds'])
     return MappingProxyType(result)
 
 
@@ -301,7 +312,7 @@ class ModelClient:
         async with client.stream(method,url,json=payload) as response:
             response.raise_for_status();raw=bytearray()
             async for chunk in response.aiter_bytes():
-                if len(raw)+len(chunk)>MAX_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
+                if len(raw)+len(chunk)>RESPONSE_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
                 raw.extend(chunk)
         sanitized(bytes(raw));return read_json(bytes(raw)),bytes(raw)
 
@@ -340,6 +351,8 @@ class ModelClient:
     def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False):
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
         spec=self.roles.get(role) if isinstance(role,str) else None;started=time.monotonic()
+        if spec is not None and spec.max_tokens is not None: max_tokens=spec.max_tokens  # the model file's cap for this model
+        if spec is not None and spec.seconds is not None: seconds=spec.seconds
         entry={'call_id':str(uuid4()),'role':role if isinstance(role,str) and len(role)<=64 else 'INVALID_ROLE',
                'purpose':purpose if isinstance(purpose,str) and len(purpose)<=256 else None,'provider':spec.provider if spec else PROVIDER,
                'address':spec.base_url if spec else None,'model_requested':spec.model if spec else None,'model_reported':None,
