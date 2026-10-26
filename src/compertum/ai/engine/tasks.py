@@ -1,0 +1,104 @@
+"""The text of every role task, in one place (25 October 2026). The cycle builds its tasks with these functions, and the preflight
+check (preflight.py) builds the same tasks from sample data before a run, so a broken task is refused before the model is loaded.
+
+No engine library is imported here, so the product environment can check tasks too. Moved out of cycle.py unchanged: every task
+is byte-identical to the one the cycle built before.
+"""
+import json
+from .market import COST
+
+TRANSCRIPT_BYTES=8192
+RETRY_REPLY_BYTES=2048  # how much of an unusable reply a retry task shows the model
+SAMPLE_ROWS=6  # train rows shown to the Engineer. Never validation rows: a model that has read the validation returns can type positions from memory.
+STARTER_MAIN='''"""Starter program for one specification. Edit decide(); keep the file names as they are.
+The job folder holds train.csv and validation.csv next to this file. Open them by these plain names.
+Write signals.csv next to this file. The run is complete when signals.csv exists."""
+import csv
+
+
+def read_rows(name):
+    with open(name,newline='',encoding='utf-8') as handle: return list(csv.DictReader(handle))
+
+
+def decide(train,validation):
+    """Return one position (0 or 1) for every validation row, in order, using only rows up to that session."""
+    return [0 for _ in validation]
+
+
+def main():
+    train=read_rows('train.csv');validation=read_rows('validation.csv')
+    positions=decide(train,validation)
+    with open('signals.csv','w',newline='',encoding='utf-8') as out:
+        out.write('session,position\\n')
+        for row,position in zip(validation,positions): out.write(f"{row['session']},{int(position)}\\n")
+    print('signals written',len(positions))
+
+
+if __name__=='__main__': main()
+'''
+
+
+def clip_bytes(text,limit=TRANSCRIPT_BYTES):
+    raw=text.encode('utf-8')
+    return text if len(raw)<=limit else raw[:limit].decode('utf-8',errors='ignore')
+
+
+def market_brief(engine):
+    """The fixed description of the market and the scoring rule that every idea task carries. Code, not a prompt: GEPA cannot remove it.
+    Practice run 1 (24 October 2026) showed a real model inventing software hypotheses when the task held only the ledger summary."""
+    train=max(engine.train_csv.count('\n')-1,0);validation=len(engine.validation_rows)
+    return ('MARKET\n'
+            f'One asset, daily sessions, synthetic and closed. Two files: train.csv ({train} sessions) and validation.csv ({validation} sessions), '
+            'columns session, close, return (return is the fractional change of close from the previous session). '
+            'A hypothesis is a rule that sets a position of 0 (flat) or 1 (long) for every validation session from data up to that session. '
+            f'Score: the position at session t earns the return of session t+1, minus a cost of {COST} of NAV for each position change. '
+            'A strategy beats the baseline when its Sharpe ratio is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s. '
+            'Only these two files exist; propose nothing that needs other data.')
+
+
+def pick_task(max_hypotheses,cycle_index,brief,summary):
+    return f'Pick at most {max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}'
+
+
+def memo_task(brief,hypothesis):
+    return f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}'
+
+
+def approve_task(hypothesis_id,memo_text):
+    return f'Approve or reject this memo for hypothesis {hypothesis_id}.\n\n{memo_text}'
+
+
+def specify_task(brief,memo_text):
+    return f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{memo_text}'
+
+
+def review_task(specification,code):
+    return f'Review this code against the specification.\n\nSPECIFICATION\n{specification}\n\nCODE\n{json.dumps(code,sort_keys=True)}'
+
+
+def agenda_task(brief,summary):
+    return f'Review the repeated failures and update the agenda.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}'
+
+
+def retry_task(task,code,previous_reply):
+    """The task again, after an unusable JSON reply: it names the failure and shows the reply, clipped (practice run 3)."""
+    previous=clip_bytes(previous_reply,RETRY_REPLY_BYTES)
+    return (f'{task}\n\nYour previous reply was not usable ({code}). Reply again with JSON only, no other text, exactly in the format the role prompt gives.'
+            f'\n\nPREVIOUS REPLY\n{previous}')
+
+
+def engineer_task(engine,specification,*,previous_reply=None):
+    """The Engineer's task and its starting files. The specification is in the task text AND in /spec.md. A sample of the TRAIN rows shows the columns.
+    Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix."""
+    sample='\n'.join(engine.train_csv.splitlines()[:SAMPLE_ROWS+1])
+    if previous_reply is None: head='Build this specification and run it with run_job.\n\n'
+    else:
+        head=('Build this specification and run it with run_job.\n\n'
+              'Your previous attempt replied without running the program, so nothing was produced. '
+              'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.\n\n'
+              f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
+    task=(head+'Your file store holds two files: /main.py, a starter program (edit decide(), keep the file names), and /spec.md, the specification below. '
+          'It holds nothing else. You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
+          'When run_job reports that signals.csv was written, reply DONE.\n\n'
+          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}')
+    return task,{'/main.py':STARTER_MAIN,'/spec.md':specification}

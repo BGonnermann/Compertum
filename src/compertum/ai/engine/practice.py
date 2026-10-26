@@ -32,6 +32,7 @@ from compertum.storage import StorageManager
 from compertum.ai.models import load_models,loopback_base_url
 from .audit import engine_fixed_targets
 from .limits import RunLimits
+from .preflight import preflight
 from .market import market_csv,split_market_tiers,synthetic_market
 
 START_FLOOR=16*1024**3  # the owner's start floor for free host memory (14 October 2026 direction)
@@ -101,6 +102,8 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     if type(seed) is not int or type(sessions) is not int or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
     market,vault=practice_market(seed,sessions,strength)
     markets=[practice_market(seed+offset,sessions,strength,kind,window)[0] for kind,window,offset in GEPA_MARKETS] if gepa else [market]
+    # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
+    checked=preflight(root,markets)
     roles=load_models(root/'config'/'models.toml',root)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
@@ -129,7 +132,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         record={'run_id':result['run_id'],'kind':'gepa' if gepa else 'cycles','reason':result['reason'],'cycles':candidates,'requests':result['requests'],
                 'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],
                 'vault_sessions_held_back':len(vault),'verification':{'failed':verification['failed'],'observations':verification['observations']},
-                'research_state_after':after,'free_memory_bytes_at_start':available}
+                'research_state_after':after,'free_memory_bytes_at_start':available,'preflight':checked}
         if gepa and result.get('prompts'):
             p=result['prompts'];g=p.get('gepa') or {}
             record['prompts']={'folder':p['folder'],'best_index':p['best_index'],'mean_scores':p['mean_scores'],'candidate_count':p['candidate_count'],
@@ -158,7 +161,9 @@ def main(argv=None):
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
                                   gepa=args.command=='gepa')
     except RuntimeRefused as error:
-        print(json.dumps({'refused':error.code}));return 2
+        refused={'refused':error.code}
+        if getattr(error,'problems',None): refused['problems']=error.problems
+        print(json.dumps(refused));return 2
     except (ContractError,ConfigError) as error:
         print(json.dumps({'refused':getattr(error,'reason',None) or type(error).__name__}));return 2
     print(json.dumps(result,sort_keys=True));return 0

@@ -50,6 +50,7 @@ def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch)
     from compertum.ai.engine import gepa_run
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+    shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')  # the preflight check reads the run's prompts (25 October 2026)
     seen={}
     def fake_run_gepa(**kwargs):
         seen.update(kwargs)

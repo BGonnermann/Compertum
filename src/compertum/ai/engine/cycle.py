@@ -18,44 +18,18 @@ from compertum.runtime.errors import RuntimeRefused
 from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
-from .market import COST,score_signals
+from .market import score_signals
 from .promotion import promote
 from .roles import ROLES,build_role_agent,load_prompt
+from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
+                    market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 from .vault import CandidateQueue
 
 MAX_HYPOTHESES=3
 REPLY_BYTES=65536
 REVIEW_TASK_BYTES=49152
 AGENDA_EVERY=10
-TRANSCRIPT_BYTES=8192
-STARTER_MAIN='''"""Starter program for one specification. Edit decide(); keep the file names as they are.
-The job folder holds train.csv and validation.csv next to this file. Open them by these plain names.
-Write signals.csv next to this file. The run is complete when signals.csv exists."""
-import csv
-
-
-def read_rows(name):
-    with open(name,newline='',encoding='utf-8') as handle: return list(csv.DictReader(handle))
-
-
-def decide(train,validation):
-    """Return one position (0 or 1) for every validation row, in order, using only rows up to that session."""
-    return [0 for _ in validation]
-
-
-def main():
-    train=read_rows('train.csv');validation=read_rows('validation.csv')
-    positions=decide(train,validation)
-    with open('signals.csv','w',newline='',encoding='utf-8') as out:
-        out.write('session,position\\n')
-        for row,position in zip(validation,positions): out.write(f"{row['session']},{int(position)}\\n")
-    print('signals written',len(positions))
-
-
-if __name__=='__main__': main()
-'''
 RETRIES=1  # one bounded retry for a JSON-answer step whose reply did not parse
-RETRY_REPLY_BYTES=2048  # how much of the unusable reply the retry task shows the model
 _FENCE=re.compile(r'```(?:json)?\s*(.*?)```',re.S)
 
 
@@ -95,11 +69,6 @@ def parse_decision(reply):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
-def clip_bytes(text,limit=TRANSCRIPT_BYTES):
-    raw=text.encode('utf-8')
-    return text if len(raw)<=limit else raw[:limit].decode('utf-8',errors='ignore')
-
-
 @dataclass
 class Engine:
     """Everything one cycle needs. Agents are rebuilt for each cycle so that every role starts a fresh conversation."""
@@ -127,42 +96,9 @@ STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','ENGINE_N
                        'AI_RESPONSE_REJECTED','AI_USAGE_BOUND','LOCAL_COMPLETION_UNVERIFIED','AI_TOOL_EXECUTION_DENIED','AI_MESSAGES_DENIED','AI_TASK_DENIED'})
 
 
-def market_brief(engine):
-    """The fixed description of the market and the scoring rule that every idea task carries. Code, not a prompt: GEPA cannot remove it.
-    Practice run 1 (24 October 2026) showed a real model inventing software hypotheses when the task held only the ledger summary."""
-    train=max(engine.train_csv.count('\n')-1,0);validation=len(engine.validation_rows)
-    return ('MARKET\n'
-            f'One asset, daily sessions, synthetic and closed. Two files: train.csv ({train} sessions) and validation.csv ({validation} sessions), '
-            'columns session, close, return (return is the fractional change of close from the previous session). '
-            'A hypothesis is a rule that sets a position of 0 (flat) or 1 (long) for every validation session from data up to that session. '
-            f'Score: the position at session t earns the return of session t+1, minus a cost of {COST} of NAV for each position change. '
-            'A strategy beats the baseline when its Sharpe ratio is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s. '
-            'Only these two files exist; propose nothing that needs other data.')
-
-
 def market_sha256(engine):
     """One fingerprint of the two files a cycle sees. Never a vault file: the engine has none."""
     return sha(canonical({'train_csv':engine.train_csv,'validation_csv':engine.validation_csv}).decode())
-
-
-SAMPLE_ROWS=6  # train rows shown to the Engineer. Never validation rows: a model that has read the validation returns can type positions from memory.
-
-
-def engineer_task(engine,specification,*,previous_reply=None):
-    """The Engineer's task and its starting files. The specification is in the task text AND in /spec.md. A sample of the TRAIN rows shows the columns.
-    Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix."""
-    sample='\n'.join(engine.train_csv.splitlines()[:SAMPLE_ROWS+1])
-    if previous_reply is None: head='Build this specification and run it with run_job.\n\n'
-    else:
-        head=('Build this specification and run it with run_job.\n\n'
-              'Your previous attempt replied without running the program, so nothing was produced. '
-              'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.\n\n'
-              f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
-    task=(head+'Your file store holds two files: /main.py, a starter program (edit decide(), keep the file names), and /spec.md, the specification below. '
-          'It holds nothing else. You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
-          'When run_job reports that signals.csv was written, reply DONE.\n\n'
-          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}')
-    return task,{'/main.py':STARTER_MAIN,'/spec.md':specification}
 
 
 def run_cycle(engine,cycle_index):
@@ -218,22 +154,20 @@ def run_cycle(engine,cycle_index):
             except RuntimeRefused as error:
                 ledger.record_step(cycle_id,state['steps'],role,kind,{'phase':'INVALID','code':error.code,'retry':retry,**record})
                 if retry==RETRIES: return None
-                previous=clip_bytes(reply['text'],RETRY_REPLY_BYTES)
-                reply=attempt(role,kind,f'{task}\n\nYour previous reply was not usable ({error.code}). Reply again with JSON only, no other text, exactly in the format the role prompt gives.'
-                                        f'\n\nPREVIOUS REPLY\n{previous}',{**record,'retry':retry+1})
+                reply=attempt(role,kind,retry_task(task,error.code,reply['text']),{**record,'retry':retry+1})
 
     try:
         # 1. Director picks hypotheses from the ledger summary and its lessons table.
         brief=market_brief(engine)
-        picked=parsed('director','pick',f'Pick at most {engine.max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{},parse_hypotheses)
+        picked=parsed('director','pick',pick_task(engine.max_hypotheses,cycle_index,brief,summary),{},parse_hypotheses)
         state['hypotheses']=picked[:engine.max_hypotheses] if picked is not None else []
         # 2. Researcher memos, Director decisions. A faulty memo or verdict rejects that hypothesis and the cycle goes on.
         for hypothesis in state['hypotheses']:
-            memo=attempt('researcher','memo',f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}',{'hypothesis_id':hypothesis['id']})
+            memo=attempt('researcher','memo',memo_task(brief,hypothesis),{'hypothesis_id':hypothesis['id']})
             if memo is None:
                 state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})','source':'code'};continue
             state['memos'][hypothesis['id']]=memo['text']
-            decision=parsed('director','approve',f'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n{memo["text"]}',{'hypothesis_id':hypothesis['id']},parse_decision)
+            decision=parsed('director','approve',approve_task(hypothesis['id'],memo['text']),{'hypothesis_id':hypothesis['id']},parse_decision)
             if decision is None:
                 last=state['faults'][-1]['code'] if state['faults'] and state['faults'][-1].get('hypothesis_id')==hypothesis['id'] and state['faults'][-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
                 decision={'decision':'reject','reason':f'approval step unusable ({last})','source':'code'}  # a fault, not the Director's verdict (levels.lessons)
@@ -241,7 +175,7 @@ def run_cycle(engine,cycle_index):
         # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
         for hypothesis in state['hypotheses']:
             if state['decisions'][hypothesis['id']]['decision']!='approve': continue
-            spec=attempt('mathematician','specify',f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{state["memos"][hypothesis["id"]]}',{'hypothesis_id':hypothesis['id']})
+            spec=attempt('mathematician','specify',specify_task(brief,state['memos'][hypothesis['id']]),{'hypothesis_id':hypothesis['id']})
             if spec is None: continue
             state['specifications'][hypothesis['id']]=spec['text']
             state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
@@ -275,9 +209,9 @@ def run_cycle(engine,cycle_index):
                 state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':candidate['candidate_id']});continue
             # A build fault after a completed run (practice run 5: the model hunted for signals.csv after writing it) keeps the signals: they are scored.
             code={p:c for p,c in build['files'].items() if p.endswith('.py')} if build is not None else {}
-            review_task=f'Review this code against the specification.\n\nSPECIFICATION\n{state["specifications"][hid]}\n\nCODE\n{json.dumps(code,sort_keys=True)}'
-            if code and len(review_task.encode('utf-8'))<=REVIEW_TASK_BYTES:
-                review=attempt('mathematician','review',review_task,{'candidate_id':candidate['candidate_id']})
+            review_text=review_task(state['specifications'][hid],code)
+            if code and len(review_text.encode('utf-8'))<=REVIEW_TASK_BYTES:
+                review=attempt('mathematician','review',review_text,{'candidate_id':candidate['candidate_id']})
                 if review is not None: state['reviews'][hid]=review['text']  # the review is advice only; a faulty review is recorded and skipped
             else:
                 # The review is advice only. Code too large for one task, no code, or a build fault after a completed run skips the review and records why.
@@ -327,7 +261,7 @@ def run_cycle(engine,cycle_index):
                                                                               'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0:
-            agenda=attempt('director','agenda',f'Review the repeated failures and update the agenda.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}',{})
+            agenda=attempt('director','agenda',agenda_task(brief,summary),{})
             if agenda is not None: state['agenda']=agenda['text']
         state['status']='COMPLETED'
     except RuntimeRefused as error:
