@@ -34,6 +34,31 @@ In bench cycle 77 (`run-20261026-84433f03`), the Mathematician review call conti
 
 These two fixes come before change A. They do not change what the model knows about the market, so they do not need their own bench run. Change A's bench run measures them together with change A.
 
+## Two harness steps toward fine-tuning (added 25 October 2026)
+
+The owner wants to fine-tune a model to the way Compertum works, in the future. Fine-tuning Flint itself is not possible now: the model is too large for this PC, cloud training costs money, and no training data exists. These two steps come first. Neither step needs a model.
+
+**Step S1: structured output for the JSON replies.**
+- Problem: the Director's pick and approval replies, and the agenda reply, must be JSON. In the early practice runs, many pick replies did not parse. Each failure costs one retry request, and a second failure leaves the cycle with nothing to build.
+- Change: for these three tasks, the client sends a JSON schema with the request (`response_format` with type `json_schema`, which the LM Studio server supports). The server then can only produce text that matches the schema. Today the client in `src/compertum/ai/models.py` sends no `response_format`.
+- The parsers stay. `parse_hypotheses` and `parse_decision` still check every reply, and the retry stays as a second safety.
+- Risk: Flint reasons before it answers. A schema can block or cut the reasoning part, and the answer quality can fall. So the first test is a small owner-started check with a few calls on Flint, before any bench run.
+- Measure: the bench report and the ledger give unusable replies, retries, requests and minutes for each cycle, against the baseline.
+- Build: an optional schema parameter in the E1 client, three fixed schemas in code, client tests with a scripted server. About half a day.
+
+**Step S3: save full transcripts of practice cycles as future training data.**
+- Problem: the ledger keeps only hashes of each task and reply. The cycle keeps the text in memory for GEPA (`state['transcript']`, each text clipped at 8,192 bytes), then discards it. So no training examples exist.
+- Change: after each practice cycle, write its transcript to `state/engine/transcripts/<run id>/<cycle id>.jsonl`: one line for each step, with the role, the task kind, the full task, the full reply and the step outcome. Then add the cycle's level and the candidate levels, so later work can select good examples.
+- Rules:
+  - Bench and holdout cycles are never saved. They must not become training data, as they never reach GEPA or the lessons table.
+  - Each text passes the existing secret check (`sanitized`) before it is written.
+  - The files stay private under `state/`, outside Git, and count against the records storage budget.
+  - Each file has a size limit, and a run stops saving if the records category nears its ceiling.
+- Use later: select steps from cycles at level 7 or higher to train a small model for one role, for example the Engineer, with LoRA (a method that trains only a small add-on to the model). The selection must exclude the bench and holdout markets.
+- Build: a small writer module, tests that confirm no evaluation cycle is saved and no secret passes, and a storage check. About half a day.
+
+S1 and S3 come after fixes 1 and 2 and before change A. S1 changes the model's replies, so the bench run for change A also measures S1. S3 changes no reply.
+
 ## Change A: a power check in every specification (first, smallest)
 
 **What.** The specification gets a fifth heading, "5. Detectability". The Mathematician states the edge the rule expects and compares it with the edge the sample can detect. Code puts the reference numbers into the specify task, so the model does not compute them:
@@ -84,7 +109,7 @@ The Auditor already reruns the frozen code with the last validation rows perturb
 
 ## Order and cost
 
-0. Fixes 1 and 2, with their tests. No model is necessary.
+0. Fixes 1 and 2, then steps S1 and S3, with their tests. No model is necessary, except a few owner-started calls to check S1 on Flint.
 1. Change A, then a bench run (about 80 minutes with Flint).
 2. Change B, then a bench run.
 3. The owner decides the trial accounting for change C; then change C and a bench run.
