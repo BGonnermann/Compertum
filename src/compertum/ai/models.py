@@ -1,11 +1,14 @@
-"""One loopback Chat Completions interface for every AI role. The ledger records each call and each refusal."""
+"""One Chat Completions interface for every AI role: loopback servers, plus the remote providers the owner lists in
+config/providers.toml. The ledger records each call and each refusal, never a key."""
 import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
 import math
+import os
 from pathlib import Path
 import re
+import sys
 import time
 import tomllib
 from types import MappingProxyType
@@ -31,6 +34,99 @@ class RoleModel:
     role:str
     base_url:str
     model:str
+    provider:str=PROVIDER  # 'loopback', or the name of an owner-listed remote provider
+    key_env:str|None=None  # the user environment variable that holds the provider's key; None sends no key
+
+
+# Remote providers (owner standard, 26 October 2026: the engine runs on any local model, API key or sign-in). The owner lists each
+# remote provider in PROVIDERS_FILE; listing one is the owner's authorization for it, and the engine never writes that file. The first
+# entry was DeepSeek, authorized on 26 October 2026 with no spending limit; the per-run request limit still bounds each run.
+# A key is read at request time from the named user environment variable, sent only in the Authorization header to that provider,
+# and never recorded, printed or stored in the project.
+PROVIDERS_FILE='config/providers.toml'
+_KEY=re.compile(r'[\x21-\x7e]{8,512}')
+_PROVIDER_NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}')
+_KEY_ENV=re.compile(r'[A-Z][A-Z0-9_]{1,63}')
+_URL_PATH=re.compile(r'(/[A-Za-z0-9._-]+){0,6}')
+
+
+def remote_base_url(value):
+    """An HTTPS base URL in one exact form: lower-case host, default port, no user, query or fragment; the path is kept (some
+    providers serve under /v1 or /api/v1). Anything else is refused."""
+    if not isinstance(value,str) or not 1<=len(value)<=256 or not value.startswith('https://'): raise RuntimeRefused('NON_LOOPBACK_DENIED')
+    parsed=urlsplit(value)
+    try: port=parsed.port
+    except ValueError: raise RuntimeRefused('NON_LOOPBACK_DENIED') from None
+    host=parsed.hostname;path=parsed.path.rstrip('/')
+    if (not host or port not in (None,443) or parsed.username is not None or parsed.password is not None or parsed.query or parsed.fragment
+            or parsed.netloc.lower() not in (host,host+':443') or not _URL_PATH.fullmatch(path)
+            or not re.fullmatch(r'[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+',host)):
+        raise RuntimeRefused('NON_LOOPBACK_DENIED')
+    return f'https://{host}{path}'
+
+
+def load_providers(project_root):
+    """The owner's remote providers: {base URL: (name, key variable or None)}. No file means loopback only."""
+    root=Path(project_root).absolute()
+    if not (root/PROVIDERS_FILE).exists(): return MappingProxyType({})
+    try:
+        with resolve_project_path(PROVIDERS_FILE,root).open('rb') as stream: raw=stream.read(MAX_BYTES+1)
+    except ContractError as error: raise RuntimeRefused(error.reason) from None
+    except OSError: raise RuntimeRefused('CONFIG_UNAVAILABLE') from None
+    if len(raw)>MAX_BYTES: raise RuntimeRefused('CONFIG_TOO_LARGE')
+    try: supplied=tomllib.loads(raw.decode('utf-8'))
+    except (UnicodeError,tomllib.TOMLDecodeError): raise RuntimeRefused('INVALID_CONFIG') from None
+    entries=supplied.get('providers') if supplied.keys()=={'providers'} else None
+    if not isinstance(entries,dict) or len(entries)>32: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+    result={}
+    for name,entry in entries.items():
+        if not _PROVIDER_NAME.fullmatch(name) or name==PROVIDER or not isinstance(entry,dict) or 'base_url' not in entry or not entry.keys()<={'base_url','key_variable'}:
+            raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        # key_variable holds the NAME of a user environment variable, never the key. A value that is not such a name may be a pasted
+        # key (26 October 2026): it is refused with its own code, and the value is never echoed.
+        if 'key_variable' in entry and not (isinstance(entry['key_variable'],str) and _KEY_ENV.fullmatch(entry['key_variable'])): raise RuntimeRefused('PROVIDER_KEY_IN_FILE')
+        base=remote_base_url(entry['base_url'])
+        if base in result: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        result[base]=(name,entry.get('key_variable'))
+    return MappingProxyType(result)
+
+
+def model_base_url(value,providers):
+    """A loopback address (section 19), or the base URL of a provider the owner listed. Anything else is refused."""
+    if isinstance(value,str) and value.startswith('https://'):
+        base=remote_base_url(value)
+        if base not in providers: raise RuntimeRefused('NON_LOOPBACK_DENIED')
+        return base
+    return loopback_base_url(value)
+
+
+def checked_spec(spec):
+    """Check a RoleModel again at the sender: a loopback model has no key; a remote one has an exact HTTPS address, a provider name
+    and, if any, a well-formed key variable. Which remote addresses are allowed is decided when load_models reads the owner's files."""
+    if not isinstance(spec,RoleModel) or model_id(spec.model)!=spec.model: return False
+    if spec.provider==PROVIDER: return loopback_base_url(spec.base_url)==spec.base_url and spec.key_env is None
+    return (isinstance(spec.provider,str) and bool(_PROVIDER_NAME.fullmatch(spec.provider)) and remote_base_url(spec.base_url)==spec.base_url
+            and (spec.key_env is None or (isinstance(spec.key_env,str) and bool(_KEY_ENV.fullmatch(spec.key_env)))))
+
+
+def user_variable(name):
+    """One named user environment variable: from the process, else from the user's registry key (a variable set after this
+    process's parent started is only there). Nothing else is read."""
+    value=os.environ.get(name)
+    if value is None and sys.platform=='win32':
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,'Environment') as key: value=winreg.QueryValueEx(key,name)[0]
+        except OSError: value=None
+    return value
+
+
+def auth_headers(spec,read=None):
+    """The request headers for one role model: none without a key variable; else the bearer key. A missing or malformed key refuses."""
+    if spec.key_env is None: return {}
+    value=(read or user_variable)(spec.key_env)
+    if not isinstance(value,str) or not _KEY.fullmatch(value): raise RuntimeRefused('AI_CREDENTIAL_UNAVAILABLE')
+    return {'Authorization':'Bearer '+value}
 
 
 def loopback_base_url(value):
@@ -113,7 +209,7 @@ def check_messages(messages,names):
 
 
 def load_models(path,project_root):
-    """Read the bounded role file inside the project. Every role gets exactly one loopback model."""
+    """Read the bounded role file inside the project. Every role gets exactly one model: loopback, or a provider the owner listed."""
     root=Path(project_root).absolute()
     try: relative=Path(path).absolute().relative_to(root).as_posix()
     except ValueError: raise RuntimeRefused('CONFIG_OUTSIDE_PROJECT') from None
@@ -124,13 +220,15 @@ def load_models(path,project_root):
     if len(raw)>MAX_BYTES: raise RuntimeRefused('CONFIG_TOO_LARGE')
     try: supplied=tomllib.loads(raw.decode('utf-8'))
     except (UnicodeError,tomllib.TOMLDecodeError): raise RuntimeRefused('INVALID_CONFIG') from None
+    providers=load_providers(root)
     roles=supplied.get('roles') if supplied.keys()=={'roles'} else None
     if not isinstance(roles,dict) or roles.keys()!=ENGINE_ROLES: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
     result={}
     for role in sorted(ENGINE_ROLES):
         entry=roles[role]
         if not isinstance(entry,dict) or entry.keys()!={'base_url','model'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
-        result[role]=RoleModel(role,loopback_base_url(entry['base_url']),model_id(entry['model']))
+        base=model_base_url(entry['base_url'],providers);provider,key_env=providers.get(base,(PROVIDER,None))
+        result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env)
     return MappingProxyType(result)
 
 
@@ -182,7 +280,7 @@ class ModelClient:
             raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         # The sender checks every address and model ID again. A RoleModel built by hand gets no exemption.
         for spec in roles.values():
-            if loopback_base_url(spec.base_url)!=spec.base_url or model_id(spec.model)!=spec.model: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+            if not checked_spec(spec): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         if type(memory_floor_bytes) is not int or memory_floor_bytes<1: raise RuntimeRefused('AVAILABLE_RAM_UNVERIFIED')
         if type(request_limit) is not int or not 1<=request_limit<=10000: raise RuntimeRefused('AI_REQUEST_BUDGET')
         if gate is not None and not callable(gate): raise RuntimeRefused('AI_SETTINGS_DENIED')
@@ -216,16 +314,16 @@ class ModelClient:
 
     def probe(self,role):
         """Read-only check that the server lists the configured model. It sends no completion."""
-        spec=self._spec(role)
+        spec=self._spec(role);headers=auth_headers(spec)
         async def run():
             async with asyncio.timeout(5):
-                async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=5) as client:
+                async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=5,headers=headers) as client:
                     return await self._reported_model(client,spec)
         return asyncio.run(run())
 
-    async def _request(self,spec,payload,seconds):
+    async def _request(self,spec,payload,seconds,headers):
         async with asyncio.timeout(seconds):
-            async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=seconds) as client:
+            async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=seconds,headers=headers) as client:
                 reported=await self._reported_model(client,spec)
                 response,raw=await self._json(client,'POST',spec.base_url+'/chat/completions',payload=payload)
                 return reported,response,raw
@@ -243,7 +341,7 @@ class ModelClient:
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
         spec=self.roles.get(role) if isinstance(role,str) else None;started=time.monotonic()
         entry={'call_id':str(uuid4()),'role':role if isinstance(role,str) and len(role)<=64 else 'INVALID_ROLE',
-               'purpose':purpose if isinstance(purpose,str) and len(purpose)<=256 else None,'provider':PROVIDER,
+               'purpose':purpose if isinstance(purpose,str) and len(purpose)<=256 else None,'provider':spec.provider if spec else PROVIDER,
                'address':spec.base_url if spec else None,'model_requested':spec.model if spec else None,'model_reported':None,
                'settings':{'temperature':recorded_number(temperature),'max_tokens':recorded_number(max_tokens),
                            'request_seconds':recorded_number(seconds),'stream':False},
@@ -264,13 +362,14 @@ class ModelClient:
             check_messages(messages,names)
             prompt=canonical(messages);sanitized(prompt);entry['prompt_sha256']=hashlib.sha256(prompt).hexdigest()
             if tools is not None: sanitized(canonical(tools))
+            headers=auth_headers(spec)  # a remote provider without its key refuses here, before the request counts
             # The attempt counts before any byte leaves. A failed request still uses a request.
             self.requests+=1
             payload={'model':spec.model,'messages':messages,'temperature':temperature,'max_tokens':max_tokens,'stream':False}
             if tools is not None: payload.update(tools=tools,tool_choice='auto')
             tool_calls=[]
             try:
-                reported,response,raw=asyncio.run(self._request(spec,payload,seconds))
+                reported,response,raw=asyncio.run(self._request(spec,payload,seconds,headers))
                 entry['model_reported']=reported;entry['response_sha256']=hashlib.sha256(raw).hexdigest()
                 choices=response.get('choices') if isinstance(response,dict) else None
                 if not isinstance(choices,list) or len(choices)!=1 or not isinstance(choices[0],dict): raise RuntimeRefused('AI_RESPONSE_INVALID')

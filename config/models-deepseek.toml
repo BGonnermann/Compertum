@@ -1,0 +1,23 @@
+# DeepSeek model file: the provider the owner authorized on 26 October 2026 (AGENTS.md, config/providers.toml), with no spending limit.
+# The per-run request limit (450) still bounds each run. Use it with: tools\practice.ps1 -Models deepseek ...
+# base_url must match a provider in config/providers.toml exactly. Other remote addresses are refused.
+# The key is never in this file. The owner stores it in the user environment variable that config/providers.toml names (key_variable, DEEPSEEK_API_KEY).
+# model is the default ID; the service listed deepseek-v4-pro and deepseek-flash on 26 October 2026. Pick another for one run with
+# tools\practice.ps1 -Model ID or -Pick, without editing this file.
+# Results on DeepSeek are not comparable with Flint results. DeepSeek needs its own bench baseline.
+
+[roles.director]
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+
+[roles.researcher]
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+
+[roles.mathematician]
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"
+
+[roles.engineer]
+base_url = "https://api.deepseek.com"
+model = "deepseek-v4-pro"

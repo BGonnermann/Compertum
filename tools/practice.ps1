@@ -14,6 +14,10 @@ Steps, in order, each one checked before the next:
      bench and holdout measure the prompts on the fixed markets of src\compertum\ai\engine\bench.py. They take -CyclesPerMarket,
      not -Cycles. A holdout run is counted before its first cycle; the holdout retires after its allowed uses.
   7. The model is unloaded at the end unless -KeepLoaded is given, so the memory comes back.
+-Models NAME (owner standard, 26 October 2026: any local model, API key or sign-in) uses config\models-NAME.toml instead of the
+LM Studio file config\models.toml, and skips steps 2, 3, 4 and 7: LM Studio is not started or loaded. Remote addresses in that file must
+belong to a provider in config\providers.toml; the engine reads the provider's key from the user environment variable named there and
+refuses at step 5 if it is missing. The key is never printed. Example: -Models deepseek (authorized 26 October 2026).
 The kill switch is unchanged: New-Item state\engine\STOP in a second window.
 
 .EXAMPLE
@@ -21,6 +25,15 @@ tools\practice.ps1 -Requests 80 -Note "practice run 9"
 tools\practice.ps1 -Mode gepa -Cycles 8 -Requests 300 -Note "GEPA run 2"
 tools\practice.ps1 -Mode bench -Requests 450 -Note "bench baseline 1"
 tools\practice.ps1 -Mode holdout -Requests 450 -PromptsRun run-20261026-0123abcd -PromptsCandidate 2 -Note "holdout check of GEPA run 3"
+tools\practice.ps1 -Models deepseek -Model deepseek-v4-pro -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "DeepSeek bench baseline 1"
+tools\practice.ps1 -Pick -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "bench run"
+
+.NOTES
+Choosing the model at run time (owner direction, 26 October 2026: pick the model, then run, with no file edits):
+  -Model ID  one model for every role, for this run only. For local runs it is also the LM Studio model that is loaded.
+             Without -Model, the model file's own IDs are used.
+  -Pick      a menu: first the model file (local, or each config\models-NAME.toml), then the models that provider lists now.
+The run's START row records the model of every role.
 #>
 param(
     [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
@@ -35,6 +48,8 @@ param(
     [int]$Port=1234,
     [int]$ContextLength=16384,
     [int]$Parallel=1,
+    [ValidatePattern('^[a-z0-9][a-z0-9-]{0,31}$')][string]$Models='local',
+    [switch]$Pick,
     [switch]$KeepLoaded
 )
 $ErrorActionPreference='Stop'
@@ -53,7 +68,39 @@ if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket')
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }
-if (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
+function Choose($title,$items) {
+    if (-not $items -or $items.Count -eq 0) { Fail "nothing to choose for: $title" }
+    Write-Host $title
+    for ($i=0; $i -lt $items.Count; $i++) { Write-Host ("  {0}. {1}" -f ($i+1),$items[$i]) }
+    $answer=Read-Host 'Number'
+    $n=0
+    if (-not [int]::TryParse($answer,[ref]$n) -or $n -lt 1 -or $n -gt $items.Count) { Fail "no such choice: $answer" }
+    return $items[$n-1]
+}
+$modelChosen=$PSBoundParameters.ContainsKey('Model')
+if ($Pick) {
+    if (-not (Test-Path $python)) { Fail "engine environment missing: $python" }
+    $files=@('local')+@(Get-ChildItem (Join-Path $root 'config') -Filter 'models-*.toml' | ForEach-Object { $_.BaseName.Substring(7) } | Sort-Object)
+    $Models=Choose 'Model source:' $files
+    if ($Models -eq 'local') {
+        # The language models downloaded in LM Studio, by their load key.
+        $listed=@((lms ls --json | ConvertFrom-Json) | Where-Object { $_.type -eq 'llm' } | ForEach-Object { $_.modelKey })
+    } else {
+        $report=(& $python -m compertum.ai.engine.practice --project . --models $Models models 2>&1 | Out-String)
+        try { $parsed=$report | ConvertFrom-Json } catch { Write-Host $report; Fail "could not list the models of $Models" }
+        if ($parsed.refused) { Fail "listing the models of $Models was refused: $($parsed.refused)" }
+        $listed=@($parsed.servers.PSObject.Properties | ForEach-Object { $_.Value.models } | Sort-Object -Unique)
+    }
+    $Model=Choose "Models of ${Models}:" $listed
+    $modelChosen=$true
+    Write-Host "chosen: $Models / $Model"
+}
+$modelArguments=@('--models',$Models)
+if ($modelChosen) { $modelArguments+=@('--model',$Model) }
+$remote=($Models -ne 'local')
+if ($remote) {
+    if (-not (Test-Path (Join-Path $root "config\models-$Models.toml"))) { Fail "model file config\models-$Models.toml not found" }
+} elseif (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
 if (-not (Test-Path $python)) { Fail "engine environment missing: $python" }
 if (Test-Path (Join-Path $root 'state\engine\STOP')) { Fail 'state\engine\STOP exists; remove it before a new run' }
 
@@ -62,50 +109,53 @@ $free=Free-GiB
 Write-Host "free memory before load: $free GiB (floor $floorGiB GiB)"
 if ($free -lt $floorGiB) { Fail "free memory $free GiB is under the floor before the model is loaded" }
 
-# 2. On-demand loading must be off (the app reads its own copy of the server settings).
-$serverConfig=Join-Path $env:USERPROFILE '.lmstudio\apps\bionic\.internal\http-server-config.json'
-if (Test-Path $serverConfig) {
-    $settings=Get-Content $serverConfig -Raw | ConvertFrom-Json
-    if ($settings.justInTimeModelLoading -ne $false) { Fail "on-demand model loading is on in $serverConfig; turn it off (the owner's setting of 24 October 2026) and restart the server" }
-} else { Write-Host "note: server settings file not found at $serverConfig; on-demand loading not checked" }
-
-# 3. Server.
-$status=(lms status 2>&1 | Out-String)
-# Case-sensitive and anchored to the status line, so words such as 'connection' never read as ON (review, 26 October 2026).
-if ($status -cnotmatch 'Server:\s+ON\b') {
-    Write-Host "starting the model server on port $Port"
-    lms server start --port $Port 2>&1 | Select-Object -Last 1 | Write-Host
-    Start-Sleep -Seconds 3
-}
-
-# 4. Model.
-# One prediction slot by default. The server was loaded with 4 slots until 25 October 2026 (the lms default), and memory fell by about 12 GiB during practice run 11.
-$loaded=(lms ps 2>&1 | Out-String)
 $ownLoad=$false
-if ($loaded -match [regex]::Escape($Model)) {
-    $line=($loaded -split "`n" | Where-Object { $_ -match [regex]::Escape($Model) } | Select-Object -First 1)
-    $fields=($line -split '\s+') | Where-Object { $_ -ne '' }
-    $unit=[array]::IndexOf($fields,'GB')
-    if ($unit -ge 0 -and $fields.Count -gt ($unit+2) -and $fields[$unit+2] -ne "$Parallel") {
-        Write-Host "$Model is loaded with $($fields[$unit+2]) prediction slots; reloading with $Parallel"
-        lms unload $Model 2>&1 | Out-Null
+if (-not $remote) {
+    # 2. On-demand loading must be off (the app reads its own copy of the server settings).
+    $serverConfig=Join-Path $env:USERPROFILE '.lmstudio\apps\bionic\.internal\http-server-config.json'
+    if (Test-Path $serverConfig) {
+        $settings=Get-Content $serverConfig -Raw | ConvertFrom-Json
+        if ($settings.justInTimeModelLoading -ne $false) { Fail "on-demand model loading is on in $serverConfig; turn it off (the owner's setting of 24 October 2026) and restart the server" }
+    } else { Write-Host "note: server settings file not found at $serverConfig; on-demand loading not checked" }
+
+    # 3. Server.
+    $status=(lms status 2>&1 | Out-String)
+    # Case-sensitive and anchored to the status line, so words such as 'connection' never read as ON (review, 26 October 2026).
+    if ($status -cnotmatch 'Server:\s+ON\b') {
+        Write-Host "starting the model server on port $Port"
+        lms server start --port $Port 2>&1 | Select-Object -Last 1 | Write-Host
         Start-Sleep -Seconds 3
-        $loaded=(lms ps 2>&1 | Out-String)
     }
-}
-if ($loaded -notmatch [regex]::Escape($Model)) {
-    Write-Host "loading $Model with its saved settings and $Parallel prediction slot(s)"
-    lms load $Model --gpu max --context-length $ContextLength --parallel $Parallel -y 2>&1 | Select-Object -Last 1 | Write-Host
-    $ownLoad=$true
-    Start-Sleep -Seconds 5
+
+    # 4. Model.
+    # One prediction slot by default. The server was loaded with 4 slots until 25 October 2026 (the lms default), and memory fell by about 12 GiB during practice run 11.
     $loaded=(lms ps 2>&1 | Out-String)
-    if ($loaded -notmatch [regex]::Escape($Model)) { Fail "$Model did not load" }
-} else { Write-Host "$Model is already loaded" }
-$free=Free-GiB
-Write-Host "free memory after load: $free GiB"
-if ($free -lt $floorGiB) {
-    if ($ownLoad -and -not $KeepLoaded) { lms unload $Model 2>&1 | Out-Null }
-    Fail "free memory $free GiB is under the floor with the model loaded; the engine would refuse"
+    $ownLoad=$false
+    if ($loaded -match [regex]::Escape($Model)) {
+        $line=($loaded -split "`n" | Where-Object { $_ -match [regex]::Escape($Model) } | Select-Object -First 1)
+        $fields=($line -split '\s+') | Where-Object { $_ -ne '' }
+        $unit=[array]::IndexOf($fields,'GB')
+        if ($unit -ge 0 -and $fields.Count -gt ($unit+2) -and $fields[$unit+2] -ne "$Parallel") {
+            Write-Host "$Model is loaded with $($fields[$unit+2]) prediction slots; reloading with $Parallel"
+            lms unload $Model 2>&1 | Out-Null
+            Start-Sleep -Seconds 3
+            $loaded=(lms ps 2>&1 | Out-String)
+        }
+    }
+    if ($loaded -notmatch [regex]::Escape($Model)) {
+        Write-Host "loading $Model with its saved settings and $Parallel prediction slot(s)"
+        lms load $Model --gpu max --context-length $ContextLength --parallel $Parallel -y 2>&1 | Select-Object -Last 1 | Write-Host
+        $ownLoad=$true
+        Start-Sleep -Seconds 5
+        $loaded=(lms ps 2>&1 | Out-String)
+        if ($loaded -notmatch [regex]::Escape($Model)) { Fail "$Model did not load" }
+    } else { Write-Host "$Model is already loaded" }
+    $free=Free-GiB
+    Write-Host "free memory after load: $free GiB"
+    if ($free -lt $floorGiB) {
+        if ($ownLoad -and -not $KeepLoaded) { lms unload $Model 2>&1 | Out-Null }
+        Fail "free memory $free GiB is under the floor with the model loaded; the engine would refuse"
+    }
 }
 
 $exit=2
@@ -128,13 +178,13 @@ try {
     }
     Write-Host "memory record: $memoryLog"
     # 5. The engine's own listing check.
-    $report=(& $python -m compertum.ai.engine.practice --project . models 2>&1 | Out-String)
-    if ($report -notmatch '"all_listed": true') { Write-Host $report; Fail "the server does not list the model named in config\models.toml for every role" }
+    $report=(& $python -m compertum.ai.engine.practice --project . @modelArguments models 2>&1 | Out-String)
+    if ($report -notmatch '"all_listed": true') { Write-Host $report; Fail "the server does not list the configured model for every role (models file: $Models)" }
 
     # 6. The run.
     $stamp=Get-Date -Format 'yyyyMMdd-HHmmss'
     $record=Join-Path $root ".cache\test-runs\practice-$Mode-$stamp-record.json"
-    $arguments=@('-m','compertum.ai.engine.practice','--project','.',$Mode,'--requests',"$Requests",'--note',$Note)
+    $arguments=@('-m','compertum.ai.engine.practice','--project','.')+$modelArguments+@($Mode,'--requests',"$Requests",'--note',$Note)
     $evaluation=($Mode -eq 'bench' -or $Mode -eq 'holdout')
     if ($evaluation) {
         $arguments+=@('--cycles-per-market',"$CyclesPerMarket")
@@ -154,7 +204,7 @@ try {
 } finally {
     if ($sampler) { Stop-Job $sampler -ErrorAction SilentlyContinue; Remove-Job $sampler -Force -ErrorAction SilentlyContinue }
     # 7. Memory back.
-    if (-not $KeepLoaded) {
+    if (-not $KeepLoaded -and -not $remote) {
         Write-Host "unloading $Model"
         lms unload $Model 2>&1 | Select-Object -Last 1 | Write-Host
     }

@@ -13,11 +13,14 @@ The owner stops a run by creating state/engine/STOP inside the project. Exit 0 o
 """
 import argparse
 import asyncio
+from dataclasses import replace
 from datetime import date
 import json
 from multiprocessing.connection import Listener
 from pathlib import Path
+import re
 import sys
+from types import MappingProxyType
 from uuid import uuid4
 import httpx
 from compertum.config import ConfigError,load_config
@@ -29,7 +32,7 @@ from compertum.runtime.jobs import available_physical_memory
 from compertum.runtime.owners import acquire_owner,release_owner
 from compertum.runtime.sandbox import verify_sandbox
 from compertum.storage import StorageManager
-from compertum.ai.models import load_models,loopback_base_url
+from compertum.ai.models import auth_headers,checked_spec,load_models,model_id
 from .audit import engine_fixed_targets
 from . import bench
 from .limits import RunLimits
@@ -39,14 +42,34 @@ from .market import market_csv,split_market_tiers,synthetic_market
 START_FLOOR=8*1024**3  # the owner's start floor for free host memory: 16 GiB from 14 October 2026, lowered to 8 GiB by the owner on 26 October 2026
 MODELS_BYTES=65536
 MAX_MODEL_IDS=64
+# The model file the owner chooses for a run (owner standard, 26 October 2026: any local model, API key or sign-in). Remote addresses
+# in it must belong to a provider in config/providers.toml. Results on different models are not comparable; each model needs its own
+# bench measurements.
+MODEL_NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}')
 
 
-def list_models(base_url,seconds=5):
-    """The model IDs a loopback server reports at GET /models. No completion is sent. Bounded reply."""
-    url=loopback_base_url(base_url)
+def model_file(root,models):
+    """The model file the owner chose: local is config/models.toml (the loopback servers); any other name is config/models-<name>.toml."""
+    if not isinstance(models,str) or not MODEL_NAME.fullmatch(models): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+    return Path(root)/('config/models.toml' if models=='local' else f'config/models-{models}.toml')
+
+
+def chosen_roles(root,models,model=None):
+    """The roles of the chosen model file. model, when given, replaces every role's model ID for this run only (owner direction,
+    26 October 2026: pick the model at run time, without editing files). The server must still list it before any completion."""
+    roles=load_models(model_file(root,models),root)
+    if model is None: return roles
+    model_id(model)
+    return MappingProxyType({role:replace(spec,model=model) for role,spec in roles.items()})
+
+
+def list_models(spec,seconds=5):
+    """The model IDs a configured server reports at GET /models. No completion is sent. Bounded reply."""
+    if not checked_spec(spec): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+    url=spec.base_url;headers=auth_headers(spec)
     async def fetch():
         async with asyncio.timeout(seconds):
-            async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=seconds) as client:
+            async with httpx.AsyncClient(trust_env=False,follow_redirects=False,timeout=seconds,headers=headers) as client:
                 async with client.stream('GET',url+'/models') as response:
                     response.raise_for_status();raw=bytearray()
                     async for chunk in response.aiter_bytes():
@@ -62,13 +85,13 @@ def list_models(base_url,seconds=5):
     return sorted(set(ids))[:MAX_MODEL_IDS]
 
 
-def models_report(project_root):
+def models_report(project_root,models='local',model=None):
     """For every configured role: the address, the configured model, and whether the server lists it."""
-    root=Path(project_root).absolute();roles=load_models(root/'config'/'models.toml',root)
+    root=Path(project_root).absolute();roles=chosen_roles(root,models,model)
     servers={}
     for spec in roles.values():
         if spec.base_url in servers: continue
-        try: servers[spec.base_url]={'models':list_models(spec.base_url),'error':None}
+        try: servers[spec.base_url]={'models':list_models(spec),'error':None}
         except RuntimeRefused as error: servers[spec.base_url]={'models':[],'error':error.code}
     report={role:{'address':spec.base_url,'model':spec.model,'listed':spec.model in servers[spec.base_url]['models']} for role,spec in sorted(roles.items())}
     return {'servers':servers,'roles':report,'all_listed':all(r['listed'] for r in report.values())}
@@ -95,7 +118,7 @@ def practice_market(seed,sessions,strength,kind='momentum',window=5):
 
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False,
-                 purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None):
+                 purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
     committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record."""
@@ -122,7 +145,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
     checked=preflight(root,markets,prompts=prompts)
     held_back=len(vault) if purpose=='practice' else sum(m['vault_sessions'] for m in markets)
-    roles=load_models(root/'config'/'models.toml',root)
+    roles=chosen_roles(root,models,model)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
         store=StorageManager(lease,load_config(config_path,root)).store
@@ -165,6 +188,8 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.practice',description='Owner practice run of the section 19 engine against loopback model servers.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
+    parser.add_argument('--models',default='local',help='the model file: local is config/models.toml; NAME is config/models-NAME.toml')
+    parser.add_argument('--model',help='one model ID for every role, for this run only; the server must list it')
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('models')
     for name in ('run','gepa'):
@@ -180,15 +205,15 @@ def main(argv=None):
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
     try:
-        if args.command=='models': result=models_report(root)
+        if args.command=='models': result=models_report(root,args.models,args.model)
         elif args.command=='apply-prompts':
             from .gepa_run import apply_prompts
             result=apply_prompts(root,args.run,args.candidate)
         elif args.command in ('bench','holdout'):
             result=run_practice(root,config,cycles=None,hours=args.hours,requests=args.requests,note=args.note,purpose=args.command,
-                                cycles_per_market=args.cycles_per_market,prompts_run=args.prompts_run,prompts_candidate=args.prompts_candidate)
+                                cycles_per_market=args.cycles_per_market,prompts_run=args.prompts_run,prompts_candidate=args.prompts_candidate,models=args.models,model=args.model)
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
-                                  gepa=args.command=='gepa')
+                                  gepa=args.command=='gepa',models=args.models,model=args.model)
     except RuntimeRefused as error:
         refused={'refused':error.code}
         if getattr(error,'problems',None): refused['problems']=error.problems

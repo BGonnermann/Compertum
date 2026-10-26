@@ -8,17 +8,33 @@ import shutil
 import pytest
 from test_ai_models_interface import server,write_models
 from compertum.ai.engine import practice
+from compertum.ai.models import RoleModel
 from compertum.runtime.errors import RuntimeRefused
 
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def test_models_listing_is_read_only_and_loopback_only():
+def test_models_listing_is_read_only_and_checks_the_address():
     with server() as (port,state):
-        assert practice.list_models(f'http://127.0.0.1:{port}/v1')==['synthetic-model'] and state['posts']==[] and state['gets']==1
+        assert practice.list_models(RoleModel('director',f'http://127.0.0.1:{port}/v1','m'))==['synthetic-model'] and state['posts']==[] and state['gets']==1
     for bad in ('http://10.0.0.5:1234/v1','https://api.example.com/v1','not a url'):
-        with pytest.raises(RuntimeRefused,match='^NON_LOOPBACK_DENIED$'): practice.list_models(bad)
-    with pytest.raises(RuntimeRefused,match='^LOCAL_COMPLETION_UNVERIFIED$'): practice.list_models('http://127.0.0.1:9/v1',seconds=2)
+        with pytest.raises(RuntimeRefused): practice.list_models(RoleModel('director',bad,'m'))
+    with pytest.raises(RuntimeRefused,match='^LOCAL_COMPLETION_UNVERIFIED$'): practice.list_models(RoleModel('director','http://127.0.0.1:9/v1','m'),seconds=2)
+
+
+def test_the_model_is_chosen_per_run_without_editing_files(tmp_path):
+    # Owner direction, 26 October 2026: pick the model at run time. --model replaces every role's ID for that run only.
+    with server() as (port,state):
+        write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','file-model') for role in ('director','researcher','mathematician','engineer')])
+        before=(tmp_path/'config'/'models.toml').read_bytes()
+        assert {r['model'] for r in practice.models_report(tmp_path,'local','synthetic-model')['roles'].values()}=={'synthetic-model'}
+        assert practice.models_report(tmp_path,'local','synthetic-model')['all_listed'] is True and practice.models_report(tmp_path)['all_listed'] is False
+        assert (tmp_path/'config'/'models.toml').read_bytes()==before and state['posts']==[]
+    for bad in ('',' padded','x'*300):
+        with pytest.raises(RuntimeRefused,match='^MODEL_IDENTITY_UNVERIFIED$'): practice.chosen_roles(tmp_path,'local',bad)
+    for bad in ('../x','Upper','a b'):
+        with pytest.raises(RuntimeRefused,match='^UNKNOWN_CONFIG_FIELD$'): practice.model_file(tmp_path,bad)
+    assert practice.model_file(tmp_path,'deepseek')==tmp_path/'config/models-deepseek.toml' and practice.model_file(tmp_path,'local')==tmp_path/'config/models.toml'
 
 
 def test_models_report_says_whether_each_role_model_is_listed(tmp_path):

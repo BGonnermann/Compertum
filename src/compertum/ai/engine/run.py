@@ -17,6 +17,7 @@ from .bench import HOLDOUT_USES,SETS,fingerprint,reserved_fingerprints,set_finge
 from .cycle import Engine,run_cycle
 from .ledger import EVALUATION_PURPOSES,PURPOSES,EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
+from .prompts import ROLES,load_prompt
 
 CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','requests_after','total_trials','faults')
 
@@ -75,8 +76,10 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     start={'limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
            'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file)}
     if purpose!='practice':
-        start.update(purpose=purpose,markets=[m.get('label') for m in schedule],
-                     prompts_sha256=None if prompts is None else {role:hashlib.sha256(text.encode('utf-8')).hexdigest() for role,text in sorted(prompts.items())})
+        # The committed prompts are hashed too (26 October 2026), so every evaluation run records the exact prompts it measured.
+        measured=prompts if prompts is not None else {role:load_prompt(project_root,role) for role in ROLES}
+        start.update(purpose=purpose,markets=[m.get('label') for m in schedule],prompts_source='committed' if prompts is None else 'given',
+                     prompts_sha256={role:hashlib.sha256(text.encode('utf-8')).hexdigest() for role,text in sorted(measured.items())})
     if holdout_set is not None: start.update(holdout_set=holdout_set,holdout_use=holdout_use,holdout_uses_allowed=HOLDOUT_USES)
     ledger.record_run_phase(run_id,'START',start)
     index=first

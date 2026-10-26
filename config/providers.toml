@@ -1,0 +1,14 @@
+# Remote model providers the owner authorized (AGENTS.md). Loopback servers such as LM Studio need no entry.
+# Owner standard, 26 October 2026: the engine runs on any local model, API key or sign-in, so research can go on when the PC is busy.
+# Adding an entry here is the owner's authorization for that provider. The engine never writes this file.
+#
+# Each entry:
+#   base_url  the exact HTTPS address, with its path if the provider uses one (for example https://openrouter.ai/api/v1).
+#   key_variable  the NAME of the user environment variable that holds the key, never the key itself.
+#                 Leave it out for a provider that needs no key.
+# Never put a key in this file. A model file (config/models-<name>.toml) then names this address and a model for each role.
+
+# DeepSeek: authorized by the owner on 26 October 2026, with no spending limit. The per-run request limit still bounds each run.
+[providers.deepseek]
+base_url = "https://api.deepseek.com"
+key_variable = "DEEPSEEK_API_KEY"

@@ -8,7 +8,8 @@ import threading
 import time
 import pytest
 from test_ai_manual import bridge
-from compertum.ai.models import ENGINE_ROLES,ModelClient,RoleModel,StoreLedger,load_models,loopback_base_url
+from compertum.ai.models import (ENGINE_ROLES,ModelClient,RoleModel,StoreLedger,auth_headers,load_models,load_providers,loopback_base_url,model_base_url,
+                                   remote_base_url)
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 
@@ -99,10 +100,98 @@ def test_models_file_loads_four_roles_on_any_loopback_port(tmp_path):
 
 
 @pytest.mark.parametrize('url',['https://127.0.0.1:1234','http://example.com:1234','http://10.0.0.5:1234','http://user@127.0.0.1:1234',
-                                 'http://127.0.0.1:1234/other','http://127.0.0.1','http://127.0.0.1:1234?x=1','http://127.0.0.1.evil.com:80',
+                                 'http://127.0.0.1:1234/other','http://127.0.0.1','http://127.0.0.1:1234?x=1','http://127.0.0.1.lookalike.example:80',
                                  'http://[::1]:1234','http://127.0.0.1:70000','http://127.0.0.1:0',''])
 def test_other_hosts_schemes_and_paths_are_refused(url):
     with pytest.raises(RuntimeRefused,match='NON_LOOPBACK_DENIED'): loopback_base_url(url)
+
+
+DEEPSEEK={'https://api.deepseek.com':('deepseek','DEEPSEEK_API_KEY')}
+
+
+def write_providers(root,text):
+    (root/'config').mkdir(exist_ok=True);(root/'config'/'providers.toml').write_text(text,encoding='utf-8')
+
+
+@pytest.mark.parametrize('url,base',[('https://api.deepseek.com','https://api.deepseek.com'),('https://api.deepseek.com/','https://api.deepseek.com'),
+                                     ('https://api.deepseek.com:443','https://api.deepseek.com'),('https://API.deepseek.com','https://api.deepseek.com'),
+                                     ('https://openrouter.ai/api/v1/','https://openrouter.ai/api/v1')])
+def test_remote_addresses_have_one_exact_https_form(url,base):
+    # Owner standard, 26 October 2026: any provider the owner lists. The path is kept; host names ignore case.
+    assert remote_base_url(url)==base
+
+
+@pytest.mark.parametrize('url',['http://api.deepseek.com','https://api.deepseek.com:8443','https://unlisted-host.example.com','https://api.deepseek.com.lookalike.example',
+                                 'https://user:pw@api.deepseek.com','https://api.deepseek.com/v1?x=1','https://api.deepseek.com/v1','https://deepseek.com',
+                                 'https://api.deepseek.com#x','https://127.0.0.1','https://localhost:1234'])
+def test_only_listed_providers_and_loopback_are_admitted(url):
+    # Test addresses only; nothing is sent. example.com and .example are reserved names that never belong to a real service.
+    with pytest.raises(RuntimeRefused,match='NON_LOOPBACK_DENIED'): model_base_url(url,DEEPSEEK)
+    assert model_base_url('https://api.deepseek.com',DEEPSEEK)=='https://api.deepseek.com'
+    assert model_base_url('http://localhost:8080',DEEPSEEK)=='http://localhost:8080/v1'
+    with pytest.raises(RuntimeRefused,match='NON_LOOPBACK_DENIED'): model_base_url('https://api.deepseek.com',{})  # not listed, not admitted
+
+
+def test_the_provider_file_is_checked(tmp_path):
+    assert dict(load_providers(tmp_path))=={}  # no file: loopback only
+    write_providers(tmp_path,'[providers.deepseek]\nbase_url = "https://api.deepseek.com/"\nkey_variable = "DEEPSEEK_API_KEY"\n\n[providers.lab]\nbase_url = "https://models.lab.example/v1"\n')
+    assert dict(load_providers(tmp_path))=={'https://api.deepseek.com':('deepseek','DEEPSEEK_API_KEY'),'https://models.lab.example/v1':('lab',None)}
+    for bad in ('[providers.x]\nbase_url = "http://api.deepseek.com"\n','[providers.loopback]\nbase_url = "https://a.example"\n',
+                '[providers.Bad_Name]\nbase_url = "https://a.example"\n','[providers.x]\nbase_url = "https://a.example"\nkey = "sk-secret"\n',
+                '[providers.x]\nbase_url = "https://a.example"\nkey_variable = "lower case"\n','[providers.x]\nkey_env = "A_KEY"\n',
+                '[providers.x]\nbase_url = "https://a.example"\n[providers.y]\nbase_url = "https://a.example/"\n','[other]\nx = 1\n'):
+        write_providers(tmp_path,bad)
+        with pytest.raises(RuntimeRefused,match='NON_LOOPBACK_DENIED|UNKNOWN_CONFIG_FIELD|PROVIDER_KEY_IN_FILE'): load_providers(tmp_path)
+    # A pasted key gets its own refusal, and the message never holds the value.
+    write_providers(tmp_path,'[providers.x]\nbase_url = "https://a.example"\nkey_variable = "sk-'+'0'*32+'"\n')
+    with pytest.raises(RuntimeRefused) as caught: load_providers(tmp_path)
+    assert caught.value.code=='PROVIDER_KEY_IN_FILE' and 'sk-' not in str(caught.value)
+
+
+def test_a_model_file_takes_its_provider_and_key_variable_from_the_provider_file(tmp_path):
+    write_providers(tmp_path,'[providers.deepseek]\nbase_url = "https://api.deepseek.com"\nkey_variable = "DEEPSEEK_API_KEY"\n')
+    path=write_models(tmp_path,[('director','https://api.deepseek.com','deepseek-chat'),('researcher','http://127.0.0.1:1234/v1','flint'),
+                                ('mathematician','https://api.deepseek.com/','deepseek-chat'),('engineer','https://api.deepseek.com','deepseek-chat')])
+    loaded=load_models(path,tmp_path)
+    assert loaded['director']==RoleModel('director','https://api.deepseek.com','deepseek-chat','deepseek','DEEPSEEK_API_KEY')
+    assert loaded['researcher']==RoleModel('researcher','http://127.0.0.1:1234/v1','flint')  # roles may mix providers
+    (tmp_path/'config'/'providers.toml').unlink()
+    with pytest.raises(RuntimeRefused,match='NON_LOOPBACK_DENIED'): load_models(path,tmp_path)
+
+
+def test_the_key_goes_only_into_the_header_and_never_into_the_record(monkeypatch):
+    key='sk-test-'+'a'*24
+    remote={role:RoleModel(role,'https://api.deepseek.com','deepseek-chat','deepseek','DEEPSEEK_API_KEY') for role in ENGINE_ROLES}
+    assert auth_headers(RoleModel('director','http://127.0.0.1:1234/v1','m'),read=lambda name:key)=={}  # loopback never gets a key
+    assert auth_headers(remote['director'],read={'DEEPSEEK_API_KEY':key}.get)=={'Authorization':'Bearer '+key}
+    for bad in (None,'','short','has space in it ok','x'*600):
+        with pytest.raises(RuntimeRefused,match='^AI_CREDENTIAL_UNAVAILABLE$'): auth_headers(remote['director'],read=lambda name:bad)
+    sent=[]
+    async def fake_request(self,spec,payload,seconds,headers):
+        sent.append(headers)
+        raw=json.dumps({'choices':[{'message':{'role':'assistant','content':'ok'},'finish_reason':'stop'}],'usage':{'prompt_tokens':5,'completion_tokens':1}}).encode()
+        return spec.model,json.loads(raw),raw
+    monkeypatch.setattr(ModelClient,'_request',fake_request)
+    ledger=ListLedger();c=ModelClient(remote,ledger,memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False)
+    monkeypatch.setattr('compertum.ai.models.user_variable',lambda name:key if name=='DEEPSEEK_API_KEY' else None)
+    content,entry=c.complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture')
+    assert content=='ok' and sent==[{'Authorization':'Bearer '+key}] and entry['provider']=='deepseek' and entry['address']=='https://api.deepseek.com'
+    assert key not in json.dumps(ledger.entries)
+    # Without the key: refused before the request counts and before anything is sent.
+    monkeypatch.setattr('compertum.ai.models.user_variable',lambda name:None)
+    with pytest.raises(RuntimeRefused,match='^AI_CREDENTIAL_UNAVAILABLE$'): c.complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture')
+    assert len(sent)==1 and c.requests==1 and ledger.entries[-1]['status']=='REFUSED_AI_CREDENTIAL_UNAVAILABLE'
+    # The sender checks hand-built models again: a loopback model with a key variable, or a remote one with a malformed address, is refused.
+    for bad in (RoleModel('director','http://127.0.0.1:1234/v1','m','loopback','DEEPSEEK_API_KEY'),RoleModel('director','http://api.deepseek.com','m','deepseek',None)):
+        with pytest.raises(RuntimeRefused):
+            ModelClient({**remote,'director':bad},ListLedger(),memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False)
+
+
+def test_the_committed_provider_and_deepseek_files_load_and_hold_no_key():
+    root=Path(__file__).resolve().parents[1];loaded=load_models(root/'config/models-deepseek.toml',root)
+    assert {(spec.base_url,spec.provider,spec.key_env) for spec in loaded.values()}=={('https://api.deepseek.com','deepseek','DEEPSEEK_API_KEY')}
+    assert {spec.model for spec in loaded.values()}=={'deepseek-v4-pro'}
+    for name in ('config/models-deepseek.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
 
 
 @pytest.mark.parametrize('fault',['missing_role','extra_role','extra_key','outside'])

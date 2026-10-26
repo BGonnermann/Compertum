@@ -228,6 +228,6 @@ def test_the_command_line_passes_bench_and_holdout_options(tmp_path,monkeypatch,
     def fake(root,config,**kwargs): seen.update(kwargs);return {'kind':kwargs['purpose']}
     monkeypatch.setattr(practice,'run_practice',fake)
     assert practice.main(['--project',str(tmp_path),'holdout','--requests','450','--note','n','--cycles-per-market','2','--prompts-run','run-20261025-00001111','--prompts-candidate','3'])==0
-    assert seen=={'cycles':None,'hours':None,'requests':450,'note':'n','purpose':'holdout','cycles_per_market':2,'prompts_run':'run-20261025-00001111','prompts_candidate':3}
+    assert seen=={'cycles':None,'hours':None,'requests':450,'note':'n','purpose':'holdout','cycles_per_market':2,'prompts_run':'run-20261025-00001111','prompts_candidate':3,'models':'local','model':None}
     assert json.loads(capsys.readouterr().out)=={'kind':'holdout'}
     assert practice.main(['--project',str(tmp_path),'bench','--requests','450','--note','n'])==0 and seen['cycles_per_market']==4 and seen['prompts_run'] is None
