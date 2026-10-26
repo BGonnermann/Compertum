@@ -50,7 +50,7 @@ RECORDS_BYTES=24000
 TEXT_BYTES=4000
 MAX_RECORDS=6
 MAX_MARKETS=8
-MAX_CANDIDATES=64
+MAX_CANDIDATES=1000  # every prompt set a long run evaluates is kept (owner, 26 October 2026: no GEPA limits)
 PROPOSAL_INSTRUCTION=('Improve the system prompt below for the {role} role of a research engine. The records show the role\'s inputs, outputs and the '
                       'outcome of each attempt. Write the complete improved prompt. Keep the first line exactly "ROLE: {role}". Keep every output format '
                       'rule. Keep it under 12000 bytes. Reply with the prompt text only.')

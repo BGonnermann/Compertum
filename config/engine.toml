@@ -3,7 +3,8 @@
 # limit at the start, and that limit can never exceed this value. 0 means unset: no bounded run can start.
 # Only the owner raises this value. The E1 client refuses any limit above 10000.
 # The owner set the first value, 450, on 24 October 2026, and raised it to 600 on 26 October 2026 (DeepSeek flash used about
-# 27 requests per cycle, so a 20-cycle bench run did not fit in 450).
+# 27 requests per cycle, so a 20-cycle bench run did not fit in 450). On 26 October 2026 the owner said "No GEPA limits. Let it just run
+# and find and fix stuff." and raised it to 10000, the highest value the E1 client accepts.
 
 [run]
-request_hard_maximum = 600
+request_hard_maximum = 10000

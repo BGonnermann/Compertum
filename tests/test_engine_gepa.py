@@ -237,7 +237,7 @@ def test_apply_prompts_copies_one_candidate_into_config_after_the_checks(tmp_pat
     (folder/'engineer.md').write_text('ROLE: director\nwrong role\n'*3,encoding='utf-8')
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): apply_prompts(tmp_path,run_id,1)
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_UNAVAILABLE$'): apply_prompts(tmp_path,run_id,2)
-    for bad in (('run-x',1),(run_id,'1'),(run_id,-1),(run_id,64)):
+    for bad in (('run-x',1),(run_id,'1'),(run_id,-1),(run_id,1000)):
         with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): apply_prompts(tmp_path,*bad)
     assert (PROJECT/'.gitignore').read_text(encoding='utf-8').splitlines().count('state/')==1
     assert json.loads(json.dumps(result))==result
