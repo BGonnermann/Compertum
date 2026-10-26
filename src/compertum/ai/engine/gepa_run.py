@@ -65,6 +65,27 @@ def check_prompt(role,text):
 def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
 
+# Speed as a tie-breaker (owner request, 26 October 2026; docs/MATHEMATICIAN_PLAN.md step V2). The measure is the mean number of output tokens per model
+# call in the cycle, from the client's own call records: shorter replies and fewer runaway outputs. Not the number of calls, because a cycle that builds
+# more candidates needs more calls, and GEPA must never learn to build less. SPEED_WEIGHT is below the smallest gap between two mean level scores
+# (0.1 divided by at most MAX_MARKETS markets), so a faster prompt set can only win when its levels are equal.
+SPEED_WEIGHT=0.009
+SPEED_TOKEN_CAP=2048
+
+
+def speed_for_calls(entries):
+    """The speed record of one cycle from its model-call records, or None when no call reported token counts."""
+    tokens=[e['usage']['completion_tokens'] for e in entries if isinstance(e,dict) and isinstance(e.get('usage'),dict) and type(e['usage'].get('completion_tokens')) is int]
+    if not tokens: return None
+    mean=sum(tokens)/len(tokens)
+    return {'calls':len(entries),'calls_with_tokens':len(tokens),'mean_completion_tokens':round(mean,1),'speed':round(1-min(mean,SPEED_TOKEN_CAP)/SPEED_TOKEN_CAP,6)}
+
+
+def score_with_speed(score,speed):
+    """The level score plus the tie-breaking bonus. Without speed data the score is the level score alone."""
+    return score if speed is None else round(score+SPEED_WEIGHT*speed['speed'],6)
+
+
 def score_for_cycle(result):
     """GEPA's score of one cycle: its level divided by 10. A stopped cycle is systemic and is raised, not scored; 0.0 marks it if it is ever asked."""
     if result.get('stop_code') is not None: return 0.0
@@ -148,7 +169,9 @@ class PromptAdapter:
             # The owner's cycle limit is a hard bound. GEPA's own budget is checked between iterations only.
             if len(self.evaluations)>=self.cycle_limit: raise RuntimeRefused('ENGINE_CYCLE_LIMIT')
             engine=self.build_engine(prompts,market)
+            rows=getattr(getattr(self.client,'ledger',None),'rows',None);before=len(rows()) if callable(rows) else None
             result=self.run_cycle(engine,self.next_index);self.next_index+=1
+            speed=speed_for_calls(rows()[before:]) if before is not None else None
             record={'cycle_id':result['cycle_id'],'cycle_index':self.next_index-1,'market':market.get('label'),'status':result['status'],'stop_code':result.get('stop_code'),
                     'hypotheses':result.get('hypotheses'),'candidates':result.get('candidates'),'runs':result.get('runs'),'requests_after':result.get('requests_after'),
                     'total_trials':result.get('total_trials'),'prompt_candidate':index}
@@ -156,9 +179,14 @@ class PromptAdapter:
             if result.get('stop_code') is not None:
                 # A refusal from the model path, the gate or a freeze is systemic: GEPA must stop, not score it.
                 raise RuntimeRefused(result['stop_code'])
-            level=cycle_level(result);score=score_for_cycle(result);outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level});scores.append(score)
-            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level})
+            level=cycle_level(result);score=score_with_speed(score_for_cycle(result),speed)
+            outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level,'speed':speed});scores.append(score)
+            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level,**({'speed':speed} if speed else {})})
+            record['speed']=speed
             feedback=feedback_for(result,earlier_titles(self.ledger,result['cycle_id']))
+            if speed is not None:
+                feedback=_clip(feedback+f" Speed: {speed['calls']} model calls, a mean of {speed['mean_completion_tokens']} output tokens per call. "
+                           'Shorter replies break ties between prompts at the same level; they never outweigh a better level.')
             trajectories.append({'transcript':result.get('transcript') or [],'feedback':feedback,'score':score})
         return EvaluationBatch(outputs=outputs,scores=scores,trajectories=trajectories if capture_traces else None)
 

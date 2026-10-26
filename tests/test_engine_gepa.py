@@ -227,3 +227,44 @@ def test_apply_prompts_copies_one_candidate_into_config_after_the_checks(tmp_pat
         with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): apply_prompts(tmp_path,*bad)
     assert (PROJECT/'.gitignore').read_text(encoding='utf-8').splitlines().count('state/')==1
     assert json.loads(json.dumps(result))==result
+
+
+def test_speed_only_breaks_ties_between_equal_levels():
+    """Step V2 (26 October 2026): the speed bonus can never outweigh a level difference, for any number of markets GEPA averages over."""
+    from itertools import product
+    from compertum.ai.engine.gepa_run import MAX_MARKETS,SPEED_WEIGHT,score_with_speed
+    assert SPEED_WEIGHT<0.1/MAX_MARKETS
+    fast={'speed':1.0};slow={'speed':0.0}
+    for k in range(1,MAX_MARKETS+1):
+        # Two prompt sets whose summed levels differ by one level step over k markets: the better one must win even if it is slowest.
+        better=[score_with_speed(0.6,slow)]*(k-1)+[score_with_speed(0.7,slow)];worse=[score_with_speed(0.6,fast)]*k
+        assert sum(better)/k>sum(worse)/k,k
+    assert score_with_speed(0.6,fast)>score_with_speed(0.6,slow)>=0.6 and score_with_speed(0.6,None)==0.6
+    for level,speed in product(range(1,11),(0.0,0.5,1.0)):
+        assert level/10<=score_with_speed(level/10,{'speed':speed})<(level+1)/10
+
+
+def test_speed_comes_from_mean_output_tokens_per_call():
+    from compertum.ai.engine.gepa_run import SPEED_TOKEN_CAP,speed_for_calls
+    calls=[{'usage':{'prompt_tokens':900,'completion_tokens':512}},{'usage':{'prompt_tokens':300,'completion_tokens':1536}},{'usage':None},{'status':'REFUSED_AI_RESPONSE_REJECTED'}]
+    assert speed_for_calls(calls)=={'calls':4,'calls_with_tokens':2,'mean_completion_tokens':1024.0,'speed':0.5}
+    assert speed_for_calls([])is None and speed_for_calls([{'usage':None}]) is None
+    assert speed_for_calls([{'usage':{'completion_tokens':SPEED_TOKEN_CAP*3}}])['speed']==0.0
+
+
+def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
+    s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
+    prompts={role:load_prompt(PROJECT,role) for role in ROLES}
+    calls=[{'usage':{'prompt_tokens':1,'completion_tokens':1000}}]  # an older call: never counted for the next cycle
+    class Rows:
+        def rows(self): return list(calls)
+    def fake_cycle(engine,index):
+        calls.extend([{'usage':{'prompt_tokens':1,'completion_tokens':512}}]*4)
+        return {'cycle_id':f'cycle-{index:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[{'id':'h1','title':'Near'}],
+                'candidates':[{'hypothesis_id':'h1','status':'REJECTED','run_statuses':['COMPLETED']}],'scores':{'h1':s['near']},'transcript':[]}
+    client=type('C',(),{'ledger':Rows()})()
+    adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=client,ledger=ledger,run_id='run-20261025-0123abcd',next_index=8,cycle_limit=2)
+    batch=adapter.evaluate([{'label':'a'}],prompts,capture_traces=True)
+    assert batch.scores==[round(0.6+0.009*0.75,6)] and batch.outputs[0]['level']==6
+    assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'mean_completion_tokens':512.0,'speed':0.75}
+    assert 'a mean of 512.0 output tokens per call' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4

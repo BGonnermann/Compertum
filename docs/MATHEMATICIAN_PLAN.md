@@ -101,7 +101,9 @@ About 4.3 GiB moved from RAM to the GPU at 0.8, and 8.7 GiB at 0.6. At 0.6 the G
 - What GEPA cannot change: Flint's token speed (step V1), the sandbox, and the server.
 - The change is in our GEPA adapter, not in the judge. Tests prove that a lower level always scores below a higher level, whatever the speed.
 
-Order: fix 2 (review length) first, then V1, then GEPA run 3 with V2. Each step gets its own bench comparison.
+**V2 built on 26 October 2026** (`src/compertum/ai/engine/gepa_run.py`): `speed_for_calls` reads the cycle's own model-call records (the calls added to the client's ledger during that cycle) and computes the mean number of output tokens per call. `score_with_speed` adds at most `SPEED_WEIGHT` = 0.009 to the level score, which is below the smallest gap between two mean level scores (0.1 divided by `MAX_MARKETS` = 8, so 0.0125). The measure is per call, not per cycle, so a cycle that builds more candidates is not penalized. The feedback to GEPA's reflection states the calls and the mean tokens. Without token data the score is the level score alone. Tests: product lane GEPA tests 11 passed, including a check over every level and 1 to 8 markets; engine environment, all engine files, 165 passed, 0 failed, 0 skipped; product lane engine files 169 passed, 7 skipped.
+
+Order: fix 2 (review length) first, then V1, then GEPA run 3 with V2. Fix 2, V1 (ratio 0.6) and V2 are done; GEPA run 3 is next. Each step gets its own bench comparison.
 
 ## Change A: a power check in every specification (first, smallest)
 
