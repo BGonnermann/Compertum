@@ -9,10 +9,12 @@ import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
 from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
-                                          feedback_for,load_goal,records_text,score_for_cycle,write_candidates)
+                                          candidate_prompts,feedback_for,load_goal,records_text,score_for_cycle,sha,write_candidates)
+from compertum.ai.engine.prompts import ROUTING_DEFAULT,parse_routing,routing_text
+from compertum.ai.engine.tasks import memo_task,specify_task
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.ai.engine.market import score_signals,split_market_tiers,synthetic_market
-from compertum.ai.engine.prompts import ROLES,load_prompt
+from compertum.ai.engine.prompts import COMPONENTS,ROLES,load_component,load_prompt
 from compertum.runtime.errors import RuntimeRefused
 
 PROJECT=Path(__file__).resolve().parents[1]
@@ -127,7 +129,7 @@ def test_evaluate_scores_a_real_record_and_names_a_repeated_idea(bridge):
     # Through the adapter: a scored candidate reaches its level, and the ledger's earlier cycles name the repeat.
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
     ledger.record_cycle('cycle-0007-aaaaaaaa',7,'END',{'hypotheses':[{'id':'h1','title':'Near buy and hold'}]})
-    prompts={role:load_prompt(PROJECT,role) for role in ROLES}
+    prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
     def fake_cycle(engine,index):
         return {'cycle_id':f'cycle-{index:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[{'id':'h1','title':'Near buy-and-hold'}],
                 'candidates':[{'hypothesis_id':'h1','status':'REJECTED','run_statuses':['COMPLETED']}],'scores':{'h1':s['near']},'transcript':[]}
@@ -182,7 +184,7 @@ def test_proposals_go_through_the_client_and_invalid_ones_keep_the_old_text(brid
 
 def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observations(bridge,tmp_path):
     b,_=bridge;ledger=EngineLedger(b.store);seen=[]
-    prompts={role:load_prompt(PROJECT,role) for role in ROLES};other=dict(prompts,director='ROLE: director\nA different director prompt, long enough to pass the length rule.\n')
+    prompts={name:load_component(PROJECT,name) for name in COMPONENTS};other=dict(prompts,director='ROLE: director\nA different director prompt, long enough to pass the length rule.\n')
     def fake_cycle(engine,index):
         seen.append(index);return {'cycle_id':f'cycle-{index:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[],'candidates':[{'status':'REJECTED' if index%2 else 'QUEUED'}],
                                    'runs':1,'requests_after':index,'total_trials':index,'transcript':[]}
@@ -300,7 +302,7 @@ def test_the_best_candidate_has_the_highest_mean_level_whatever_the_counts():
 
 def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
-    prompts={role:load_prompt(PROJECT,role) for role in ROLES}
+    prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
     calls=[{'usage':{'prompt_tokens':1,'completion_tokens':1000}}]  # an older call: never counted for the next cycle
     class Rows:
         def rows(self): return list(calls)
@@ -331,3 +333,35 @@ def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path
                           goal='Find real patterns; on a market with no pattern the correct result is no strategy.')
     assert adapter.propose_new_texts(current,{'mathematician':[]},['mathematician'])=={'mathematician':improved}
     user=client.calls[0]['user'];assert "THE OWNER'S GOAL\nFind real patterns" in user and user.index('GOAL')<user.index('CURRENT PROMPT')
+
+
+def test_the_routing_is_a_fifth_component_with_fixed_keys(bridge,tmp_path):
+    """Routing (owner direction, 26 October 2026): GEPA chooses routes, code reads only the listed keys and values, and the defaults keep the old cycle."""
+    committed=load_component(PROJECT,'routing');assert parse_routing(committed)==ROUTING_DEFAULT and committed==routing_text(ROUTING_DEFAULT)
+    assert load_component(tmp_path,'routing')==routing_text(ROUTING_DEFAULT)  # no file: the default routes
+    assert check_prompt('routing',committed)==committed and COMPONENTS==ROLES+('routing',)
+    for bad in ('',"review: advice\n",routing_text(ROUTING_DEFAULT).replace('advice','always'),routing_text(ROUTING_DEFAULT)+'review: off\n',
+                routing_text(ROUTING_DEFAULT)+'import os\n',routing_text(ROUTING_DEFAULT).replace('engineer_sees_memo: no\n','')):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_ROUTING_INVALID$'): check_prompt('routing',bad)
+    # The routed inputs arrive in the tasks; without a route the tasks are unchanged.
+    assert 'Ledger summary:' in memo_task('B',{'id':'h1'},{'lessons':[]}) and 'Ledger summary' not in memo_task('B',{'id':'h1'})
+    assert 'HYPOTHESIS' in specify_task('B','M',{'id':'h1'}) and 'HYPOTHESIS' not in specify_task('B','M')
+    # Reflection on the routing: the cycle's flow as the record, the routing instruction, the Director's model, a strict check of the reply.
+    b,_=bridge;current={name:load_component(PROJECT,name) for name in COMPONENTS}
+    batch=Batch([{'transcript':[{'role':'director','kind':'pick','task':'Pick','reply':'{}'}],'feedback':'Cycle level 4 of 10.','score':0.4}])
+    record=PromptAdapter(build_engine=None,run_cycle=None,client=None,ledger=EngineLedger(b.store),run_id='run-20261026-0123abcd',next_index=1,cycle_limit=6
+                         ).make_reflective_dataset(current,batch,['routing'])['routing'][0]
+    assert record['Generated Outputs']==committed and record['Inputs']['task'].startswith('Steps: director pick') and record['Feedback']=='Cycle level 4 of 10.'
+    rebuild=routing_text(dict(ROUTING_DEFAULT,review='rebuild'))
+    client=StubClient([rebuild,'ROUTING\nreview: maybe\n'])
+    adapter=PromptAdapter(build_engine=None,run_cycle=None,client=client,ledger=EngineLedger(b.store),run_id='run-20261026-0123abcd',next_index=1,cycle_limit=6)
+    assert adapter.propose_new_texts(current,{'routing':[record]},['routing'])=={'routing':rebuild}
+    assert adapter.propose_new_texts(current,{'routing':[record]},['routing'])=={}  # an invalid routing keeps the old one
+    assert [c['role'] for c in client.calls]==['director','director'] and client.calls[0]['purpose']=='gepa-reflect-routing' and client.calls[0]['user'].startswith('Improve the routing')
+    # Candidates: the routing is written and applied with the prompts; a candidate from before the routing is loaded without it.
+    folder=tmp_path/PROMPTS_DIR/'run-20261026-0123abcd'/'candidate-0';folder.mkdir(parents=True)
+    for name in COMPONENTS: (folder/f'{name}.md').write_text(current[name],encoding='utf-8',newline='\n')
+    record_hashes(folder.parent,0)
+    assert set(candidate_prompts(tmp_path,'run-20261026-0123abcd',0))==set(ROLES)
+    (folder.parent/'result.json').write_text(json.dumps({'candidate_sha256':[{name:sha(current[name]) for name in COMPONENTS}]}),encoding='utf-8')
+    assert candidate_prompts(tmp_path,'run-20261026-0123abcd',0)==current

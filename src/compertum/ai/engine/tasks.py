@@ -60,16 +60,20 @@ def pick_task(max_hypotheses,cycle_index,brief,summary):
     return f'Pick at most {max_hypotheses} hypotheses for cycle {cycle_index}.\n\n{brief}\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}'
 
 
-def memo_task(brief,hypothesis):
-    return f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}'
+def memo_task(brief,hypothesis,summary=None):
+    """summary: the ledger summary, when the routing sends it to the Researcher (routing key researcher_sees_lessons)."""
+    lessons='' if summary is None else f'\n\nLedger summary:\n{json.dumps(summary,sort_keys=True)}'
+    return f'Write the memo for this hypothesis.\n\n{brief}\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}{lessons}'
 
 
 def approve_task(hypothesis_id,memo_text):
     return f'Approve or reject this memo for hypothesis {hypothesis_id}.\n\n{memo_text}'
 
 
-def specify_task(brief,memo_text):
-    return f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{memo_text}'
+def specify_task(brief,memo_text,hypothesis=None):
+    """hypothesis: the Director's hypothesis, when the routing sends it to the Mathematician (routing key specify_sees_hypothesis)."""
+    extra='' if hypothesis is None else f'\n\nHYPOTHESIS\n{json.dumps(hypothesis,sort_keys=True)}'
+    return f'Write the specification for this approved memo.\n\n{brief}\n\nMEMO\n{memo_text}{extra}'
 
 
 # Bench baseline 1 (26 October 2026): three Mathematician reviews filled the 2,048-token cap with about 1,530 tokens of visible answer and were refused.
@@ -93,18 +97,26 @@ def retry_task(task,code,previous_reply):
             f'\n\nPREVIOUS REPLY\n{previous}')
 
 
-def engineer_task(engine,specification,*,previous_reply=None):
+def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=None,code=None):
     """The Engineer's task and its starting files. The specification is in the task text AND in /spec.md. A sample of the TRAIN rows shows the columns.
-    Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix."""
+    Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix.
+    Routing (26 October 2026): memo adds the Researcher's memo; review and code make a rebuild task that starts from the built code and the Mathematician's review."""
     sample='\n'.join(engine.train_csv.splitlines()[:SAMPLE_ROWS+1])
-    if previous_reply is None: head='Build this specification and run it with run_job.\n\n'
+    if review is not None:
+        head=('Rebuild this specification and run it with run_job. The Mathematician reviewed your code; the review is below. '
+              'Fix every point that the review shows to break the specification, run the program again with run_job, then reply DONE.\n\n'
+              f'REVIEW\n{clip_bytes(review,RETRY_REPLY_BYTES)}\n\n')
+    elif previous_reply is None: head='Build this specification and run it with run_job.\n\n'
     else:
         head=('Build this specification and run it with run_job.\n\n'
               'Your previous attempt replied without running the program, so nothing was produced. '
               'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.\n\n'
               f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
-    task=(head+'Your file store holds two files: /main.py, a starter program (edit decide(), keep the file names), and /spec.md, the specification below. '
+    starter='your program from the first build' if review is not None else 'a starter program'
+    task=(head+f'Your file store holds two files: /main.py, {starter} (edit decide(), keep the file names), and /spec.md, the specification below. '
           'It holds nothing else. You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
           'When run_job reports that signals.csv was written, reply DONE.\n\n'
           f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}')
-    return task,{'/main.py':STARTER_MAIN,'/spec.md':specification}
+    if memo is not None: task+=f'\n\nMEMO (the research behind the specification)\n{memo}'
+    main=code.get('/main.py',STARTER_MAIN) if review is not None and isinstance(code,dict) else STARTER_MAIN
+    return task,{'/main.py':main,'/spec.md':specification}

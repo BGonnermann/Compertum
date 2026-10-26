@@ -18,7 +18,7 @@ from compertum.ai.engine.gepa_run import PROMPTS_DIR,apply_prompts,run_gepa  # n
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.limits import RunLimits  # noqa: E402
 from compertum.ai.engine.market import market_csv,split_market_tiers,synthetic_market  # noqa: E402
-from compertum.ai.engine.prompts import ROLES,load_prompt  # noqa: E402
+from compertum.ai.engine.prompts import COMPONENTS,ROLES,load_prompt  # noqa: E402
 from compertum.ai.engine import roles as roles_module  # noqa: E402
 from compertum.ai.models import StoreLedger  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
@@ -65,7 +65,7 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     # START and END rows, the summary, and the owner's apply command.
     rows=ledger.run_rows(result['run_id']);assert rows[0]['kind']=='gepa' and rows[0]['markets']==['seed 12','seed 16'] and rows[1]['reason']==result['reason'] and rows[1]['proposals']==len(proposals)
     assert rows[1]['prompt_candidates']==prompts['candidate_count'] and f"ended, reason {result['reason']}" in Path(result['summary_path']).read_text(encoding='utf-8')
-    applied=apply_prompts(project,result['run_id'],1);assert set(applied['applied_sha256'])==set(ROLES) and load_prompt(project,'director')!=before['director']
+    applied=apply_prompts(project,result['run_id'],1);assert set(applied['applied_sha256'])==set(COMPONENTS) and load_prompt(project,'director')!=before['director']
     assert {role:load_prompt(PROJECT,role) for role in ROLES}=={role:load_prompt(PROJECT,role) for role in ROLES}  # master's config untouched
 
 

@@ -1,5 +1,5 @@
 The owner's goal (26 October 2026): find a better way to route the information the firm needs to make investments, whether that is speed, accuracy, or tools.
-In this run you change one role's prompt at a time. A prompt decides what the role asks for, what it passes to the next role, and in what form. Use that to route better information through the firm: Director, Researcher, Mathematician, Engineer.
+You change one part of the firm at a time: a role's prompt, or the routing. A prompt decides what the role asks for, what it passes to the next role, and in what form. The routing decides which inputs each role receives and where the Mathematician's code review goes. Use both to route better information through the firm: Director, Researcher, Mathematician, Engineer.
 Accuracy comes first. The firm wants strategies that find real, repeatable patterns: they beat buy-and-hold, pass the Auditor, and pass the deflation gate (deflated Sharpe 0.95 or more).
 On a market with no pattern, the correct result is no strategy. A weak strategy that beats buy-and-hold by chance is a failure, not a success.
 Speed comes second: fewer output tokens per strategy built, at the same level. Cut work that does not change the result.

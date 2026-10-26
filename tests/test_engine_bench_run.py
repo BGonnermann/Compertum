@@ -16,7 +16,7 @@ from compertum.ai.engine.cycle import market_sha256  # noqa: E402
 from compertum.ai.engine.gepa_run import earlier_titles  # noqa: E402
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.limits import RunLimits  # noqa: E402
-from compertum.ai.engine.prompts import load_prompt  # noqa: E402
+from compertum.ai.engine.prompts import COMPONENTS,load_component  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
 
@@ -33,7 +33,7 @@ def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,ver
     assert result['reason']=='CYCLE_LIMIT' and [c['cycle_index'] for c in result['cycles']]==[10,11,12,13,14]
     assert [c['market'] for c in result['cycles']]==[m['label'] for m in markets] and all(c['status']=='COMPLETED' for c in result['cycles'])
     rows=ledger.run_rows(result['run_id']);assert rows[0]['purpose']=='bench' and rows[0]['markets']==[m['label'] for m in markets] and rows[0]['prompts_source']=='committed'
-    assert rows[0]['prompts_sha256']=={role:hashlib.sha256(load_prompt(project,role).encode('utf-8')).hexdigest() for role in ('director','researcher','mathematician','engineer')}
+    assert rows[0]['prompts_sha256']=={name:hashlib.sha256(load_component(project,name).encode('utf-8')).hexdigest() for name in COMPONENTS}
     starts=[c for c in ledger.cycles() if c['phase']=='START'];ends=[c for c in ledger.cycles() if c['phase']=='END' and c.get('purpose')=='bench']
     assert len(starts)==5 and all(c['purpose']=='bench' and c['summary']==ledger.blank_summary() for c in starts) and len(ends)==5
     # Cycle 10 is an agenda cycle for practice; a bench cycle skips the agenda step, so every bench cycle has the same steps.

@@ -20,7 +20,7 @@ def markets():
 
 
 def test_every_task_of_every_practice_market_and_the_committed_prompts_pass():
-    assert preflight.preflight(PROJECT,markets())=={'markets':5,'tasks_per_market':9,'prompts':4}
+    assert preflight.preflight(PROJECT,markets())=={'markets':5,'tasks_per_market':13,'prompts':4}
     assert preflight.check_prompts(PROJECT)==[]
 
 
@@ -53,8 +53,8 @@ def failed(monkeypatch,name,replacement):
 
 def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
     """The real bug: the second half of the Engineer task had no f prefix."""
-    def broken(engine,specification,*,previous_reply=None):
-        task,files=tasks.engineer_task(engine,specification,previous_reply=previous_reply)
+    def broken(engine,specification,*,previous_reply=None,**routed):
+        task,files=tasks.engineer_task(engine,specification,previous_reply=previous_reply,**routed)
         return task.split('SPECIFICATION\n')[0]+'SPECIFICATION\n{specification}',files
     problems=failed(monkeypatch,'engineer_task',broken)
     assert any('engineer build: unfilled placeholder {specification}' in p for p in problems)
@@ -62,9 +62,9 @@ def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
 
 
 @pytest.mark.parametrize('name,replacement,expected',[
-    ('memo_task',lambda brief,hypothesis:f'Write the memo for this hypothesis.\n\n{brief}','researcher memo: the task does not hold the hypothesis'),
+    ('memo_task',lambda brief,hypothesis,summary=None:f'Write the memo for this hypothesis.\n\n{brief}','researcher memo: the task does not hold the hypothesis'),
     ('approve_task',lambda hid,memo:'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n'+memo,'director approve: unfilled placeholder {hypothesis["id"]}'),
-    ('specify_task',lambda brief,memo:'Write the specification.\\n\\n'+brief+memo,'mathematician specify: the task holds a literal backslash-n'),
+    ('specify_task',lambda brief,memo,hypothesis=None:'Write the specification.\\n\\n'+brief+memo,'mathematician specify: the task holds a literal backslash-n'),
     ('review_task',lambda spec,code:'x'*(preflight.TASK_BYTES+1)+spec+json.dumps(code,sort_keys=True),f'mathematician review: the task is {preflight.TASK_BYTES+1+len(preflight.SPEC)+len(json.dumps(preflight.CODE,sort_keys=True))} bytes'),
     ('agenda_task',lambda brief,summary:'','director agenda: the task is empty'),
     ('review_task',lambda spec,code:'Review. '+spec+json.dumps(code,sort_keys=True),'mathematician review: the task does not hold the length limit'),
@@ -78,8 +78,8 @@ def test_each_kind_of_incomplete_task_is_found(monkeypatch,name,replacement,expe
 def test_the_engineer_never_sees_a_validation_row_and_gets_the_right_files(monkeypatch):
     shown='\n'.join(markets()[0]['validation_csv'].splitlines()[1:4])  # three validation rows of the market that failed() checks
 
-    def leak(engine,specification,*,previous_reply=None):
-        task,_=tasks.engineer_task(engine,specification,previous_reply=previous_reply)
+    def leak(engine,specification,*,previous_reply=None,**routed):
+        task,_=tasks.engineer_task(engine,specification,previous_reply=previous_reply,**routed)
         return task+'\n'+shown,{'/main.py':'other','/spec.md':'other','/extra.txt':''}
     problems=failed(monkeypatch,'engineer_task',leak)
     assert any('engineer build: the task shows a validation row' in p for p in problems)

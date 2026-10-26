@@ -10,7 +10,7 @@ import json
 import re
 from types import SimpleNamespace
 from compertum.runtime.errors import RuntimeRefused
-from .prompts import ROLES,load_prompt
+from .prompts import ROLES,load_prompt,load_routing_text,parse_routing
 from .tasks import (REVIEW_LENGTH_RULE,SAMPLE_ROWS,STARTER_MAIN,agenda_task,approve_task,engineer_task,market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 
 TASK_BYTES=65536  # no task may be larger than one reply bound
@@ -22,6 +22,7 @@ MAX_PROBLEMS=50
 SPEC='PREFLIGHT_SPECIFICATION_TEXT'
 MEMO='PREFLIGHT_MEMO_TEXT'
 REPLY='PREFLIGHT_PREVIOUS_REPLY'
+REVIEW='PREFLIGHT_REVIEW_TEXT'
 HYPOTHESIS={'id':'preflight-h1','title':'PREFLIGHT_TITLE','idea':'PREFLIGHT_IDEA'}
 SUMMARY={'preflight':'PREFLIGHT_SUMMARY','lessons':[]}
 CODE={'/main.py':'print("PREFLIGHT_CODE")'}
@@ -63,6 +64,9 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
         'mathematician review':(review_task(SPEC,CODE),{'specification':SPEC,'code':code_json,'length limit':REVIEW_LENGTH_RULE}),
         'director agenda':(agenda_task(brief,SUMMARY),{'market brief':brief,'ledger summary':summary_json}),
         'retry':(retry_task(pick,ERROR_CODE,REPLY),{'original task':pick,'error code':ERROR_CODE,'previous reply':REPLY}),
+        # The routed variants (26 October 2026): every input that a routing setting can add must arrive.
+        'researcher memo with lessons':(memo_task(brief,HYPOTHESIS,SUMMARY),{'market brief':brief,'hypothesis':hypothesis_json,'ledger summary':summary_json}),
+        'mathematician specify with hypothesis':(specify_task(brief,MEMO,HYPOTHESIS),{'market brief':brief,'memo':MEMO,'hypothesis':hypothesis_json}),
     }
     problems=[]
     if f'train.csv ({max(len(train_lines)-1,0)} sessions)' not in brief or f'validation.csv ({len(market["validation_rows"])} sessions)' not in brief:
@@ -76,6 +80,10 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
         if set(files)!={'/main.py','/spec.md'}: problems.append(f'{label}: {retry}: the start files are {sorted(files)}, not /main.py and /spec.md')
         if files.get('/spec.md')!=SPEC: problems.append(f'{label}: {retry}: /spec.md does not equal the specification')
         if files.get('/main.py')!=STARTER_MAIN: problems.append(f'{label}: {retry}: /main.py is not the starter program')
+    task,_=engineer_task(engine,SPEC,memo=MEMO);built['engineer build with memo']=(task,{'specification':SPEC,'train sample':sample,'memo':MEMO})
+    task,files=engineer_task(engine,SPEC,memo=MEMO,review=REVIEW,code=CODE)
+    built['engineer rebuild']=(task,{'specification':SPEC,'train sample':sample,'memo':MEMO,'review':REVIEW})
+    if files.get('/main.py')!=CODE['/main.py'] or files.get('/spec.md')!=SPEC: problems.append(f'{label}: engineer rebuild: the start files are not the built code and the specification')
     validation_body=set(validation_lines[1:])
     for name,(text,required) in built.items():
         problems+= [f'{label}: {p}' for p in _text_problems(name,text,required)]
@@ -91,6 +99,8 @@ def check_prompts(project_root):
         try: text=load_prompt(project_root,role)
         except RuntimeRefused as error: problems.append(f'prompt {role}: {error.code}');continue
         for match in PLACEHOLDER.finditer(text): problems.append(f'prompt {role}: unfilled placeholder {match.group(0)}')
+    try: load_routing_text(project_root)
+    except RuntimeRefused as error: problems.append(f'routing: {error.code}')
     return problems
 
 
@@ -101,6 +111,9 @@ def check_given_prompts(prompts):
         text=prompts.get(role) if isinstance(prompts,dict) else None
         if not isinstance(text,str) or not text.startswith(f'ROLE: {role}\n'): problems.append(f'prompt {role}: ENGINE_PROMPT_INVALID');continue
         for match in PLACEHOLDER.finditer(text): problems.append(f'prompt {role}: unfilled placeholder {match.group(0)}')
+    if isinstance(prompts,dict) and 'routing' in prompts:
+        try: parse_routing(prompts['routing'])
+        except RuntimeRefused as error: problems.append(f'routing: {error.code}')
     return problems
 
 
@@ -110,4 +123,4 @@ def preflight(project_root,markets,*,max_hypotheses=3,prompts=None):
     problems=check_prompts(project_root) if prompts is None else check_given_prompts(prompts)
     for market in markets: problems+=check_market(market,max_hypotheses)
     if problems: raise PreflightFailed(problems)
-    return {'markets':len(markets),'tasks_per_market':9,'prompts':len(ROLES)}
+    return {'markets':len(markets),'tasks_per_market':13,'prompts':len(ROLES)}

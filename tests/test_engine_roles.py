@@ -26,6 +26,7 @@ from compertum.ai.engine.cycle import Engine,parse_decision,parse_hypotheses,par
 from compertum.ai.engine.execution import EngineerSandbox,job_files,run_job_tool  # noqa: E402
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.market import market_csv,parse_signals,score_signals,split_market,synthetic_market  # noqa: E402
+from compertum.ai.engine.prompts import ROUTING_DEFAULT,routing_text  # noqa: E402
 from compertum.ai.engine.roles import FILE_TOOLS,ROLES,LedgerChatModel,build_role_agent,load_prompt,to_chat_messages  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 from compertum.runtime.sandbox import verify_sandbox  # noqa: E402
@@ -63,6 +64,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         if state['mode']=='loop': return call('read_file',{'file_path':'/main.py'})  # the same call every round
         if state['mode']=='loopvary': return call('read_file',{'file_path':f'/{len(messages)}.py'})  # a different call every round
         if state['mode']=='memofault' and role=='researcher' and '"id": "h2"' in last_user: return None,None  # an unusable reply body for one memo
+        if last_user.startswith('Improve the routing'):  # GEPA reflection on the routing (26 October 2026): a valid routing that turns on the rebuild
+            return text('ROUTING\nreview: rebuild\nspecify_sees_hypothesis: yes\nengineer_sees_memo: no\nresearcher_sees_lessons: no\n')
         if last_user.startswith('Improve the system prompt'):
             # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
             if state['mode']=='badprompt': return text('An improved prompt without the role marker line.')
@@ -369,6 +372,35 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert store.summary()['cycles_completed']==1 and store.summary()['recent'][0]['candidates'][0]['status']==candidate['status']
         # The sandbox verification's loopback observation is recorded; no freeze happened.
         assert store.active_freezes()==[] and verification['observations']['loopback_connected'] in (True,False)
+        assert cycles[1]['routing']==ROUTING_DEFAULT  # without a changed routing file the cycle uses the routes it used before 26 October 2026
+
+
+def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,market,project):
+    """Routing (owner direction, 26 October 2026): every route on, then the review off. The routing changes what roles receive, never the judge."""
+    on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes'}
+    (project/'config'/'engine_prompts'/'routing.md').write_text(routing_text(on),encoding='utf-8',newline='\n')
+    with role_server() as (port,state):
+        engine=make_engine(bridge,root,verification,market,client(port,limit=80),project);result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and result['routing']==on
+        def tasks_of(role): return [p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith(f'ROLE: {role}\n')]
+        assert all('Ledger summary:' in t for t in tasks_of('researcher'))
+        specify=[t for t in tasks_of('mathematician') if t.startswith('Write')];assert specify and all('HYPOTHESIS\n' in t for t in specify)
+        engineer=[t for t in tasks_of('engineer') if t.startswith(('Build','Rebuild'))];assert engineer[0].startswith('Build') and 'MEMO (the research behind the specification)' in engineer[0]
+        # The review goes back to the Engineer for one more build; the last completed run is scored and audited.
+        rebuild=[t for t in engineer if t.startswith('Rebuild')];assert len(set(rebuild))==1 and 'REVIEW\nReview: the code follows the specification.' in rebuild[0]
+        candidate=result['candidates'][0];assert candidate['run_statuses']==['COMPLETED','COMPLETED'] and result['scores']['h1'] is not None
+        assert ('engineer','rebuild','REPLY') in [(s['role'],s['kind'],s['phase']) for s in engine.ledger.steps(result['cycle_id'])]
+    # The review off: no review request, the skip is recorded with its reason. A candidate's own routing text replaces the file.
+    off=dict(ROUTING_DEFAULT,review='off')
+    with role_server() as (port,state):
+        engine=make_engine(bridge,root,verification,market,client(port),project)
+        engine.prompts={**{role:load_prompt(project,role) for role in ROLES},'routing':routing_text(off)};result=run_cycle(engine,2)
+        assert result['status']=='COMPLETED' and result['routing']==off and result['reviews']=={}
+        assert not [p for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: mathematician\n') and p['messages'][1]['content'].startswith('Review')]
+        skipped=[s for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='review'];assert [(s['phase'],s['reason']) for s in skipped]==[('REVIEW_SKIPPED','routing: review off')]
+    # A routing that does not parse stops before any request.
+    engine.prompts={**engine.prompts,'routing':'ROUTING\nreview: always\n'}
+    with pytest.raises(RuntimeRefused,match='^ENGINE_ROUTING_INVALID$'): run_cycle(engine,3)
 
 
 def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_market(bridge,root,verification,market,project):

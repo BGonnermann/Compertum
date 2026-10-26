@@ -8,7 +8,7 @@ the summarization middleware. Nothing the agent writes reaches the file system e
 The Director, the Researcher and the Mathematician are text roles: one completion without tools (practice run 1 on
 24 October 2026 showed a real model searching an empty file store for context instead of answering).
 An agent that repeats the same tool calls `REPEAT_LIMIT` times in a row is stopped with `ENGINE_REPEATED_TOOL_CALL`.
-Role prompts live in `config/engine_prompts/<role>.md`; stage E7 (GEPA) edits those files and nothing else.
+Role prompts live in `config/engine_prompts/<role>.md`, the routing in `config/engine_prompts/routing.md`; stage E7 (GEPA) proposes changes to those files and nothing else.
 """
 from dataclasses import dataclass
 import json

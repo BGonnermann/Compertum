@@ -21,6 +21,7 @@ from .execution import EngineerSandbox,run_job_tool
 from .ledger import EVALUATION_PURPOSES,PURPOSES
 from .market import score_signals
 from .promotion import promote
+from .prompts import load_routing_text,parse_routing
 from .roles import ROLES,build_role_agent,load_prompt
 from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
                     market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
@@ -87,7 +88,7 @@ class Engine:
     max_hypotheses:int=MAX_HYPOTHESES
     gate:Any=None  # E5: callable that raises when no step may start (kill switch, hour limit, freeze)
     run_id:Any=None  # E5: the bounded run this cycle belongs to
-    prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate); None reads config/engine_prompts
+    prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate), and optionally its 'routing' text; None reads config/engine_prompts
     purpose:str='practice'  # 'bench' or 'holdout' (bench.py): no history in, no lessons or GEPA feedback out, no agenda step
 
 
@@ -118,9 +119,14 @@ def run_cycle(engine,cycle_index):
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[]}
     if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
     else:
-        if not isinstance(engine.prompts,dict) or set(engine.prompts)!=set(ROLES) or any(not isinstance(t,str) or not t.startswith(f'ROLE: {r}\n') for r,t in engine.prompts.items()):
+        if (not isinstance(engine.prompts,dict) or set(engine.prompts)-{'routing'}!=set(ROLES)
+                or any(not isinstance(engine.prompts[r],str) or not engine.prompts[r].startswith(f'ROLE: {r}\n') for r in ROLES)):
             raise RuntimeRefused('ENGINE_PROMPT_INVALID')
-        prompts=dict(engine.prompts)
+        prompts={role:engine.prompts[role] for role in ROLES}
+    # Routing (26 October 2026): a candidate may carry its own routing; otherwise the committed file, or the default routes without one.
+    given=engine.prompts.get('routing') if isinstance(engine.prompts,dict) else None
+    routing=parse_routing(given if given is not None else load_routing_text(engine.project_root))
+    def routed(key,value): return value if routing[key]=='yes' else None
     queue=CandidateQueue(ledger)
     sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
                             train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes)
@@ -167,7 +173,7 @@ def run_cycle(engine,cycle_index):
         state['hypotheses']=picked[:engine.max_hypotheses] if picked is not None else []
         # 2. Researcher memos, Director decisions. A faulty memo or verdict rejects that hypothesis and the cycle goes on.
         for hypothesis in state['hypotheses']:
-            memo=attempt('researcher','memo',memo_task(brief,hypothesis),{'hypothesis_id':hypothesis['id']})
+            memo=attempt('researcher','memo',memo_task(brief,hypothesis,routed('researcher_sees_lessons',summary)),{'hypothesis_id':hypothesis['id']})
             if memo is None:
                 state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})','source':'code'};continue
             state['memos'][hypothesis['id']]=memo['text']
@@ -179,7 +185,7 @@ def run_cycle(engine,cycle_index):
         # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
         for hypothesis in state['hypotheses']:
             if state['decisions'][hypothesis['id']]['decision']!='approve': continue
-            spec=attempt('mathematician','specify',specify_task(brief,state['memos'][hypothesis['id']]),{'hypothesis_id':hypothesis['id']})
+            spec=attempt('mathematician','specify',specify_task(brief,state['memos'][hypothesis['id']],routed('specify_sees_hypothesis',hypothesis)),{'hypothesis_id':hypothesis['id']})
             if spec is None: continue
             state['specifications'][hypothesis['id']]=spec['text']
             state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
@@ -194,14 +200,15 @@ def run_cycle(engine,cycle_index):
             hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
             sandbox.begin_candidate()  # each candidate has its own Engineer runs
             # The Engineer starts from a starter program and the specification in its file store, and sees a TRAIN sample in the task (practice runs 5 to 10).
-            task,start_files=engineer_task(engine,state['specifications'][hid])
+            memo=routed('engineer_sees_memo',state['memos'][hid])
+            task,start_files=engineer_task(engine,state['specifications'][hid],memo=memo)
             build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id']},files=start_files)
             runs=sandbox.runs[runs_before:]
             if build is not None and not runs:
                 # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
                 # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
                 ledger.record_step(cycle_id,state['steps'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':candidate['candidate_id']})
-                task,start_files=engineer_task(engine,state['specifications'][hid],previous_reply=build['text'])
+                task,start_files=engineer_task(engine,state['specifications'][hid],previous_reply=build['text'],memo=memo)
                 build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id'],'retry':1},files=start_files)
                 runs=sandbox.runs[runs_before:]
             candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
@@ -214,14 +221,23 @@ def run_cycle(engine,cycle_index):
             # A build fault after a completed run (practice run 5: the model hunted for signals.csv after writing it) keeps the signals: they are scored.
             code={p:c for p,c in build['files'].items() if p.endswith('.py')} if build is not None else {}
             review_text=review_task(state['specifications'][hid],code)
-            if code and len(review_text.encode('utf-8'))<=REVIEW_TASK_BYTES:
+            if routing['review']!='off' and code and len(review_text.encode('utf-8'))<=REVIEW_TASK_BYTES:
                 review=attempt('mathematician','review',review_text,{'candidate_id':candidate['candidate_id']})
-                if review is not None: state['reviews'][hid]=review['text']  # the review is advice only; a faulty review is recorded and skipped
+                if review is not None: state['reviews'][hid]=review['text']  # with review 'advice' the review is recorded only; a faulty review is recorded and skipped
             else:
-                # The review is advice only. Code too large for one task, no code, or a build fault after a completed run skips the review and records why.
+                # Routing review 'off', code too large for one task, no code, or a build fault after a completed run skips the review and records why.
                 state['steps']+=1
-                reason='build step faulted after a completed run; the signals are scored' if build is None else ('no code' if not code else 'code too large for one review task')
+                reason=('routing: review off' if routing['review']=='off' else 'build step faulted after a completed run; the signals are scored' if build is None
+                        else 'no code' if not code else 'code too large for one review task')
                 ledger.record_step(cycle_id,state['steps'],'mathematician','review',{'phase':'REVIEW_SKIPPED','candidate_id':candidate['candidate_id'],'reason':reason})
+            if routing['review']=='rebuild' and hid in state['reviews']:
+                # Routing review 'rebuild': one more Engineer build from its own code and the review. The review never sees a score, so the rebuild
+                # cannot select on VALIDATION results. The last completed run is scored and audited, as for any build.
+                task,start_files=engineer_task(engine,state['specifications'][hid],memo=memo,review=state['reviews'][hid],code=code)
+                attempt('engineer','rebuild',task,{'candidate_id':candidate['candidate_id']},files=start_files)
+                runs=sandbox.runs[runs_before:]
+                candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
+                signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
             if signals is None:
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
                 ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'NO_SIGNALS'})
@@ -281,6 +297,6 @@ def run_cycle(engine,cycle_index):
         end={'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
              'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),'faults':state['faults'],
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
-             'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')}}
+             'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')},'routing':routing}
         canonical(end);ledger.record_cycle(cycle_id,cycle_index,'END',end)
     return {'cycle_id':cycle_id,**end,'memos':state['memos'],'specifications':state['specifications'],'reviews':state['reviews'],'transcript':state['transcript']}
