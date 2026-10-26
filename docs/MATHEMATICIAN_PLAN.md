@@ -90,8 +90,9 @@ The owner asked whether GEPA can make the runs faster. During bench baseline 1, 
 |---|---|---|---|---|---|
 | 1 (baseline) | bench baseline 1, 228 replies | 48.2 tok/s | about 500 tok/s | 21.6 GiB | 23.6 GiB |
 | 0.8 | `run-20261026-0f3194ec`, 1 cycle, 15 replies | 57.5 tok/s (+19%) | about 617 tok/s | 17.3 GiB | 27.5 GiB |
+| 0.6 | `run-20261026-82cbf6c3`, 1 cycle, 20 replies | 68.1 tok/s (+41%) | about 700 tok/s | 12.9 GiB | 31.9 GiB |
 
-About 4.3 GiB moved from RAM to the GPU at 0.8. The ratio is now 0.6 for the next one-cycle check (backup: `flint-Q4_K_M.gguf.json.backup-20261026-before-offload`). The wrapper's memory record now has a `gpu_used_gib` column. The check run also showed fix 1 working: an Engineer build stopped with `AI_RESPONSE_TRUNCATED`, a program reply that reached the 2,048-token cap. That cause was hidden before fix 1. Possible follow-ups: a larger reply cap for the Engineer only, or an instruction to write shorter programs and fix them with `edit_file`.
+About 4.3 GiB moved from RAM to the GPU at 0.8, and 8.7 GiB at 0.6. At 0.6 the GPU used 12.2 to 12.3 GiB of 15.9 GiB, steady through the run, so about 3.5 GiB stayed free. **Decision: keep 0.6.** Ratio 0.5 would leave about 1.3 GiB of GPU memory free, under the 2 GiB margin, and 0.4 would not fit. Backup of the original settings: `flint-Q4_K_M.gguf.json.backup-20261026-before-offload`. The wrapper's memory record now has a `gpu_used_gib` column. The check run also showed fix 1 working: an Engineer build stopped with `AI_RESPONSE_TRUNCATED`, a program reply that reached the 2,048-token cap. That cause was hidden before fix 1. Possible follow-ups: a larger reply cap for the Engineer only, or an instruction to write shorter programs and fix them with `edit_file`.
 
 **Step V2: GEPA run 3 with speed as a tie-breaker.**
 - Today GEPA's score is the outcome level divided by 10 (`gepa_run.score_for_cycle`). Time does not count, so GEPA has no reason to prefer a faster prompt.
