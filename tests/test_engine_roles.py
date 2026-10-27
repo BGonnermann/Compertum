@@ -26,7 +26,8 @@ from compertum.ai.engine.cycle import Engine,parse_decision,parse_hypotheses,par
 from compertum.ai.engine.execution import EngineerSandbox,job_files,run_job_tool  # noqa: E402
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.market import market_csv,parse_signals,score_signals,split_market,synthetic_market  # noqa: E402
-from compertum.ai.engine.prompts import ROUTING_DEFAULT,routing_text  # noqa: E402
+from compertum.ai.engine.prompts import ROUTING_DEFAULT,SETTINGS_DEFAULT,load_component,options_text,parse_routing,routing_text  # noqa: E402
+from compertum.ai.engine.tasks import STARTER_MAIN  # noqa: E402
 from compertum.ai.engine.roles import FILE_TOOLS,ROLES,LedgerChatModel,build_role_agent,load_prompt,to_chat_messages  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 from compertum.runtime.sandbox import verify_sandbox  # noqa: E402
@@ -65,7 +66,10 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         if state['mode']=='loopvary': return call('read_file',{'file_path':f'/{len(messages)}.py'})  # a different call every round
         if state['mode']=='memofault' and role=='researcher' and '"id": "h2"' in last_user: return None,None  # an unusable reply body for one memo
         if last_user.startswith('Improve the routing'):  # GEPA reflection on the routing (26 October 2026): a valid routing that turns on the rebuild
-            return text('ROUTING\nreview: rebuild\nspecify_sees_hypothesis: yes\nengineer_sees_memo: no\nresearcher_sees_lessons: no\n')
+            return text(routing_text(dict(ROUTING_DEFAULT,review='rebuild',specify_sees_hypothesis='yes',specify_sees_tool='yes')))
+        if last_user.startswith('Improve the working settings'): return text(options_text('settings',dict(SETTINGS_DEFAULT,hypotheses='2')))
+        if last_user.startswith('Improve the analysis tool'): return text("```python\nprint('fixture tool', open('train.csv').read().count(chr(10)))\n```")
+        if last_user.startswith('Improve the starter'): return text(STARTER_MAIN+'# improved by the fixture reflection\n')
         if last_user.startswith('Improve the system prompt'):
             # E7 (GEPA reflection): a valid improved prompt for the role named in the request, or an invalid one in mode 'badprompt'.
             if state['mode']=='badprompt': return text('An improved prompt without the role marker line.')
@@ -89,8 +93,8 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
             # GEPA run 1: the model replied DONE after reading the starter, without any run. Mode 'norun' does that until the retry task arrives.
             if state['mode']=='norun' and 'PREVIOUS REPLY' not in last_user: return text('DONE I read the starter and it looks fine.')
             n=len(tool_results)
-            if state['mode']=='readspec':  # the model opens the specification file first, as the task tells it it may
-                if n==0: return call('read_file',{'file_path':'/spec.md'})
+            if state['mode'] in ('readspec','readmain'):  # the model opens the specification file (or the starter program) first, as it may
+                if n==0: return call('read_file',{'file_path':'/spec.md' if state['mode']=='readspec' else '/main.py'})
                 n-=1
             if n==0: return call('write_file',{'file_path':'/main.py','content':state['engineer_code']})
             if n==1: return call('run_job',{'entry':'main.py'})
@@ -353,7 +357,8 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         store=engine.ledger;cycles=store.cycles();steps=store.steps(result['cycle_id']);runs=store.runs(result['cycle_id'])
         assert [c['phase'] for c in cycles]==['START','END'] and cycles[1]['status']=='COMPLETED' and cycles[1]['requests_after']==c.requests
         kinds=[(s['role'],s['kind'],s['phase']) for s in steps]
-        assert kinds[:2]==[('director','pick','REQUEST'),('director','pick','REPLY')]
+        # The committed routing sends the analysis tool's output to the Mathematician, so the tool runs first, in the sandbox.
+        assert kinds[:3]==[('tool','run','COMPLETED'),('director','pick','REQUEST'),('director','pick','REPLY')]
         # Every idea task carries the fixed market brief (practice run 1 finding), and no text role is ever offered a tool.
         first_task=state['posts'][0]['messages'][-1]['content']
         assert first_task.startswith('Pick at most') and 'MARKET\n' in first_task and f'validation.csv ({len(market["validation_rows"])} sessions)' in first_task
@@ -372,12 +377,13 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert store.summary()['cycles_completed']==1 and store.summary()['recent'][0]['candidates'][0]['status']==candidate['status']
         # The sandbox verification's loopback observation is recorded; no freeze happened.
         assert store.active_freezes()==[] and verification['observations']['loopback_connected'] in (True,False)
-        assert cycles[1]['routing']==ROUTING_DEFAULT  # without a changed routing file the cycle uses the routes it used before 26 October 2026
+        assert cycles[1]['routing']==parse_routing(load_component(project,'routing')) and cycles[1]['settings']==SETTINGS_DEFAULT and cycles[1]['tool']['status']=='COMPLETED'
+        assert store.runs(result['cycle_id']+'-tool')[0]['purpose']=='tool' and all(r['purpose']!='tool' for r in runs)  # the Auditor sees only the candidates' runs
 
 
 def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,market,project):
     """Routing (owner direction, 26 October 2026): every route on, then the review off. The routing changes what roles receive, never the judge."""
-    on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes'}
+    on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes','director_sees_tool':'yes','researcher_sees_tool':'yes','specify_sees_tool':'yes'}
     (project/'config'/'engine_prompts'/'routing.md').write_text(routing_text(on),encoding='utf-8',newline='\n')
     with role_server() as (port,state):
         engine=make_engine(bridge,root,verification,market,client(port,limit=80),project);result=run_cycle(engine,1)
@@ -385,6 +391,10 @@ def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,mar
         def tasks_of(role): return [p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith(f'ROLE: {role}\n')]
         assert all('Ledger summary:' in t for t in tasks_of('researcher'))
         specify=[t for t in tasks_of('mathematician') if t.startswith('Write')];assert specify and all('HYPOTHESIS\n' in t for t in specify)
+        # The analysis tool ran once in the sandbox, and its report reached the three roles the routing names.
+        picks=[t for t in tasks_of('director') if t.startswith('Pick')]
+        assert all('TOOL OUTPUT (the analysis tool, run on train.csv only)\ntrain sessions' in t for t in picks+tasks_of('researcher')+specify)
+        assert result['tool']['status']=='COMPLETED' and len(engine.ledger.runs(result['cycle_id']+'-tool'))==1
         engineer=[t for t in tasks_of('engineer') if t.startswith(('Build','Rebuild'))];assert engineer[0].startswith('Build') and 'MEMO (the research behind the specification)' in engineer[0]
         # The review goes back to the Engineer for one more build; the last completed run is scored and audited.
         rebuild=[t for t in engineer if t.startswith('Rebuild')];assert len(set(rebuild))==1 and 'REVIEW\nReview: the code follows the specification.' in rebuild[0]
@@ -401,6 +411,40 @@ def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,mar
     # A routing that does not parse stops before any request.
     engine.prompts={**engine.prompts,'routing':'ROUTING\nreview: always\n'}
     with pytest.raises(RuntimeRefused,match='^ENGINE_ROUTING_INVALID$'): run_cycle(engine,3)
+
+
+def test_the_settings_tool_and_starter_slots_change_the_cycle(bridge,root,verification,market,project):
+    """The firm's other slots (26 October 2026): settings, the analysis tool and the Engineer's starter, all from one GEPA candidate."""
+    settings=dict(SETTINGS_DEFAULT,hypotheses='1',mathematician_max_tokens='4096',mathematician_temperature='0.7')
+    # The tool reads train.csv; its validation.csv holds the header only, so it cannot see a validation row.
+    tool=("import csv\nrows=list(csv.DictReader(open('train.csv',encoding='utf-8')))\nhidden=list(csv.DictReader(open('validation.csv',encoding='utf-8')))\n"
+          "print('FIXTURE TOOL train',len(rows),'validation',len(hidden))\n")
+    starter=load_component(project,'starter')+'# FIXTURE STARTER MARKER\n'
+    routing=dict(ROUTING_DEFAULT,specify_sees_tool='yes')
+    with role_server(mode='readmain') as (port,state):
+        engine=make_engine(bridge,root,verification,market,client(port),project)
+        engine.prompts={**{role:load_prompt(project,role) for role in ROLES},'routing':routing_text(routing),'settings':options_text('settings',settings),
+                        'tool':tool,'starter':starter}
+        result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and result['settings']==settings and len(result['hypotheses'])==1  # the Director offered two
+        def posts_of(role): return [p for p in state['posts'] if p['messages'][0]['content'].startswith(f'ROLE: {role}\n')]
+        assert {(p['max_tokens'],p['temperature']) for p in posts_of('mathematician')}=={(4096,0.7)}
+        assert {(p['max_tokens'],p['temperature']) for p in posts_of('director')}=={(2048,0.0)}
+        specify=[p['messages'][1]['content'] for p in posts_of('mathematician') if p['messages'][1]['content'].startswith('Write')]
+        assert specify and all(f"FIXTURE TOOL train {len(market['train_csv'].splitlines())-1} validation 0" in t for t in specify)
+        # The Engineer read /main.py first: the starter it was given is the candidate's starter.
+        assert any('FIXTURE STARTER MARKER' in m.get('content','') for p in posts_of('engineer') for m in p['messages'] if m['role']=='tool')
+    # A tool that fails leaves the cycle running: the roles get no tool output, and the failure is recorded for GEPA.
+    with role_server() as (port,state):
+        engine=make_engine(bridge,root,verification,market,client(port),project)
+        engine.prompts={**{role:load_prompt(project,role) for role in ROLES},'routing':routing_text(routing),'tool':"raise SystemExit('fixture tool failure')\n"}
+        result=run_cycle(engine,2)
+        assert result['status']=='COMPLETED' and result['tool']['status']=='FAILED' and result['tool']['output_bytes']==0
+        assert not any('TOOL OUTPUT' in p['messages'][1]['content'] for p in state['posts'])
+    # A slot that does not pass its check stops before any request.
+    for name,text,code in (('settings','SETTINGS\nhypotheses: 9\n','ENGINE_SETTINGS_INVALID'),('tool','def broken(:\n','ENGINE_TOOL_INVALID'),('starter','','ENGINE_STARTER_INVALID')):
+        engine.prompts={**{role:load_prompt(project,role) for role in ROLES},name:text}
+        with pytest.raises(RuntimeRefused,match=f'^{code}$'): run_cycle(engine,3)
 
 
 def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_market(bridge,root,verification,market,project):

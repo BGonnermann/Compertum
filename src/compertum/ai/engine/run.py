@@ -18,6 +18,7 @@ from .cycle import Engine,run_cycle
 from .ledger import EVALUATION_PURPOSES,PURPOSES,EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import COMPONENTS,load_component
+from .transcripts import TranscriptWriter
 
 CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','requests_after','total_trials','faults')
 
@@ -59,9 +60,10 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         if holdout_use>HOLDOUT_USES: raise RuntimeRefused('ENGINE_HOLDOUT_RETIRED')
     options={'memory_floor_bytes':memory_floor_bytes,'request_limit':bounds['request_limit'],'native_limits':False,'gate':gate}
     if available_memory is not None: options['available_memory']=available_memory
-    client=ModelClient(roles,StoreLedger(store),**options)
-    models={role:{'address':spec.base_url,'model':spec.model} for role,spec in roles.items()}
     run_id=f'run-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
+    transcript=TranscriptWriter(project_root,run_id,purpose)  # step S3: the words of every request; bench and holdout lines are marked not for training
+    client=ModelClient(roles,StoreLedger(store),transcript=transcript,**options)
+    models={role:{'address':spec.base_url,'model':spec.model} for role,spec in roles.items()}
     first=len([c for c in ledger.cycles() if c['phase']=='END'])+1
     started=utc_now()
     # Everything that can refuse is built before the START row, so a refusal leaves no open run.
@@ -104,6 +106,6 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         state['request_invariant']=check_request_invariant(ledger,run_id,client.requests,bounds['request_limit'])
         ledger.close_run(run_id,{'reason':state['reason'],'failure':state.get('failure'),'cycles':len(state['cycles']),'requests':state['requests'],
                                  'request_invariant':state['request_invariant'],'elapsed_seconds':state['elapsed_seconds'],'gate_checks':gate.checks,
-                                 'stop_trigger':gate.trigger,'ended_at':utc_now()})
+                                 'stop_trigger':gate.trigger,'transcript':{**transcript.report(),'client_failures':client.transcript_failures},'ended_at':utc_now()})
         if summary: state['summary_path']=str(write_summary(project_root,state,ledger))
     return state

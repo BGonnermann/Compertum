@@ -34,6 +34,9 @@ def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,ver
     assert [c['market'] for c in result['cycles']]==[m['label'] for m in markets] and all(c['status']=='COMPLETED' for c in result['cycles'])
     rows=ledger.run_rows(result['run_id']);assert rows[0]['purpose']=='bench' and rows[0]['markets']==[m['label'] for m in markets] and rows[0]['prompts_source']=='committed'
     assert rows[0]['prompts_sha256']=={name:hashlib.sha256(load_component(project,name).encode('utf-8')).hexdigest() for name in COMPONENTS}
+    # Owner rule (26 October 2026): bench work must never become training data. Its transcript lines say so.
+    saved=(project/'state'/'engine'/'transcripts'/f"{result['run_id']}.jsonl").read_text(encoding='utf-8').splitlines()
+    assert saved and all('"training_allowed": false' in line and '"run_purpose": "bench"' in line for line in saved)
     starts=[c for c in ledger.cycles() if c['phase']=='START'];ends=[c for c in ledger.cycles() if c['phase']=='END' and c.get('purpose')=='bench']
     assert len(starts)==5 and all(c['purpose']=='bench' and c['summary']==ledger.blank_summary() for c in starts) and len(ends)==5
     # Cycle 10 is an agenda cycle for practice; a bench cycle skips the agenda step, so every bench cycle has the same steps.

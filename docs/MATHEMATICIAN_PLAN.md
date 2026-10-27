@@ -68,6 +68,7 @@ The owner wants to fine-tune a model to the way Compertum works, in the future. 
   - Each file has a size limit, and a run stops saving if the records category nears its ceiling.
 - Use later: select steps from cycles at level 7 or higher to train a small model for one role, for example the Engineer, with LoRA (a method that trains only a small add-on to the model). The selection must exclude the bench and holdout markets.
 - Build: a small writer module, tests that confirm no evaluation cycle is saved and no secret passes, and a storage check. About half a day.
+- Status, 26 October 2026: built as `src/compertum/ai/engine/transcripts.py`, at the level of each model request instead of each step, so the Engineer's tool rounds, the thinking text of a thinking model and GEPA's reflection calls are kept too. One change from the rules above: bench and holdout requests are saved for analysis, with `training_allowed: false` on every line; a dataset builder keeps only `training_allowed: true`. Each run's file stops at 2 GiB. Not built: the stop based on the records storage category. See docs/CURRENT_CHECKPOINT.md.
 
 S1 and S3 come after fixes 1 and 2 and before change A. S1 changes the model's replies, so the bench run for change A also measures S1. S3 changes no reply.
 

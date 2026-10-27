@@ -20,7 +20,7 @@ def markets():
 
 
 def test_every_task_of_every_practice_market_and_the_committed_prompts_pass():
-    assert preflight.preflight(PROJECT,markets())=={'markets':5,'tasks_per_market':13,'prompts':4}
+    assert preflight.preflight(PROJECT,markets())=={'markets':5,'tasks_per_market':16,'prompts':4}
     assert preflight.check_prompts(PROJECT)==[]
 
 
@@ -62,9 +62,9 @@ def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
 
 
 @pytest.mark.parametrize('name,replacement,expected',[
-    ('memo_task',lambda brief,hypothesis,summary=None:f'Write the memo for this hypothesis.\n\n{brief}','researcher memo: the task does not hold the hypothesis'),
+    ('memo_task',lambda brief,hypothesis,summary=None,tool_output=None:f'Write the memo for this hypothesis.\n\n{brief}','researcher memo: the task does not hold the hypothesis'),
     ('approve_task',lambda hid,memo:'Approve or reject this memo for hypothesis {hypothesis["id"]}.\n\n'+memo,'director approve: unfilled placeholder {hypothesis["id"]}'),
-    ('specify_task',lambda brief,memo,hypothesis=None:'Write the specification.\\n\\n'+brief+memo,'mathematician specify: the task holds a literal backslash-n'),
+    ('specify_task',lambda brief,memo,hypothesis=None,tool_output=None:'Write the specification.\\n\\n'+brief+memo,'mathematician specify: the task holds a literal backslash-n'),
     ('review_task',lambda spec,code:'x'*(preflight.TASK_BYTES+1)+spec+json.dumps(code,sort_keys=True),f'mathematician review: the task is {preflight.TASK_BYTES+1+len(preflight.SPEC)+len(json.dumps(preflight.CODE,sort_keys=True))} bytes'),
     ('agenda_task',lambda brief,summary:'','director agenda: the task is empty'),
     ('review_task',lambda spec,code:'Review. '+spec+json.dumps(code,sort_keys=True),'mathematician review: the task does not hold the length limit'),

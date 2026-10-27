@@ -18,7 +18,7 @@ from compertum.ai.engine.gepa_run import PROMPTS_DIR,apply_prompts,run_gepa  # n
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.limits import RunLimits  # noqa: E402
 from compertum.ai.engine.market import market_csv,split_market_tiers,synthetic_market  # noqa: E402
-from compertum.ai.engine.prompts import COMPONENTS,ROLES,load_prompt  # noqa: E402
+from compertum.ai.engine.prompts import COMPONENT_FILES,COMPONENTS,ROLES,load_prompt  # noqa: E402
 from compertum.ai.engine import roles as roles_module  # noqa: E402
 from compertum.ai.models import StoreLedger  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
@@ -67,6 +67,32 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     assert rows[1]['prompt_candidates']==prompts['candidate_count'] and f"ended, reason {result['reason']}" in Path(result['summary_path']).read_text(encoding='utf-8')
     applied=apply_prompts(project,result['run_id'],1);assert set(applied['applied_sha256'])==set(COMPONENTS) and load_prompt(project,'director')!=before['director']
     assert {role:load_prompt(PROJECT,role) for role in ROLES}=={role:load_prompt(PROJECT,role) for role in ROLES}  # master's config untouched
+
+
+def test_a_longer_gepa_run_rewrites_the_firms_slots_too(bridge,project,root,verification,tiers):
+    """Owner direction, 26 October 2026: GEPA improves the firm, not only its prompts. In turn it rewrites the four prompts, then the routing,
+    the settings, the analysis tool and the starter. Every candidate is written with all eight files; the tool and starter run only in the sandbox."""
+    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+    (project/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 2000\n',encoding='utf-8')  # room for eight rewrites in this test project
+    with role_server() as (port,state):
+        result=start(bridge,project,root,verification,markets_for(tiers),port,RunLimits(request_limit=2000,cycle_limit=40))
+    assert result['reason'] in ('CYCLE_LIMIT','GEPA_COMPLETE') and all(c['status']=='COMPLETED' for c in result['cycles'])
+    proposals=ledger.steps(result['run_id']+':gepa');roles=[p['role'] for p in proposals]
+    assert {'routing','settings','tool','starter'}<=set(roles) and all(p['phase']=='PROPOSED' for p in proposals)
+    reflections=[r for r in StoreLedger(store).rows() if str(r.get('purpose','')).startswith('gepa-reflect-')]
+    assert {r['purpose']:r['role'] for r in reflections if r['purpose'] in ('gepa-reflect-tool','gepa-reflect-starter','gepa-reflect-settings')}=={
+        'gepa-reflect-tool':'mathematician','gepa-reflect-starter':'engineer','gepa-reflect-settings':'director'}
+    folder=Path(result['prompts']['folder'])
+    for index in range(result['prompts']['candidate_count']):
+        assert sorted(p.name for p in (folder/f'candidate-{index}').iterdir())==sorted(COMPONENT_FILES.values())
+    tools={(folder/f'candidate-{i}'/'tool.py').read_text(encoding='utf-8') for i in range(result['prompts']['candidate_count'])}
+    assert any(t.startswith("print('fixture tool'") for t in tools)  # the fenced reply was unwrapped and kept
+    # Every cycle ran the tool in the sandbox under its own run ID, apart from the candidates' runs.
+    assert all(ledger.runs(c['cycle_id']+'-tool') for c in result['cycles'])
+    # Step S3: GEPA's run keeps its transcript, reflection calls included, and marks it as allowed for training (practice markets only).
+    saved=[json.loads(line) for line in (project/'state'/'engine'/'transcripts'/f"{result['run_id']}.jsonl").read_text(encoding='utf-8').splitlines()]
+    assert len(saved)==result['requests'] and all(x['training_allowed'] is True and x['run_purpose']=='gepa' for x in saved)
+    assert any(str(x['purpose']).startswith('gepa-reflect-') for x in saved)
 
 
 def test_gepa_run_stops_at_the_request_limit_and_records_the_reason(bridge,project,root,verification,tiers):

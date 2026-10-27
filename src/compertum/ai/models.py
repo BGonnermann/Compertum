@@ -285,7 +285,7 @@ class ModelClient:
     256 MiB, no-child Job for the rest of its life. Only a dedicated adapter process may construct it that way.
     The supervisor, the coordinator and tests must pass native_limits=False.
     """
-    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True,gate=None):
+    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True,gate=None,transcript=None):
         if (not isinstance(roles,Mapping) or roles.keys()!=ENGINE_ROLES
                 or any(not isinstance(spec,RoleModel) or spec.role!=role for role,spec in roles.items())):
             raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
@@ -294,11 +294,14 @@ class ModelClient:
             if not checked_spec(spec): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         if type(memory_floor_bytes) is not int or memory_floor_bytes<1: raise RuntimeRefused('AVAILABLE_RAM_UNVERIFIED')
         if type(request_limit) is not int or not 1<=request_limit<=10000: raise RuntimeRefused('AI_REQUEST_BUDGET')
-        if gate is not None and not callable(gate): raise RuntimeRefused('AI_SETTINGS_DENIED')
+        if (gate is not None and not callable(gate)) or (transcript is not None and not callable(transcript)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         self.roles=roles;self.ledger=ledger;self.memory_floor_bytes=memory_floor_bytes;self.request_limit=request_limit
         # gate: a callable with no arguments that raises RuntimeRefused when no new request may start (stage E5 kill switch,
         # hour limit, freeze). It runs before every request, so a stop takes effect at the next request boundary.
         self.available_memory=available_memory;self.requests=0;self.native_limits=None;self.gate=gate
+        # transcript: a callable that receives the full text of every sent request and its reply (step S3, owner request 26 October 2026:
+        # a dataset for later fine-tuning). The ledger row keeps hashes only; the transcript keeps the words. Never headers, so never a key.
+        self.transcript=transcript;self.transcript_failures=0
         if native_limits:
             # The same one-thread, 256 MiB, no-child Job as the Strata adapter. The supervisor never uses this client.
             from compertum.runtime.managed import constrain_ai_adapter
@@ -339,19 +342,21 @@ class ModelClient:
                 response,raw=await self._json(client,'POST',spec.base_url+'/chat/completions',payload=payload)
                 return reported,response,raw
 
-    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120):
+    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False):
         """One text completion. No tools are offered, so any tool call in the reply is refused."""
-        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds)
+        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds,override_tokens=override_tokens)
         return content,entry
 
-    def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120):
+    def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False):
         """One completion with an allowlist of tools. Returns (content, tool_calls, entry). The engine executes the calls, never the model."""
-        return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True)
+        return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True,override_tokens=override_tokens)
 
-    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False):
+    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False,override_tokens=False):
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
         spec=self.roles.get(role) if isinstance(role,str) else None;started=time.monotonic()
-        if spec is not None and spec.max_tokens is not None: max_tokens=spec.max_tokens  # the model file's cap for this model
+        # The model file's cap for this model, unless the caller overrides it: the engine's settings slot (26 October 2026) may choose a cap per role.
+        # The override stays inside the same bound of 1 to 16384 tokens.
+        if spec is not None and spec.max_tokens is not None and not override_tokens: max_tokens=spec.max_tokens
         if spec is not None and spec.seconds is not None: seconds=spec.seconds
         entry={'call_id':str(uuid4()),'role':role if isinstance(role,str) and len(role)<=64 else 'INVALID_ROLE',
                'purpose':purpose if isinstance(purpose,str) and len(purpose)<=256 else None,'provider':spec.provider if spec else PROVIDER,
@@ -361,6 +366,7 @@ class ModelClient:
                'prompt_sha256':None,'response_sha256':None,'usage':None,'finish_reason':None,'refusal_detail':None,'elapsed_seconds':None,
                'available_memory_bytes':None,'memory_floor_bytes':self.memory_floor_bytes,
                'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None}
+        exchange=None  # set once the request is sent: only sent requests reach the transcript
         try:
             if spec is None: raise RuntimeRefused('AI_ROLE_DENIED')
             if not isinstance(purpose,str) or not 1<=len(purpose)<=256: raise RuntimeRefused('AI_TASK_DENIED')
@@ -377,7 +383,7 @@ class ModelClient:
             if tools is not None: sanitized(canonical(tools))
             headers=auth_headers(spec)  # a remote provider without its key refuses here, before the request counts
             # The attempt counts before any byte leaves. A failed request still uses a request.
-            self.requests+=1
+            self.requests+=1;exchange={'messages':messages,'tools':names}
             payload={'model':spec.model,'messages':messages,'temperature':temperature,'max_tokens':max_tokens,'stream':False}
             if tools is not None: payload.update(tools=tools,tool_choice='auto')
             tool_calls=[]
@@ -398,6 +404,8 @@ class ModelClient:
                 if usage_fault is not None: raise usage_fault
                 message=choices[0].get('message')
                 if not isinstance(message,dict) or message.get('function_call'): raise RuntimeRefused('AI_TOOL_EXECUTION_DENIED')
+                # A thinking model's thinking text. The whole raw reply, this text included, already passed the secret check in _request.
+                if isinstance(message.get('reasoning_content'),str): exchange['reasoning']=message['reasoning_content']
                 if message.get('tool_calls'):
                     tool_calls=tool_calls_from(message['tool_calls'],names)
                     entry['tool_calls']=[{'id':c['id'],'name':c['name'],'arguments_sha256':hashlib.sha256(canonical(c['arguments'])).hexdigest()} for c in tool_calls]
@@ -405,7 +413,7 @@ class ModelClient:
                 if content is None and tool_calls: content=''
                 if not isinstance(content,str) or finish not in ('stop','tool_calls') or (finish=='tool_calls')!=bool(tool_calls):
                     raise RuntimeRefused('AI_RESPONSE_INCOMPLETE')
-                sanitized(content.encode('utf-8'))
+                sanitized(content.encode('utf-8'));exchange.update(content=content,tool_calls=tool_calls)
             except (TimeoutError,httpx.TimeoutException,httpx.TransportError):
                 raise RuntimeRefused('LOCAL_COMPLETION_UNVERIFIED') from None
             except RuntimeRefused as error:
@@ -424,3 +432,6 @@ class ModelClient:
             if entry['status'] is None: entry['status']='FAILED_UNEXPECTED'
             entry['elapsed_seconds']=time.monotonic()-started
             self.ledger.record(entry)
+            if self.transcript is not None and exchange is not None:
+                try: self.transcript({**{k:entry[k] for k in ('call_id','role','purpose','provider','model_requested','model_reported','request_index','status','finish_reason','usage','elapsed_seconds','settings')},**exchange})
+                except Exception: self.transcript_failures+=1  # a lost transcript line never stops the run; the count is reported

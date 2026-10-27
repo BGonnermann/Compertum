@@ -10,7 +10,7 @@ import json
 import re
 from types import SimpleNamespace
 from compertum.runtime.errors import RuntimeRefused
-from .prompts import ROLES,load_prompt,load_routing_text,parse_routing
+from .prompts import COMPONENTS,ROLES,check_component,load_component,load_prompt
 from .tasks import (REVIEW_LENGTH_RULE,SAMPLE_ROWS,STARTER_MAIN,agenda_task,approve_task,engineer_task,market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 
 TASK_BYTES=65536  # no task may be larger than one reply bound
@@ -23,6 +23,8 @@ SPEC='PREFLIGHT_SPECIFICATION_TEXT'
 MEMO='PREFLIGHT_MEMO_TEXT'
 REPLY='PREFLIGHT_PREVIOUS_REPLY'
 REVIEW='PREFLIGHT_REVIEW_TEXT'
+TOOL='PREFLIGHT_TOOL_OUTPUT'
+SLOTS=tuple(name for name in COMPONENTS if name not in ROLES)
 HYPOTHESIS={'id':'preflight-h1','title':'PREFLIGHT_TITLE','idea':'PREFLIGHT_IDEA'}
 SUMMARY={'preflight':'PREFLIGHT_SUMMARY','lessons':[]}
 CODE={'/main.py':'print("PREFLIGHT_CODE")'}
@@ -67,6 +69,10 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
         # The routed variants (26 October 2026): every input that a routing setting can add must arrive.
         'researcher memo with lessons':(memo_task(brief,HYPOTHESIS,SUMMARY),{'market brief':brief,'hypothesis':hypothesis_json,'ledger summary':summary_json}),
         'mathematician specify with hypothesis':(specify_task(brief,MEMO,HYPOTHESIS),{'market brief':brief,'memo':MEMO,'hypothesis':hypothesis_json}),
+        # The tool's output, where the routing sends it.
+        'director pick with tool':(pick_task(max_hypotheses,cycle_index,brief,SUMMARY,TOOL),{'market brief':brief,'ledger summary':summary_json,'tool output':TOOL}),
+        'researcher memo with tool':(memo_task(brief,HYPOTHESIS,None,TOOL),{'market brief':brief,'hypothesis':hypothesis_json,'tool output':TOOL}),
+        'mathematician specify with tool':(specify_task(brief,MEMO,None,TOOL),{'market brief':brief,'memo':MEMO,'tool output':TOOL}),
     }
     problems=[]
     if f'train.csv ({max(len(train_lines)-1,0)} sessions)' not in brief or f'validation.csv ({len(market["validation_rows"])} sessions)' not in brief:
@@ -99,8 +105,9 @@ def check_prompts(project_root):
         try: text=load_prompt(project_root,role)
         except RuntimeRefused as error: problems.append(f'prompt {role}: {error.code}');continue
         for match in PLACEHOLDER.finditer(text): problems.append(f'prompt {role}: unfilled placeholder {match.group(0)}')
-    try: load_routing_text(project_root)
-    except RuntimeRefused as error: problems.append(f'routing: {error.code}')
+    for name in SLOTS:
+        try: load_component(project_root,name)
+        except RuntimeRefused as error: problems.append(f'{name}: {error.code}')
     return problems
 
 
@@ -111,9 +118,10 @@ def check_given_prompts(prompts):
         text=prompts.get(role) if isinstance(prompts,dict) else None
         if not isinstance(text,str) or not text.startswith(f'ROLE: {role}\n'): problems.append(f'prompt {role}: ENGINE_PROMPT_INVALID');continue
         for match in PLACEHOLDER.finditer(text): problems.append(f'prompt {role}: unfilled placeholder {match.group(0)}')
-    if isinstance(prompts,dict) and 'routing' in prompts:
-        try: parse_routing(prompts['routing'])
-        except RuntimeRefused as error: problems.append(f'routing: {error.code}')
+    for name in SLOTS:
+        if not isinstance(prompts,dict) or name not in prompts: continue  # a missing slot uses the committed file
+        try: check_component(name,prompts[name])
+        except RuntimeRefused as error: problems.append(f'{name}: {error.code}')
     return problems
 
 
@@ -123,4 +131,4 @@ def preflight(project_root,markets,*,max_hypotheses=3,prompts=None):
     problems=check_prompts(project_root) if prompts is None else check_given_prompts(prompts)
     for market in markets: problems+=check_market(market,max_hypotheses)
     if problems: raise PreflightFailed(problems)
-    return {'markets':len(markets),'tasks_per_market':13,'prompts':len(ROLES)}
+    return {'markets':len(markets),'tasks_per_market':16,'prompts':len(ROLES)}

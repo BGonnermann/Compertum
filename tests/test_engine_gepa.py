@@ -10,7 +10,10 @@ from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
 from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
                                           candidate_prompts,feedback_for,load_goal,records_text,score_for_cycle,sha,write_candidates)
-from compertum.ai.engine.prompts import ROUTING_DEFAULT,parse_routing,routing_text
+from compertum.ai.engine.prompts import (COMPONENT_FILES,ROUTING_DEFAULT,SETTINGS_DEFAULT,default_component,options_text,parse_routing,parse_settings,
+                                         routing_text)
+from compertum.ai.engine.gepa_run import SLOT_REFLECTOR,unfenced
+from compertum.ai.engine.tasks import STARTER_MAIN
 from compertum.ai.engine.tasks import memo_task,specify_task
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.ai.engine.market import score_signals,split_market_tiers,synthetic_market
@@ -335,11 +338,36 @@ def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path
     user=client.calls[0]['user'];assert "THE OWNER'S GOAL\nFind real patterns" in user and user.index('GOAL')<user.index('CURRENT PROMPT')
 
 
+def test_the_firms_slots_have_fixed_shapes(tmp_path):
+    """The firm's slots (owner direction, 26 October 2026: "USE GEPA to improve the firm"): each committed slot passes its check; without a
+    file a slot is its default, which is the cycle before the slots existed; a proposal that breaks a slot's shape keeps the old text."""
+    assert COMPONENTS==ROLES+('routing','settings','tool','starter')
+    for name in ('routing','settings','tool','starter'):
+        committed=load_component(PROJECT,name);assert check_prompt(name,committed)==committed and load_component(tmp_path,name)==default_component(name)
+    assert parse_settings(load_component(PROJECT,'settings'))==SETTINGS_DEFAULT and default_component('starter')==STARTER_MAIN
+    assert parse_routing(load_component(PROJECT,'routing'))==dict(ROUTING_DEFAULT,specify_sees_tool='yes')  # the committed firm sends the tool's report to the Mathematician
+    for name,bad,code in (('settings','SETTINGS\nhypotheses: 4\n','ENGINE_SETTINGS_INVALID'),('settings',options_text('settings',SETTINGS_DEFAULT).replace('model','32768',1),'ENGINE_SETTINGS_INVALID'),
+                          ('tool','print(1\n','ENGINE_TOOL_INVALID'),('tool','x'*70000,'ENGINE_TOOL_INVALID'),('starter','   \n','ENGINE_STARTER_INVALID')):
+        with pytest.raises(RuntimeRefused,match=f'^{code}$'): check_prompt(name,bad)
+    with pytest.raises(RuntimeRefused,match='^AI_SENSITIVE_INPUT_DENIED$'): check_prompt('tool',"print('api_key=abcd1234 for every call, always')\n")
+    # A reply wrapped in one code fence is unwrapped; other text is left alone.
+    assert unfenced('```python\nprint(1)\n```')=='print(1)\n' and unfenced('print(1)\n')=='print(1)\n'
+    # The tool reflects on what the tool printed; the starter on the Engineer's builds; each slot through the model of its closest role.
+    batch=Batch([{'transcript':[{'role':'tool','kind':'run','task':'tool.py on train.csv','reply':'train sessions 250'},
+                                {'role':'engineer','kind':'build','task':'Build this','reply':'DONE'}],'feedback':'Cycle level 6 of 10.','score':0.6}])
+    current={name:default_component(name) if name in SLOT_REFLECTOR else 'ROLE: '+name+'\n'+'x'*50 for name in COMPONENTS}
+    adapter=PromptAdapter(build_engine=None,run_cycle=None,client=None,ledger=None,run_id='run-20261026-0123abcd',next_index=1,cycle_limit=6)
+    dataset=adapter.make_reflective_dataset(current,batch,['tool','starter','settings'])
+    assert dataset['tool'][0]['Generated Outputs']=='train sessions 250' and dataset['starter'][0]['Inputs']['task']=='Build this'
+    assert dataset['settings'][0]['Generated Outputs']==current['settings'] and dataset['settings'][0]['Inputs']['task'].startswith('Steps: tool run')
+    assert SLOT_REFLECTOR=={'routing':'director','settings':'director','tool':'mathematician','starter':'engineer'}
+
+
 def test_the_routing_is_a_fifth_component_with_fixed_keys(bridge,tmp_path):
     """Routing (owner direction, 26 October 2026): GEPA chooses routes, code reads only the listed keys and values, and the defaults keep the old cycle."""
-    committed=load_component(PROJECT,'routing');assert parse_routing(committed)==ROUTING_DEFAULT and committed==routing_text(ROUTING_DEFAULT)
+    committed=load_component(PROJECT,'routing');assert parse_routing(committed)['review']=='advice'
     assert load_component(tmp_path,'routing')==routing_text(ROUTING_DEFAULT)  # no file: the default routes
-    assert check_prompt('routing',committed)==committed and COMPONENTS==ROLES+('routing',)
+    assert check_prompt('routing',committed)==committed
     for bad in ('',"review: advice\n",routing_text(ROUTING_DEFAULT).replace('advice','always'),routing_text(ROUTING_DEFAULT)+'review: off\n',
                 routing_text(ROUTING_DEFAULT)+'import os\n',routing_text(ROUTING_DEFAULT).replace('engineer_sees_memo: no\n','')):
         with pytest.raises(RuntimeRefused,match='^ENGINE_ROUTING_INVALID$'): check_prompt('routing',bad)
@@ -360,7 +388,8 @@ def test_the_routing_is_a_fifth_component_with_fixed_keys(bridge,tmp_path):
     assert [c['role'] for c in client.calls]==['director','director'] and client.calls[0]['purpose']=='gepa-reflect-routing' and client.calls[0]['user'].startswith('Improve the routing')
     # Candidates: the routing is written and applied with the prompts; a candidate from before the routing is loaded without it.
     folder=tmp_path/PROMPTS_DIR/'run-20261026-0123abcd'/'candidate-0';folder.mkdir(parents=True)
-    for name in COMPONENTS: (folder/f'{name}.md').write_text(current[name],encoding='utf-8',newline='\n')
+    for name in COMPONENTS: (folder/COMPONENT_FILES[name]).write_text(current[name],encoding='utf-8',newline='\n')
+    assert (folder/'tool.py').is_file() and (folder/'starter.py').is_file() and (folder/'settings.md').is_file()
     record_hashes(folder.parent,0)
     assert set(candidate_prompts(tmp_path,'run-20261026-0123abcd',0))==set(ROLES)
     (folder.parent/'result.json').write_text(json.dumps({'candidate_sha256':[{name:sha(current[name]) for name in COMPONENTS}]}),encoding='utf-8')

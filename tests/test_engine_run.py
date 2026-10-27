@@ -3,6 +3,7 @@
 Every model reply comes from the scripted loopback server of tests/test_engine_roles.py. Engineer code really runs in the sandbox.
 Skipped in the product environment (no Deep Agents) and reported as skipped.
 """
+import json
 from pathlib import Path
 import shutil
 import pytest
@@ -49,6 +50,12 @@ def test_cycle_limit_ends_the_run_with_records_and_a_summary(bridge,project,root
     assert summary.startswith('Compertum engine daily summary') and 'ended, reason CYCLE_LIMIT' in summary and '2 cycles completed in this run' in summary
     assert 'Five-session momentum (h1)' in summary and 'Mean reversion (h2): memo rejected' in summary and 'director: synthetic-model' in summary
     assert Path(result['summary_path']).is_relative_to(project/'state'/'engine')
+    # Step S3 (26 October 2026): every sent request is saved with its words, one JSON line each, under state/engine/transcripts. The ledger keeps hashes.
+    lines=[json.loads(line) for line in (project/'state'/'engine'/'transcripts'/f"{result['run_id']}.jsonl").read_text(encoding='utf-8').splitlines()]
+    assert len(lines)==result['requests'] and [x['request_index'] for x in lines]==list(range(1,result['requests']+1))
+    assert all(x['run_purpose']=='practice' and x['training_allowed'] is True and x['messages'][0]['role']=='system' for x in lines)
+    assert any(x['role']=='engineer' and x['tool_calls'] for x in lines) and any(x['role']=='director' and '"hypotheses"' in x['content'] for x in lines)
+    assert rows[1]['transcript']['lines']==result['requests'] and rows[1]['transcript']['failures']==0 and rows[1]['transcript']['client_failures']==0
     # A second run continues the cycle index and refuses while the first is still open.
     ledger.record_run_phase('run-20261024-0000aaaa','START',{})
     with role_server() as (port,_):
@@ -112,8 +119,8 @@ def test_hour_limit_stops_the_run_between_steps(bridge,project,root,verification
         ticks[0]+=600.0;return ticks[0]  # ten minutes pass at every look at the clock
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,market,port,RunLimits(request_limit=100,hour_limit=1),clock=clock)
-    # Gate checks: run start (10 min), step 1 (20), request 1 (30), step 2 (40), request 2 (50), step 3 (60 min: refused).
-    assert result['reason']=='HOUR_LIMIT' and len(state['posts'])==2 and len(result['cycles'])==1 and result['cycles'][0]['status']=='STOPPED_ENGINE_HOUR_LIMIT'
+    # Gate checks: run start (10 min), the committed routing's tool run (20), step 1 (30), request 1 (40), step 2 (50), request 2 (60 min: refused).
+    assert result['reason']=='HOUR_LIMIT' and len(state['posts'])==1 and len(result['cycles'])==1 and result['cycles'][0]['status']=='STOPPED_ENGINE_HOUR_LIMIT'
     assert result['elapsed_seconds']>=3600 and EngineLedger(b.store).run_rows(result['run_id'])[1]['reason']=='HOUR_LIMIT'
 
 

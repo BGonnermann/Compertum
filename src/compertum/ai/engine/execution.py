@@ -112,6 +112,12 @@ class EngineerSandbox:
         if purpose not in ('audit','vault'): raise RuntimeRefused('ENGINE_RERUN_DENIED')
         return self._launch(agent_paths(files),entry,purpose=purpose,validation_csv=self.validation_csv if validation_csv is None else validation_csv,count_limit=False)
 
+    def run_tool(self,code):
+        """The analysis tool slot (26 October 2026): GEPA's tool program, run once in the sandbox. The job folder holds train.csv and a
+        validation.csv with the header only, so the tool can never read a validation row. Returns the full run record."""
+        header=self.validation_csv.split('\n',1)[0]+'\n'
+        return self._launch({'/tool.py':code},'tool.py',purpose='tool',validation_csv=header,count_limit=False)
+
     def _launch(self,files,entry,*,purpose,validation_csv,count_limit):
         record={'run_id':str(uuid4()),'purpose':purpose,'entry':entry if isinstance(entry,str) else None,'status':None,'job_folder':None,'result':None,
                 'watcher':None,'stdout':'','stderr':'','signals_present':False,'files':None}

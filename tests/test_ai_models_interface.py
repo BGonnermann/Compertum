@@ -54,6 +54,8 @@ def server(mode='ok',model='synthetic-model'):
                                   'usage':{'prompt_tokens':900,'completion_tokens':2048,'total_tokens':2948,'completion_tokens_details':{'reasoning_tokens':518}}})
             usage={'prompt_tokens':10,'completion_tokens':3}
             if state['mode']=='bigusage': usage.update(total_tokens=13,vendor_blob='x'*30000)
+            if state['mode']=='thinking': message['reasoning_content']='First I compare the windows.'  # a thinking model's reply
+            if state['mode']=='thinkingsecret': message['reasoning_content']='Maybe use api_key=abcd1234efgh5678 for the call.'
             self.send({'choices':[{'message':message,'finish_reason':'stop'}],'usage':usage})
     http=ThreadingHTTPServer(('127.0.0.1',0),Handler);http.daemon_threads=True
     thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
@@ -428,6 +430,42 @@ def test_usage_record_keeps_only_token_counts():
     with server('bigusage') as (port,state):
         _,entry=client(port).complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture')
         assert entry['usage']=={'prompt_tokens':10,'completion_tokens':3,'total_tokens':13} and len(canonical(entry))<4096
+
+
+def test_the_transcript_gets_the_words_of_every_sent_request_and_never_a_key(monkeypatch):
+    """Step S3 (owner request, 26 October 2026): the ledger keeps hashes; the transcript callable gets the messages, the reply and the thinking text.
+    A request refused before it is sent reaches the ledger only. Headers never reach the transcript, so a key cannot."""
+    lines=[]
+    with server('thinking') as (port,state):
+        c=ModelClient(roles(port),ListLedger(),memory_floor_bytes=FLOOR,request_limit=5,available_memory=lambda:FLOOR+1,native_limits=False,transcript=lines.append)
+        content,entry=c.complete('mathematician',[{'role':'system','content':'ROLE: mathematician'},{'role':'user','content':'Write the specification.'}],purpose='e1-fixture')
+        assert content=='echo: Write the specification.' and len(lines)==1
+        line=lines[0];assert line['messages'][1]['content']=='Write the specification.' and line['content']==content and line['reasoning']=='First I compare the windows.'
+        assert line['call_id']==entry['call_id'] and line['status']=='COMPLETED' and line['request_index']==1 and line['tool_calls']==[]
+        with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'): c.complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture',max_tokens=0)
+        assert len(lines)==1 and c.requests==1  # refused before it was sent: no transcript line
+        # A transcript that fails never stops the request; the failure is counted.
+        def broken(record): raise OSError('disk full')
+        c.transcript=broken;c.complete('director',[{'role':'user','content':'y'}],purpose='e1-fixture');assert c.transcript_failures==1
+    with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'):
+        ModelClient(roles(1),ListLedger(),memory_floor_bytes=FLOOR,request_limit=5,native_limits=False,transcript='not callable')
+    # Thinking text with a secret-like value fails the secret check of the whole raw reply: the reply is refused, and the transcript
+    # line of that sent request holds the request and its status only, never the refused text.
+    refused=[]
+    with server('thinkingsecret') as (port,state):
+        c=ModelClient(roles(port),ListLedger(),memory_floor_bytes=FLOOR,request_limit=5,available_memory=lambda:FLOOR+1,native_limits=False,transcript=refused.append)
+        with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_REJECTED$'): c.complete('director',[{'role':'user','content':'z'}],purpose='e1-fixture')
+    assert len(refused)==1 and refused[0]['status']=='REFUSED_AI_RESPONSE_REJECTED' and 'reasoning' not in refused[0] and 'abcd1234' not in json.dumps(refused[0])
+
+
+def test_the_settings_slot_may_replace_the_model_files_token_cap():
+    """The engine's settings slot (26 October 2026) chooses a cap per role; without it the model file's cap wins as before."""
+    with server() as (port,state):
+        specs={role:RoleModel(role,f'http://127.0.0.1:{port}/v1','synthetic-model',max_tokens=8192) for role in ENGINE_ROLES}
+        c=ModelClient(specs,ListLedger(),memory_floor_bytes=FLOOR,request_limit=5,available_memory=lambda:FLOOR+1,native_limits=False)
+        c.complete('director',[{'role':'user','content':'a'}],purpose='e1-fixture',max_tokens=1024)
+        c.complete('director',[{'role':'user','content':'b'}],purpose='e1-fixture',max_tokens=1024,override_tokens=True)
+        assert [p['max_tokens'] for p in state['posts']]==[8192,1024]
 
 
 def test_store_ledger_persists_every_call_durably(bridge):
