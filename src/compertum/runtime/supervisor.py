@@ -16,7 +16,7 @@ from ._windows import WindowsAPI
 from .jobs import available_physical_memory
 from compertum.coordinator import Coordinator,CONTROL_ACTIONS
 from compertum.foundation import FixtureController,fixture_spec
-from compertum.persistence import open_store,checked_path
+from compertum.persistence import open_store,checked_path,snapshot_bound,STORE_BYTES
 from compertum.storage import StorageManager,reserve_runtime_paths
 from compertum.events import canonical,uuid
 
@@ -164,13 +164,15 @@ class Supervisor:
         if not self.partial_fixture:
             from .recovery_adapter import RemoteReserve
             from compertum.recovery import collect_recovery_set
-            grant=self.storage.reserve_bytes(str(uuid4()),'backups',64*1024**2)
+            # The local research store's current size, the two remote stores' caps, and 16 MiB for messages and the manifest.
+            with self.store._live(): coordinator=snapshot_bound(self.store.conn,'coordinator')
+            grant=self.storage.reserve_bytes(str(uuid4()),'backups',coordinator+STORE_BYTES['evaluation']+STORE_BYTES['execution']+16*1024**2)
             result=collect_recovery_set(self.project,[self.store,self.evaluation,self.execution],grant,
                 recovery_lease=self.recovery,watchdog_lease=self.watchdog,reserve=RemoteReserve(self.execution))
             path=Path(result['manifest_path'])
             return [{'artifact_id':result['manifest']['recovery_set_id'],'path':path.relative_to(self.project.root_path).as_posix(),
                 'size_bytes':path.stat().st_size,'sha256':hashlib.sha256(path.read_bytes()).hexdigest()}]
-        task_id=str(uuid4());grant=self.storage.reserve_bytes(task_id,'backups',16*1024**2)
+        task_id=str(uuid4());grant=self.storage.reserve_bytes(task_id,'backups',STORE_BYTES['coordinator'])
         record=self.storage.checkpoint(grant,self.store,str(uuid4()),f'backups/{task_id}/research.sqlite')
         return [{'artifact_id':record['checkpoint_id'],'path':record['path'].replace('\\','/'),
                  'size_bytes':record['size_bytes'],'sha256':record['sha256']}]

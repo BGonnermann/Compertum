@@ -14,7 +14,7 @@ from .consumption import verify_consumption_guard
 from .domain import RecoveryManifest,ContractError
 from .data.errors import DataError
 from .events import canonical
-from .persistence import checked_path,STORE_NAMES
+from .persistence import checked_path,snapshot_bound,STORE_BYTES,STORE_NAMES
 from .runtime.errors import RuntimeRefused
 from .runtime.identity import resolve_project
 from .runtime.owners import _owner_scope,acquire_owner,release_owner,require_live_owner
@@ -106,7 +106,7 @@ def collect_recovery_set(project,owners,grant,*,recovery_lease,watchdog_lease,re
         def snapshot_owner(role):
             store=stores[role]
             from .runtime.recovery_adapter import RemoteStore
-            maximum=16*1024**2 if isinstance(store,RemoteStore) else min(16*1024**2,store.conn.execute('PRAGMA page_count').fetchone()[0]*store.conn.execute('PRAGMA page_size').fetchone()[0]+65536)
+            maximum=STORE_BYTES[role] if isinstance(store,RemoteStore) else snapshot_bound(store.conn,role)
             child=manager.split_grant(grant,maximum)
             checkpoint=manager.checkpoint(child,store,barrier_id,f'{base}/{role}.sqlite')
             checkpoints[role]=checkpoint

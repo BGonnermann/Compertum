@@ -146,6 +146,23 @@ def test_checkpoint_export_and_file_size_are_bounded(owned,monkeypatch):
     assert not destination.exists()
 
 
+def test_the_research_store_grows_past_16_mib_and_still_checkpoints(owned):
+    # Owner, 26 October 2026: the engine records filled the 16 MiB research store during GEPA run 5. It may grow to 256 MiB.
+    project,leases=owned
+    module=api(); store=module.open_store(leases['coordinator'],'coordinator')
+    page=store.conn.execute('PRAGMA page_size').fetchone()[0]
+    assert store.conn.execute('PRAGMA max_page_count').fetchone()[0]*page==256*1024**2==module.MAX_SNAPSHOT_BYTES
+    assert module.STORE_BYTES['evaluation']==module.STORE_BYTES['execution']==16*1024**2
+    with store.conn:
+        store.conn.execute('CREATE TABLE fill(b BLOB)')
+        for _ in range(20): store.conn.execute('INSERT INTO fill VALUES(randomblob(1048576))')
+    store.close(); store=module.open_store(leases['coordinator'],'coordinator')  # the open check accepts a 20 MiB store
+    with store._live(): bound=module.snapshot_bound(store.conn,'coordinator')
+    assert 20*1024**2<bound==store.conn.execute('PRAGMA page_count').fetchone()[0]*page+65536
+    receipt=store.checkpoint(str(uuid4()),project.root_path/'bounded/large.sqlite',maximum_bytes=bound)
+    assert 20*1024**2<receipt['size_bytes']<=bound
+
+
 def test_replaced_message_and_wrong_ack_are_rejected(owned):
     _,leases=owned; sender=api().open_store(leases['coordinator'],'coordinator')
     receiver=api().open_store(leases['evaluation'],'evaluation')

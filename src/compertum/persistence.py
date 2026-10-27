@@ -14,7 +14,10 @@ from .runtime.owners import _owner_scope, require_live_owner
 
 STORE_NAMES={'coordinator':'research.sqlite','evaluation':'evaluation.sqlite','execution':'execution.sqlite'}
 _STORES={}
-MAX_SNAPSHOT_BYTES=16*1024*1024
+# Owner, 26 October 2026: the research store also holds the engine records, and it filled at 16 MiB during GEPA run 5.
+# It may grow to 256 MiB. The evaluation and execution stores keep 16 MiB.
+STORE_BYTES={'coordinator':256*1024**2,'evaluation':16*1024**2,'execution':16*1024**2}
+MAX_SNAPSHOT_BYTES=max(STORE_BYTES.values())
 MAX_EXPORT_ROWS=1024
 
 
@@ -37,6 +40,13 @@ def checked_path(root, path):
         if current.is_symlink() or getattr(info,'st_file_attributes',0)&0x400 or (current.is_file() and info.st_nlink!=1):
             raise RuntimeRefused('PATH_DENIED')
     return path
+
+
+def snapshot_bound(conn,role):
+    """The bytes one checkpoint of a local store may need now: its size plus 64 KiB for the checkpoint row, within the store's cap.
+    The caller holds the store's owner scope."""
+    size=conn.execute('PRAGMA page_count').fetchone()[0]*conn.execute('PRAGMA page_size').fetchone()[0]
+    return min(STORE_BYTES[role],size+65536)
 
 
 @dataclass(frozen=True)
@@ -89,8 +99,8 @@ class StateStore:
             self.conn=sqlite3.connect(self.path,timeout=1,check_same_thread=False)
             self.conn.execute('PRAGMA journal_mode=WAL'); self.conn.execute('PRAGMA synchronous=FULL')
             page=self.conn.execute('PRAGMA page_size').fetchone()[0]
-            if self.conn.execute('PRAGMA page_count').fetchone()[0]*page>16*1024**2: raise RuntimeRefused('STORE_BOUND_EXCEEDED')
-            self.conn.execute(f'PRAGMA max_page_count={16*1024**2//page}')
+            if self.conn.execute('PRAGMA page_count').fetchone()[0]*page>STORE_BYTES[role]: raise RuntimeRefused('STORE_BOUND_EXCEEDED')
+            self.conn.execute(f'PRAGMA max_page_count={STORE_BYTES[role]//page}')
             self.conn.execute('PRAGMA wal_autocheckpoint=256');self.conn.execute('PRAGMA journal_size_limit=16777216')
             self.conn.execute('PRAGMA foreign_keys=ON'); self.conn.execute('PRAGMA busy_timeout=1000')
             self.conn.executescript('''
