@@ -217,6 +217,14 @@ def test_the_committed_provider_and_deepseek_files_load_and_hold_no_key():
     for name in ('config/models-deepseek.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
 
 
+def test_the_committed_kimi_file_loads_and_holds_no_key():
+    root=Path(__file__).resolve().parents[1];loaded=load_models(root/'config/models-kimi.toml',root)
+    assert {(spec.base_url,spec.provider,spec.key_env) for spec in loaded.values()}=={('https://api.kimi.ai/coding/v1','kimi','KIMI_API_KEY')}
+    assert {spec.model for spec in loaded.values()}=={'k3.1-pro'}
+    assert {(spec.max_tokens,spec.seconds) for spec in loaded.values()}=={(16384,600)}
+    for name in ('config/models-kimi.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
+
+
 @pytest.mark.parametrize('fault',['missing_role','extra_role','extra_key','outside'])
 def test_incomplete_or_foreign_model_files_are_refused(tmp_path,fault):
     entries=[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)]

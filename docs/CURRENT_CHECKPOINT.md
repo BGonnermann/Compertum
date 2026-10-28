@@ -1,5 +1,19 @@
 # Current Compertum checkpoint
 
+## Kimi K3.1 Pro provider configuration - 28 October 2026
+
+The owner authorized Kimi Code as a remote provider. `config/providers.toml` names the overseas coding endpoint and `KIMI_API_KEY`.
+`config/models-kimi.toml` selects the official model ID `k3.1-pro` for all four roles. Each role has 16,384 output tokens and 600 seconds.
+The configuration contains no API key. Membership quota and rate limits apply. Kimi results need a separate bench baseline.
+
+The targeted product-environment lane passed 80 tests, zero failed and zero skipped.
+A scripted harness start selected `k3.1-pro` and exited cleanly. It sent no model-list or completion request.
+Live Kimi authentication and a model reply remain unverified. The owner must create `KIMI_API_KEY` from a Kimi Code Console key.
+
+Exact next action: the owner starts `compertum-harness --models kimi --model k3.1-pro` in a new terminal after setting the key.
+Both options are needed because the global wrapper's defaults are DeepSeek and `deepseek-flash`.
+No GEPA, benchmark, holdout or provider run occurred during this configuration work.
+
 ## Harness 0.2 interactive composer and live smoke - 27 October 2026
 
 The global `compertum-harness` command opens master from any folder with DeepSeek flash. The product `compertum` CLI is unchanged.

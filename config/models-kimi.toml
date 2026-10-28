@@ -1,0 +1,30 @@
+# Kimi Code model file: the provider the owner authorized on 28 October 2026 (config/providers.toml).
+# Use it with: tools\practice.ps1 -Models kimi ...
+# The owner stores the Kimi Code Console key in the user environment variable KIMI_API_KEY.
+# The official model ID is k3.1-pro. Thinking is required and defaults to max.
+# Each role uses the engine's highest output and time limits. Membership quota and rate limits still apply.
+# Kimi results need their own bench baseline. They are not comparable with DeepSeek or Flint results.
+
+[roles.director]
+base_url = "https://api.kimi.ai/coding/v1"
+model = "k3.1-pro"
+max_tokens = 16384
+seconds = 600
+
+[roles.researcher]
+base_url = "https://api.kimi.ai/coding/v1"
+model = "k3.1-pro"
+max_tokens = 16384
+seconds = 600
+
+[roles.mathematician]
+base_url = "https://api.kimi.ai/coding/v1"
+model = "k3.1-pro"
+max_tokens = 16384
+seconds = 600
+
+[roles.engineer]
+base_url = "https://api.kimi.ai/coding/v1"
+model = "k3.1-pro"
+max_tokens = 16384
+seconds = 600

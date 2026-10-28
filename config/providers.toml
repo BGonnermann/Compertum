@@ -12,3 +12,9 @@
 [providers.deepseek]
 base_url = "https://api.deepseek.com"
 key_variable = "DEEPSEEK_API_KEY"
+
+# Kimi Code: authorized by the owner on 28 October 2026. Membership quota and rate limits apply.
+# This is the overseas OpenAI-compatible coding endpoint. The key comes from the Kimi Code Console.
+[providers.kimi]
+base_url = "https://api.kimi.ai/coding/v1"
+key_variable = "KIMI_API_KEY"
