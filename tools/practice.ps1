@@ -39,6 +39,8 @@ param(
     [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
     [int]$Cycles=1,
     [int]$CyclesPerMarket=4,
+    [ValidateSet('bench-1','bench-2')][string]$BenchSet='bench-1',
+    [string[]]$MarketManifest=@(),
     [string]$PromptsRun='',
     [int]$PromptsCandidate=-1,
     [double]$Hours=0,
@@ -64,7 +66,9 @@ function Fail($message) { Write-Host "STOP: $message"; exit 2 }
 # Options for the wrong mode stop the script before the model loads, so nothing is silently ignored (review, 25 October 2026).
 $evaluationMode=($Mode -eq 'bench' -or $Mode -eq 'holdout')
 if ($evaluationMode -and $PSBoundParameters.ContainsKey('Cycles')) { Fail "-Cycles does not apply to $Mode; use -CyclesPerMarket" }
-if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket') -or $PSBoundParameters.ContainsKey('PromptsRun') -or $PSBoundParameters.ContainsKey('PromptsCandidate'))) { Fail "-CyclesPerMarket, -PromptsRun and -PromptsCandidate apply to bench and holdout only" }
+if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket') -or $PSBoundParameters.ContainsKey('PromptsRun') -or $PSBoundParameters.ContainsKey('PromptsCandidate') -or $PSBoundParameters.ContainsKey('BenchSet'))) { Fail "-CyclesPerMarket, -BenchSet, -PromptsRun and -PromptsCandidate apply to bench and holdout only" }
+if ($Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')) { Fail '-BenchSet applies to bench only; the holdout cannot be moved' }
+if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest applies to run and gepa only; bench and holdout stay fixed' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }
@@ -188,6 +192,7 @@ try {
     $evaluation=($Mode -eq 'bench' -or $Mode -eq 'holdout')
     if ($evaluation) {
         $arguments+=@('--cycles-per-market',"$CyclesPerMarket")
+        if ($Mode -eq 'bench') { $arguments+=@('--bench-set',$BenchSet) }
         if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") }
         if ($PromptsRun -ne '') { $arguments+=@('--prompts-run',$PromptsRun,'--prompts-candidate',"$PromptsCandidate") }
         Write-Host "starting $Mode ($CyclesPerMarket cycles per market, hours $Hours, requests $Requests): $Note"
@@ -195,6 +200,7 @@ try {
         # Both limits pass when both are given; the run stops at the first one (review, 26 October 2026: -Cycles was dropped when -Hours was given).
         if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") }
         if ($Hours -le 0 -or $PSBoundParameters.ContainsKey('Cycles')) { $arguments+=@('--cycles',"$Cycles") }
+        foreach ($manifest in $MarketManifest) { $arguments+=@('--market-manifest',$manifest) }
         Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
     }
     Write-Host "record: $record"

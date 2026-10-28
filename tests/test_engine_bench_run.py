@@ -20,9 +20,10 @@ from compertum.ai.engine.prompts import COMPONENTS,load_component  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
 
-def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,verification,market):
+@pytest.mark.parametrize('bench_name',['bench-1','bench-2'])
+def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,verification,market,bench_name):
     b,_=bridge;set_research_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
-    markets=bench.set_markets('bench-1')
+    markets=bench.set_markets(bench_name)
     first=market_sha256(SimpleNamespace(train_csv=markets[0]['train_csv'],validation_csv=markets[0]['validation_csv']))
     # Nine earlier practice cycles on the first bench market's files: a practice cycle there would see them as lessons.
     for index in range(1,10):
@@ -50,11 +51,17 @@ def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,ver
     # The trials still count: every bench candidate is a trial in the global count, as every candidate is.
     assert ledger.total_trials()==5
     report=bench.report(result['cycles'],markets,cycles_per_market=1)
+    assert result['report']==report and rows[1]['report']==report
     assert [r['cycles'] for r in report['markets']]==[1,1,1,1,1] and report['bench_trials']==15
-    # The scripted Engineer always trades five-session momentum: it finds both momentum markets, not the reversal, and nothing on the empty markets.
-    assert [(r['statuses'],r['levels'],r.get('found'),r.get('false_discoveries')) for r in report['markets']]==[
-        ({'EVALUATION_GATE_PASS':1},[10],1,None),({'EVALUATION_GATE_PASS':1},[10],1,None),({'REJECTED':1},[5],0,None),({'REJECTED':1},[5],None,0),({'REJECTED_DEFLATED':1},[7],None,0)]
-    assert report['verdict']=='MEASURED' and report['patterns_found']==2 and report['false_discoveries']==0
+    # The scripted Engineer always trades five-session momentum: it finds momentum markets, not reversals or empty markets.
+    if bench_name=='bench-1':
+        assert [(r['statuses'],r['levels'],r.get('found'),r.get('false_discoveries')) for r in report['markets']]==[
+            ({'EVALUATION_GATE_PASS':1},[10],1,None),({'EVALUATION_GATE_PASS':1},[10],1,None),({'REJECTED':1},[5],0,None),({'REJECTED':1},[5],None,0),({'REJECTED_DEFLATED':1},[7],None,0)]
+        assert report['patterns_found']==2
+    else:
+        assert report['patterns_found']==1 and report['markets'][0]['found']==1
+        assert all(r.get('false_discoveries') in (None,0) for r in report['markets'])
+    assert report['verdict']=='MEASURED' and report['false_discoveries']==0
     # A bench strategy never becomes a template or enters the vault queue, whatever it scores.
     statuses=[x['status'] for c in result['cycles'] for x in c['candidates']]
     assert 'QUEUED' not in statuses and not (project/'state'/'engine'/'promoted').exists() and ledger.queue_events()==[]
@@ -110,3 +117,16 @@ def test_bad_purposes_and_schedules_are_refused_before_the_start_row(bridge,proj
     with role_server() as (port,state):
         with pytest.raises(RuntimeRefused,match=f'^{code}$'): start(bridge,project,root,verification,market,port,limits,**extra)
     assert ledger.run_starts()==[] and state['posts']==[]
+
+
+def test_a_bench_stop_before_the_first_cycle_still_saves_an_incomplete_report(bridge,project,root,verification,market):
+    b,_=bridge;set_research_state(b.store,'RUNNING');ticks=[0.0]
+    def clock():
+        ticks[0]+=600.0;return ticks[0]
+    markets=bench.set_markets('bench-1')
+    with role_server() as (port,state):
+        result=start(bridge,project,root,verification,market,port,RunLimits(request_limit=60,cycle_limit=5,hour_limit=0.001),
+                     schedule=markets,purpose='bench',clock=clock)
+    assert result['reason']=='HOUR_LIMIT' and result['cycles']==[] and state['posts']==[]
+    assert result['report']['verdict'].startswith('INCOMPLETE') and result['report']['candidates_total']==0
+    assert EngineLedger(b.store).run_rows(result['run_id'])[1]['report']==result['report']

@@ -369,3 +369,34 @@ Files: `config/models.toml`, `src/compertum/ai/models.py`, `tests/test_ai_models
 - Installed-package lane: the `.venv` holds the M3 release wheel, which predates this module. The installed lane needs a new wheel build.
   Until then, E1 verification is source-lane only. The record states this.
 - The memory floor comes from config `dispatch_available_ram_bytes` (8 GiB) unless the caller gives a higher value. The request limit is per client instance. Stage E5 adds the per-run hard maximum.
+
+## Evaluation hardening after GEPA run 6
+
+Built on 27 October 2026 after the owner approved the evaluation and real-data readiness plan.
+GEPA run 6 stopped because two `gepa-reflect-tool` calls exhausted token caps. The 256 MiB research store did not cause this stop.
+Candidate 4 remains unapplied. One equal bench comparison is not enough evidence for promotion.
+
+- Baseline `run-20261027-92f3895d`: one of three patterns, mean level 7.00 and zero false discoveries.
+- Candidate 4 `run-20261027-1d5b087c`: two of three, mean level 7.20 and zero false discoveries, with more build and audit failures.
+
+`engine/run.py` saves bench and holdout reports in returned state and durable END rows.
+The read-only `python -m compertum.ai.engine.compare RUN_ID RUN_ID` command compares saved reports. It reconstructs legacy reports from cycle market hashes when needed.
+`engine/gepa_run.py` records evaluation counts and provisional selection status. A reflection `STEP_FAULT` now skips only the affected proposal. Systemic refusals still stop the run.
+
+`engine/market.py` and `engine/bench.py` add `bench-2`, seeds 106 to 110.
+These markets cover momentum, reversal, momentum-to-reversal changes, changing noise and negative controls.
+The bytes and reference scores of `bench-1` and `holdout-1` are unchanged. Five current `bench-1` hashes also match baseline-run evidence.
+
+`engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.
+It rechecks paths, hashes, scope, duplicates and complete coverage. It never exposes vault rows.
+Practice and GEPA accept repeatable real-market manifests. Bench and holdout reject them.
+Real-provider practice and GEPA transcripts default to `training_allowed: false`. Bench and holdout transcripts cannot enable training.
+
+Post-review targeted lanes: 186 product-environment tests and 271 engine-environment tests passed, with zero failures and zero skips.
+The full top-level product lane recorded 7,225 passed, 14 failed, 18 skipped and 14 errors.
+All 28 failures and errors came from four fixture files outside their approved root. All 12 fixture files then passed in that root: 113 passed, zero failed and zero skipped.
+The final engine lane passed 271 tests, zero failed and zero skipped, with eight pandas deprecation warnings. No holdout run or further GEPA optimization occurred.
+
+The original Alpaca artifacts were not found in the recorded artifact, probe, source-cache or consolidation locations.
+The real-market adapter is verified with retained-format fixtures only. A future real run needs its original evidence files and a valid local manifest.
+No actual Alpaca practice run has occurred.

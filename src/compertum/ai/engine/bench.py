@@ -23,7 +23,7 @@ import hashlib
 from compertum.runtime.errors import RuntimeRefused
 from .deflation import deflated_sharpe,trial_variance
 from .levels import AUDIT_STATUSES,audited,candidate_level
-from .market import market_csv,score_signals,split_market_tiers,synthetic_market
+from .market import market_csv,regime_at,score_signals,split_market_tiers,synthetic_market
 
 SESSIONS=500
 STRENGTH=0.004
@@ -39,7 +39,20 @@ HOLDOUT_USES=5  # the holdout set retires after this many counted uses; only the
 # (kind, window, seed). kind None is a market with no pattern. Seeds are assigned in order, not chosen by result.
 SETS={
     'bench-1':(('momentum',5,101),('momentum',10,102),('reversal',3,103),(None,0,104),(None,0,105)),
+    'bench-2':(('regimes',5,106),('regimes',3,107),('regimes',5,108),('regimes',0,109),(None,0,110)),
     'holdout-1':(('momentum',5,901),('momentum',10,902),('reversal',3,903),(None,0,904),(None,0,905)),
+}
+
+
+def regime(start,kind,window,*,drift=0.0002,noise=0.01):
+    return {'start':start,'kind':kind,'window':window,'strength':STRENGTH if kind is not None else 0,'drift':drift,'noise':noise}
+
+
+REGIME_SETS={
+    106:[regime(0,'momentum',5,noise=0.006),regime(250,'momentum',5,noise=0.02)],
+    107:[regime(0,'reversal',3,drift=0.002),regime(250,'reversal',3,drift=-0.002)],
+    108:[regime(0,'momentum',5),regime(250,'reversal',3)],
+    109:[regime(0,None,0,noise=0.005),regime(150,None,0,noise=0.025),regime(350,None,0,drift=-0.001,noise=0.008)],
 }
 BENCH_SET='bench-1'
 HOLDOUT_SET='holdout-1'
@@ -71,18 +84,34 @@ def set_markets(name):
     if name not in SETS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     out=[]
     for kind,window,seed in SETS[name]:
-        planted=None if kind is None else {'kind':kind,'window':window,'strength':STRENGTH}
-        train,validation,vault=split_market_tiers(synthetic_market(seed,SESSIONS,planted=planted))
-        pattern='no pattern' if kind is None else f'{kind} window {window}, strength {STRENGTH}'
+        regimes=REGIME_SETS.get(seed) if kind=='regimes' else None
+        if kind=='regimes' and regimes is None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        planted=None if kind in (None,'regimes') else {'kind':kind,'window':window,'strength':STRENGTH}
+        train,validation,vault=split_market_tiers(synthetic_market(seed,SESSIONS,planted=planted,regimes=regimes))
+        market_kind=kind
+        if regimes is not None:
+            market_kind='regimes' if any(r['kind'] is not None for r in regimes) else None
+            pattern='changing regimes' if market_kind is not None else 'changing noise, no pattern'
+        else: pattern='no pattern' if kind is None else f'{kind} window {window}, strength {STRENGTH}'
         out.append({'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,
-                    'label':f'{name}: seed {seed}, {SESSIONS} sessions, {pattern}','set':name,'kind':kind,'window':window,'seed':seed,'train_rows':train,'vault_sessions':len(vault)})  # the vault rows stay here, unused
+                    'label':f'{name}: seed {seed}, {SESSIONS} sessions, {pattern}','set':name,'kind':market_kind,'window':window,'seed':seed,
+                    'regimes':regimes,'train_rows':train,'vault_sessions':len(vault)})  # the vault rows stay here, unused
     return out
 
 
-def reference_positions(train,validation,kind,window):
+def reference_positions(train,validation,kind,window,regimes=None):
     """The planted rule, traded exactly. The generator leans the return of session t+1 on the sign of the last `window` returns up to t,
     so the position at t is 1 when the lean is up. A market with no pattern has buy-and-hold as its reference."""
     if kind is None: return [1 for _ in validation]
+    if kind=='regimes':
+        if regimes is None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        history=[];out=[]
+        for row in train+validation:
+            index=int(row['session']);regime=regime_at(regimes,index);history.append(float(row['return']))
+            if regime['kind'] is None: out.append(1);continue
+            if index+1<regime['start']+regime['window']: out.append(0);continue
+            recent=sum(history[-regime['window']:]);out.append(1 if (recent>0 if regime['kind']=='momentum' else recent<0) else 0)
+        return out[len(train):]
     if kind not in ('momentum','reversal') or type(window) is not int or window<1: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     history=[float(r['return']) for r in train];out=[]
     for row in validation:
@@ -96,7 +125,7 @@ def signals_text(validation,positions):
 
 
 def reference_score(market):
-    return score_signals(signals_text(market['validation_rows'],reference_positions(market['train_rows'],market['validation_rows'],market['kind'],market['window'])),
+    return score_signals(signals_text(market['validation_rows'],reference_positions(market['train_rows'],market['validation_rows'],market['kind'],market['window'],market.get('regimes'))),
                          market['validation_rows'])
 
 

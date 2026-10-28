@@ -13,7 +13,7 @@ from compertum.runtime.errors import RuntimeRefused
 from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
 from .audit import check_request_invariant
-from .bench import HOLDOUT_USES,SETS,fingerprint,reserved_fingerprints,set_fingerprints
+from .bench import HOLDOUT_USES,SETS,fingerprint,report as bench_report,reserved_fingerprints,set_fingerprints
 from .cycle import Engine,run_cycle
 from .ledger import EVALUATION_PURPOSES,PURPOSES,EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
@@ -24,7 +24,8 @@ CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','re
 
 
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market=None,memory_floor_bytes,limits,owner_approval,
-                available_memory=None,clock=time.monotonic,recursion_limit=40,summary=True,schedule=None,purpose='practice',prompts=None,holdout_set=None):
+                available_memory=None,clock=time.monotonic,recursion_limit=40,summary=True,schedule=None,purpose='practice',prompts=None,holdout_set=None,
+                transcript_training_allowed=None):
     """Run cycles until a limit. Returns the run state. Refusals before the START row leave no run record.
     schedule: for a bench or holdout run (bench.py), the market of each cycle in order; the cycle limit must not exceed its length.
     prompts: role prompts to measure (a GEPA candidate); None uses config/engine_prompts."""
@@ -38,10 +39,15 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     if (purpose=='holdout')!=(holdout_set is not None) or (holdout_set is not None and (holdout_set not in SETS or not holdout_set.startswith('holdout-'))):
         raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     # Each schedule item runs on the engine of its label, so a label must name one market only.
-    labels={}
+    labels={};evaluation_markets={};cycles_per_market=None
     for item in schedule:
         if purpose!='practice' and not isinstance(item.get('label'),str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         if labels.setdefault(item.get('label'),item['validation_csv'])!=item['validation_csv']: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        if purpose!='practice': evaluation_markets.setdefault(item['label'],item)
+    if purpose!='practice':
+        counts=[sum(1 for item in schedule if item['label']==label) for label in evaluation_markets]
+        if len(set(counts))!=1: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+        cycles_per_market=counts[0]
     # The markets must belong to the run's purpose (review, 25 October 2026): a holdout market never runs uncounted or in a learning cycle.
     prints={fingerprint(m['train_csv'],m['validation_csv']) for m in schedule}
     if purpose=='practice': allowed=not prints&reserved_fingerprints()
@@ -61,7 +67,7 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     options={'memory_floor_bytes':memory_floor_bytes,'request_limit':bounds['request_limit'],'native_limits':False,'gate':gate}
     if available_memory is not None: options['available_memory']=available_memory
     run_id=f'run-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
-    transcript=TranscriptWriter(project_root,run_id,purpose)  # step S3: the words of every request; bench and holdout lines are marked not for training
+    transcript=TranscriptWriter(project_root,run_id,purpose,training_allowed=transcript_training_allowed)  # evaluation and real-provider defaults are set by the caller
     client=ModelClient(roles,StoreLedger(store),transcript=transcript,**options)
     models={role:{'address':spec.base_url,'model':spec.model} for role,spec in roles.items()}
     first=len([c for c in ledger.cycles() if c['phase']=='END'])+1
@@ -83,6 +89,7 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         start.update(purpose=purpose,markets=[m.get('label') for m in schedule],prompts_source='committed' if prompts is None else 'given',
                      prompts_sha256={role:hashlib.sha256(text.encode('utf-8')).hexdigest() for role,text in sorted(measured.items())})
     if holdout_set is not None: start.update(holdout_set=holdout_set,holdout_use=holdout_use,holdout_uses_allowed=HOLDOUT_USES)
+    if any(m.get('provenance') for m in schedule): start['market_provenance']=[m['provenance'] for m in schedule if m.get('provenance')]
     ledger.record_run_phase(run_id,'START',start)
     index=first
     try:
@@ -104,8 +111,10 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         state['requests']=client.requests;state['elapsed_seconds']=round(gate.elapsed_seconds(),3)
         # E6 invariant: a count above the approved limit means the limiter failed. The engine freezes; the END row still follows.
         state['request_invariant']=check_request_invariant(ledger,run_id,client.requests,bounds['request_limit'])
+        if purpose!='practice': state['report']=bench_report(state['cycles'],list(evaluation_markets.values()),cycles_per_market)
         ledger.close_run(run_id,{'reason':state['reason'],'failure':state.get('failure'),'cycles':len(state['cycles']),'requests':state['requests'],
                                  'request_invariant':state['request_invariant'],'elapsed_seconds':state['elapsed_seconds'],'gate_checks':gate.checks,
-                                 'stop_trigger':gate.trigger,'transcript':{**transcript.report(),'client_failures':client.transcript_failures},'ended_at':utc_now()})
+                                 'stop_trigger':gate.trigger,'transcript':{**transcript.report(),'client_failures':client.transcript_failures},
+                                 **({'report':state['report']} if purpose!='practice' else {}),'ended_at':utc_now()})
         if summary: state['summary_path']=str(write_summary(project_root,state,ledger))
     return state

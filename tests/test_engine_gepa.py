@@ -180,6 +180,12 @@ def test_proposals_go_through_the_client_and_invalid_ones_keep_the_old_text(brid
     assert halted.stop_code=='AI_REQUEST_BUDGET'
     with pytest.raises(RuntimeRefused,match='^AI_REQUEST_BUDGET$'): halted.evaluate([{'label':'a'}],current)
     assert cycles==[] and halted.evaluations==[]
+    class TruncatedClient:
+        def complete(self,role,messages,**kwargs): raise RuntimeRefused('AI_RESPONSE_TRUNCATED')
+    resilient=PromptAdapter(build_engine=None,run_cycle=None,client=TruncatedClient(),ledger=ledger,run_id='run-20261027-0123abcd',next_index=1,cycle_limit=6)
+    assert resilient.propose_new_texts(current,dataset,['director'])=={} and resilient.stop_code is None
+    proposal=resilient.proposals[-1]
+    assert proposal['phase']=='INVALID_AI_RESPONSE_TRUNCATED' and proposal['changed'] is False and proposal['call_id'] is None
     # Records are passed whole and bounded.
     big=[{'Inputs':{'task':'x'*3000},'Generated Outputs':'y'*3000,'Feedback':'f','score':0.4}]*10
     text=records_text(big);assert len(text.encode('utf-8'))<=24000 and json.loads(text)==big[:3] and records_text([])=='[]'
@@ -202,6 +208,7 @@ def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observation
     written=write_candidates(tmp_path,'run-20261024-0123abcd',adapter,'CYCLE_LIMIT')
     folder=Path(written['folder']);assert folder==tmp_path/PROMPTS_DIR/'run-20261024-0123abcd' and written['candidate_count']==2 and written['best_index']==0
     assert written['mean_scores']==[0.6,0.2] and written['gepa'] is None and written['reason']=='CYCLE_LIMIT'
+    assert written['evaluation_counts']==[2,1] and written['selection_status']=='UNVERIFIED_UNEQUAL_EVALUATIONS'
     assert (folder/'candidate-0'/'director.md').read_text(encoding='utf-8')==prompts['director'] and (folder/'candidate-1'/'director.md').read_text(encoding='utf-8')==other['director']
     assert json.loads((folder/'result.json').read_bytes())['candidate_sha256']==written['candidate_sha256']
     # GEPA's own best index is mapped to the folder index by hash, so the owner applies the right candidate.
@@ -276,7 +283,7 @@ def test_speed_comes_from_output_tokens_per_candidate_built():
     assert speed_for_calls(base,3)['speed']>speed_for_calls(base,2)['speed']
 
 
-@pytest.mark.parametrize('name',['bench-1','holdout-1'])
+@pytest.mark.parametrize('name',['bench-1','bench-2','holdout-1'])
 def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
     """Review, 26 October 2026: only practice.py's seed check kept GEPA off reserved markets. run_gepa now refuses them itself."""
     from compertum.ai.engine import bench

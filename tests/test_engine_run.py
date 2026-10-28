@@ -151,3 +151,12 @@ def test_tenth_cycle_reviews_the_agenda_inside_a_run(bridge,project,root,verific
     assert result['cycles'][0]['cycle_index']==10 and result['reason']=='CYCLE_LIMIT'
     steps=ledger.steps(result['cycles'][0]['cycle_id'])
     assert [s for s in steps if s['kind']=='agenda' and s['phase']=='REPLY'] and any(p['messages'][-1]['content'].startswith('Review the repeated failures') for p in state['posts'])
+
+
+def test_provider_provenance_is_recorded_at_run_start(bridge,project,root,verification,market):
+    b,_=bridge;set_research_state(b.store,'RUNNING')
+    provenance={'provider':'alpaca','feed':'sip','symbol':'AAPL','financial_accepted':False,'snapshot_sha256':'a'*64}
+    with role_server() as (port,_):
+        result=start(bridge,project,root,verification,dict(market,provenance=provenance),port,RunLimits(request_limit=100,cycle_limit=1))
+    start_row=EngineLedger(b.store).run_rows(result['run_id'])[0]
+    assert start_row['market_provenance']==[provenance] and start_row['market_provenance'][0]['financial_accepted'] is False

@@ -13,6 +13,11 @@ def test_lines_carry_the_training_mark_and_the_file_has_a_cap(tmp_path):
     for purpose in ('bench','holdout'):
         writer=TranscriptWriter(tmp_path,f'run-20261026-0000{purpose[:4]}','bench' if purpose=='bench' else 'holdout');writer({'role':'mathematician'})
         assert json.loads(writer.path.read_text(encoding='utf-8'))['training_allowed'] is False and writer.report()['training_allowed'] is False
+    real=TranscriptWriter(tmp_path,'run-20261027-0000real','practice',training_allowed=False);real({'role':'director'})
+    assert json.loads(real.path.read_text(encoding='utf-8'))['training_allowed'] is False and real.report()['training_allowed'] is False
+    try: TranscriptWriter(tmp_path,'run-20261027-0000bad0','bench',training_allowed=True)
+    except ValueError: pass
+    else: raise AssertionError('a bench transcript must never become training data')
     # A write that fails is counted, never raised: research goes on.
     broken=TranscriptWriter(tmp_path,'run-20261026-0000dead','gepa');broken.path.mkdir()  # a folder where the file should be
     broken({'role':'director'});assert broken.report()['failures']==1 and broken.report()['lines']==0

@@ -14,7 +14,7 @@ from compertum.ai.engine import bench,practice
 from compertum.ai.engine.deflation import deflated_sharpe,trial_variance
 from compertum.ai.engine.gepa_run import earlier_titles
 from compertum.ai.engine.ledger import EVALUATION_PURPOSES,EngineLedger
-from compertum.ai.engine.market import score_signals
+from compertum.ai.engine.market import score_signals,synthetic_market
 from compertum.runtime.errors import RuntimeRefused
 from test_engine_gepa import record_hashes
 
@@ -36,7 +36,7 @@ def test_bench_and_holdout_use_separate_fixed_seed_sets_with_two_empty_markets_e
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.set_markets('holdout-2')
     # Seeds 100 to 199 and 900 to 999 are reserved; every set seed is inside them, so no practice or GEPA seed can rebuild a set market.
     assert all(bench.reserved_seed(s) for v in seeds.values() for s in v) and not bench.reserved_seed(12) and not bench.reserved_seed(99) and bench.reserved_seed(999)
-    assert len(bench.reserved_fingerprints())==10 and bench.set_fingerprints('bench-1').isdisjoint(bench.set_fingerprints('holdout-1'))
+    assert len(bench.reserved_fingerprints())==sum(len(v) for v in bench.SETS.values()) and bench.set_fingerprints('bench-1').isdisjoint(bench.set_fingerprints('holdout-1'))
 
 
 @pytest.mark.parametrize('name',['bench-1','holdout-1'])
@@ -48,6 +48,44 @@ def test_the_reference_rule_finds_every_planted_pattern_and_nothing_in_an_empty_
         else:
             assert score['beats_baseline'] is True and float(score['sharpe'])>float(score['benchmark_sharpe'])+1.5, market['label']
             assert bench.capture(score,score)=='1.000'
+
+
+def test_bench_2_adds_causal_regimes_without_moving_the_holdout():
+    markets=bench.set_markets('bench-2')
+    assert [m['kind'] for m in markets]==['regimes','regimes','regimes',None,None]
+    assert [m['seed'] for m in markets]==[106,107,108,109,110] and bench.HOLDOUT_SET=='holdout-1'
+    assert all(bench.reserved_seed(m['seed']) for m in markets)
+    assert len({m['validation_csv'] for m in markets})==5
+    for market in markets:
+        score=bench.reference_score(market)
+        if market['kind'] is None: assert score['beats_baseline'] is False
+        else: assert score['beats_baseline'] is True and float(score['sharpe'])>float(score['benchmark_sharpe']),market['label']
+    changed=markets[2]
+    positions=bench.reference_positions(changed['train_rows'],changed['validation_rows'],changed['kind'],changed['window'],changed['regimes'])
+    assert changed['validation_rows'][0]['session']==250 and positions[:2]==[0,0] and len(positions)==150
+    assert markets[0]['regimes'][0]['noise']!=markets[0]['regimes'][1]['noise']
+    assert markets[3]['regimes'][0]['noise']!=markets[3]['regimes'][1]['noise']
+
+
+def test_regime_reference_starts_at_the_first_leanable_position_and_handles_empty_regimes():
+    rows=[{'session':i,'return':'0.01'} for i in range(6)]
+    regimes=[bench.regime(0,'momentum',2),bench.regime(4,'reversal',2)]
+    assert bench.reference_positions([],rows,'regimes',0,regimes)==[0,1,1,1,0,0]
+    empty=[bench.regime(0,None,0)]
+    assert bench.reference_positions([],rows,'regimes',0,empty)==[1]*6
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.reference_positions([],rows,'regimes',0,None)
+
+
+def test_regime_definitions_are_bounded_and_old_synthetic_calls_keep_their_shape():
+    rows=synthetic_market(12,40)
+    assert synthetic_market(12,40,regimes=None)==rows and len(rows)==40
+    valid=[bench.regime(0,'momentum',5),bench.regime(20,'reversal',3)]
+    assert synthetic_market(12,40,regimes=valid)==synthetic_market(12,40,regimes=valid)
+    for bad in ([],[bench.regime(1,'momentum',5)],[bench.regime(0,'momentum',5),bench.regime(40,'reversal',3)],
+                [{**valid[0],'noise':0}],[{**valid[0],'drift':float('nan')}], [{**valid[0],'kind':'other'}]):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): synthetic_market(12,40,regimes=bad)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'):
+        synthetic_market(12,40,planted={'kind':'momentum','window':5,'strength':0.004},regimes=valid)
 
 
 def test_the_exact_planted_rule_rarely_passes_the_gate_on_150_validation_sessions():
@@ -161,7 +199,8 @@ def fake_run(monkeypatch):
     def run_bounded(**kwargs):
         seen.update(kwargs);markets=kwargs['schedule'][:5]
         cycles=[{**candidate_cycle(m,[0]*len(m['validation_rows']),status='REJECTED'),'cycle_index':i+1} for i,m in enumerate(markets)]
-        return {'run_id':'run-20261025-0123abcd','reason':'CYCLE_LIMIT','cycles':cycles,'requests':40,'elapsed_seconds':3.0,'summary_path':'s.md','models':{}}
+        return {'run_id':'run-20261025-0123abcd','reason':'CYCLE_LIMIT','cycles':cycles,'requests':40,'elapsed_seconds':3.0,'summary_path':'s.md','models':{},
+                'report':bench.report(cycles,markets,cycles_per_market=1)}
     monkeypatch.setitem(sys.modules,'compertum.ai.engine.run',SimpleNamespace(run_bounded=run_bounded))
     return seen
 
@@ -183,6 +222,15 @@ def test_the_bench_command_runs_an_interleaved_schedule_and_prints_the_report(tm
     assert record['report']['verdict']=='MEASURED' and record['report']['patterns_found']==0 and record['preflight']['markets']==5
     assert record['vault_sessions_held_back']==5*100
     json.dumps(record)
+
+
+def test_the_bench_command_can_select_bench_2_without_changing_the_default(tmp_path,fake_run):
+    root=project(tmp_path)
+    record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 2 fixture',purpose='bench',bench_set='bench-2',
+                                 available_memory=lambda:practice.START_FLOOR+1)
+    labels=[m['label'] for m in bench.set_markets('bench-2')]
+    assert [m['label'] for m in fake_run['schedule']]==labels*4 and fake_run['limits'].cycle_limit==20 and record['report']['cycles_per_market']==1
+    assert bench.BENCH_SET=='bench-1'
 
 
 def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_path,fake_run):
@@ -209,6 +257,9 @@ def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_
     ({'purpose':'bench','gepa':True},'ENGINE_RUN_PURPOSE_DENIED'),
     ({'purpose':'bench','cycles_per_market':0},'ENGINE_RUN_LIMITS_DENIED'),
     ({'purpose':'bench','cycles_per_market':11},'ENGINE_RUN_LIMITS_DENIED'),
+    ({'purpose':'holdout','bench_set':'bench-2'},'ENGINE_RUN_PURPOSE_DENIED'),
+    ({'purpose':'practice','bench_set':'bench-2'},'ENGINE_RUN_PURPOSE_DENIED'),
+    ({'purpose':'bench','bench_set':'holdout-1'},'ENGINE_MARKET_DENIED'),
     ({'purpose':'bench','prompts_run':'run-20261025-00001111'},'ENGINE_PROMPT_INVALID'),
     ({'purpose':'practice','prompts_run':'run-20261025-00001111','prompts_candidate':1},'ENGINE_PROMPT_INVALID'),
     ({'purpose':'bench','prompts_run':'run-20261025-00009999','prompts_candidate':1},'ENGINE_PROMPT_UNAVAILABLE'),
@@ -228,6 +279,9 @@ def test_the_command_line_passes_bench_and_holdout_options(tmp_path,monkeypatch,
     def fake(root,config,**kwargs): seen.update(kwargs);return {'kind':kwargs['purpose']}
     monkeypatch.setattr(practice,'run_practice',fake)
     assert practice.main(['--project',str(tmp_path),'holdout','--requests','450','--note','n','--cycles-per-market','2','--prompts-run','run-20261025-00001111','--prompts-candidate','3'])==0
-    assert seen=={'cycles':None,'hours':None,'requests':450,'note':'n','purpose':'holdout','cycles_per_market':2,'prompts_run':'run-20261025-00001111','prompts_candidate':3,'models':'local','model':None}
+    assert seen=={'cycles':None,'hours':None,'requests':450,'note':'n','purpose':'holdout','cycles_per_market':2,'prompts_run':'run-20261025-00001111','prompts_candidate':3,'models':'local','model':None,'bench_set':'bench-1'}
     assert json.loads(capsys.readouterr().out)=={'kind':'holdout'}
     assert practice.main(['--project',str(tmp_path),'bench','--requests','450','--note','n'])==0 and seen['cycles_per_market']==4 and seen['prompts_run'] is None
+    assert practice.main(['--project',str(tmp_path),'bench','--requests','450','--note','n','--bench-set','bench-2'])==0 and seen['bench_set']=='bench-2'
+    wrapper=(PROJECT/'tools/practice.ps1').read_text(encoding='utf-8')
+    assert "@('--bench-set',$BenchSet)" in wrapper and "$Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')" in wrapper

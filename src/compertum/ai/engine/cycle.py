@@ -19,6 +19,7 @@ from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
 from .ledger import EVALUATION_PURPOSES,PURPOSES
+from .limits import STEP_FAULTS
 from .market import score_signals
 from .promotion import promote
 from .prompts import COMPONENTS,check_component,load_component,parse_routing,parse_settings
@@ -92,13 +93,6 @@ class Engine:
     run_id:Any=None  # E5: the bounded run this cycle belongs to
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate), and optionally its 'routing' text; None reads config/engine_prompts
     purpose:str='practice'  # 'bench' or 'holdout' (bench.py): no history in, no lessons or GEPA feedback out, no agenda step
-
-
-# A step fault is a model reply the harness could not use: a loop, a timeout, an unusable or oversized reply. The cycle records it and goes
-# on with the other hypotheses (owner direction, 24 October 2026). Every other refusal (budget, memory floor, kill switch, freeze,
-# sandbox, loopback, identity) still stops the cycle, because it is about the run, not about one reply.
-STEP_FAULTS=frozenset({'ENGINE_STEP_LIMIT','ENGINE_REPEATED_TOOL_CALL','ENGINE_NO_PROGRESS','AI_RESPONSE_INVALID','AI_RESPONSE_BOUND','AI_RESPONSE_INCOMPLETE','AI_RESPONSE_TRUNCATED',
-                       'AI_RESPONSE_REJECTED','AI_USAGE_BOUND','LOCAL_COMPLETION_UNVERIFIED','AI_TOOL_EXECUTION_DENIED','AI_MESSAGES_DENIED','AI_TASK_DENIED'})
 
 
 def market_sha256(engine):

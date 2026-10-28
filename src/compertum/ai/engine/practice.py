@@ -114,11 +114,11 @@ def practice_market(seed,sessions,strength,kind='momentum',window=5):
     planted=None if kind is None else {'kind':kind,'window':window,'strength':strength}
     rows=synthetic_market(seed,sessions,planted=planted);train,validation,vault=split_market_tiers(rows)
     pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
-    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}'},vault
+    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}','vault_sessions':len(vault)},vault
 
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False,
-                 purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None):
+                 purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None,bench_set=bench.BENCH_SET,market_manifests=None):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
     committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record."""
@@ -127,24 +127,36 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     if type(available) is not int or available<START_FLOOR: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     if type(seed) is not int or type(sessions) is not int or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
     if purpose not in ('practice','bench','holdout') or (gepa and purpose!='practice'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    if purpose!='bench' and bench_set!=bench.BENCH_SET: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    if market_manifests is not None and purpose!='practice': raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     # Seeds of the bench and holdout sets are reserved, so a practice or GEPA run never reproduces an evaluation market (review, 25 October 2026).
-    if purpose=='practice' and any(bench.reserved_seed(s) for s in [seed]+([seed+offset for _,_,offset in GEPA_MARKETS] if gepa else [])): raise RuntimeRefused('ENGINE_SEED_RESERVED')
+    if market_manifests is None and purpose=='practice' and any(bench.reserved_seed(s) for s in [seed]+([seed+offset for _,_,offset in GEPA_MARKETS] if gepa else [])): raise RuntimeRefused('ENGINE_SEED_RESERVED')
     prompts=None
     if (prompts_run is None)!=(prompts_candidate is None) or (prompts_run is not None and purpose=='practice'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
     if prompts_run is not None:
         from .gepa_run import candidate_prompts
         prompts=candidate_prompts(root,prompts_run,prompts_candidate)
-    market,vault=practice_market(seed,sessions,strength);schedule=None;holdout_set=None
-    if purpose=='practice':
-        markets=[practice_market(seed+offset,sessions,strength,kind,window)[0] for kind,window,offset in GEPA_MARKETS] if gepa else [market]
+    schedule=None;holdout_set=None
+    if market_manifests is not None:
+        from .gepa_run import MAX_MARKETS
+        from .real_market import load_market_manifest
+        if (not isinstance(market_manifests,(list,tuple)) or any(not isinstance(p,str) for p in market_manifests)
+                or not 1<=len(market_manifests)<=(MAX_MARKETS if gepa else 1)): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        loaded=[load_market_manifest(root,path,sessions=sessions) for path in market_manifests]
+        market=loaded[0][0];markets=[item[0] for item in loaded]
     else:
-        if type(cycles_per_market) is not int or not 1<=cycles_per_market<=bench.MAX_CYCLES_PER_MARKET: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
-        holdout_set=bench.HOLDOUT_SET if purpose=='holdout' else None
-        markets=bench.set_markets(bench.BENCH_SET if purpose=='bench' else bench.HOLDOUT_SET)
-        schedule=markets*cycles_per_market;cycles=len(schedule)  # interleaved: an early stop leaves every market with about the same number of cycles
+        market=practice_market(seed,sessions,strength)[0]
+        if purpose=='practice':
+            markets=[practice_market(seed+offset,sessions,strength,kind,window)[0] for kind,window,offset in GEPA_MARKETS] if gepa else [market]
+        else:
+            if type(cycles_per_market) is not int or not 1<=cycles_per_market<=bench.MAX_CYCLES_PER_MARKET: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+            if bench_set not in bench.SETS or not bench_set.startswith('bench-'): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+            holdout_set=bench.HOLDOUT_SET if purpose=='holdout' else None
+            markets=bench.set_markets(bench_set if purpose=='bench' else bench.HOLDOUT_SET)
+            schedule=markets*cycles_per_market;cycles=len(schedule)  # interleaved: an early stop leaves every market with about the same number of cycles
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
     checked=preflight(root,markets,prompts=prompts)
-    held_back=len(vault) if purpose=='practice' else sum(m['vault_sessions'] for m in markets)
+    held_back=sum(m.get('vault_sessions',0) for m in markets)
     roles=chosen_roles(root,models,model)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
@@ -159,11 +171,13 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
             if gepa:
                 from .gepa_run import run_gepa
                 result=run_gepa(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,markets=markets,
-                                memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note)
+                                memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,
+                                transcript_training_allowed=False if market_manifests is not None else None)
             else:
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none
                 result=run_bounded(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,market=market,
-                                   memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set)
+                                   memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set,
+                                   transcript_training_allowed=False if market_manifests is not None else None)
         finally:
             set_research_state(store,previous);after=research_state(store)
         candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'faults':c.get('faults') or [],
@@ -174,8 +188,9 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                 'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],
                 'vault_sessions_held_back':held_back,'verification':{'failed':verification['failed'],'observations':verification['observations']},
                 'research_state_after':after,'free_memory_bytes_at_start':available,'preflight':checked}
+        if market_manifests is not None: record['market_provenance']=[m['provenance'] for m in markets]
         if purpose!='practice':
-            record['report']=bench.report(result['cycles'],markets,cycles_per_market);record['cycles_per_market']=cycles_per_market
+            record['report']=result['report'];record['cycles_per_market']=cycles_per_market
             record['prompts_source']='config/engine_prompts' if prompts is None else f'{prompts_run} candidate {prompts_candidate}'
         if gepa and result.get('prompts'):
             p=result['prompts'];g=p.get('gepa') or {}
@@ -196,11 +211,12 @@ def main(argv=None):
         sub=commands.add_parser(name)
         sub.add_argument('--cycles',type=int);sub.add_argument('--hours',type=float);sub.add_argument('--requests',type=int,required=True);sub.add_argument('--note',required=True)
         sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int,default=500);sub.add_argument('--strength',type=float,default=0.004)
+        sub.add_argument('--market-manifest',action='append',dest='market_manifests')
     for name in ('bench','holdout'):
         sub=commands.add_parser(name)
         sub.add_argument('--cycles-per-market',type=int,default=bench.CYCLES_PER_MARKET);sub.add_argument('--hours',type=float)
         sub.add_argument('--requests',type=int,required=True);sub.add_argument('--note',required=True)
-        sub.add_argument('--prompts-run');sub.add_argument('--prompts-candidate',type=int)
+        sub.add_argument('--prompts-run');sub.add_argument('--prompts-candidate',type=int);sub.add_argument('--bench-set',default=bench.BENCH_SET)
     apply=commands.add_parser('apply-prompts');apply.add_argument('--run',required=True);apply.add_argument('--candidate',type=int,required=True)
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
@@ -211,9 +227,9 @@ def main(argv=None):
             result=apply_prompts(root,args.run,args.candidate)
         elif args.command in ('bench','holdout'):
             result=run_practice(root,config,cycles=None,hours=args.hours,requests=args.requests,note=args.note,purpose=args.command,
-                                cycles_per_market=args.cycles_per_market,prompts_run=args.prompts_run,prompts_candidate=args.prompts_candidate,models=args.models,model=args.model)
+                                cycles_per_market=args.cycles_per_market,prompts_run=args.prompts_run,prompts_candidate=args.prompts_candidate,models=args.models,model=args.model,bench_set=args.bench_set)
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
-                                  gepa=args.command=='gepa',models=args.models,model=args.model)
+                                  gepa=args.command=='gepa',models=args.models,model=args.model,market_manifests=args.market_manifests)
     except RuntimeRefused as error:
         refused={'refused':error.code}
         if getattr(error,'problems',None): refused['problems']=error.problems

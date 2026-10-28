@@ -22,23 +22,50 @@ PLANTED_KINDS=('momentum','reversal')
 COST=Decimal('0.0005')  # fixed cost for each position change, as a fraction of NAV
 
 
-def synthetic_market(seed,sessions,*,planted=None):
-    """Return rows {session, close, return}. planted: None or {'kind': 'momentum' or 'reversal', 'window': k, 'strength': b}."""
+def synthetic_market(seed,sessions,*,planted=None,regimes=None):
+    """Return rows {session, close, return}, with one optional planted pattern or explicit regimes."""
     if type(seed) is not int or type(sessions) is not int or not MIN_SESSIONS<=sessions<=MAX_SESSIONS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     if planted is not None and (not isinstance(planted,dict) or planted.keys()!={'kind','window','strength'} or planted['kind'] not in PLANTED_KINDS
                                 or type(planted['window']) is not int or not 1<=planted['window']<=20
                                 or type(planted['strength']) not in (int,float) or not 0<=planted['strength']<=0.05):
         raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    if planted is not None and regimes is not None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    if regimes is not None:
+        if not isinstance(regimes,list) or not 1<=len(regimes)<=16: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        previous=-1
+        for regime in regimes:
+            if (not isinstance(regime,dict) or regime.keys()!={'start','kind','window','strength','drift','noise'} or type(regime['start']) is not int
+                    or regime['start']<=previous or (previous==-1 and regime['start']!=0) or regime['kind'] not in PLANTED_KINDS+(None,)
+                    or type(regime['window']) is not int or type(regime['strength']) not in (int,float)
+                    or type(regime['drift']) not in (int,float) or type(regime['noise']) not in (int,float)
+                    or not -0.05<=regime['drift']<=0.05 or not 0<regime['noise']<=0.1):
+                raise RuntimeRefused('ENGINE_MARKET_DENIED')
+            if regime['kind'] is None:
+                if regime['window']!=0 or regime['strength']!=0: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+            elif not 1<=regime['window']<=20 or not 0<=regime['strength']<=0.05: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+            previous=regime['start']
+        if regimes[-1]['start']>=sessions: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     generator=random.Random(seed);close=100.0;returns=[];rows=[]
     for index in range(sessions):
-        noise=generator.gauss(0.0002,0.01)
-        if planted is not None and index>=planted['window']:
-            recent=sum(returns[-planted['window']:])
-            lean=planted['strength']*(1 if recent>0 else -1 if recent<0 else 0)
-            noise+=lean if planted['kind']=='momentum' else -lean
+        if regimes is None:
+            noise=generator.gauss(0.0002,0.01);pattern=planted;start=0
+        else:
+            pattern=regime_at(regimes,index);start=pattern['start'];noise=generator.gauss(pattern['drift'],pattern['noise'])
+        if pattern is not None and pattern['kind'] is not None and index>=start+pattern['window']:
+            recent=sum(returns[-pattern['window']:])
+            lean=pattern['strength']*(1 if recent>0 else -1 if recent<0 else 0)
+            noise+=lean if pattern['kind']=='momentum' else -lean
         value=max(-0.5,min(0.5,noise));returns.append(value);close=close*(1+value)
         rows.append({'session':index,'close':f'{close:.6f}','return':f'{value:.8f}'})
     return rows
+
+
+def regime_at(regimes,index):
+    current=None
+    for regime in regimes:
+        if regime['start']>index: break
+        current=regime
+    return current
 
 
 def market_csv(rows):
