@@ -22,14 +22,33 @@ COMMANDS = (
 
 USAGES = {name: usage for name, usage, _ in COMMANDS}
 DESCRIPTIONS = {name: description for name, _, description in COMMANDS}
+EXAMPLES = {
+    "/help": "/help",
+    "/status": "/status",
+    "/model": "/model kimi",
+    "/models": "/models kimi",
+    "/new": "/new",
+    "/sessions": "/sessions",
+    "/resume": "/resume session-20261028-104110-7382a492",
+    "/test": "/test tests/test_harness_cli.py",
+    "/run": "/run 8 450 2 test current prompts",
+    "/gepa": "/gepa 20 450 2 improve reversal capture",
+    "/bench": "/bench 4 600 2 compare baseline",
+    "/runs": "/runs",
+    "/watch": "/watch",
+    "/stop": "/stop test-20261028-104319-3e2d2a0a",
+    "/clear": "/clear test-20261028-104319-3e2d2a0a",
+    "/report": "/report test-20261028-104319-3e2d2a0a",
+    "/exit": "/exit",
+}
 RUN_ID_COMMANDS = frozenset({"/watch", "/stop", "/clear", "/report"})
 
 
 def help_text():
     lines = ["Commands:"]
     lines.extend(f"  {usage:<38}{DESCRIPTIONS[name]}" for name, usage, _ in COMMANDS)
-    lines.append("Tab completes commands and identifiers. Ctrl+C stops the current model task.")
-    lines.append("The owner starts every engine run.")
+    lines.append("Up/Down selects commands. Tab inserts the selection and completes identifiers.")
+    lines.append("Ctrl+C stops the current model task. The owner starts every engine run.")
     return "\n".join(lines)
 
 
@@ -43,12 +62,12 @@ def common_prefix(values):
     return prefix
 
 
-def matching_commands(text):
+def matching_commands(text, limit=6):
     if not text.startswith("/"):
         return []
     name = text.split(maxsplit=1)[0]
     matches = [usage for command, usage, _ in COMMANDS if command.startswith(name)]
-    return matches[:6]
+    return matches if limit is None else matches[:limit]
 
 
 def _completion(values, prefix, start):

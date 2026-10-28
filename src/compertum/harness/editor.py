@@ -4,7 +4,9 @@ from __future__ import annotations
 import shutil
 import sys
 
-from .commands import DESCRIPTIONS, complete, matching_commands
+from .commands import DESCRIPTIONS, EXAMPLES, complete, matching_commands
+
+VISIBLE_COMMANDS = 4
 
 
 def enable_vt(out):
@@ -35,10 +37,39 @@ class LineEditor:
         self.model_files, self.model_ids = model_files, model_ids
         self.width = width
         self.buffer, self.cursor, self.rendered = "", 0, 0
+        self.menu_text, self.selected, self.menu_offset = None, 0, 0
 
     def _size(self):
         terminal = self.width or shutil.get_terminal_size((100, 24)).columns
         return max(15, terminal - 2)
+
+    def _command_matches(self):
+        if not self.buffer.startswith("/") or any(c.isspace() for c in self.buffer):
+            return []
+        return matching_commands(self.buffer, limit=None)
+
+    def _hints(self, width):
+        if self.buffer != self.menu_text:
+            self.menu_text, self.selected, self.menu_offset = self.buffer, 0, 0
+        matches = self._command_matches()
+        if not matches:
+            return []
+        self.selected = min(self.selected, len(matches) - 1)
+        if self.selected < self.menu_offset:
+            self.menu_offset = self.selected
+        elif self.selected >= self.menu_offset + VISIBLE_COMMANDS:
+            self.menu_offset = self.selected - VISIBLE_COMMANDS + 1
+        self.menu_offset = max(0, min(self.menu_offset, len(matches) - VISIBLE_COMMANDS))
+        start = self.menu_offset
+        end = min(start + VISIBLE_COMMANDS, len(matches))
+        hints = ["  ↑ more"] if start else []
+        for index in range(start, end):
+            hints.append(("› " if index == self.selected else "  ") + matches[index])
+        if end < len(matches):
+            hints.append("  ↓ more")
+        name = matches[self.selected].split(maxsplit=1)[0]
+        hints.extend(["  " + DESCRIPTIONS[name], "  Example: " + EXAMPLES[name]])
+        return [hint[:width] for hint in hints]
 
     def _lines(self):
         width = self._size()
@@ -48,11 +79,7 @@ class LineEditor:
         shown = self.buffer[start:start + inside]
         middle = "│ " + shown + " " * max(0, inside - len(shown)) + " │"
         bottom = "╰" + "─" * max(1, width - 2) + "╯"
-        hints = []
-        for usage in matching_commands(self.buffer):
-            name = usage.split(maxsplit=1)[0]
-            hints.append(("  " + usage + "  " + DESCRIPTIONS[name])[:width])
-        return top, middle, bottom, hints, self.cursor - start + 3
+        return top, middle, bottom, self._hints(width), self.cursor - start + 3
 
     def _render(self):
         top, middle, bottom, hints, column = self._lines()
@@ -75,9 +102,16 @@ class LineEditor:
         return self.buffer
 
     def _complete(self):
-        replacement = complete(self.buffer, self.sessions, self.runs, self.model_files, self.model_ids)
+        matches = self._command_matches()
+        replacement = matches[min(self.selected, len(matches) - 1)] if matches else complete(
+            self.buffer, self.sessions, self.runs, self.model_files, self.model_ids)
         if replacement is not None:
             self.buffer, self.cursor = replacement, len(replacement)
+
+    def _move_menu(self, delta):
+        matches = self._command_matches()
+        if matches:
+            self.selected = (self.selected + delta) % len(matches)
 
     def read(self):
         while True:
@@ -95,6 +129,10 @@ class LineEditor:
                 if self.cursor:
                     self.buffer = self.buffer[:self.cursor - 1] + self.buffer[self.cursor:]
                     self.cursor -= 1
+            elif key in ("\x00H", "\xe0H"):
+                self._move_menu(-1)
+            elif key in ("\x00P", "\xe0P"):
+                self._move_menu(1)
             elif key in ("\x00K", "\xe0K"):
                 self.cursor = max(0, self.cursor - 1)
             elif key in ("\x00M", "\xe0M"):

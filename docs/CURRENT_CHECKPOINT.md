@@ -1,17 +1,19 @@
 # Current Compertum checkpoint
 
-## Harness 0.3.1 model selection and fixed-width composer - 28 October 2026
+## Harness 0.3.2 model selection and interactive composer - 28 October 2026
 
 The owner can change models without restarting the harness. `/model` shows configured model files without a request.
 `/model NAME` selects a file's default. `/model NAME MODEL_ID` selects an exact model. `/model MODEL_ID` uses the active file.
 `/models [NAME]` lists IDs without a completion or selection change. Tab completes model-file names and cached model IDs.
 Selection preserves the conversation and changes future engine-run defaults. Failed selection leaves the active model unchanged.
 The composer width now follows the terminal only. Long input scrolls horizontally without widening the box.
+Up/Down scrolls through four visible commands. The selected command shows a description and example. Tab inserts the selection.
 The change also fixes `/run` practice mapping and removes the invalid `-Cycles` option from `/bench` commands.
 
-The product-environment harness lane passed 41 tests, zero failed and zero skipped. The native lane passed two tests, zero failed and zero skipped.
+The product-environment harness lane passed 46 tests, zero failed and zero skipped. The native lane passed two tests, zero failed and zero skipped.
 One earlier full-lane run had a transient `WinError 10053` in an existing model test. That test passed alone and in the final full lane.
 An independent review found a client-switch test gap and small hardening items. The fixes passed a second review with no blockers.
+A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.
 A scripted master check selected `kimi` and `k3.1-pro` with the same session. It sent no model-list or completion request.
 The owner's physical Windows Terminal check and live Kimi authentication remain unverified.
 

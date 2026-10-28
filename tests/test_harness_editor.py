@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from compertum.harness.commands import complete, help_text
+from compertum.harness.commands import COMMANDS, EXAMPLES, complete, help_text
 from compertum.harness.editor import LineEditor
 
 
@@ -25,7 +25,8 @@ def test_help_comes_from_the_same_command_registry():
     text = help_text()
     assert "/gepa CYCLES REQUESTS HOURS NOTE" in text
     assert "/model [NAME] [MODEL_ID]" in text
-    assert "Tab completes commands and identifiers" in text
+    assert "Up/Down selects commands" in text
+    assert "Tab inserts the selection and completes identifiers" in text
 
 
 def test_model_completion_uses_model_files_and_cached_ids():
@@ -100,3 +101,61 @@ def test_editor_ctrl_c_interrupts_without_a_command():
     editor = LineEditor(StringIO(), get_key=lambda: "\x03", width=60)
     with pytest.raises(KeyboardInterrupt):
         editor.read()
+
+
+def test_command_menu_shows_description_and_example():
+    editor = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
+    editor.buffer = "/gepa"
+    _, _, _, hints, _ = editor._lines()
+    assert "› /gepa CYCLES REQUESTS HOURS NOTE" in hints
+    assert "  start a bounded GEPA run" in hints
+    assert "  Example: /gepa 20 450 2 improve reversal capture" in hints
+
+
+def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
+    output = StringIO()
+    keys = iter(["/", *["\xe0P"] * 4, "\t", "\r"])
+    editor = LineEditor(output, get_key=lambda: next(keys), width=100)
+    assert editor.read() == "/new"
+    rendered = output.getvalue()
+    assert "↑ more" in rendered and "↓ more" in rendered
+    assert "› /new" in rendered
+    assert "Example: /new" in rendered
+
+
+def test_command_examples_cover_every_registered_command():
+    assert set(EXAMPLES) == {command for command, _, _ in COMMANDS}
+    assert all(EXAMPLES.values())
+
+
+def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
+    output = StringIO()
+    keys = iter(["/", "\xe0H", "\t", "\r"])
+    editor = LineEditor(output, get_key=lambda: next(keys), width=100)
+    assert editor.read() == "/exit"
+    menu = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
+    menu.buffer = menu.menu_text = "/"
+    menu.selected = len(menu._command_matches()) - 1
+    _, _, _, hints, _ = menu._lines()
+    visible = [hint for hint in hints if hint.startswith(("› /", "  /"))]
+    assert len(visible) == 4
+    assert visible[-1] == "› /exit"
+    assert "  ↑ more" in hints and "  ↓ more" not in hints
+
+
+def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r", width=80)
+    editor._render()
+    editor.buffer, editor.cursor = "/", 1
+    output.seek(0)
+    output.truncate()
+    editor._render()
+    assert output.getvalue().startswith("\x1b[1A\x1b[J")
+    assert output.getvalue().endswith("\x1b[8A\x1b[4G")
+    editor.buffer, editor.cursor = "/x", 2
+    output.seek(0)
+    output.truncate()
+    editor._render()
+    assert output.getvalue().startswith("\x1b[1A\x1b[J")
+    assert output.getvalue().endswith("\x1b[1A\x1b[5G")
