@@ -1,5 +1,39 @@
 # Current Compertum checkpoint
 
+## Evaluation hardening and minimum harness verification - 27 October 2026
+
+The evaluation hardening work is implemented. Candidate 4 from GEPA run 6 remains unapplied.
+GEPA run 6 stopped because two `gepa-reflect-tool` calls exhausted token caps. It did not hit the research database cap.
+The baseline found one of three patterns with mean level 7.00. Candidate 4 found two of three with mean level 7.20.
+Both runs recorded zero false discoveries. One comparison is insufficient, and candidate 4 had more build and audit failures.
+
+Bench and holdout reports now persist in returned state and durable END rows. `python -m compertum.ai.engine.compare` compares saved reports.
+`bench-2` adds deterministic momentum, reversal, regime-change and noise markets with negative controls. `bench-1` and `holdout-1` are unchanged.
+Real-market manifests rebuild chronological development markets from retained `BarEvidence`. Bench and holdout reject these manifests.
+Real-provider practice and GEPA transcripts default to `training_allowed: false`. Bench and holdout transcripts can never enable training.
+The original Alpaca evidence files were not found. Only retained-format fixtures verify the adapter. No actual Alpaca practice run has occurred.
+
+Post-review targeted lanes passed 186 product-environment tests and 271 engine-environment tests, with zero failures and zero skips.
+The final engine lane also passed 271 tests, zero failed and zero skipped. It reported eight pandas deprecation warnings.
+
+The full top-level product lane recorded 7,225 passed, 14 failed, 18 skipped and 14 errors in 1 hour 30 minutes.
+All 28 failures and errors came from four fixture files that need the approved fixture root. The new harness tests were not in that collection.
+All 12 economic-fixture files then passed in that root: 113 passed, zero failed and zero skipped.
+The distinct main and economic-fixture lanes therefore have 7,338 passed, zero unresolved failures and 18 skips.
+
+The minimum terminal harness is implemented under `src/compertum/harness` and documented in `docs/HARNESS_PLAN.md`.
+Its product-environment unit lane passed 24 tests, zero failed and zero skipped. An independent re-review found no blockers.
+The final native harness lane passed two tests, zero failed and zero skipped. It covered real AppContainer execution and process recovery.
+No live provider conversation or harness-started engine run has occurred.
+The separate Windows lane recorded 209 passed, 126 failed and 5 errors in 29 minutes 32 seconds.
+Many failures share `BOOTSTRAP_DENIED` from the existing 64-worker identity limit. These failures are not harness acceptance results.
+
+The project map was rebuilt with nine pages, 91 function groups and 498 source files. All nine renders were inspected.
+The final PDF has no broken internal links.
+
+Exact next action: commit and push separate evaluation and harness checkpoints with the Windows failures preserved.
+Do not start another GEPA optimization or use the holdout during this work.
+
 ## M3 engineering accepted; engine stages E1 to E7 complete; owner-started Flint practice run next - 24 October 2026
 
 Repair attempt `m3-repair-20261023-02` (release commit `a81c9b4b05d9022f96e01b52a799712c19a6230b`) passed every M3 engineering requirement.

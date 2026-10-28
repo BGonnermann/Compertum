@@ -1,6 +1,28 @@
 # Harness plan: a Compertum variant of Vesper core
 
-Status, 25 October 2026: plan only. The owner said not to start now. No code exists for this plan.
+Status, 27 October 2026: the minimum harness is implemented in `src/compertum/harness`.
+The owner started it after agreeing the minimum target in this session.
+
+The console opens without a model request. It supports local models and owner-listed DeepSeek models through the existing provider checks.
+The four tools are read, write, edit and sandbox run. The model receives no host shell and no run-start tool.
+Hard refusals protect credentials, runtime state, fixed code and rules. YOLO removes prompts, not these boundaries.
+Sessions are append-only under `state/harness/sessions`. Run records and logs stay under `state/harness/runs`.
+A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
+The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
+The `/watch` command returns one uniform run card. The `/report` command adds a bounded log tail.
+The owner can dismiss a terminal or unverifiable record with `/clear RUN_ID`. Dismissal never stops a process or deletes evidence.
+
+Verification: 24 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+The final native lane passed both tests, zero failed and zero skipped. It covered real AppContainer execution and process-identity recovery.
+An earlier LF-only output assertion failed on Windows CRLF. A later dead-process check also corrected the Windows error-channel read.
+The exact DeepSeek console command opened and resumed `session-20261028-052057-dd2947b2`. Those checks sent no provider request.
+An independent review found eight defects. The fixes are applied and regression-tested. The focused re-review found no blockers.
+Long conversations still need `/new` when they reach the model packet limit. The harness records a clean refusal instead of losing the session.
+
+Remaining limits: no live provider conversation has occurred. No live engine run has started from this console.
+Process deadlines re-arm after recovery, but a closed console cannot enforce a test-process deadline. Engine cycle, request and hour limits still apply.
+The model has no ledger-reading tools yet. `/watch` does not yet show engine cycle, request, step or free-memory fields.
+The minimum does not include `/load`, `/unload`, `/apply-prompts` or automatic failure grouping.
 
 ## Owner direction, 25 October 2026
 
@@ -43,46 +65,34 @@ The two fit together if the barrier is a box, not a prompt.
 - **Why not a plain bash tool.** `AGENTS.md` says AI-written code runs only in the section 19 sandbox.
   A bash tool on the host would break that rule. A run tool in the sandbox keeps it.
 - **Owner commands.** The owner types `/run`, `/stop` and the other commands. Those are the owner acting, not the model.
-- **Reading results.** The sandbox cannot see the ledger. So the model gets a few fixed read-only tools for results.
-  They list runs, read a summary and read a bounded part of the ledger. They cannot write.
+- **Reading results.** The owner uses `/runs`, `/watch` and `/report` for bounded results.
+  The model has no ledger-reading tools in the minimum. Fixed read-only tools can come later.
 - **New tools.** A new tool is a small file. The developer adds it by a commit, with a test.
   A tool written by the model is code that runs on the host, so it is reviewed before it loads.
 
 One rule stays as it is until the owner changes it: `AGENTS.md` says the owner starts each run.
 So the model cannot start a run by itself. See "Decisions".
 
-## Stages
+## Original stages and current scope
 
-Each stage is small, has tests and one review, and needs the owner's OK before the next.
+The minimum implements the console and the four tools from stages 1 and 2.
+It keeps `tools\practice.ps1` underneath. It does not replace that wrapper.
+The existing engine preflight check protects every owner-started engine run.
 
-1. **The variant, no model needed.** One command opens the console. The model, the memory check and the runs start from slash commands:
-   `/status`, `/models`, `/load`, `/unload`, `/run`, `/gepa`, `/watch`, `/stop`, `/report`, `/apply-prompts`.
-   This replaces `tools\practice.ps1` and the separate PowerShell commands.
-   `/watch` is required (owner request, 25 October 2026). It shows one progress line: cycle n of N, requests used of the limit, elapsed time, the current step and the free memory.
-   Under it, each model call shows a clock time, the role, the seconds, the prompt and completion tokens, the tokens per second and the tool called.
-   The ledger stores no clock time for a model call today, so stage 1 adds one.
-   `/watch` also flags a completion near the 2048 request limit, because a cut-off reply fails.
-   Add a **preflight check**: before a run, build each role task from fixture data and refuse if it holds an unfilled placeholder, an empty section or missing content.
-   This would have caught the missing specification of 24 October 2026.
-2. **The four tools.** Read, write, edit and sandbox run, plus the read-only result tools. The model can then work and answer questions about runs.
-   `/report` groups failures by class, such as repeated reads, no run, or a missing signal file.
-   Limit: the model server has one prediction slot. The model answers between runs, or from the ledger alone while a run is active.
-3. **Wider GEPA surface.** Move the editable text into versioned files: the Engineer's starter program, the task wording, the tool descriptions.
-   `/improve` runs GEPA over only those files. It writes candidates. The owner applies one with `/apply`.
-4. **Real data.** Connect the Validator to real historical bars from the existing read-only Alpaca access. This is a separate engine stage.
-   It waits until runs on the synthetic market show that the engine works end to end.
+Later work can add richer engine fields to `/watch` and fixed read-only ledger tools.
+Later work can also group failures by class and add model-loading commands.
+The wider GEPA surface and owner-applied text candidates remain separate stages.
+Real-market manifests now exist from separate evaluation work. Retained-format fixtures verify their adapter.
+The original Alpaca evidence files were not found. No actual Alpaca practice run has occurred.
 
 ## What this plan does not build
 
-- No plugins, skills, providers or API models. Loopback models only. New spending stays $0.
-- No Deep Agents inside the console. The console uses the 138-line Vesper loop. Deep Agents stays in the engine for the Engineer role.
-- No GEPA over harness code. GEPA improves text only. Code changes stay with the developer, with tests and a review.
+- No plugins, skills or unlisted providers. Local models and owner-listed DeepSeek providers are supported.
+- No Deep Agents inside the console. Deep Agents stays in the engine for the Engineer role.
+- No automatic GEPA changes to harness code. Code changes need tests and review.
 - No background service and no schedule.
 
 ## Decisions
 
-1. Should the model be able to start runs by itself? The simple answer today is no: the owner types `/run`.
-   If the owner says yes later, `AGENTS.md` must change first. Then the owner sets the limits in advance, such as at most 8 cycles and 400 requests.
-2. Order of work: the harness first, real data after practice runs 11 and 12 show a working Engineer.
-   This is the developer's recommendation. The owner can reverse it.
-3. The console command is called `compertum`, unless the owner names another.
+1. The model cannot start runs by itself. The owner types each run command.
+2. The minimum starts with `python -m compertum.harness`. The existing `compertum` product CLI is unchanged.
