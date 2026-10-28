@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## Harness 0.3 model selection - 28 October 2026
+
+The owner can change models without restarting the harness. `/model` shows configured model files without a request.
+`/model NAME` selects a file's default. `/model NAME MODEL_ID` selects an exact model. `/model MODEL_ID` uses the active file.
+`/models [NAME]` lists IDs without a completion or selection change. Tab completes model-file names and cached model IDs.
+Selection preserves the conversation and changes future engine-run defaults. Failed selection leaves the active model unchanged.
+The change also fixes `/run` practice mapping and removes the invalid `-Cycles` option from `/bench` commands.
+
+The product-environment harness lane passed 40 tests, zero failed and zero skipped. The native lane passed two tests, zero failed and zero skipped.
+One earlier full-lane run had a transient `WinError 10053` in an existing model test. That test passed alone and in the final full lane.
+An independent review found a client-switch test gap and small hardening items. The fixes passed a second review with no blockers.
+A scripted master check selected `kimi` and `k3.1-pro` with the same session. It sent no model-list or completion request.
+The owner's physical Windows Terminal check and live Kimi authentication remain unverified.
+
+Exact next action: the owner starts `compertum-harness`, types `/model kimi`, and checks `/status`.
+The owner can then use `/models kimi` after setting `KIMI_API_KEY`. No GEPA, benchmark, holdout or provider run occurred during this work.
+
 ## Kimi K3.1 Pro provider configuration - 28 October 2026
 
 The owner authorized Kimi Code as a remote provider. `config/providers.toml` names the overseas coding endpoint and `KIMI_API_KEY`.

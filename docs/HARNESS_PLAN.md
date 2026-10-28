@@ -1,21 +1,30 @@
 # Harness plan: a Compertum variant of Vesper core
 
-Status, 27 October 2026: the minimum harness is implemented in `src/compertum/harness`.
+Status, 28 October 2026: the minimum harness is implemented in `src/compertum/harness`.
 The owner started it after agreeing the minimum target in this session.
 
-The console opens without a model request. It supports local models and owner-listed DeepSeek models through the existing provider checks.
+The console opens without a model request. It supports local models and owner-listed providers through the existing provider checks.
 The four tools are read, write, edit and sandbox run. The model receives no host shell and no run-start tool.
 Hard refusals protect credentials, runtime state, fixed code and rules. YOLO removes prompts, not these boundaries.
 Sessions are append-only under `state/harness/sessions`. Run records and logs stay under `state/harness/runs`.
 A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
 The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
-The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes session or run identifiers.
+The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes identifiers.
 The editor supports backspace, delete, arrows, Home and End. Scripted input keeps the original plain prompt.
 The `/watch` command returns one uniform run card. The `/report` command adds a bounded log tail.
 The owner can dismiss a terminal or unverifiable record with `/clear RUN_ID`. Dismissal never stops a process or deletes evidence.
 
-Verification: 34 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
-The final native lane passed both tests, zero failed and zero skipped. It covered real AppContainer execution and process-identity recovery.
+Harness 0.3 adds model selection without a restart. `/model` shows the selection and configured model files without a request.
+`/model NAME` selects a model file's default. `/model NAME MODEL_ID` selects an exact model. `/model MODEL_ID` uses the active model file.
+A NAME that matches a model file takes precedence. Use the three-part form to select an identical model ID explicitly.
+`/models` lists IDs from the active endpoint. `/models NAME` lists another endpoint without changing the selection. Neither sends a completion.
+Selection preserves the conversation and changes future engine-run defaults. A failed selection leaves the active model unchanged.
+Tab completes model-file names and IDs cached by `/models`. Tab itself sends no request.
+The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
+
+Verification: 40 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+The native lane passed both tests, zero failed and zero skipped. It covered real AppContainer execution and process-identity recovery.
+An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate interactive-code review found cursor and key-code defects. The fixes passed review with no blockers.
 The owner's real interactive Windows Terminal check remains pending. Unit streams cannot emulate a physical console cursor.
 Interactive mode enables terminal escape processing for the console session. It uses the plain prompt when that mode is unavailable.

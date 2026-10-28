@@ -24,7 +24,25 @@ def test_identifier_completion_uses_session_and_run_ids():
 def test_help_comes_from_the_same_command_registry():
     text = help_text()
     assert "/gepa CYCLES REQUESTS HOURS NOTE" in text
+    assert "/model [NAME] [MODEL_ID]" in text
     assert "Tab completes commands and identifiers" in text
+
+
+def test_model_completion_uses_model_files_and_cached_ids():
+    files = lambda: ["deepseek", "kimi", "local"]
+    ids = lambda name: ["k3", "k3.1-pro"] if name == "kimi" else []
+    assert complete("/model ki") is None
+    assert complete("/model ki", model_files=files, model_ids=ids) == "/model kimi"
+    assert complete("/models de", model_files=files, model_ids=ids) == "/models deepseek"
+    assert complete("/model kimi k3", model_files=files, model_ids=ids) is None
+    assert complete("/model kimi k3.", model_files=files, model_ids=ids) == "/model kimi k3.1-pro"
+    assert complete("/models kimi ", model_files=files, model_ids=ids) is None
+
+
+def test_editor_passes_model_completion_sources():
+    keys = iter([*"/model ki", "\t", "\r"])
+    editor = LineEditor(StringIO(), get_key=lambda: next(keys), width=80, model_files=lambda: ["kimi"])
+    assert editor.read() == "/model kimi"
 
 
 def test_editor_completes_and_draws_the_box_and_hint():

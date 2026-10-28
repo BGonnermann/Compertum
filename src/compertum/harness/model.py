@@ -66,7 +66,8 @@ class ModelClient:
             data = value.get("data") if isinstance(value, dict) else None
             if not isinstance(data, list):
                 raise ModelError("the model server returned an invalid model list")
-            return sorted({m["id"] for m in data if isinstance(m, dict) and isinstance(m.get("id"), str)})
+            return sorted({m["id"] for m in data if isinstance(m, dict) and isinstance(m.get("id"), str)
+                           and 1 <= len(m["id"]) <= 256})
         except (OSError, ValueError, AttributeError, http.client.HTTPException) as exc:
             raise ModelError(f"cannot reach the model server: {exc}") from None
         finally:

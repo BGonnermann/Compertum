@@ -3,7 +3,8 @@
 COMMANDS = (
     ("/help", "/help", "show commands"),
     ("/status", "/status", "show model, session, and run state"),
-    ("/models", "/models", "list models without a completion"),
+    ("/model", "/model [NAME] [MODEL_ID]", "select a model without restarting"),
+    ("/models", "/models [NAME]", "list models without a completion"),
     ("/new", "/new", "start a new conversation"),
     ("/sessions", "/sessions", "list saved conversations"),
     ("/resume", "/resume SESSION_ID", "resume a conversation"),
@@ -50,19 +51,30 @@ def matching_commands(text):
     return matches[:6]
 
 
-def complete(text, sessions=(), runs=()):
+def _completion(values, prefix, start):
+    matches = [value for value in sorted(values) if value.startswith(prefix)]
+    shared = common_prefix(matches)
+    return start + shared if shared and len(shared) > len(prefix) else None
+
+
+def complete(text, sessions=(), runs=(), model_files=(), model_ids=None):
     if not isinstance(text, str) or not text.startswith("/"):
         return None
     parts = text.split(maxsplit=1)
     command = parts[0]
     if len(parts) == 2 and (command == "/resume" or command in RUN_ID_COMMANDS):
-        values = sorted(sessions() if command == "/resume" else runs())
-        prefix = parts[1]
-        matches = [value for value in values if value.startswith(prefix)]
-        shared = common_prefix(matches)
-        if shared and len(shared) > len(prefix):
-            return f"{command} {shared}"
-        return None
+        values = sessions() if command == "/resume" else runs()
+        return _completion(values, parts[1], f"{command} ")
+    if len(parts) == 2 and command in ("/model", "/models"):
+        argument = parts[1]
+        if command == "/models" or " " not in argument:
+            if command == "/models" and " " in argument:
+                return None
+            values = model_files() if callable(model_files) else model_files
+            return _completion(values, argument, f"{command} ")
+        name, _, prefix = argument.partition(" ")
+        values = model_ids(name) if model_ids else ()
+        return _completion(values, prefix, f"{command} {name} ")
     if len(parts) != 1:
         return None
     if command in USAGES:

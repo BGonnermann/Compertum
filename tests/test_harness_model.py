@@ -19,7 +19,7 @@ def server_for(handler):
 def test_streamed_reply_and_model_list(tmp_path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            raw = b'{"data":[{"id":"scripted"}]}'
+            raw = json.dumps({"data": [{"id": "scripted"}, {"id": ""}, {"id": "x" * 257}]}).encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(raw)))
             self.end_headers()

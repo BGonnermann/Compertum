@@ -29,9 +29,10 @@ def windows_key():
 
 
 class LineEditor:
-    def __init__(self, out=None, sessions=(), runs=(), get_key=windows_key, width=None):
+    def __init__(self, out=None, sessions=(), runs=(), get_key=windows_key, width=None, model_files=(), model_ids=None):
         self.out = out or sys.stdout
         self.sessions, self.runs, self.get_key = sessions, runs, get_key
+        self.model_files, self.model_ids = model_files, model_ids
         self.width = width
         self.buffer, self.cursor, self.rendered = "", 0, 0
 
@@ -74,7 +75,7 @@ class LineEditor:
         return self.buffer
 
     def _complete(self):
-        replacement = complete(self.buffer, self.sessions, self.runs)
+        replacement = complete(self.buffer, self.sessions, self.runs, self.model_files, self.model_ids)
         if replacement is not None:
             self.buffer, self.cursor = replacement, len(replacement)
 

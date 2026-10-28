@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from compertum.ai.engine.practice import chosen_roles
+from compertum.ai.engine.practice import MODEL_NAME, chosen_roles
 from compertum.ai.models import RoleModel, auth_headers, checked_spec
 
 
@@ -32,3 +32,14 @@ def load(root: Path, workspace: Path, models: str, model: str | None, max_steps:
     if not checked_spec(spec):
         raise ValueError("the model configuration is not valid")
     return Settings(root, workspace, spec, models, max_steps, max_minutes * 60)
+
+
+def model_files(root: Path) -> tuple[str, ...]:
+    names = {"local"}
+    for path in sorted((root / "config").glob("models-*.toml")):
+        name = path.stem.removeprefix("models-")
+        if MODEL_NAME.fullmatch(name):
+            names.add(name)
+        if len(names) > 32:
+            raise ValueError("too many model files")
+    return tuple(sorted(names))

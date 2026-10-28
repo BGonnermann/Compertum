@@ -36,6 +36,11 @@ def test_owner_started_test_run_has_a_uniform_card_and_stops(tmp_path):
     assert second["status"] == "RUNNING"
     assert "-Mode" in commands[1] and "gepa" in commands[1]
     assert "-Cycles" in commands[1] and "2" in commands[1]
+    processes[-1].code = 0
+    third = manager.start("bench", cycles=3, requests=100, hours=1, note="fake owner bench")
+    assert third["status"] == "RUNNING"
+    assert "-Cycles" not in commands[2]
+    assert "-CyclesPerMarket" in commands[2] and "3" in commands[2]
 
 
 def test_run_recovers_the_original_process_after_a_console_restart(tmp_path):

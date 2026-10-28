@@ -11,7 +11,7 @@ from compertum.runtime.errors import RuntimeRefused
 from . import __version__
 from .agent import Agent, Limits
 from .commands import help_text
-from .config import load
+from .config import load, model_files
 from .display import Display
 from .editor import LineEditor, enable_vt
 from .endpoint import parse
@@ -22,6 +22,9 @@ from .tools import WorkspaceTools
 
 class LazyClient:
     def __init__(self, settings):
+        self.settings = settings
+
+    def select(self, settings):
         self.settings = settings
 
     def make(self):
@@ -72,11 +75,34 @@ def main(argv=None, display=None, input_fn=None):
     except (OSError, ValueError, RuntimeRefused, SessionError) as exc:
         output.error(getattr(exc, "code", str(exc)))
         return 2
+    catalog = {settings.models: [settings.model.model]}
+
+    def select(models, model=None):
+        nonlocal settings
+        if models not in model_files(root):
+            raise ValueError("unknown model file; /model shows the choices")
+        updated = load(root, settings.workspace, models, model, settings.max_steps, settings.max_seconds / 60)
+        agent.client.select(updated)
+        runs.select(updated.models, updated.model.model)
+        settings = updated
+        catalog[updated.models] = sorted({*catalog.get(updated.models, ()), updated.model.model})
+        return updated
+
+    def listed_models(models):
+        if models not in model_files(root):
+            raise ValueError("unknown model file; /model shows the choices")
+        listed = settings if models == settings.models else load(root, settings.workspace, models, None,
+                                                                settings.max_steps, settings.max_seconds / 60)
+        catalog[models] = LazyClient(listed).list_models()
+        return catalog[models]
+
     output.banner(__version__, [("model", settings.model.model), ("workspace", str(settings.workspace)),
                                 ("session", session.identity), ("mode", "YOLO; fixed boundaries still apply")])
     if input_fn is None:
         if sys.stdin.isatty() and output.out.isatty() and enable_vt(output.out):
-            input_fn = lambda prompt: LineEditor(output.out, sessions.list, runs.active).read()
+            input_fn = lambda prompt: LineEditor(output.out, sessions.list, runs.active,
+                                                 model_files=lambda: model_files(root),
+                                                 model_ids=lambda name: catalog.get(name, ())).read()
         else:
             input_fn = input
     while True:
@@ -95,9 +121,28 @@ def main(argv=None, display=None, input_fn=None):
             if text == "/help":
                 output.line(help_text())
             elif text == "/status":
-                output.json({"model": settings.model.model, "session": session.identity, "runs": runs.cards()})
-            elif text == "/models":
-                output.json({"models": agent.client.list_models(), "completion_sent": False})
+                output.json({"model": settings.model.model, "model_file": settings.models,
+                             "session": session.identity, "runs": runs.cards()})
+            elif text == "/model" or text.startswith("/model "):
+                parts = _arguments(text)
+                if len(parts) == 1:
+                    output.json({"model": settings.model.model, "model_file": settings.models,
+                                 "model_files": model_files(root), "usage": "/model [NAME] [MODEL_ID]"})
+                elif len(parts) == 2:
+                    name = parts[1]
+                    updated = select(name) if name in model_files(root) else select(settings.models, name)
+                    output.json({"model": updated.model.model, "model_file": updated.models, "session": session.identity})
+                elif len(parts) == 3:
+                    updated = select(parts[1], parts[2])
+                    output.json({"model": updated.model.model, "model_file": updated.models, "session": session.identity})
+                else:
+                    raise ValueError("use /model [NAME] [MODEL_ID]")
+            elif text == "/models" or text.startswith("/models "):
+                parts = _arguments(text)
+                if len(parts) > 2:
+                    raise ValueError("use /models [NAME]")
+                name = settings.models if len(parts) == 1 else parts[1]
+                output.json({"models": listed_models(name), "model_file": name, "completion_sent": False})
             elif text == "/new":
                 session = sessions.create()
                 agent = Agent(LazyClient(settings), WorkspaceTools(root, settings.workspace, busy=runs.busy),
@@ -131,7 +176,7 @@ def main(argv=None, display=None, input_fn=None):
                 output.json(runs.start("test", paths=_arguments(text)[1:]))
             elif text in ("/run", "/gepa", "/bench") or text.startswith(("/run ", "/gepa ", "/bench ")):
                 parts = _arguments(text)
-                kind = parts[0][1:]
+                kind = "practice" if parts[0] == "/run" else parts[0][1:]
                 output.json(runs.start(kind, **_run_args(parts)))
             elif text.startswith("/"):
                 output.error("unknown command; /help shows the commands")

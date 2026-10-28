@@ -111,6 +111,9 @@ class RunManager:
         self.adopt = adopt or (lambda meta: OwnedProcess(meta["pid"], meta.get("created")))
         self._recover()
 
+    def select(self, models, model):
+        self.models, self.model = models, model
+
     def _recover(self):
         if not self.folder.is_dir():
             return
@@ -179,11 +182,10 @@ class RunManager:
         elif kind in ("practice", "gepa", "bench"):
             mode = "run" if kind == "practice" else kind
             command = ["powershell.exe", "-NoProfile", "-File", str(self.root / "tools" / "practice.ps1"),
-                       "-Models", self.models, "-Mode", mode, "-Cycles", str(cycles), "-Requests", str(requests), "-Note", note]
+                       "-Models", self.models, "-Mode", mode, "-Requests", str(requests), "-Note", note]
+            command.extend(["-CyclesPerMarket" if kind == "bench" else "-Cycles", str(cycles)])
             if self.model:
                 command.extend(["-Model", self.model])
-            if kind == "bench":
-                command.extend(["-CyclesPerMarket", str(cycles)])
             if hours is None or not 0.01 <= hours <= 24:
                 raise RunError("an hour limit from 0.01 to 24 is required")
             command.extend(["-Hours", str(hours)])
