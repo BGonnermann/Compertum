@@ -38,7 +38,7 @@ class LineEditor:
 
     def _size(self):
         terminal = self.width or shutil.get_terminal_size((100, 24)).columns
-        return max(40, min(terminal - 2, max(60, len(self.buffer) + 8)))
+        return max(15, terminal - 2)
 
     def _lines(self):
         width = self._size()

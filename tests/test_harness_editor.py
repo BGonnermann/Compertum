@@ -75,6 +75,21 @@ def test_redraw_returns_to_the_input_row_and_borders_align():
     assert len(top) == len(middle) == len(bottom) == 58
 
 
+def test_composer_width_follows_terminal_and_long_input_scrolls():
+    editor = LineEditor(StringIO(), get_key=lambda: "\r", width=80)
+    editor.buffer = "x" * 20
+    assert editor._size() == 78
+    editor.buffer = "x" * 200
+    editor.cursor = len(editor.buffer)
+    assert editor._size() == 78
+    top, middle, bottom, _, column = editor._lines()
+    assert len(top) == len(middle) == len(bottom) == 78
+    assert middle == "│ " + "x" * 73 + "  │"
+    assert column == 76
+    editor.width = 42
+    assert editor._size() == 40
+
+
 def test_editor_ctrl_z_reaches_eof():
     editor = LineEditor(StringIO(), get_key=lambda: "\x1a", width=60)
     with pytest.raises(EOFError):
