@@ -36,3 +36,27 @@ def test_console_can_resume_a_saved_session_without_a_model(tmp_path):
                   input_fn=lambda _: "/exit")
     assert result == 0
     assert sessions[0].stem in output.getvalue()
+
+
+def test_watch_without_runs_has_a_clear_message(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    answers = iter(["/watch", "/exit"])
+    output = StringIO()
+    result = main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(answers))
+    assert result == 0
+    assert "No runs yet." in output.getvalue()
+    assert "Error:" not in output.getvalue()
+
+
+def test_watch_prefix_and_bare_run_command_have_correct_errors(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    answers = iter(["/watchdog", "/gepa", "/exit"])
+    output = StringIO()
+    result = main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(answers))
+    assert result == 0
+    text = output.getvalue()
+    assert "unknown command" in text
+    assert "use CYCLES REQUESTS HOURS NOTE" in text
+    assert '"status": "RUNNING"' not in text

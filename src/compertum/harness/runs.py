@@ -162,7 +162,8 @@ class RunManager:
         temp = self.root / ".cache" / "test-runs" / identity
         if kind == "test":
             paths = paths or ["tests/test_harness_agent.py", "tests/test_harness_model.py", "tests/test_harness_tools.py",
-                              "tests/test_harness_sessions.py", "tests/test_harness_runs.py", "tests/test_harness_cli.py"]
+                              "tests/test_harness_sessions.py", "tests/test_harness_runs.py", "tests/test_harness_cli.py",
+                              "tests/test_harness_editor.py"]
             if not isinstance(paths, list) or len(paths) > 16 or any(not isinstance(p, str) or p.startswith("-") or ".." in Path(p).parts for p in paths):
                 raise RunError("the test paths are not valid")
             checked = []

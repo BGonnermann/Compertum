@@ -1,5 +1,20 @@
 # Current Compertum checkpoint
 
+## Harness 0.2 interactive composer and live smoke - 27 October 2026
+
+The global `compertum-harness` command opens master from any folder with DeepSeek flash. The product `compertum` CLI is unchanged.
+The interactive composer draws a box and shows matching slash commands. Tab inserts editable run templates and completes session or run identifiers.
+The editor supports backspace, delete, arrows, Home, End and Ctrl+Z. Scripted input keeps the plain prompt.
+The owner completed a live DeepSeek task. It read `config/gepa_goal.md`, wrote `harness_smoke.py` and ran it in the sandbox with exit code 0.
+The owner-started `/test` command also completed with 24 passed and a `COMPLETED` run card.
+
+The final UX unit lane passed 34 tests, zero failed and zero skipped. The native lane passed two tests, zero failed and zero skipped.
+An independent review found cursor-row, key-code and command-matching defects. The fixes passed a second review with no blockers.
+The owner's real interactive Windows Terminal check remains pending. Unit streams cannot emulate a physical console cursor.
+
+Exact next action: the owner checks the box and Tab completion interactively. Publish the verified UX checkpoint with that limitation recorded.
+No new GEPA optimization or holdout run occurred.
+
 ## Evaluation hardening and minimum harness verification - 27 October 2026
 
 The evaluation hardening work is implemented. Candidate 4 from GEPA run 6 remains unapplied.

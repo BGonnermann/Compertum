@@ -1,0 +1,76 @@
+"""Slash-command usage and help in one place."""
+
+COMMANDS = (
+    ("/help", "/help", "show commands"),
+    ("/status", "/status", "show model, session, and run state"),
+    ("/models", "/models", "list models without a completion"),
+    ("/new", "/new", "start a new conversation"),
+    ("/sessions", "/sessions", "list saved conversations"),
+    ("/resume", "/resume SESSION_ID", "resume a conversation"),
+    ("/test", "/test [TEST_PATH ...]", "run bounded product tests"),
+    ("/run", "/run CYCLES REQUESTS HOURS NOTE", "start a bounded practice run"),
+    ("/gepa", "/gepa CYCLES REQUESTS HOURS NOTE", "start a bounded GEPA run"),
+    ("/bench", "/bench CYCLES REQUESTS HOURS NOTE", "start a bounded bench run"),
+    ("/runs", "/runs", "show uniform run cards"),
+    ("/watch", "/watch [RUN_ID]", "show the latest run card"),
+    ("/stop", "/stop RUN_ID", "stop a run you started"),
+    ("/clear", "/clear RUN_ID", "dismiss a terminal or unverifiable run"),
+    ("/report", "/report RUN_ID", "show a run card and bounded log tail"),
+    ("/exit", "/exit", "quit"),
+)
+
+USAGES = {name: usage for name, usage, _ in COMMANDS}
+DESCRIPTIONS = {name: description for name, _, description in COMMANDS}
+RUN_ID_COMMANDS = frozenset({"/watch", "/stop", "/clear", "/report"})
+
+
+def help_text():
+    lines = ["Commands:"]
+    lines.extend(f"  {usage:<38}{DESCRIPTIONS[name]}" for name, usage, _ in COMMANDS)
+    lines.append("Tab completes commands and identifiers. Ctrl+C stops the current model task.")
+    lines.append("The owner starts every engine run.")
+    return "\n".join(lines)
+
+
+def common_prefix(values):
+    if not values:
+        return ""
+    prefix = values[0]
+    for value in values[1:]:
+        while not value.startswith(prefix):
+            prefix = prefix[:-1]
+    return prefix
+
+
+def matching_commands(text):
+    if not text.startswith("/"):
+        return []
+    name = text.split(maxsplit=1)[0]
+    matches = [usage for command, usage, _ in COMMANDS if command.startswith(name)]
+    return matches[:6]
+
+
+def complete(text, sessions=(), runs=()):
+    if not isinstance(text, str) or not text.startswith("/"):
+        return None
+    parts = text.split(maxsplit=1)
+    command = parts[0]
+    if len(parts) == 2 and (command == "/resume" or command in RUN_ID_COMMANDS):
+        values = sorted(sessions() if command == "/resume" else runs())
+        prefix = parts[1]
+        matches = [value for value in values if value.startswith(prefix)]
+        shared = common_prefix(matches)
+        if shared and len(shared) > len(prefix):
+            return f"{command} {shared}"
+        return None
+    if len(parts) != 1:
+        return None
+    if command in USAGES:
+        return USAGES[command]
+    matches = [name for name, _, _ in COMMANDS if name.startswith(command)]
+    if len(matches) == 1:
+        return USAGES[matches[0]]
+    shared = common_prefix(matches)
+    if shared and len(shared) > len(command):
+        return shared
+    return None

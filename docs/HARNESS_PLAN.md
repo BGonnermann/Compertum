@@ -9,17 +9,24 @@ Hard refusals protect credentials, runtime state, fixed code and rules. YOLO rem
 Sessions are append-only under `state/harness/sessions`. Run records and logs stay under `state/harness/runs`.
 A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
 The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
+The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes session or run identifiers.
+The editor supports backspace, delete, arrows, Home and End. Scripted input keeps the original plain prompt.
 The `/watch` command returns one uniform run card. The `/report` command adds a bounded log tail.
 The owner can dismiss a terminal or unverifiable record with `/clear RUN_ID`. Dismissal never stops a process or deletes evidence.
 
-Verification: 24 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+Verification: 34 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
 The final native lane passed both tests, zero failed and zero skipped. It covered real AppContainer execution and process-identity recovery.
+A separate interactive-code review found cursor and key-code defects. The fixes passed review with no blockers.
+The owner's real interactive Windows Terminal check remains pending. Unit streams cannot emulate a physical console cursor.
+Interactive mode enables terminal escape processing for the console session. It uses the plain prompt when that mode is unavailable.
 An earlier LF-only output assertion failed on Windows CRLF. A later dead-process check also corrected the Windows error-channel read.
 The exact DeepSeek console command opened and resumed `session-20261028-052057-dd2947b2`. Those checks sent no provider request.
+The owner then completed a live DeepSeek smoke task. It read the goal, wrote `harness_smoke.py` and completed the sandbox run with exit code 0.
+The owner-started `/test` command completed with 24 passed. Its run card showed `COMPLETED` and exit code 0.
 An independent review found eight defects. The fixes are applied and regression-tested. The focused re-review found no blockers.
 Long conversations still need `/new` when they reach the model packet limit. The harness records a clean refusal instead of losing the session.
 
-Remaining limits: no live provider conversation has occurred. No live engine run has started from this console.
+Remaining limits: no live engine run has started from this console.
 Process deadlines re-arm after recovery, but a closed console cannot enforce a test-process deadline. Engine cycle, request and hour limits still apply.
 The model has no ledger-reading tools yet. `/watch` does not yet show engine cycle, request, step or free-memory fields.
 The minimum does not include `/load`, `/unload`, `/apply-prompts` or automatic failure grouping.

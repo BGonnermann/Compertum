@@ -3,38 +3,22 @@ from __future__ import annotations
 
 import argparse
 import shlex
+import sys
 from pathlib import Path
 
 from compertum.runtime.errors import RuntimeRefused
 
 from . import __version__
 from .agent import Agent, Limits
+from .commands import help_text
 from .config import load
 from .display import Display
+from .editor import LineEditor, enable_vt
 from .endpoint import parse
 from .model import ModelClient, ModelError
 from .runs import RunError, RunManager
 from .sessions import SessionError, SessionStore
 from .tools import WorkspaceTools
-
-HELP = """Commands:
-  /status                         show model, session, and run state
-  /models                         list models; sends no completion
-  /new                            start a new conversation
-  /sessions                       list saved conversations
-  /resume SESSION_ID              resume a conversation
-  /test [TEST_PATH ...]           run bounded product tests
-  /run CYCLES REQUESTS HOURS NOTE  start a bounded practice run
-  /gepa CYCLES REQUESTS HOURS NOTE start a bounded GEPA run
-  /bench CYCLES REQUESTS HOURS NOTE start a bounded bench run
-  /runs                           show uniform run cards
-  /watch [RUN_ID]                 show the latest run card
-  /stop RUN_ID                    stop a run you started
-  /clear RUN_ID                   dismiss a terminal or unverifiable run record
-  /report RUN_ID                  show a run card and bounded log tail
-  /exit                           quit
-Ctrl+C stops the current model task. The owner starts every engine run."""
-
 
 class LazyClient:
     def __init__(self, settings):
@@ -65,7 +49,7 @@ def _run_args(parts):
     return {"cycles": int(parts[1]), "requests": int(parts[2]), "hours": float(parts[3]), "note": " ".join(parts[4:])}
 
 
-def main(argv=None, display=None, input_fn=input):
+def main(argv=None, display=None, input_fn=None):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)
@@ -90,6 +74,11 @@ def main(argv=None, display=None, input_fn=input):
         return 2
     output.banner(__version__, [("model", settings.model.model), ("workspace", str(settings.workspace)),
                                 ("session", session.identity), ("mode", "YOLO; fixed boundaries still apply")])
+    if input_fn is None:
+        if sys.stdin.isatty() and output.out.isatty() and enable_vt(output.out):
+            input_fn = lambda prompt: LineEditor(output.out, sessions.list, runs.active).read()
+        else:
+            input_fn = input
     while True:
         try:
             text = input_fn("\ncompertum> ").strip()
@@ -104,7 +93,7 @@ def main(argv=None, display=None, input_fn=input):
             break
         try:
             if text == "/help":
-                output.line(HELP)
+                output.line(help_text())
             elif text == "/status":
                 output.json({"model": settings.model.model, "session": session.identity, "runs": runs.cards()})
             elif text == "/models":
@@ -125,10 +114,13 @@ def main(argv=None, display=None, input_fn=input):
                 output.note(f"Resumed {session.identity}.")
             elif text == "/runs":
                 output.json({"runs": runs.cards()})
-            elif text.startswith("/watch"):
+            elif text == "/watch" or text.startswith("/watch "):
                 parts = _arguments(text)
-                identity = parts[1] if len(parts) > 1 else next(reversed(runs.active))
-                output.json(runs.card(identity))
+                identity = parts[1] if len(parts) > 1 else next(reversed(runs.active), None)
+                if identity is None:
+                    output.note("No runs yet.")
+                else:
+                    output.json(runs.card(identity))
             elif text.startswith("/stop "):
                 output.json(runs.stop(text.split(maxsplit=1)[1]))
             elif text.startswith("/clear "):
@@ -137,7 +129,7 @@ def main(argv=None, display=None, input_fn=input):
                 output.json(runs.report(text.split(maxsplit=1)[1]))
             elif text == "/test" or text.startswith("/test "):
                 output.json(runs.start("test", paths=_arguments(text)[1:]))
-            elif text.startswith(("/run ", "/gepa ", "/bench ")):
+            elif text in ("/run", "/gepa", "/bench") or text.startswith(("/run ", "/gepa ", "/bench ")):
                 parts = _arguments(text)
                 kind = parts[0][1:]
                 output.json(runs.start(kind, **_run_args(parts)))
