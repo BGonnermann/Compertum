@@ -11,7 +11,8 @@ A new console can recover a live process only when its process number and creati
 The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
 The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes identifiers.
 Up/Down scrolls through four visible commands. The selected command shows a description and a concrete example. Tab inserts the selection.
-The composer width follows the terminal. Long input scrolls horizontally without changing the box width.
+The composer width follows the terminal. It detects resizing and redraws from the frame start without leaving old borders.
+Long input scrolls horizontally without changing the box width. Unchanged frames produce no output during resize polling.
 The editor supports backspace, delete, arrows, Home and End. Scripted input keeps the original plain prompt.
 The `/watch` command returns one uniform run card. The `/report` command adds a bounded log tail.
 The owner can dismiss a terminal or unverifiable record with `/clear RUN_ID`. Dismissal never stops a process or deletes evidence.
@@ -24,7 +25,7 @@ Selection preserves the conversation and changes future engine-run defaults. A f
 Tab completes model-file names and IDs cached by `/models`. Tab itself sends no request.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
-Verification: 46 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+Verification: 48 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
 The native lane passed both tests, zero failed and zero skipped. It covered real AppContainer execution and process-identity recovery.
 An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.

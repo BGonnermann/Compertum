@@ -70,10 +70,40 @@ def test_redraw_returns_to_the_input_row_and_borders_align():
     assert output.getvalue().endswith("\x1b[1A\x1b[3G")
     output.seek(0)
     output.truncate()
+    editor.buffer = "a"
+    editor.cursor = 1
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\x1b[J")
+    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
     top, middle, bottom, _, _ = editor._lines()
     assert len(top) == len(middle) == len(bottom) == 58
+
+
+def test_resize_rewinds_reflowed_lines_and_erases_from_line_start():
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r", width=100)
+    editor._render()
+    output.seek(0)
+    output.truncate()
+    editor.width = 40
+    editor._render()
+    assert output.getvalue().startswith("\x1b[3A\r\x1b[J")
+    top, middle, bottom, _, _ = editor._lines()
+    assert len(top) == len(middle) == len(bottom) == 38
+    output.seek(0)
+    output.truncate()
+    editor.width = 100
+    editor._render()
+    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
+
+
+def test_unchanged_frame_does_not_write_during_resize_polling():
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r", width=60)
+    editor._render()
+    output.seek(0)
+    output.truncate()
+    editor._render()
+    assert output.getvalue() == ""
 
 
 def test_composer_width_follows_terminal_and_long_input_scrolls():
@@ -151,11 +181,11 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     output.seek(0)
     output.truncate()
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\x1b[J")
+    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
     assert output.getvalue().endswith("\x1b[8A\x1b[4G")
     editor.buffer, editor.cursor = "/x", 2
     output.seek(0)
     output.truncate()
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\x1b[J")
+    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
     assert output.getvalue().endswith("\x1b[1A\x1b[5G")

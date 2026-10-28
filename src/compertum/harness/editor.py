@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import sys
+import time
 
 from .commands import DESCRIPTIONS, EXAMPLES, complete, matching_commands
 
@@ -26,6 +27,9 @@ def enable_vt(out):
 
 def windows_key():
     import msvcrt
+    if not msvcrt.kbhit():
+        time.sleep(0.05)
+        return ""
     key = msvcrt.getwch()
     return key + msvcrt.getwch() if key in ("\x00", "\xe0") else key
 
@@ -38,6 +42,7 @@ class LineEditor:
         self.width = width
         self.buffer, self.cursor, self.rendered = "", 0, 0
         self.menu_text, self.selected, self.menu_offset = None, 0, 0
+        self._frame = None
 
     def _size(self):
         terminal = self.width or shutil.get_terminal_size((100, 24)).columns
@@ -82,10 +87,18 @@ class LineEditor:
         return top, middle, bottom, self._hints(width), self.cursor - start + 3
 
     def _render(self):
-        top, middle, bottom, hints, column = self._lines()
+        frame = self._lines()
+        columns = max(1, self.width or shutil.get_terminal_size((100, 24)).columns)
+        if self._frame == (frame, columns):
+            return
+        top, middle, bottom, hints, column = frame
         if self.rendered:
-            self.out.write("\x1b[1A")
-        self.out.write("\x1b[J")
+            previous, _ = self._frame
+            old_top, _, _, _, old_column = previous
+            top_rows = max(1, (len(old_top) + columns - 1) // columns)
+            input_row = (old_column - 1) // columns
+            self.out.write(f"\x1b[{top_rows + input_row}A")
+        self.out.write("\r\x1b[J")
         lines = [top, middle, bottom, *hints]
         self.out.write("\r" + "\n".join(lines))
         if len(lines) > 1:
@@ -93,6 +106,7 @@ class LineEditor:
         self.out.write(f"\x1b[{column}G")
         self.out.flush()
         self.rendered = len(lines)
+        self._frame = frame, columns
 
     def _finish(self):
         if self.rendered > 2:

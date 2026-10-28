@@ -1,5 +1,17 @@
 # Current Compertum checkpoint
 
+## Harness 0.3.3 composer resize repair - 28 October 2026
+
+The owner reported leftover borders after moving Windows Terminal. The composer erased from the cursor column and assumed one row above it.
+It also waited for a key before detecting a new terminal width. These choices left stale content after console reflow.
+
+The composer now polls for input and terminal changes. It finds the previous frame start after reflow and erases from the line start.
+Unchanged frames produce no output. The product-environment harness lane passed 48 tests, zero failed and zero skipped.
+The native AppContainer lane passed two tests, zero failed and zero skipped. No provider or engine run occurred.
+
+Exact next action: the owner restarts `compertum-harness` and resizes Windows Terminal with empty input and an open command menu.
+The physical console result remains unverified until that check. Unit streams cannot emulate Windows Terminal reflow.
+
 ## Harness 0.3.2 model selection and interactive composer - 28 October 2026
 
 The owner can change models without restarting the harness. `/model` shows configured model files without a request.
