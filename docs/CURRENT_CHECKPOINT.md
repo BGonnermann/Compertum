@@ -25,6 +25,8 @@ Verification, source, simulated markets: engine lane, all engine files with `tes
 `test_clean_test_runs.py`: 312 passed, 0 failed, 0 skipped, 8 pandas warnings. Product lane, the same files: 247 passed, 0 failed, 7 skipped.
 The first engine lane failed 1 test (`test_practice_run_as_a_separate_process`, the refusal above); its files are in `.cache/test-runs/calibrated-markets-engine-20261029-171654`.
 
+Committed as `b9b5f05`. The project map was refreshed: 9 pages, 81 internal links with 0 broken; pages 1 and 2 were inspected.
+
 Open:
 - Holdout-1 has 500 sessions, so it is not calibrated. A calibrated holdout set is needed before the next holdout use.
 - Real markets have the same limit: 500 sessions give 150 VALIDATION sessions. That is part of the real-market work.
