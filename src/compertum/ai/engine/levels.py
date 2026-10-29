@@ -1,7 +1,7 @@
 """The ten outcome levels of a candidate (owner decision, 25 October 2026) and the Director's lessons table built from them.
 
-Code sets every level from the Validator's and the Auditor's records; no model judges it. GEPA's score (gepa_run.py) and the
-Director's lessons table (ledger.py) use the same rules, so the two never disagree about what an outcome was.
+Code sets every level from the Validator's and the Auditor's records; no model judges it. The Director's lessons table (ledger.py)
+uses these rules. GEPA's score (gepa_run.py) uses them with a fixed trial count and a cap on markets with no pattern.
 No engine library is imported here: the product environment uses this module.
 """
 from decimal import Decimal,InvalidOperation

@@ -40,6 +40,9 @@ HOLDOUT_USES=5  # the holdout set retires after this many counted uses; only the
 SETS={
     'bench-1':(('momentum',5,101),('momentum',10,102),('reversal',3,103),(None,0,104),(None,0,105)),
     'bench-2':(('regimes',5,106),('regimes',3,107),('regimes',5,108),('regimes',0,109),(None,0,110)),
+    'bench-3':(('momentum',5,111),('momentum',5,112),('reversal',3,113),('reversal',3,114),
+               ('momentum',5,115),('momentum',5,116),('reversal',3,117),('reversal',3,118),('regimes',5,119),('regimes',3,120),
+               (None,0,121),(None,0,122),(None,0,123),('regimes',0,124),('regimes',0,125),('regimes',0,126)),
     'holdout-1':(('momentum',5,901),('momentum',10,902),('reversal',3,903),(None,0,904),(None,0,905)),
 }
 
@@ -53,7 +56,14 @@ REGIME_SETS={
     107:[regime(0,'reversal',3,drift=0.002),regime(250,'reversal',3,drift=-0.002)],
     108:[regime(0,'momentum',5),regime(250,'reversal',3)],
     109:[regime(0,None,0,noise=0.005),regime(150,None,0,noise=0.025),regime(350,None,0,drift=-0.001,noise=0.008)],
+    119:[regime(0,'momentum',5),regime(250,'reversal',3)],
+    120:[regime(0,'reversal',3,noise=0.006),regime(250,'reversal',3,noise=0.02)],
+    124:[regime(0,None,0,noise=0.005),regime(200,None,0,noise=0.02)],
+    125:[regime(0,None,0,noise=0.02),regime(300,None,0,noise=0.006)],
+    126:[regime(0,None,0,drift=0.001)],
 }
+WEAK_STRENGTH=STRENGTH/2
+STRENGTHS={115:WEAK_STRENGTH,116:WEAK_STRENGTH,117:WEAK_STRENGTH,118:WEAK_STRENGTH}
 BENCH_SET='bench-1'
 HOLDOUT_SET='holdout-1'
 
@@ -86,16 +96,19 @@ def set_markets(name):
     for kind,window,seed in SETS[name]:
         regimes=REGIME_SETS.get(seed) if kind=='regimes' else None
         if kind=='regimes' and regimes is None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
-        planted=None if kind in (None,'regimes') else {'kind':kind,'window':window,'strength':STRENGTH}
+        strength=None if kind in (None,'regimes') else STRENGTHS.get(seed,STRENGTH)
+        planted=None if strength is None else {'kind':kind,'window':window,'strength':strength}
         train,validation,vault=split_market_tiers(synthetic_market(seed,SESSIONS,planted=planted,regimes=regimes))
         market_kind=kind
         if regimes is not None:
             market_kind='regimes' if any(r['kind'] is not None for r in regimes) else None
-            pattern='changing regimes' if market_kind is not None else 'changing noise, no pattern'
-        else: pattern='no pattern' if kind is None else f'{kind} window {window}, strength {STRENGTH}'
+            if market_kind is not None: pattern='changing regimes'
+            elif len({r['noise'] for r in regimes})>1: pattern='changing noise, no pattern'
+            else: pattern=f"steady drift {regimes[0]['drift']}, no pattern"
+        else: pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
         out.append({'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,
                     'label':f'{name}: seed {seed}, {SESSIONS} sessions, {pattern}','set':name,'kind':market_kind,'window':window,'seed':seed,
-                    'regimes':regimes,'train_rows':train,'vault_sessions':len(vault)})  # the vault rows stay here, unused
+                    'strength':strength,'regimes':regimes,'train_rows':train,'vault_sessions':len(vault)})  # the vault rows stay here, unused
     return out
 
 

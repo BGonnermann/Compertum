@@ -27,6 +27,7 @@ tools\practice.ps1 -Mode bench -Requests 450 -Note "bench baseline 1"
 tools\practice.ps1 -Mode holdout -Requests 450 -PromptsRun run-20261026-0123abcd -PromptsCandidate 2 -Note "holdout check of GEPA run 3"
 tools\practice.ps1 -Models deepseek -Model deepseek-v4-pro -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "DeepSeek bench baseline 1"
 tools\practice.ps1 -Pick -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "bench run"
+tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-3 -CyclesPerMarket 4 -Requests 2000 -Note "bench-3 flash baseline"
 
 .NOTES
 Choosing the model at run time (owner direction, 26 October 2026: pick the model, then run, with no file edits):
@@ -39,7 +40,7 @@ param(
     [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
     [int]$Cycles=1,
     [int]$CyclesPerMarket=4,
-    [ValidateSet('bench-1','bench-2')][string]$BenchSet='bench-1',
+    [ValidateSet('bench-1','bench-2','bench-3')][string]$BenchSet='bench-1',
     [string[]]$MarketManifest=@(),
     [string]$PromptsRun='',
     [int]$PromptsCandidate=-1,

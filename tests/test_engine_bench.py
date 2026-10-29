@@ -3,6 +3,7 @@ the exclusion of evaluation cycles from everything that learns, the holdout coun
 
 The bench run with the scripted model is in tests/test_engine_bench_run.py (engine environment).
 """
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -65,6 +66,34 @@ def test_bench_2_adds_causal_regimes_without_moving_the_holdout():
     assert changed['validation_rows'][0]['session']==250 and positions[:2]==[0,0] and len(positions)==150
     assert markets[0]['regimes'][0]['noise']!=markets[0]['regimes'][1]['noise']
     assert markets[3]['regimes'][0]['noise']!=markets[3]['regimes'][1]['noise']
+
+
+def test_bench_3_has_six_empty_markets_two_seeds_per_pattern_and_a_weak_strength():
+    markets=bench.set_markets('bench-3')
+    assert [m['seed'] for m in markets]==list(range(111,127)) and all(bench.reserved_seed(m['seed']) for m in markets)
+    assert [(m['kind'],m['window'],m['strength']) for m in markets[:8]]==[('momentum',5,0.004),('momentum',5,0.004),('reversal',3,0.004),('reversal',3,0.004),
+                                                                            ('momentum',5,0.002),('momentum',5,0.002),('reversal',3,0.002),('reversal',3,0.002)]
+    assert [m['kind'] for m in markets[8:]]==['regimes','regimes']+[None]*6 and bench.WEAK_STRENGTH==bench.STRENGTH/2
+    assert len({m['validation_csv'] for m in markets})==16 and all(m['label'].startswith('bench-3: ') for m in markets)
+    assert markets[4]['label']=='bench-3: seed 115, 500 sessions, momentum window 5, strength 0.002'
+    assert markets[15]['label']=='bench-3: seed 126, 500 sessions, steady drift 0.001, no pattern'
+    assert bench.set_fingerprints('bench-3').isdisjoint(bench.set_fingerprints('holdout-1')|bench.set_fingerprints('bench-1')|bench.set_fingerprints('bench-2'))
+    for market in markets:
+        score=bench.reference_score(market)
+        if market['kind'] is None:
+            assert score['beats_baseline'] is False and abs(float(score['sharpe'])-float(score['benchmark_sharpe']))<0.01,market['label']
+            assert market['regimes'] is None or all(r['drift']>0 for r in market['regimes'])
+        else: assert score['beats_baseline'] is True and float(score['sharpe'])>float(score['benchmark_sharpe']),market['label']
+    assert bench.trials_for(4,len(markets))==192
+
+
+def test_adding_bench_3_leaves_the_earlier_sets_byte_for_byte_unchanged():
+    def digest(name):
+        return hashlib.sha256('\n'.join(m['label']+'\0'+m['train_csv']+'\0'+m['validation_csv'] for m in bench.set_markets(name)).encode()).hexdigest()
+    assert digest('bench-1')=='927922558f7d493ec449940eb3eb03dcb503fdfeae0e6a598d0282b65ecc62ed'
+    assert digest('bench-2')=='63c340ce33c30305fdff194dc813f87431e2a2b95e5c2401c6d7a500e2e2db88'
+    assert digest('holdout-1')=='5ffbb6040f37779e303d67c87ad0887560a13393b5a29eb07ce67e30094aab7c'
+    assert all(m['strength']==bench.STRENGTH for m in bench.set_markets('bench-1')[:3])
 
 
 def test_regime_reference_starts_at_the_first_leanable_position_and_handles_empty_regimes():
@@ -231,6 +260,15 @@ def test_the_bench_command_can_select_bench_2_without_changing_the_default(tmp_p
     labels=[m['label'] for m in bench.set_markets('bench-2')]
     assert [m['label'] for m in fake_run['schedule']]==labels*4 and fake_run['limits'].cycle_limit==20 and record['report']['cycles_per_market']==1
     assert bench.BENCH_SET=='bench-1'
+
+
+def test_the_bench_command_runs_bench_3_with_its_sixteen_markets(tmp_path,fake_run):
+    root=project(tmp_path)
+    record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 3 fixture',purpose='bench',bench_set='bench-3',
+                                 cycles_per_market=2,available_memory=lambda:practice.START_FLOOR+1)
+    labels=[m['label'] for m in bench.set_markets('bench-3')]
+    assert [m['label'] for m in fake_run['schedule']]==labels*2 and fake_run['limits'].cycle_limit==32
+    assert record['preflight']['markets']==16 and record['vault_sessions_held_back']==16*100
 
 
 def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_path,fake_run):

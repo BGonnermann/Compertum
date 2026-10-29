@@ -9,7 +9,8 @@ config files.
 
 How GEPA scores a candidate: one supervised cycle (stage E3 to E6 code, unchanged) runs with the candidate prompts on
 one synthetic market. Code sets a level from 1 to 10 for the cycle from the Validator's numbers (owner decision,
-25 October 2026; see LEVELS), and GEPA's score is the level divided by 10. Failing the Auditor is level 3, below every
+25 October 2026; see LEVELS), and GEPA's score is the level divided by 10. Levels use the fixed trial count GEPA_TRIALS, not the
+ledger's growing count. On a market with no pattern, levels above 6 count as 6 and a false discovery is level 0. Failing the Auditor is level 3, below every
 honest strategy. No AI text enters a score. The feedback that GEPA's reflection reads explains the level with the
 numbers behind it, built from the cycle's own records. Every strategy a candidate prompt produces counts as a trial (E4). Scores use TRAIN and
 VALIDATION only; the run has no vault rows. Every model call, including GEPA's reflection calls, goes through the E1
@@ -28,9 +29,10 @@ from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
+from . import bench
 from .audit import check_request_invariant
 from .ledger import EngineLedger,RUN_ID,learning_cycle
-from .levels import CLEARLY_WORSE,LEVELS,candidate_level,cycle_level,norm_title as _norm
+from .levels import CLEARLY_WORSE,LEVELS,audited,candidate_level,cycle_level,norm_title as _norm
 from .limits import NOTE_LIMIT,STEP_FAULTS,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import COMPONENT_FILES,COMPONENTS,PROMPT_BYTES,ROLES,ROUTING_OPTIONS,SETTINGS_OPTIONS,check_component,load_component
 
@@ -45,7 +47,9 @@ except ImportError:  # the product environment has no GEPA; the adapter's own te
         num_metric_calls:Any=None
 
 PROMPTS_DIR='state/engine/prompts'
-# The ten levels, the score's input, live in levels.py; the Director's lessons table uses the same rules.
+GEPA_TRIALS=bench.BENCH_TRIALS
+FALSE_DISCOVERY_LEVEL=0
+FALSE_DISCOVERY_TEXT='A false discovery: a strategy passed the gate on a market with no pattern.'
 MINIBATCH=2  # markets per reflection step; every market is still in the validation set
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
@@ -144,10 +148,30 @@ def score_with_speed(score,speed):
     return score if speed is None else round(score+SPEED_WEIGHT*speed['speed'],6)
 
 
-def score_for_cycle(result):
+def false_discovery(candidate,score):
+    return bench.bench_level(candidate,score,GEPA_TRIALS)==10 or candidate.get('status') in bench.EVALUATION_STATUSES
+
+
+def gepa_level(candidate,score,empty=False):
+    level=bench.bench_level(candidate,score,GEPA_TRIALS)
+    if not empty: return level
+    return FALSE_DISCOVERY_LEVEL if false_discovery(candidate,score) else min(level,6)
+
+
+def gepa_cycle_level(result,empty=False):
+    scores=result.get('scores') or {};candidates=[c for c in result.get('candidates') or [] if isinstance(c,dict)]
+    if not candidates: return 1
+    if empty and any(false_discovery(c,scores.get(c.get('hypothesis_id'))) for c in candidates): return FALSE_DISCOVERY_LEVEL
+    return max(gepa_level(c,scores.get(c.get('hypothesis_id')),empty) for c in candidates)
+
+
+def level_text(level): return LEVELS.get(level,FALSE_DISCOVERY_TEXT)
+
+
+def score_for_cycle(result,empty=False):
     """GEPA's score of one cycle: its level divided by 10. A stopped cycle is systemic and is raised, not scored; 0.0 marks it if it is ever asked."""
     if result.get('stop_code') is not None: return 0.0
-    return cycle_level(result)/10
+    return gepa_cycle_level(result,empty)/10
 
 
 def _clip(text): return text if len(text.encode('utf-8'))<=TEXT_BYTES else text.encode('utf-8')[:TEXT_BYTES].decode('utf-8',errors='ignore')
@@ -163,22 +187,27 @@ def earlier_titles(ledger,current_cycle_id):
     return seen
 
 
-def feedback_for(result,earlier=None):
+def feedback_for(result,earlier=None,empty=False):
     """Plain sentences for GEPA's reflection: the cycle's level with its meaning, and for each candidate the numbers behind its level.
     Built from the cycle's own records; earlier maps normalized titles of past cycles to their cycle index, to name repeated ideas."""
-    level=cycle_level(result);scores=result.get('scores') or {};earlier=earlier or {}
+    level=gepa_cycle_level(result,empty);scores=result.get('scores') or {};earlier=earlier or {}
     titles={h.get('id'):str(h.get('title'))[:120] for h in result.get('hypotheses') or [] if isinstance(h,dict)}
-    parts=[f'Cycle level {level} of 10: {LEVELS[level]}']
+    parts=[f'Cycle level {level} of 10: {level_text(level)}']
+    if empty:
+        parts.append('This market has no pattern. The best result here is an honest strategy that does not beat buy-and-hold: '
+                     'levels above 6 count as 6. A strategy that passes the gate here is a false discovery: level 0, below building nothing.')
     if not titles: parts.append('The Director produced no usable hypotheses.')
     for candidate in result.get('candidates') or []:
-        hid=candidate.get('hypothesis_id');score=scores.get(hid);candidate_lvl=candidate_level(candidate,score)
-        line=f"Candidate {hid} ({titles.get(hid,'untitled')}): level {candidate_lvl}. {LEVELS[candidate_lvl]}"
+        hid=candidate.get('hypothesis_id');score=scores.get(hid);candidate_lvl=gepa_level(candidate,score,empty)
+        line=f"Candidate {hid} ({titles.get(hid,'untitled')}): level {candidate_lvl}. {level_text(candidate_lvl)}"
         if isinstance(score,dict):
             line+=(f" Sharpe {score.get('sharpe')} against buy-and-hold {score.get('benchmark_sharpe')}; long on {score.get('positions_held')} of"
                    f" {score.get('sessions')} sessions; {score.get('position_changes')} position changes; annual mean excess {score.get('annual_mean_excess')}.")
         deflation=candidate.get('deflation')
         if deflation: line+=f" Deflated Sharpe {deflation.get('deflated_sharpe')} over {deflation.get('trials')} trials; the gate is 0.95."
-        if isinstance(score,dict) and score.get('beats_baseline') and candidate_lvl==6:
+        if isinstance(score,dict) and score.get('beats_baseline') and isinstance(score.get('deflation_inputs'),dict):
+            line+=f" The level uses a fixed {GEPA_TRIALS} trials: deflated Sharpe {bench.bench_deflation(score,GEPA_TRIALS)['deflated_sharpe']}."
+        if isinstance(score,dict) and score.get('beats_baseline') and candidate_lvl==6 and not audited(candidate):
             line+=' It beat buy-and-hold but has no Auditor pass, so it stays at level 6: levels 7 to 9 need an Auditor pass.'
         statuses=candidate.get('run_statuses')
         if statuses is not None: line+=f" Engineer runs: {len(statuses)}" + (f" ({', '.join(statuses)})." if statuses else '.')
@@ -238,11 +267,13 @@ class PromptAdapter:
             if result.get('stop_code') is not None:
                 # A refusal from the model path, the gate or a freeze is systemic: GEPA must stop, not score it.
                 raise RuntimeRefused(result['stop_code'])
-            level=cycle_level(result);score=score_with_speed(score_for_cycle(result),speed)
-            outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level,'speed':speed});scores.append(score)
-            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level,**({'speed':speed} if speed else {})})
+            empty='kind' in market and market['kind'] is None
+            level=gepa_cycle_level(result,empty);score=score_with_speed(score_for_cycle(result,empty),speed)
+            found={'false_discovery':True} if empty and level==FALSE_DISCOVERY_LEVEL else {}
+            outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level,'speed':speed,**found});scores.append(score)
+            self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level,**({'speed':speed} if speed else {}),**found})
             record['speed']=speed
-            feedback=feedback_for(result,earlier_titles(self.ledger,result['cycle_id']))
+            feedback=feedback_for(result,earlier_titles(self.ledger,result['cycle_id']),empty)
             if speed is not None:
                 feedback=_clip(feedback+f" Speed: {speed['calls']} model calls, {speed['output_tokens']} output tokens, {speed['tokens_per_candidate']} per candidate built. "
                            'Fewer output tokens per candidate break ties between prompts at the same level; they never outweigh a better level.')
@@ -334,7 +365,9 @@ def best_candidate(candidates):
         speeds=[s['speed']['speed'] for s in scores if isinstance(s.get('speed'),dict)]
         return (Fraction(sum(s['level'] for s in scores),len(scores)),Fraction(sum(Fraction(str(v)) for v in speeds),len(speeds)) if speeds else Fraction(0),-index)
     scored=[(index,c) for index,c in enumerate(candidates) if c['scores']]
-    return max(scored,key=key)[0] if scored else 0
+    clean=[(index,c) for index,c in scored if not any(s.get('false_discovery') for s in c['scores'])]
+    pool=clean or scored
+    return max(pool,key=key)[0] if pool else 0
 
 
 def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
@@ -360,10 +393,12 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
               'note':'best_index_in_gepa_pool is GEPA\'s own numbering; use best_folder_index with apply-prompts'}
     counts=[len(c['scores']) for c in candidates]
     record={'run_id':run_id,'reason':reason,'written_at':datetime.now(timezone.utc).isoformat(),'best_index':best,'mean_scores':means,
-            'mean_levels':[mean_level(c['scores']) for c in candidates],'scores':[c['scores'] for c in candidates],'candidate_count':len(candidates),'candidate_sha256':[c['sha256'] for c in candidates],
+            'mean_levels':[mean_level(c['scores']) for c in candidates],'false_discoveries':[sum(1 for s in c['scores'] if s.get('false_discovery')) for c in candidates],
+            'scores':[c['scores'] for c in candidates],'candidate_count':len(candidates),'candidate_sha256':[c['sha256'] for c in candidates],
             'proposals':adapter.proposals,'evaluations':len(adapter.evaluations),'evaluation_counts':counts,
             'selection_status':'UNVERIFIED_UNEQUAL_EVALUATIONS' if len(set(counts))>1 else 'UNVERIFIED_BENCHMARK_REQUIRED','gepa':gepa,
-            'note':('best_index has the highest mean level; mean speed breaks exact ties only. It is a proposal for an equal paired benchmark, '
+            'note':('best_index has the highest mean level; mean speed breaks exact ties only. A candidate with a false discovery is best_index only '
+                    'when every candidate has one. It is a proposal for an equal paired benchmark, '
                     'not verified improvement. Read scores per market and evaluation_counts before any owner apply decision.')}
     (folder/'result.json').write_bytes(canonical(record)+b'\n')
     return {'folder':str(folder),**record}
@@ -408,7 +443,7 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
            'reason':None,'elapsed_seconds':None,'summary_path':None,'prompts':None,'seed_sha256':{name:sha(seed_candidate[name]) for name in COMPONENTS}}
     ledger.record_run_phase(run_id,'START',{'kind':'gepa','limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
                                            'models':models,'markets':[m['label'] for m in markets],'seed_sha256':state['seed_sha256'],'started_at':started,
-                                           'stop_file':str(gate.stop_file),'gepa_seed':seed,'goal_sha256':None if goal is None else sha(goal),
+                                           'stop_file':str(gate.stop_file),'gepa_seed':seed,'goal_sha256':None if goal is None else sha(goal),'score_trials':GEPA_TRIALS,
                                            **({'market_provenance':[m['provenance'] for m in markets if m.get('provenance')]} if any(m.get('provenance') for m in markets) else {})})
     gepa_result=None
     try:

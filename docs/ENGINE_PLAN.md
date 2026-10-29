@@ -387,6 +387,20 @@ The read-only `python -m compertum.ai.engine.compare RUN_ID RUN_ID` command comp
 These markets cover momentum, reversal, momentum-to-reversal changes, changing noise and negative controls.
 The bytes and reference scores of `bench-1` and `holdout-1` are unchanged. Five current `bench-1` hashes also match baseline-run evidence.
 
+`bench-3` (28 October 2026, owner request) has 16 markets, seeds 111 to 126, fixed before any harness ran on them.
+It has six markets with no pattern, two seeds for each pattern, and a weak strength of 0.002 next to the normal 0.004.
+Reasons: bench-1 gives 8 chances for a false discovery at 4 cycles per market, so zero in 8 bounds the rate only below about 31 percent (95 percent).
+One seed per pattern cannot separate a hard pattern from a hard seed. One strength cannot show where detection fails.
+At 4 cycles per market a run is 64 cycles and its bench-local trial count is 192, so its levels are not comparable with bench-1 levels.
+A digest test pins `bench-1`, `bench-2` and `holdout-1` byte for byte.
+
+GEPA's score (29 October 2026, owner agreement): levels 7 to 9 use the fixed `GEPA_TRIALS` count (60), as the bench does, not the global ledger count.
+The global count made almost every honest cycle level 7 and made later candidates face a stricter test.
+On a practice market with no pattern, levels above 6 count as 6, and any false discovery makes the cycle level 0.
+A candidate with a false discovery is never the best candidate while a clean one exists.
+60 fixed trials is fewer than a long run really tries, so GEPA levels rank candidates and are not evidence of an edge.
+GEPA runs before this change are not comparable with later runs. The real gate and the lessons table still use the global count.
+
 `engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.
 It rechecks paths, hashes, scope, duplicates and complete coverage. It never exposes vault rows.
 Practice and GEPA accept repeatable real-market manifests. Bench and holdout reject them.

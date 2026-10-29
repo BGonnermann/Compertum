@@ -1,5 +1,24 @@
 # Current Compertum checkpoint
 
+## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
+
+The owner stopped the seventh GEPA run on 29 October 2026 at 08:26 EDT ("ok lets stop the GEPA cycle").
+`run-20261029-65d4d5c4` ended with `KILL_SWITCH` after 2,543 requests and 9 hours 18 minutes. Its last cycle, 427, was cut off.
+It evaluated 124 cycles and 27 prompt sets, with 31 proposals across all eight parts. It used the old score.
+The committed prompts scored a mean level of 6.21 over 52 cycles. Candidate 9 scored 6.62 over 21 cycles.
+The recorded best, candidate 11, has only two cycles, both level 7. Six other candidates tie with it.
+None of these gaps is outside the noise. No candidate is applied. Files: `state/engine/prompts/run-20261029-65d4d5c4/`.
+Assessment: GEPA learns and selects on the same four practice markets, with one noisy cycle per market.
+The proposed next design uses about 24 generated practice markets: 16 to learn from and 8 to select with. It is not built.
+
+Final verification, source, simulated markets:
+- Product lane, `test_engine_bench.py`, `test_engine_practice.py` and `test_engine_gepa.py`: 60 passed, 0 failed, 0 skipped.
+- Engine lane, `test_engine_gepa_run.py`, `test_engine_bench_run.py` and `test_engine_practice_run.py`: 21 passed, 0 failed, 0 skipped.
+- Engine lane, all engine files with `test_ai_models_interface.py` and `test_run_tests_tool.py`: 299 passed, 0 failed, 0 skipped, 8 pandas deprecation warnings.
+- Product lane, the same files: 236 passed, 0 failed, 7 skipped (engine libraries absent in that environment).
+
+Exact next action: the owner's normal practice run on `deepseek-flash`, off-peak. Then the bench-2 and bench-3 flash baselines, unless the owner changes the order.
+
 ## Harness 0.6.1 run watching - 29 October 2026
 
 The owner typed `/watch` during the seventh GEPA run and saw nothing. That run was started outside the harness with `tools\practice.ps1`.
@@ -32,6 +51,64 @@ Another session changed `src/compertum/ai/engine/bench.py`, `tests/test_engine_b
 Those changes were left untouched and uncommitted.
 
 The product-environment harness lane passed 108 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
+## GEPA scores with a fixed trial count - 29 October 2026
+
+Problem found in the seventh GEPA run: 67 of its first 104 cycles were exactly level 7, and none was higher.
+Levels 7 to 9 used the deflated Sharpe with the ledger's global trial count, 828 at that time and growing.
+So GEPA could not tell a strategy that found the pattern from one that was lucky. Later candidates also faced a stricter test than earlier ones.
+The owner agreed to the fix on 29 October 2026.
+
+The change, in `src/compertum/ai/engine/gepa_run.py`:
+- GEPA levels use the fixed count `GEPA_TRIALS`, which equals `bench.BENCH_TRIALS` (60), through `bench.bench_level`.
+- On a practice market with no pattern, levels above 6 count as 6. A false discovery makes the cycle level 0, below building nothing, even if another candidate is honest.
+- A candidate with a false discovery is never `best_index` while a clean candidate exists. `result.json` counts false discoveries per candidate.
+- The feedback shows the fixed-count deflated Sharpe, says when a market has no pattern, and names a false discovery as such. The START row records `score_trials`.
+- `practice_market` now records the market's `kind`. Real-market manifests have no `kind`, so they get no cap.
+The real gate, the Auditor, the queue and the Director's lessons table are unchanged.
+Example from the tests: the exact planted rule on a momentum market was level 7 under the global count, and is level 8 now.
+
+Results are not comparable with GEPA runs 1 to 7. The seventh run keeps the old score, because its process loaded the old code.
+One independent review found no blocking defect and five findings. Three were fixed with tests before the final runs:
+a reckless prompt could outrank an honest one through the mean over markets (10, 10, 10, 3 against 8, 8, 8, 6);
+the feedback called a false discovery an Auditor failure; and building nothing ranked below a false discovery. A test now covers how evaluation sets the cap.
+Recorded, not changed: 60 fixed trials is fewer than a long run really tries, so GEPA levels compare candidates and are not evidence of an edge.
+Final product lane: `test_engine_gepa.py`, `test_engine_lessons.py` and `test_engine_preflight.py` passed 43, failed 0, skipped 1 (no `langchain_core` in this environment).
+Final engine lane: the same files passed 44, failed 0, skipped 0.
+`tests/test_engine_practice.py`, `tests/test_engine_bench.py` and `tests/test_engine_gepa_run.py` wait until the engine run ends.
+The code comments added earlier for bench-3 were removed on the owner's request: "Can you comment less or not at all in the codebase?"
+
+## Bench-3 written; seventh GEPA run running - 28 October 2026 (local time)
+
+The owner asked for bench-3, a larger bench, and a bench-2 baseline. GEPA must stay the optimizer only, never the scorer.
+`bench-3` in `src/compertum/ai/engine/bench.py` has 16 markets, seeds 111 to 126, assigned in order:
+- Four markets at the normal strength 0.004: momentum window 5 twice, reversal window 3 twice.
+- Four markets at the weak strength 0.002 (`WEAK_STRENGTH`), with the same patterns and windows.
+- Two regime markets: momentum to reversal, and reversal with changing noise.
+- Six markets with no pattern: three plain, two with changing noise, one with a steady drift of 0.001. No drift turns negative.
+The planted rule beats buy-and-hold on all ten patterned markets and on no empty market. It passes the bench-local gate (192 trials) on none.
+`bench-1`, `bench-2` and `holdout-1` hash exactly as before. `tools\practice.ps1 -BenchSet bench-3` selects the new set.
+Three new tests are in `tests/test_engine_bench.py`. They have not run yet: the test runner refuses that file while an engine run is open.
+
+The owner said "yes start GEPA run 6 on flash". I started it from a superseded next action, so its note says "GEPA run 6".
+It is the seventh GEPA run, `run-20261029-65d4d5c4`. The real GEPA run 6 ended on 27 October (see the entry of that date).
+Limits: 1,000 cycles, 10,000 requests, `deepseek-flash`. Start: 45.9 GiB free memory, 86.1 GiB free on C:, research store 25.0 MiB.
+An earlier one-cycle practice run, `run-20261029-c9270586`, was stopped on the owner's request after 1 request (`KILL_SWITCH`).
+
+Progress on 29 October at 05:50 EDT: 94 cycles and 1,839 requests in 6 hours 42 minutes, about 4.3 minutes and 20 requests per cycle.
+1,804 calls completed, 32 were cut off at the output cap (recorded as step faults), and 3 were refused. Free memory was 42.1 GiB.
+At this pace the request limit is reached around noon EDT on Friday 30 October. The owner chose to let the run finish ("keep it going").
+
+Exact next action: after `run-20261029-65d4d5c4` ends, run `tests/test_engine_bench.py` and `tests/test_engine_practice.py` in the product lane, and `tests/test_engine_gepa_run.py` in the engine lane.
+Then run the bench-2 flash baseline: `tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-2 -CyclesPerMarket 4 -Requests 600 -Note "bench-2 flash baseline"`.
+Then, with the owner's yes of 28 October, the bench-3 flash baseline: `tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-3 -CyclesPerMarket 4 -Requests 2000 -Note "bench-3 flash baseline"`.
+Then compare bench-2 and bench-3 with the bench-1 flash baselines, and report the seventh GEPA run.
+
+Owner direction, 28 October 2026: time DeepSeek runs to the off-peak hours, which are half price.
+Third-party sources give peak as 01:00–04:00 and 06:00–10:00 UTC, Monday to Friday. The owner gave the same hours in Eastern time.
+Off-peak in EST from 1 November: Monday to Thursday 05:00–20:00 and 23:00–01:00, and Friday 05:00 to Sunday 20:00. Before 1 November, add one hour.
+Before each DeepSeek run, compare its expected length with these windows. Put long GEPA runs in the weekend block.
+Timing means choosing when the owner's run starts. No scheduled task or service starts runs without the owner's explicit authority.
 
 ## Harness 0.5.8 picker keeps known models - 29 October 2026
 
@@ -442,7 +519,7 @@ Step S3 is built (docs/MATHEMATICIAN_PLAN.md): every sent model request is saved
 Tests: engine environment, all engine files plus the model interface and runner: 266 passed, 0 failed, 0 skipped. Product environment, the same files: 206 passed, 0 failed, 7 skipped. One end-to-end GEPA test on scripted roles runs 40 real cycles and rewrites all eight parts; the rewritten tool and starter run in the sandbox.
 GEPA run 5 (`run-20261027-523c00f4`, flash, all slots) failed after 4 cycles and 105 requests: `sqlite3.OperationalError: database or disk is full` in `record_cycle`. The disk had 115 GB free. The research store `state/research.sqlite` had reached its 16 MiB cap (16,773,120 bytes), mostly engine records: about 36 KB per cycle. The END row was written (FAILED_UNEXPECTED).
 Owner decision, 26 October 2026: raise the research store cap to 256 MiB. Built: `STORE_BYTES` in `persistence.py` (research store 256 MiB; the evaluation and execution stores keep 16 MiB). The checkpoint limit follows the largest cap. A recovery set now sizes the research store's snapshot from its current size plus 64 KiB (`snapshot_bound`), and the supervisor reserves that size, the two other caps and 16 MiB for messages (was a fixed 64 MiB). Snapshots go to the backups category (21 GiB budget, unchanged); a full recovery set of a 256 MiB research store reserves about 304 MiB there. A separate engine database stays possible later, if the engine's records approach the new cap. New test: a 20 MiB research store opens and checkpoints.
-Exact next action: the owner starts GEPA run 6 on flash: `tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode gepa -Cycles 1000 -Requests 10000 -Note "GEPA run 6, flash, all slots, 256 MiB store"`. Then the best candidate is measured on bench-1 with flash and compared with the flash baseline. Watch the reversal market.
+Superseded next action (kept as history; GEPA run 6 ran on 27 October): the owner starts GEPA run 6 on flash: `tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode gepa -Cycles 1000 -Requests 10000 -Note "GEPA run 6, flash, all slots, 256 MiB store"`. Then the best candidate is measured on bench-1 with flash and compared with the flash baseline. Watch the reversal market.
 Next build (owner agreed, 26 October 2026): the sandboxed harness. Each harness version that GEPA writes runs as a copy of the firm inside the sandbox; its model calls go through a gate outside the sandbox that holds the key and counts requests; the referee stays outside. Then GEPA may rewrite the harness logic itself. Never slots: keys, providers, the request maximum, the stop file, the memory check, the sandbox, and the referee.
 Superseded next action (kept as history): the owner starts GEPA run 4 on flash: `tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode gepa -Cycles 1000 -Requests 10000 -Note "GEPA run 4, flash, no limits"`.
 Superseded next action (kept as history): bench noise runs before any more GEPA (owner decision, 26 October 2026). The owner runs the current prompts on bench-1 two or three times, then candidate 2 the same number of times, with the same settings: `tools\practice.ps1 -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "noise run 1, current prompts"` and `tools\practice.ps1 -Mode bench -CyclesPerMarket 4 -Requests 450 -PromptsRun run-20261026-64268b35 -PromptsCandidate 2 -Note "candidate 2 bench run 1"`. From the spread, size the cycles per candidate for the next GEPA run, and check whether capture is a steadier score than the level. The request limit stays 450.

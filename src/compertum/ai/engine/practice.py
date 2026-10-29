@@ -114,7 +114,8 @@ def practice_market(seed,sessions,strength,kind='momentum',window=5):
     planted=None if kind is None else {'kind':kind,'window':window,'strength':strength}
     rows=synthetic_market(seed,sessions,planted=planted);train,validation,vault=split_market_tiers(rows)
     pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
-    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}','vault_sessions':len(vault)},vault
+    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}',
+            'kind':kind,'vault_sessions':len(vault)},vault
 
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False,

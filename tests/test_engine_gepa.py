@@ -8,8 +8,9 @@ import shutil
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
-from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
-                                          candidate_prompts,feedback_for,load_goal,records_text,score_for_cycle,sha,write_candidates)
+from compertum.ai.engine import bench,practice
+from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GEPA_TRIALS,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
+                                          candidate_prompts,feedback_for,gepa_cycle_level,gepa_level,load_goal,records_text,score_for_cycle,sha,write_candidates)
 from compertum.ai.engine.prompts import (COMPONENT_FILES,ROUTING_DEFAULT,SETTINGS_DEFAULT,default_component,options_text,parse_routing,parse_settings,
                                          routing_text)
 from compertum.ai.engine.gepa_run import SLOT_REFLECTOR,unfenced
@@ -96,6 +97,44 @@ def test_ten_levels_come_from_the_validator_numbers_only():
     assert score_for_cycle({'status':'STOPPED_AI_REQUEST_BUDGET','stop_code':'AI_REQUEST_BUDGET','candidates':[{'status':'QUEUED'}]})==0.0
 
 
+def momentum_score():
+    rows=synthetic_market(7,300,planted={'kind':'momentum','window':5,'strength':0.004});train,validation,_=split_market_tiers(rows)
+    history=[float(r['return']) for r in train];positions=[]
+    for row in validation: history.append(float(row['return']));positions.append(1 if sum(history[-5:])>0 else 0)
+    return score_signals('session,position\n'+''.join(f"{r['session']},{p}\n" for r,p in zip(validation,positions)),validation)
+
+
+def test_gepa_levels_use_a_fixed_trial_count_and_never_reward_a_find_on_an_empty_market():
+    s=validator_scores();rule=momentum_score();passed={'label':'VERIFIED_PASS'}
+    early={'hypothesis_id':'h1','status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':'0.60','trials':10},'audit':passed}
+    late={**early,'deflation':{'deflated_sharpe':'0.01','trials':5000}}
+    assert GEPA_TRIALS==bench.BENCH_TRIALS==60
+    assert candidate_level(early,rule)==8 and candidate_level(late,rule)==7
+    assert gepa_level(early,rule)==gepa_level(late,rule)==8
+    assert gepa_level(late,s['winner'])==10 and gepa_level({**late,'audit':None},s['winner'])==6
+    patterned={'status':'COMPLETED','stop_code':None,'candidates':[late],'scores':{'h1':rule}}
+    assert gepa_cycle_level(patterned)==8 and score_for_cycle(patterned)==0.8
+    assert gepa_level(late,rule,empty=True)==6 and score_for_cycle(patterned,empty=True)==0.6
+    found={**late,'hypothesis_id':'h2'}
+    both={'status':'COMPLETED','stop_code':None,'candidates':[late,found],'scores':{'h1':rule,'h2':s['winner']}}
+    assert gepa_cycle_level(both)==10 and gepa_cycle_level(both,empty=True)==0 and score_for_cycle(both,empty=True)==0.0
+    queued={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'QUEUED'}],'scores':{}}
+    assert score_for_cycle(queued)==1.0 and score_for_cycle(queued,empty=True)==0.0
+    honest={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'REJECTED'}],'scores':{'h1':s['near']}}
+    assert score_for_cycle(honest,empty=True)==0.6==score_for_cycle(honest)
+    nothing={'status':'COMPLETED','stop_code':None,'candidates':[]}
+    assert score_for_cycle(nothing,empty=True)==0.1>score_for_cycle(both,empty=True)
+    text=feedback_for(patterned)
+    assert text.startswith('Cycle level 8 of 10') and f'The level uses a fixed 60 trials: deflated Sharpe {bench.bench_deflation(rule,60)["deflated_sharpe"]}.' in text
+    capped=feedback_for(patterned,empty=True)
+    assert capped.startswith('Cycle level 6 of 10') and 'This market has no pattern.' in capped and 'no Auditor pass' not in capped
+    false=feedback_for(both,empty=True)
+    assert false.startswith('Cycle level 0 of 10: A false discovery: a strategy passed the gate on a market with no pattern.')
+    assert 'Candidate h2 (untitled): level 0. A false discovery' in false and 'It failed the Auditor' not in false
+    markets=[practice.practice_market(12+offset,500,0.004,kind,window)[0] for kind,window,offset in practice.GEPA_MARKETS]
+    assert [m['kind'] for m in markets]==['momentum','momentum','reversal',None]
+
+
 def test_feedback_explains_the_level_with_the_numbers_behind_it(bridge):
     s=validator_scores();n=s['n']
     result={'status':'COMPLETED','hypotheses':[{'id':'h1','title':'Five-session momentum'},{'id':'h2','title':'Mean reversion'}],
@@ -141,6 +180,27 @@ def test_evaluate_scores_a_real_record_and_names_a_repeated_idea(bridge):
     assert batch.scores==[0.6] and batch.outputs[0]['level']==6 and adapter.candidates[0]['scores']==[{'market':'a','score':0.6,'level':6}]
     feedback=batch.trajectories[0]['feedback']
     assert feedback.startswith('Cycle level 6 of 10: A real strategy, close to buy-and-hold but not better.') and 'This idea repeats cycle 7.' in feedback
+
+
+def test_evaluate_caps_only_markets_that_are_known_to_have_no_pattern(bridge):
+    s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
+    prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
+    def fake_cycle(engine,index):
+        return {'cycle_id':f'cycle-{index:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[{'id':'h1','title':'Reads tomorrow'}],
+                'candidates':[{'hypothesis_id':'h1','status':'REJECTED_DEFLATED','audit':{'label':'VERIFIED_PASS'}}],'scores':{'h1':s['winner']},'transcript':[]}
+    adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=None,ledger=ledger,run_id='run-20261029-0123abcd',next_index=1,cycle_limit=3)
+    batch=adapter.evaluate([{'label':'p','kind':'momentum'},{'label':'e','kind':None},{'label':'r'}],prompts,capture_traces=True)
+    assert batch.scores==[1.0,0.0,1.0] and [o['level'] for o in batch.outputs]==[10,0,10]
+    assert [s.get('false_discovery') for s in adapter.candidates[0]['scores']]==[None,True,None]
+    assert 'This market has no pattern.' in batch.trajectories[1]['feedback'] and 'no pattern' not in batch.trajectories[2]['feedback']
+
+
+def test_a_candidate_with_a_false_discovery_is_never_best_while_a_clean_one_exists():
+    from compertum.ai.engine.gepa_run import best_candidate
+    reckless={'scores':[{'level':10},{'level':10},{'level':10},{'level':0,'false_discovery':True}]}
+    honest={'scores':[{'level':8},{'level':8},{'level':8},{'level':6}]}
+    assert best_candidate([reckless,honest])==1 and best_candidate([honest,reckless])==0
+    assert best_candidate([reckless])==0
 
 
 def test_reflective_dataset_is_bounded_and_per_role(bridge):
