@@ -10,7 +10,8 @@ Sessions are append-only under `state/harness/sessions`. Run records and logs st
 A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
 The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
 The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes identifiers.
-Up/Down scrolls through four visible commands. The selected command shows a description and a concrete example. Tab inserts the selection.
+Up/Down scrolls through four visible commands. Descriptions share one aligned column. Blank rows separate the box, the list and the example.
+The selected command shows a concrete example. Narrow terminals show its description above the example. Tab inserts the selection.
 The composer width follows the terminal. It detects resizing and redraws from the frame start without leaving old borders.
 Long input scrolls horizontally without changing the box width. Unchanged frames produce no output.
 Harness 0.3.4 waits for Windows console key and resize events instead of polling every 50 milliseconds.
@@ -28,7 +29,7 @@ Selection preserves the conversation and changes future engine-run defaults. A f
 Tab completes model-file names and IDs cached by `/models`. Tab itself sends no request.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
-Verification: 55 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+Verification: 57 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
 The native lane passed three tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery and real console input events.
 An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.

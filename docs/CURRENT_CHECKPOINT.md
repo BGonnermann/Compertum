@@ -1,5 +1,18 @@
 # Current Compertum checkpoint
 
+## Harness 0.3.5 command menu spacing - 28 October 2026
+
+The owner reported that the slash-command menu looked cramped. Commands, descriptions and the example all started at one indent.
+The menu now indents commands under the input text. Each command shows its description in one aligned column.
+The column stays fixed while the list scrolls. One footer row shows the hidden counts, for example `↑ 3 more   ↓ 10 more`.
+Blank rows separate the box, the list and the example. Narrow terminals show the selected description above the example.
+
+The product-environment harness lane passed 57 tests, zero failed and zero skipped. The native lane passed three tests, zero failed and zero skipped.
+The screen-emulator test passed with the new layout.
+
+Exact next action: the owner restarts `compertum-harness` and types `/` to check the menu in Windows Terminal.
+The physical rendering checks for 0.3.4 and 0.3.5 remain pending. No provider, GEPA, benchmark or engine run occurred.
+
 ## Harness 0.3.4 composer rendering pass - 28 October 2026
 
 The owner approved four rendering changes after the 0.3.3 resize repair. The design is in `docs/superpowers/specs/2026-10-28-harness-rendering-design.md`.

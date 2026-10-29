@@ -9,6 +9,8 @@ import time
 from .commands import DESCRIPTIONS, EXAMPLES, complete, matching_commands
 
 VISIBLE_COMMANDS = 4
+# The menu indents rows under the input text and needs room for this much description beside the commands.
+MENU_INDENT, MENU_GAP, MIN_DESCRIPTION = 4, 3, 16
 SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"
 KEY_EVENT, VK_MENU = 0x1, 0x12
 ALT_PRESSED, CTRL_PRESSED, SHIFT_PRESSED = 0x1 | 0x2, 0x4 | 0x8, 0x10
@@ -144,13 +146,23 @@ class LineEditor:
         self.menu_offset = max(0, min(self.menu_offset, len(matches) - VISIBLE_COMMANDS))
         start = self.menu_offset
         end = min(start + VISIBLE_COMMANDS, len(matches))
-        hints = ["  ↑ more"] if start else []
+        # Descriptions share one column across all matches, so scrolling does not shift them.
+        column = max(map(len, matches)) + MENU_GAP
+        inline = width >= MENU_INDENT + column + MIN_DESCRIPTION
+        indent = " " * MENU_INDENT
+        hints = [""]
         for index in range(start, end):
-            hints.append(("› " if index == self.selected else "  ") + matches[index])
-        if end < len(matches):
-            hints.append("  ↓ more")
+            usage = matches[index]
+            row = usage.ljust(column) + DESCRIPTIONS[usage.split(maxsplit=1)[0]] if inline else usage
+            hints.append(("  › " if index == self.selected else indent) + row)
+        more = [f"↑ {start} more"] * bool(start) + [f"↓ {len(matches) - end} more"] * (end < len(matches))
+        if more:
+            hints.append(indent + "   ".join(more))
         name = matches[self.selected].split(maxsplit=1)[0]
-        hints.extend(["  " + DESCRIPTIONS[name], "  Example: " + EXAMPLES[name]])
+        hints.append("")
+        if not inline:
+            hints.append(indent + DESCRIPTIONS[name])
+        hints.append(indent + "Example: " + EXAMPLES[name])
         return [hint[:width] for hint in hints]
 
     def _lines(self):

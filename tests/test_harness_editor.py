@@ -320,9 +320,32 @@ def test_command_menu_shows_description_and_example():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
     editor.buffer = "/gepa"
     _, _, _, hints, _ = editor._lines()
-    assert "› /gepa CYCLES REQUESTS HOURS NOTE" in hints
-    assert "  start a bounded GEPA run" in hints
-    assert "  Example: /gepa 20 450 2 improve reversal capture" in hints
+    assert hints == ["", "  › /gepa CYCLES REQUESTS HOURS NOTE   start a bounded GEPA run", "",
+                     "    Example: /gepa 20 450 2 improve reversal capture"]
+
+
+def test_command_menu_aligns_descriptions_and_spaces_its_sections():
+    editor = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
+    editor.buffer = editor.menu_text = "/"
+    editor.selected = 6
+    _, _, _, hints, _ = editor._lines()
+    assert hints[0] == "" and hints[-2] == ""
+    rows = hints[1:5]
+    assert rows[-1].startswith("  › /resume SESSION_ID ")
+    descriptions = ("list models without a completion", "start a new conversation",
+                    "list saved conversations", "resume a conversation")
+    assert len({row.index(text) for row, text in zip(rows, descriptions)}) == 1
+    assert hints[5] == "    ↑ 3 more   ↓ 10 more"
+    assert hints[-1] == "    Example: /resume session-20261028-104110-7382a492"
+
+
+def test_narrow_command_menu_moves_the_description_below_the_list():
+    editor = LineEditor(StringIO(), get_key=lambda: "\r", width=44)
+    editor.buffer = editor.menu_text = "/"
+    editor.selected = 6
+    _, _, _, hints, _ = editor._lines()
+    assert "  › /resume SESSION_ID" in hints
+    assert hints[-2:] == ["    resume a conversation", "    Example: /resume session-20261028-1041"]
 
 
 def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
@@ -331,7 +354,7 @@ def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
     editor = LineEditor(output, get_key=lambda: next(keys), width=100)
     assert editor.read() == "/new"
     rendered = output.getvalue()
-    assert "↑ more" in rendered and "↓ more" in rendered
+    assert "↑ 1 more   ↓ 12 more" in rendered
     assert "› /new" in rendered
     assert "Example: /new" in rendered
 
@@ -350,10 +373,10 @@ def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
     menu.buffer = menu.menu_text = "/"
     menu.selected = len(menu._command_matches()) - 1
     _, _, _, hints, _ = menu._lines()
-    visible = [hint for hint in hints if hint.startswith(("› /", "  /"))]
+    visible = [hint for hint in hints if hint.startswith(("  › /", "    /"))]
     assert len(visible) == 4
-    assert visible[-1] == "› /exit"
-    assert "  ↑ more" in hints and "  ↓ more" not in hints
+    assert visible[-1].startswith("  › /exit ")
+    assert "    ↑ 13 more" in hints and not any("↓" in hint for hint in hints)
 
 
 def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
@@ -365,7 +388,7 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     output.truncate()
     editor._render()
     assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
-    assert body(output.getvalue()).endswith("\x1b[8A\x1b[4G")
+    assert body(output.getvalue()).endswith("\x1b[9A\x1b[4G")
     editor.buffer, editor.cursor = "/x", 2
     output.seek(0)
     output.truncate()
