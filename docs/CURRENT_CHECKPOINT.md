@@ -97,6 +97,7 @@ Cause: `run_cycle` set the cycle tag and never reset it, so calls after a cycle 
 Final verification, source, simulated markets: engine lane, all engine files with `test_ai_models_interface.py`, `test_run_tests_tool.py` and
 `test_clean_test_runs.py`: 308 passed, 0 failed, 0 skipped, 8 pandas warnings. Product lane, the same files: 244 passed, 0 failed, 7 skipped (engine libraries absent).
 The parallel speed is not measured yet. The first weekend GEPA run measures it.
+Committed as `823493c`. The project map was refreshed for parallel cycles and bench-3: 9 pages, 81 internal links with 0 broken; pages 1 and 2 were inspected.
 Bench and practice runs (`run_bounded`) still run one cycle at a time.
 
 Recommended, not applied: the Engineer's cap in `config/models-deepseek.toml` is 8,192 output tokens. In the 11 cut-off Engineer replies,
