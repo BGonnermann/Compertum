@@ -1,5 +1,21 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.1 secret-check repair - 29 October 2026
+
+The owner's next task ended after 17 steps and 11 minutes with `AI_SENSITIVE_INPUT_DENIED`.
+The model had read `src/compertum/harness/packets.py`. Its rule text contains `_authtoken`, which matches the new token rule.
+The `read` tool checked only the shared rule, so the file entered the conversation. The request check uses both rules and refused it.
+The refused text stayed in the conversation, so every later request and a resume would also fail.
+
+Every tool result now passes the request check's rules before it joins the conversation. Matching lines are hidden.
+A resumed session is cleaned the same way. A new task that looks like it holds a secret is refused before it is added.
+Sandbox `run` output now hides matching lines, as bash output does. The owner's session `session-20261029-015658-5dcfd758`
+failed the request check before cleaning and passes after it: 38 messages, 76 KiB. No request was sent during this check.
+
+The product-environment harness lane passed 88 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
+Exact next action: the owner restarts `compertum-harness` and uses `/resume session-20261029-015658-5dcfd758` to continue the task.
+
 ## Harness 0.5.0 bash, search and 512 KiB conversations - 28 October 2026
 
 The owner's first real task ended with `EVENT_INVALID` after three file reads. The model also had to guess file names.

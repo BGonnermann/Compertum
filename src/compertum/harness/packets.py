@@ -66,3 +66,15 @@ def kib(size):
 def hide_secrets(text):
     """Hide each line that looks like a secret, so one key cannot reach a remote model."""
     return "\n".join(SECRET_LINE if looks_secret(line) else line for line in text.split("\n"))
+
+
+def guard(text):
+    """Make local text safe to keep in the conversation. The request check uses the same rules.
+
+    Text that passed one check and failed the other used to stay in the conversation and refuse every later request.
+    """
+    hidden = hide_secrets(text)
+    return SECRET_RESULT if looks_secret(hidden) else hidden
+
+
+SECRET_RESULT = "[result hidden: it holds text that looks like a secret]"

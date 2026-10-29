@@ -9,7 +9,7 @@ from compertum.ai.manual import sanitized
 from compertum.runtime.errors import RuntimeRefused
 
 from .model import DeadlineReached, ModelError
-from .packets import MAX_CONVERSATION, WARN_CONVERSATION, encode, kib
+from .packets import MAX_CONVERSATION, WARN_CONVERSATION, encode, guard, kib, looks_secret
 
 SYSTEM = """You are Compertum's terminal agent. Work in the project workspace: {workspace}
 Use search to find code and bash with ls or find to list folders. Read only the files you need.
@@ -50,10 +50,14 @@ class Agent:
 
     def start(self, messages=None):
         self.warned = False
-        self.messages =messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
+        self.messages = messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
         if not messages:
             self.emit("message", self.messages[0])
         else:
+            # Older sessions may hold text that the request check refuses. Clean it, so the session can resume.
+            for message in self.messages[1:]:
+                if message.get("role") in ("user", "tool") and isinstance(message.get("content"), str):
+                    message["content"] = guard(message["content"])
             self._close_open_calls()
 
     def _append(self, message):
@@ -65,6 +69,9 @@ class Agent:
             sanitized(task.encode("utf-8"))
         except RuntimeRefused as exc:
             return Outcome("error", "", 0, 0.0, exc.code)
+        if looks_secret(task):
+            # Refuse here, before the task joins the conversation and blocks every later request.
+            return Outcome("error", "", 0, 0.0, "AI_SENSITIVE_INPUT_DENIED: the task looks like it holds a secret")
         self._append({"role": "user", "content": task})
         start = self.clock()
         deadline = start + self.limits.max_seconds
@@ -128,6 +135,8 @@ class Agent:
             ok = True
         except ToolError as exc:
             result, ok = f"error: {exc}", False
+        # Every tool result passes the same secret rules as the request check, whatever the tool checked itself.
+        result = guard(result)
         self.display.tool_result(result, ok, name=name, change=take_change())
         return result
 

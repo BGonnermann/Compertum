@@ -57,6 +57,7 @@ An independent review found eight defects. The fixes are applied and regression-
 Long conversations still need `/new` when they reach the model packet limit. The harness records a clean refusal instead of losing the session.
 Harness 0.5 replaces the reused 64 KiB event-record limit with a 512 KiB conversation limit, the owner's choice on 28 October 2026.
 The secret scan still checks all local text, from the system prompt, the owner and the tools, before each request.
+Every tool result, resumed message and new task passes the same rules first, so refused text cannot enter the conversation.
 Model replies get only a size check, because they hold only what the model wrote. A search for a word such as password no longer ends a task. A note appears at 80 percent, and a full conversation reports `CONVERSATION_FULL`.
 
 Remaining limits: no live engine run has started from this console.

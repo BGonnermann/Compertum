@@ -154,6 +154,41 @@ def test_warning_returns_after_a_new_conversation(tmp_path):
     assert output.getvalue().count("Use /new soon.") == 2
 
 
+def test_reading_a_file_with_a_token_rule_no_longer_blocks_the_conversation(tmp_path):
+    # The owner's task read packets.py, whose rule text matches the token rule, and every later request was refused.
+    (tmp_path / "rules.py").write_bytes(b'PATTERN = r"|_authtoken|"\nLIMIT = 5\n')
+    calls = iter([
+        SimpleNamespace(content="", tool_calls=[{"id": "c1", "name": "read", "arguments": '{"path": "rules.py"}'}]),
+        SimpleNamespace(content="Done.", tool_calls=[]),
+    ])
+
+    def chat(messages, *args):
+        checked(messages, MAX_CONVERSATION, "CONVERSATION_FULL")  # The same check the real client makes.
+        return next(calls)
+
+    output = StringIO()
+    agent = Agent(SimpleNamespace(chat=chat), WorkspaceTools(tmp_path, tmp_path), Limits(4, 20), Display(output, color=False),
+                  tmp_path)
+    agent.start()
+    assert agent.run_task("Read rules.py").status == "done"
+    assert agent.messages[3]["content"] == f"{SECRET_LINE}\nLIMIT = 5\n"
+
+
+def test_a_session_with_refused_text_resumes_and_a_secret_task_is_refused(tmp_path):
+    history = [{"role": "system", "content": "start"}, {"role": "user", "content": "look"},
+               {"role": "assistant", "content": None, "tool_calls": [
+                   {"id": "c1", "type": "function", "function": {"name": "read", "arguments": "{}"}}]},
+               {"role": "tool", "tool_call_id": "c1", "content": 'x = "_authtoken"\nok'}]
+    agent = Agent(SimpleNamespace(chat=lambda *args: None), WorkspaceTools(tmp_path, tmp_path), Limits(4, 20),
+                  Display(StringIO(), color=False), tmp_path)
+    agent.start(history)
+    assert checked(agent.messages, MAX_CONVERSATION, "CONVERSATION_FULL")
+    assert agent.messages[3]["content"] == f"{SECRET_LINE}\nok"
+    outcome = agent.run_task("use token ghp_abcdefghij1234567890 for this")
+    assert outcome.status == "error" and "AI_SENSITIVE_INPUT_DENIED" in outcome.detail
+    assert agent.messages[-1]["role"] == "tool"
+
+
 def test_bash_refuses_low_memory_and_bad_input(tmp_path, monkeypatch):
     tools = WorkspaceTools(tmp_path, tmp_path)
     with pytest.raises(ToolError, match="1 to 8192"):

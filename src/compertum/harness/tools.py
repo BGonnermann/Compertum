@@ -329,8 +329,8 @@ class WorkspaceTools:
                                  memory_bytes=256 * 1024**2, disk_bytes=64 * 1024**2, memory_floor_bytes=MEMORY_FLOOR)
             output = {"status": "COMPLETED" if result.exit_code == 0 and not result.timed_out else "FAILED",
                       "exit_code": result.exit_code, "timed_out": result.timed_out,
-                      "stdout": result.stdout[-MAX_OUTPUT:].decode("utf-8", "replace"),
-                      "stderr": result.stderr[-MAX_OUTPUT:].decode("utf-8", "replace")}
+                      "stdout": hide_secrets(result.stdout[-MAX_OUTPUT:].decode("utf-8", "replace")),
+                      "stderr": hide_secrets(result.stderr[-MAX_OUTPUT:].decode("utf-8", "replace"))}
             sanitized(json.dumps(output).encode())
             return json.dumps(output)
         except (OSError, RuntimeRefused) as exc:
