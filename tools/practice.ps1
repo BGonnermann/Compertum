@@ -42,6 +42,7 @@ param(
     [int]$CyclesPerMarket=4,
     [ValidateSet('bench-1','bench-2','bench-3')][string]$BenchSet='bench-1',
     [string[]]$MarketManifest=@(),
+    [int]$Seed=12,
     [string]$PromptsRun='',
     [int]$PromptsCandidate=-1,
     [double]$Hours=0,
@@ -70,6 +71,7 @@ if ($evaluationMode -and $PSBoundParameters.ContainsKey('Cycles')) { Fail "-Cycl
 if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket') -or $PSBoundParameters.ContainsKey('PromptsRun') -or $PSBoundParameters.ContainsKey('PromptsCandidate') -or $PSBoundParameters.ContainsKey('BenchSet'))) { Fail "-CyclesPerMarket, -BenchSet, -PromptsRun and -PromptsCandidate apply to bench and holdout only" }
 if ($Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')) { Fail '-BenchSet applies to bench only; the holdout cannot be moved' }
 if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest applies to run and gepa only; bench and holdout stay fixed' }
+if ($Mode -ne 'run' -and $PSBoundParameters.ContainsKey('Seed')) { Fail '-Seed applies to run only; GEPA, bench and holdout markets are fixed' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }
@@ -201,6 +203,7 @@ try {
         # Both limits pass when both are given; the run stops at the first one (review, 26 October 2026: -Cycles was dropped when -Hours was given).
         if ($Hours -gt 0) { $arguments+=@('--hours',"$Hours") }
         if ($Hours -le 0 -or $PSBoundParameters.ContainsKey('Cycles')) { $arguments+=@('--cycles',"$Cycles") }
+        if ($Mode -eq 'run' -and $PSBoundParameters.ContainsKey('Seed')) { $arguments+=@('--seed',"$Seed") }
         foreach ($manifest in $MarketManifest) { $arguments+=@('--market-manifest',$manifest) }
         Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
     }

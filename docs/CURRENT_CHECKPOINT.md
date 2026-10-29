@@ -42,7 +42,17 @@ Final verification, source, simulated markets, after the Director prompt change:
 Committed as `c825b71`. The project map was refreshed for the GEPA design: 9 pages, 81 internal links with 0 broken; pages 1 and 2 were inspected.
 The bench-2 flash baseline, `run-20261029-1bab0fc4`, started at 10:25 EDT (4 cycles per market, 600 requests, new Director prompt), inside off-peak.
 
-Exact next action: report bench-2. Then the bench-3 flash baseline, which must start by about 16:30 EDT to end before the 21:00 peak.
+Owner decisions after the workflow review, 29 October 2026:
+- Practice runs should use real markets and fake markets. Built now: `tools\practice.ps1 -Seed N` (run mode only) picks the fake market, so runs can
+  rotate through seeds outside the reserved ranges (bench 100 to 199 and 900 to 999, GEPA 200 to 299). Real markets wait for a fresh data pull and trials per source.
+- GEPA weekend runs should be faster. Plan, not built: run several cycles at once (model latency dominates; the sandbox part is seconds and keeps one job at a time).
+- Runs must survive a closed window. Built: `tools\start_run.ps1 <practice.ps1 arguments>` starts the run as its own process through the Windows
+  process service, outside the caller's job, with console output in `.cache/test-runs/practice-detached-<stamp>.log`. The owner still starts each run;
+  nothing repeats or schedules. Tested against the live bench-2 lease: the detached process ran, logged `{"refused": "OWNER_BUSY"}` and exited;
+  bench-2 was unaffected. The first attempt quoted parameter names, so practice.ps1 read them as text; fixed. `-Show` prints the command line without starting.
+- Hand edits to prompts should take the same bench check as GEPA candidates (proposed; the old prompts survive as candidate 0 of `run-20261029-65d4d5c4`).
+
+Exact next action: report bench-2. Then the bench-3 flash baseline, started with `tools\start_run.ps1`, which must start by about 16:30 EDT to end before the 21:00 peak.
 
 ## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
 
