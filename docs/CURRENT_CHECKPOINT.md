@@ -32,8 +32,14 @@ Open:
 - Real markets have the same limit: 500 sessions give 150 VALIDATION sessions. That is part of the real-market work.
 - Step 2 is the owner's decision: count trials for the whole history, as now, or per research question or market.
 
-Exact next action: the bench-4 flash baseline, off-peak, then the weekend GEPA run on the calibrated markets:
-`tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
+Cleanup, owner OK on 29 October 2026 ("go ahead with the cleanup"): the `tmp` folders of the six resolved failed test jobs of 29 October were removed
+with the test runner's link-safe functions: 5,570 files, 232.8 MiB. Each job keeps `output.txt` and `retention.json`.
+Record: `.cache/test-runs/cleanup-records/resolved-failures-20261029-183410.json`. The 40 engine sandbox folders were already empty.
+
+Bench-4 flash baseline `run-20261029-3c88c5bb` started at 18:34 EDT on the owner's yes, through `tools\start_run.ps1` (process 19096, 4 cycles per market,
+2,400 requests). It runs into the 21:00 to 00:00 EDT peak. Record: `.cache/test-runs/practice-bench-20261029-183426-record.json`.
+
+Exact next action: report bench-4 and compare it with bench-3. Then the weekend GEPA run on the calibrated markets.
 
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
 
