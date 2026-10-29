@@ -74,15 +74,17 @@ def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
 
 def test_picker_moves_selects_cancels_and_clears_its_rows():
     options = [f"model-{n}" for n in range(12)]
-    keys = iter(["\xe0P", "\xe0P", "\r"])
-    output = StringIO()
-    assert Picker(output, options, 0, get_key=lambda: next(keys), width=60).read() == 2
-    assert output.getvalue().endswith("\x1b[2B\r\x1b[J")
-    keys = iter(["\xe0H", "\x1b"])
-    assert Picker(StringIO(), options, 0, get_key=lambda: next(keys), width=60).read() is None
-    picker = Picker(StringIO(), options, 11, get_key=lambda: "\r", width=60)
-    _, middle, _, rows, _ = picker._lines()
-    assert "Enter selects" in middle and rows[0] == "" and rows[-2] == "  › model-11" and rows[-1] == "    ↑ 4 more"
+    for keys, result in ((["\xe0P", "\xe0P", "\r"], 2), (["\xe0H", "\x1b"], None)):
+        output, screen, pressed = StringIO(), Screen(60), iter(keys)
+        assert Picker(output, options, 0, get_key=lambda: next(pressed), width=60, title="Choose a model").read() == result
+        screen.feed(output.getvalue())
+        # No box, and nothing left behind: the result line prints where the picker was.
+        assert "╭" not in output.getvalue() and set(screen.text()) == {""} and (screen.row, screen.column) == (0, 0)
+        assert output.getvalue().startswith("\x1b[?25l") and output.getvalue().endswith("\x1b[?25h")
+    picker = Picker(StringIO(), options, 11, get_key=lambda: "\r", width=60, title="Choose a model")
+    heading, blank, first, rows, _ = picker._lines()
+    assert heading.startswith("Choose a model · ↑/↓ choose") and blank == "" and first == "    model-4"
+    assert rows[-2] == "  › model-11" and rows[-1] == "    ↑ 4 more"
     keys = iter(["\xe0H", "\r"])
     assert Picker(StringIO(), options, 0, get_key=lambda: next(keys), width=60).read() == 11
 
@@ -123,7 +125,7 @@ class Screen:
         for code in re.findall(r"\x1b\[\??[0-9]*[A-Za-z]|.", text, re.S):
             if code.startswith("\x1b["):
                 count, op = int(code[2:-1].lstrip("?") or 1), code[-1]
-                if code in (SYNC_START, SYNC_END):
+                if code in (SYNC_START, SYNC_END, "\x1b[?25l", "\x1b[?25h"):
                     continue
                 if op == "A":
                     assert count <= self.row, "the composer moved above its first row"

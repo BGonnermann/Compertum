@@ -15,6 +15,10 @@ The product-environment harness lane passed 94 tests, zero failed and zero skipp
 
 Exact next action: the owner restarts `compertum-harness`, types `/model`, presses Enter, and picks a model with the arrow keys.
 
+Owner follow-up, harness 0.5.4: the owner checked the picker and asked for no second box. The picker is now plain text:
+a heading line, a blank line and the list. It hides the text cursor and erases itself after Enter or Esc, so only the result line stays.
+The product-environment harness lane passed 94 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
 ## Harness 0.5.2 model choice repair - 29 October 2026
 
 The owner reported that the harness seemed stuck on `deepseek-flash`. `/model` switching worked inside one console.

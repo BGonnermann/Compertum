@@ -298,7 +298,7 @@ class LineEditor:
 
 
 class Picker(LineEditor):
-    """An arrow-key list under the composer box. Enter returns the chosen index; Esc returns None."""
+    """A plain-text arrow-key list with no box. Enter returns the chosen index; Esc returns None."""
 
     def __init__(self, out, options, chosen=0, get_key=None, width=None, title="Choose",
                  prompt="↑/↓ choose · Enter selects · Esc keeps the current choice"):
@@ -307,34 +307,43 @@ class Picker(LineEditor):
 
     def _lines(self):
         width = self._size()
-        top, middle, bottom = self._box(width, self.prompt[:width - 4])
         count = len(self.options)
         if self.chosen < self.offset:
             self.offset = self.chosen
         elif self.chosen >= self.offset + PICKER_ROWS:
             self.offset = self.chosen - PICKER_ROWS + 1
         end = min(self.offset + PICKER_ROWS, count)
-        rows = [""] + [("  › " if index == self.chosen else " " * MENU_INDENT) + self.options[index]
-                       for index in range(self.offset, end)]
+        rows = [("  › " if index == self.chosen else " " * MENU_INDENT) + self.options[index]
+                for index in range(self.offset, end)]
         more = [f"↑ {self.offset} more"] * bool(self.offset) + [f"↓ {count - end} more"] * (end < count)
         if more:
             rows.append(" " * MENU_INDENT + "   ".join(more))
-        return top, middle, bottom, [row[:width] for row in rows], 3
+        # The renderer keeps its cursor on the second row, so a blank row there separates the heading from the list.
+        heading = f"{self.title} · {self.prompt}"
+        return heading[:width], "", rows[0][:width], [row[:width] for row in rows[1:]], 1
+
+    def _finish(self):
+        # Erase the whole picker, so only the result line remains. Show the cursor again.
+        self.out.write(_move(-1) + "\r\x1b[J\x1b[?25h")
+        self.out.flush()
 
     def _read(self, get_key):
-        while True:
-            self._render()
-            key = get_key()
-            if key in ("\r", "\n"):
-                self._finish()
-                return self.chosen
-            if key in ("\x1b", "\x04", "\x1a"):
-                self._finish()
-                return None
-            if key == "\x03":
-                self._finish()
-                raise KeyboardInterrupt()
-            if key in ("\x00H", "\xe0H"):
-                self.chosen = (self.chosen - 1) % len(self.options)
-            elif key in ("\x00P", "\xe0P"):
-                self.chosen = (self.chosen + 1) % len(self.options)
+        if not self.options:
+            return None
+        self.out.write("\x1b[?25l")  # The list needs no text cursor.
+        try:
+            while True:
+                self._render()
+                key = get_key()
+                if key in ("\r", "\n"):
+                    return self.chosen
+                if key in ("\x1b", "\x04", "\x1a"):
+                    return None
+                if key == "\x03":
+                    raise KeyboardInterrupt()
+                if key in ("\x00H", "\xe0H"):
+                    self.chosen = (self.chosen - 1) % len(self.options)
+                elif key in ("\x00P", "\xe0P"):
+                    self.chosen = (self.chosen + 1) % len(self.options)
+        finally:
+            self._finish()

@@ -132,7 +132,8 @@ def _console(argv, display, input_fn, choose):
                                                  model_ids=lambda name: catalog.get(name, ()),
                                                  title=f"Compertum · {settings.model.model}").read()
             if choose is None:
-                choose = lambda options, chosen: Picker(output.out, options, chosen, title="Choose a model").read()
+                choose = lambda options, chosen: Picker(output.out, options, chosen, title="Choose a model",
+                                                         prompt="↑/↓ choose · Enter selects · Esc keeps the current model").read()
         else:
             input_fn = input
 
