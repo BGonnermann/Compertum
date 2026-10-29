@@ -11,7 +11,7 @@ from compertum.runtime.errors import RuntimeRefused
 from . import __version__
 from .agent import Agent, Limits
 from .commands import help_text
-from .config import load, model_files, remember, remembered
+from .config import known_models, load, model_files, remember, remember_models, remembered
 from .display import Display
 from .editor import LineEditor, Picker, enable_vt
 from .endpoint import parse
@@ -104,7 +104,9 @@ def _console(argv, display, input_fn, choose):
     except (OSError, ValueError, RuntimeRefused, SessionError) as exc:
         output.error(getattr(exc, "code", str(exc)))
         return 2
-    catalog = {settings.models: [settings.model.model]}
+    # Known model IDs persist, so the picker keeps every model the owner used or listed, not only the active one.
+    catalog = known_models(root)
+    catalog[settings.models] = sorted({*catalog.get(settings.models, ()), settings.model.model})
 
     def select(models, model=None):
         nonlocal settings
@@ -118,6 +120,7 @@ def _console(argv, display, input_fn, choose):
         settings = updated
         catalog[updated.models] = sorted({*catalog.get(updated.models, ()), updated.model.model})
         remember(root, updated.models, updated.model.model)
+        remember_models(root, updated.models, [updated.model.model])
         try:
             updated.headers()
         except RuntimeRefused:
@@ -132,6 +135,7 @@ def _console(argv, display, input_fn, choose):
         listed = settings if models == settings.models else load(root, settings.workspace, models, None,
                                                                 settings.max_steps, settings.max_seconds / 60)
         catalog[models] = LazyClient(listed).list_models()
+        remember_models(root, models, catalog[models], replace=True)  # A fresh listing drops IDs the provider removed.
         return catalog[models]
 
     output.banner(__version__, [("model", settings.model.model), ("workspace", str(settings.workspace)),

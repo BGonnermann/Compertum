@@ -61,6 +61,35 @@ def remember(root: Path, models: str, model: str) -> None:
         pass
 
 
+def _known_path(root: Path) -> Path:
+    return root / "state" / "harness" / "models-known.json"
+
+
+def known_models(root: Path) -> dict[str, list[str]]:
+    """Return the model IDs the owner has used or listed, per model file, so the picker keeps showing them."""
+    try:
+        value = json.loads(_known_path(root).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(value, dict):
+        return {}
+    return {name: [item for item in ids if isinstance(item, str) and 0 < len(item) <= 128][:64]
+            for name, ids in value.items()
+            if isinstance(name, str) and MODEL_NAME.fullmatch(name) and isinstance(ids, list)}
+
+
+def remember_models(root: Path, models: str, ids, replace: bool = False) -> None:
+    """Add model IDs for one model file. A fresh /models listing replaces the old list. A failed save changes nothing."""
+    known = known_models(root)
+    known[models] = sorted(set(ids) if replace else {*known.get(models, ()), *ids})[:64]
+    try:
+        path = _known_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(known, sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def model_files(root: Path) -> tuple[str, ...]:
     names = {"local"}
     for path in sorted((root / "config").glob("models-*.toml")):

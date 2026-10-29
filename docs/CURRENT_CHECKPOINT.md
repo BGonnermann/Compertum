@@ -1,5 +1,18 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.8 picker keeps known models - 29 October 2026
+
+The owner reported that `deepseek-flash` no longer appeared in the `/model` picker.
+A model-list request showed that DeepSeek still offers `deepseek-flash` and `deepseek-v4-pro`.
+The picker listed only each file's default, the active model and IDs listed in the open console.
+After the owner switched to Kimi and then `deepseek-v4-pro`, the file default, flash dropped out.
+
+The harness now keeps every used or listed model ID in `state/harness/models-known.json`, outside Git.
+A fresh `/models NAME` listing replaces that file's IDs. The owner's file was filled from today's lists:
+two DeepSeek IDs and six Kimi IDs. The model-list requests sent no task and used no quota.
+
+The product-environment harness lane passed 99 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
 ## Harness 0.5.7 readiness fixes - 29 October 2026
 
 The owner asked what to fix before regular use and approved four items.

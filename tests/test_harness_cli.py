@@ -194,6 +194,27 @@ def test_plain_model_command_opens_a_picker_that_selects_and_saves(tmp_path):
     assert "Kept kimi-default." in output.getvalue()
 
 
+def test_picker_keeps_models_used_before_and_a_listing_refreshes_them(tmp_path, monkeypatch):
+    # The owner used deepseek-flash, switched to Kimi and then v4-pro; flash then vanished from the picker.
+    root = tmp_path / "project"
+    config(root)
+    model_file(root, "kimi", "kimi-default")
+    status_model(root, answers=("/model local flash-id", "/model kimi", "/exit"))
+    shown = []
+    steps = iter(["/model", "/exit"])
+    main(["--project", str(root)], display=Display(StringIO(), color=False), input_fn=lambda _: next(steps),
+         choose=lambda options, chosen: shown.append(options))
+    assert any(label.startswith("flash-id") for label in shown[0])
+    monkeypatch.setattr(LazyClient, "list_models", lambda self: ["scripted", "new-id"])
+    status_model(root, answers=("/models local", "/exit"))
+    shown.clear()
+    steps = iter(["/model", "/exit"])
+    main(["--project", str(root)], display=Display(StringIO(), color=False), input_fn=lambda _: next(steps),
+         choose=lambda options, chosen: shown.append(options))
+    labels = [label.split()[0] for label in shown[0]]
+    assert "new-id" in labels and "flash-id" not in labels
+
+
 def test_engine_runs_refuse_an_interactive_only_provider(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
