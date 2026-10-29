@@ -73,3 +73,21 @@ def test_sensitive_task_is_not_sent_or_recorded(tmp_path):
     outcome = agent.run_task("show my password")
     assert outcome.status == "error"
     assert len(records) == 1
+
+
+def test_edit_diff_reaches_the_display_but_not_the_model(tmp_path):
+    from types import SimpleNamespace
+    (tmp_path / "note.txt").write_text("hello\n")
+    replies = iter([
+        SimpleNamespace(content="", tool_calls=[{"id": "call-1", "name": "edit",
+                        "arguments": '{"path": "note.txt", "old": "hello", "new": "goodbye"}'}]),
+        SimpleNamespace(content="Done.", tool_calls=[]),
+    ])
+    client = SimpleNamespace(chat=lambda *args: next(replies))
+    output = StringIO()
+    agent = Agent(client, WorkspaceTools(tmp_path, tmp_path), Limits(4, 20), Display(output, color=False), tmp_path)
+    agent.start()
+    assert agent.run_task("Change the greeting").status == "done"
+    text = output.getvalue()
+    assert "● Edit note.txt" in text and "1 - hello" in text and "1 + goodbye" in text
+    assert agent.messages[-2] == {"role": "tool", "tool_call_id": "call-1", "content": "edited note.txt"}

@@ -109,14 +109,16 @@ class Agent:
         self.display.tool_call(name, args if isinstance(args, dict) else call["arguments"])
         if not isinstance(args, dict):
             result = "error: the arguments are not a valid JSON object"
-            self.display.tool_result(result, ok=False)
+            self.display.tool_result(result, ok=False, name=name)
             return result
+        take_change = getattr(self.tools, "take_change", lambda: None)
+        take_change()
         try:
             result = self.tools.run(name, args, deadline)
             ok = True
         except ToolError as exc:
             result, ok = f"error: {exc}", False
-        self.display.tool_result(result, ok)
+        self.display.tool_result(result, ok, name=name, change=take_change())
         return result
 
     def _close_open_calls(self):

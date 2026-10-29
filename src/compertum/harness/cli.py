@@ -53,6 +53,14 @@ def _run_args(parts):
 
 
 def main(argv=None, display=None, input_fn=None):
+    output = display or Display()
+    try:
+        return _console(argv, output, input_fn)
+    finally:
+        output.idle("")  # An empty title returns the tab to the terminal's own title, even after an error.
+
+
+def _console(argv, display, input_fn):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)

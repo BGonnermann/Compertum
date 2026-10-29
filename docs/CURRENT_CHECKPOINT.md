@@ -1,5 +1,28 @@
 # Current Compertum checkpoint
 
+## Harness 0.4.0 activity display - 28 October 2026
+
+The owner asked for coloured code changes and a working indicator like Codex or Claude Code. The owner approved three display upgrades.
+Tool steps now show as short lines, such as `● Edit src/x.py` and `● Run main.py --fast`, instead of raw JSON arguments.
+Edits and writes show a coloured diff with line numbers. New files show their first lines. Run results show the exit code and the last output lines.
+The diff is display only. The model still receives the same short tool result.
+A spinner shows the step and elapsed time while the model or a tool works. It disappears before the next output.
+The Windows Terminal tab shows a busy ring and the title `Compertum · working`. The tab returns to idle after each task, after an error and at exit.
+Scripts, logs and consoles without virtual-terminal mode keep the plain lines.
+
+An independent review found one blocker. Writing an empty file, such as `__init__.py`, crashed the display and left a tool call without a reply.
+It also found four should-fix items: diffs that could run for minutes, raw terminal controls from model or program text,
+a full read of a large file before the size check, and a busy tab after errors. All five are fixed and have regression tests.
+Diffs now match only the changed region. A region over 40,000 line pairs shows a summary; the slowest allowed case took 0.08 seconds.
+Display failures now fall back to a plain summary and never reach the task. Minor items for line endings, empty files, widths and spinner erasure are fixed.
+
+The product-environment harness lane passed 71 tests, zero failed and zero skipped.
+The native lane passed four tests, zero failed and zero skipped. A new native test reads a real console screen after a spinner step.
+It found only the answer row. With the erase step removed, the same check showed the spinner text on the screen.
+
+Exact next action: the owner restarts `compertum-harness` and gives a task that edits a file. The owner then checks the spinner, the diff and the tab ring.
+The physical Windows Terminal checks for 0.3.4 to 0.4.0 remain pending. No provider, GEPA, benchmark or engine run occurred.
+
 ## Harness 0.3.5 command menu spacing - 28 October 2026
 
 The owner reported that the slash-command menu looked cramped. Commands, descriptions and the example all started at one indent.

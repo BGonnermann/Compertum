@@ -18,6 +18,10 @@ Harness 0.3.4 waits for Windows console key and resize events instead of polling
 Each frame is one synchronized-output write. A stable frame rewrites only its changed rows. A resize or a taller frame still uses a full redraw.
 Modified navigation keys, Alt+letter and Shift+Tab stay ignored, as they were with keyboard polling. AltGr characters still type.
 The editor supports backspace, delete, arrows, Home and End. Scripted input keeps the original plain prompt.
+Harness 0.4 shows each tool step as a short line, such as `● Edit src/x.py`. Edits and writes show a coloured diff with line numbers.
+The diff is display only. The model still receives the short tool result. A changed region over about 200 by 200 lines shows a summary.
+A spinner shows the step and elapsed time while the model or a tool works. The Windows Terminal tab shows a busy ring and a working title.
+Control characters from the model, files and programs appear as visible escapes. They cannot write to the clipboard or change the terminal.
 The `/watch` command returns one uniform run card. The `/report` command adds a bounded log tail.
 The owner can dismiss a terminal or unverifiable record with `/clear RUN_ID`. Dismissal never stops a process or deletes evidence.
 
@@ -29,8 +33,9 @@ Selection preserves the conversation and changes future engine-run defaults. A f
 Tab completes model-file names and IDs cached by `/models`. Tab itself sends no request.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
-Verification: 57 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
-The native lane passed three tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery and real console input events.
+Verification: 71 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
+real console input events and spinner removal from a real console screen.
 An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.
 A separate interactive-code review found cursor and key-code defects. The fixes passed review with no blockers.

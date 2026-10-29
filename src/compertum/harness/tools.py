@@ -27,10 +27,28 @@ def _schema(description, properties, required):
             "parameters": {"type": "object", "properties": properties, "required": required, "additionalProperties": False}}}
 
 
+def _previous(path):
+    """Return a file's text before a write, or None when it is missing or cannot be shown."""
+    try:
+        # Check the size first, so a large data file is never loaded just to be refused.
+        if not path.is_file() or path.stat().st_size > MAX_TEXT:
+            return None
+        return path.read_bytes().decode("utf-8")
+    except (OSError, UnicodeError):
+        return None
+
+
 class WorkspaceTools:
     def __init__(self, root: Path, workspace: Path, runner=run_sandboxed, busy=None):
         self.root, self.workspace, self.runner = root.resolve(), workspace.resolve(), runner
         self.busy = busy or (lambda: False)
+        # The display shows this (path, before, after, created) record. The model receives only the short result.
+        # Before is None when the previous file cannot be shown.
+        self.change = None
+
+    def take_change(self):
+        change, self.change = self.change, None
+        return change
 
     def specs(self):
         path = {"type": "string", "description": "a path relative to the workspace"}
@@ -101,12 +119,14 @@ class WorkspaceTools:
         content = args.get("content")
         if not isinstance(content, str) or len(content.encode()) > MAX_TEXT:
             raise ToolError("the content is not valid or is too large")
+        created, before = not path.exists(), _previous(path)
         try:
             sanitized(content.encode())
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content, encoding="utf-8", newline="\n")
         except (OSError, RuntimeRefused) as exc:
             raise ToolError(getattr(exc, "code", "cannot write the file")) from None
+        self.change = path.relative_to(self.workspace).as_posix(), "" if created else before, content, created
         return f"wrote {path.relative_to(self.workspace).as_posix()} ({len(content.encode())} bytes)"
 
     def _edit(self, args):
@@ -128,6 +148,7 @@ class WorkspaceTools:
             path.write_text(updated, encoding="utf-8", newline="\n")
         except (OSError, RuntimeRefused) as error:
             raise ToolError(getattr(error, "code", "cannot write the file")) from None
+        self.change = path.relative_to(self.workspace).as_posix(), text, updated, False
         return f"edited {path.relative_to(self.workspace).as_posix()}"
 
     def _sandbox(self, args, deadline):
