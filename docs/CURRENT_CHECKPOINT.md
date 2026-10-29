@@ -1,5 +1,20 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.3 model picker - 29 October 2026
+
+The owner typed `/model` and pressed Enter. The harness printed a JSON listing and offered no way to choose.
+The command menu also stayed on screen above the answer.
+
+Plain `/model` in the interactive console now opens an arrow-key picker below the box.
+Up and Down move. Enter selects and saves the choice. Esc keeps the current model.
+The picker lists `deepseek-v4-pro`, `deepseek-flash`, `k3.1-pro` and `flint@q4_k_m` on this host, plus IDs cached by `/models`.
+It marks the current model and shows `KIMI_API_KEY not set` beside Kimi. It sends no model request.
+Scripted input keeps the JSON listing. Enter now erases the command menu rows below the box.
+
+The product-environment harness lane passed 94 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
+Exact next action: the owner restarts `compertum-harness`, types `/model`, presses Enter, and picks a model with the arrow keys.
+
 ## Harness 0.5.2 model choice repair - 29 October 2026
 
 The owner reported that the harness seemed stuck on `deepseek-flash`. `/model` switching worked inside one console.

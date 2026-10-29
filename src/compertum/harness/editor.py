@@ -8,7 +8,7 @@ import time
 
 from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands
 
-VISIBLE_COMMANDS = 6
+VISIBLE_COMMANDS, PICKER_ROWS = 6, 8
 # The menu indents rows under the input text and needs room for this much description beside the commands.
 MENU_INDENT, MENU_GAP, MIN_DESCRIPTION = 4, 3, 16
 SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"
@@ -167,15 +167,17 @@ class LineEditor:
         hints.append(indent + "Example: " + EXAMPLES[name])
         return [hint[:width] for hint in hints]
 
-    def _lines(self):
-        width = self._size()
+    def _box(self, width, text):
         title = self.title[:max(1, width - 6)]
         top = f"╭─ {title} " + "─" * max(1, width - len(title) - 5) + "╮"
+        middle = "│ " + text + " " * max(0, width - 4 - len(text)) + " │"
+        return top, middle, "╰" + "─" * max(1, width - 2) + "╯"
+
+    def _lines(self):
+        width = self._size()
         inside = width - 4
         start = max(0, self.cursor - inside + 1) if self.cursor >= inside else 0
-        shown = self.buffer[start:start + inside]
-        middle = "│ " + shown + " " * max(0, inside - len(shown)) + " │"
-        bottom = "╰" + "─" * max(1, width - 2) + "╯"
+        top, middle, bottom = self._box(width, self.buffer[start:start + inside])
         return top, middle, bottom, self._hints(width), self.cursor - start + 3
 
     def _render(self):
@@ -231,7 +233,8 @@ class LineEditor:
         return "".join(parts)
 
     def _finish(self):
-        self.out.write(_move(self.rendered - 2) * (self.rendered > 2) + "\r\n")
+        # Erase the menu rows below the box, so only the box and the answer stay on screen.
+        self.out.write(_move(2) + "\r\x1b[J" if self.rendered > 3 else _move(self.rendered - 2) * (self.rendered > 2) + "\r\n")
         self.out.flush()
         return self.buffer
 
@@ -292,3 +295,46 @@ class LineEditor:
             elif len(key) == 1 and key.isprintable():
                 self.buffer = self.buffer[:self.cursor] + key + self.buffer[self.cursor:]
                 self.cursor += 1
+
+
+class Picker(LineEditor):
+    """An arrow-key list under the composer box. Enter returns the chosen index; Esc returns None."""
+
+    def __init__(self, out, options, chosen=0, get_key=None, width=None, title="Choose",
+                 prompt="↑/↓ choose · Enter selects · Esc keeps the current choice"):
+        super().__init__(out, get_key=get_key, width=width, title=title)
+        self.options, self.chosen, self.prompt, self.offset = list(options), chosen, prompt, 0
+
+    def _lines(self):
+        width = self._size()
+        top, middle, bottom = self._box(width, self.prompt[:width - 4])
+        count = len(self.options)
+        if self.chosen < self.offset:
+            self.offset = self.chosen
+        elif self.chosen >= self.offset + PICKER_ROWS:
+            self.offset = self.chosen - PICKER_ROWS + 1
+        end = min(self.offset + PICKER_ROWS, count)
+        rows = [""] + [("  › " if index == self.chosen else " " * MENU_INDENT) + self.options[index]
+                       for index in range(self.offset, end)]
+        more = [f"↑ {self.offset} more"] * bool(self.offset) + [f"↓ {count - end} more"] * (end < count)
+        if more:
+            rows.append(" " * MENU_INDENT + "   ".join(more))
+        return top, middle, bottom, [row[:width] for row in rows], 3
+
+    def _read(self, get_key):
+        while True:
+            self._render()
+            key = get_key()
+            if key in ("\r", "\n"):
+                self._finish()
+                return self.chosen
+            if key in ("\x1b", "\x04", "\x1a"):
+                self._finish()
+                return None
+            if key == "\x03":
+                self._finish()
+                raise KeyboardInterrupt()
+            if key in ("\x00H", "\xe0H"):
+                self.chosen = (self.chosen - 1) % len(self.options)
+            elif key in ("\x00P", "\xe0P"):
+                self.chosen = (self.chosen + 1) % len(self.options)

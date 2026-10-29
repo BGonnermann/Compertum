@@ -168,6 +168,32 @@ def test_model_choice_survives_a_restart_and_options_still_win(tmp_path):
     assert "The saved model choice kimi kimi-exact no longer loads. Using local." in text and '"model": "scripted"' in text
 
 
+def test_plain_model_command_opens_a_picker_that_selects_and_saves(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    model_file(root, "kimi", "kimi-default")
+    shown = []
+
+    def choose(options, chosen):
+        shown.append((options, chosen))
+        return next(index for index, label in enumerate(options) if label.startswith("kimi-default"))
+
+    output = StringIO()
+    steps = iter(["/model", "/status", "/exit"])
+    main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps), choose=choose)
+    options, chosen = shown[0]
+    assert options[chosen].startswith("scripted") and options[chosen].endswith("current")
+    assert any(label.startswith("kimi-default") and "kimi" in label for label in options)
+    text = output.getvalue()
+    assert "Selected kimi-default from kimi. The choice is saved." in text and '"model": "kimi-default"' in text
+    assert '"model": "kimi-default"' in status_model(root)
+    output = StringIO()
+    steps = iter(["/model", "/exit"])
+    main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
+         choose=lambda options, chosen: None)
+    assert "Kept kimi-default." in output.getvalue()
+
+
 def test_bracket_placeholders_and_missing_keys_get_clear_messages(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)

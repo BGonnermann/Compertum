@@ -8,7 +8,7 @@ from random import Random
 import pytest
 
 from compertum.harness.commands import COMMANDS, DESCRIPTIONS, EXAMPLES, complete, help_text
-from compertum.harness.editor import SYNC_END, SYNC_START, LineEditor, _InputRecord, console_keys
+from compertum.harness.editor import SYNC_END, SYNC_START, LineEditor, Picker, _InputRecord, console_keys
 
 
 def test_slash_completion_inserts_an_editable_run_template():
@@ -70,6 +70,31 @@ def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
     keys = iter(["/", "\xe0P", "\xe0P", "\t", "\r"])
     assert LineEditor(StringIO(), get_key=lambda: next(keys), width=80).read() == "/model "
     assert complete("/model") == "/model " and complete("/watc") == "/watch " and complete("/res") == "/resume SESSION_ID"
+
+
+def test_picker_moves_selects_cancels_and_clears_its_rows():
+    options = [f"model-{n}" for n in range(12)]
+    keys = iter(["\xe0P", "\xe0P", "\r"])
+    output = StringIO()
+    assert Picker(output, options, 0, get_key=lambda: next(keys), width=60).read() == 2
+    assert output.getvalue().endswith("\x1b[2B\r\x1b[J")
+    keys = iter(["\xe0H", "\x1b"])
+    assert Picker(StringIO(), options, 0, get_key=lambda: next(keys), width=60).read() is None
+    picker = Picker(StringIO(), options, 11, get_key=lambda: "\r", width=60)
+    _, middle, _, rows, _ = picker._lines()
+    assert "Enter selects" in middle and rows[0] == "" and rows[-2] == "  › model-11" and rows[-1] == "    ↑ 4 more"
+    keys = iter(["\xe0H", "\r"])
+    assert Picker(StringIO(), options, 0, get_key=lambda: next(keys), width=60).read() == 11
+
+
+def test_enter_erases_the_command_menu():
+    output = StringIO()
+    keys = iter(["/", "\r"])
+    screen = Screen(80)
+    LineEditor(output, get_key=lambda: next(keys), width=80).read()
+    screen.feed(output.getvalue())
+    assert screen.text()[3:] == [] or set(screen.text()[3:]) == {""}
+    assert (screen.row, screen.column) == (3, 0)
 
 
 def test_editor_supports_cursor_editing():

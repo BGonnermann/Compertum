@@ -42,6 +42,10 @@ Tab completes model-file names and IDs cached by `/models`. Tab itself sends no 
 Harness 0.5.2 saves each `/model` choice in `state/harness/model.json`. A restart or `/resume` uses it; `--models` overrides it for one start.
 The box title shows the active model. Selecting a model without its key variable shows a warning at once.
 Tab leaves out optional `[...]` parts, so `/model` inserts `/model ` and never sends a bracket by mistake.
+Harness 0.5.3: plain `/model` in the interactive console opens an arrow-key picker. Enter selects and saves; Esc keeps the model.
+The picker lists each model file's default, the active model and IDs cached by `/models`. It sends no request.
+It marks the current model and any model whose key variable is not set. Scripted input still receives the JSON listing.
+Enter now erases the command menu, so only the box and the answer stay on screen.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
 Verification: 71 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.

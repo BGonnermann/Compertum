@@ -13,7 +13,7 @@ from .agent import Agent, Limits
 from .commands import help_text
 from .config import load, model_files, remember, remembered
 from .display import Display
-from .editor import LineEditor, enable_vt
+from .editor import LineEditor, Picker, enable_vt
 from .endpoint import parse
 from .model import ModelClient, ModelError
 from .runs import RunError, RunManager
@@ -52,15 +52,15 @@ def _run_args(parts):
     return {"cycles": int(parts[1]), "requests": int(parts[2]), "hours": float(parts[3]), "note": " ".join(parts[4:])}
 
 
-def main(argv=None, display=None, input_fn=None):
+def main(argv=None, display=None, input_fn=None, choose=None):
     output = display or Display()
     try:
-        return _console(argv, output, input_fn)
+        return _console(argv, output, input_fn, choose)
     finally:
         output.idle("")  # An empty title returns the tab to the terminal's own title, even after an error.
 
 
-def _console(argv, display, input_fn):
+def _console(argv, display, input_fn, choose):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)
@@ -131,8 +131,29 @@ def _console(argv, display, input_fn):
                                                  model_files=lambda: model_files(root),
                                                  model_ids=lambda name: catalog.get(name, ()),
                                                  title=f"Compertum · {settings.model.model}").read()
+            if choose is None:
+                choose = lambda options, chosen: Picker(output.out, options, chosen, title="Choose a model").read()
         else:
             input_fn = input
+
+    def model_choices():
+        """List each model file's default, the active model and IDs cached by /models. Nothing is requested."""
+        choices = []
+        for name in model_files(root):
+            try:
+                default = load(root, settings.workspace, name, None, settings.max_steps, settings.max_seconds / 60)
+            except (ValueError, RuntimeRefused):
+                continue
+            try:
+                default.headers()
+                missing = None
+            except RuntimeRefused:
+                missing = default.model.key_env or "the key variable"
+            ids = [default.model.model, *catalog.get(name, ())]
+            if name == settings.models:
+                ids.append(settings.model.model)
+            choices.extend((name, model, missing) for model in dict.fromkeys(ids))
+        return choices
     while True:
         try:
             text = input_fn("\ncompertum> ").strip()
@@ -153,7 +174,21 @@ def _console(argv, display, input_fn):
                              "session": session.identity, "runs": runs.cards()})
             elif text == "/model" or text.startswith("/model "):
                 parts = _arguments(text)
-                if len(parts) == 1:
+                if len(parts) == 1 and choose is not None:
+                    choices = model_choices()
+                    current = next((index for index, (name, model, _) in enumerate(choices)
+                                    if name == settings.models and model == settings.model.model), 0)
+                    width = max(len(model) for _, model, _ in choices) + 3
+                    labels = [(model.ljust(width) + name.ljust(10)
+                               + ("current" if index == current else f"{missing} not set" if missing else "")).rstrip()
+                              for index, (name, model, missing) in enumerate(choices)]
+                    picked = choose(labels, current)
+                    if picked is None or picked == current:
+                        output.note(f"Kept {settings.model.model}. /models NAME lists more model IDs.")
+                    else:
+                        updated = select(*choices[picked][:2])
+                        output.note(f"Selected {updated.model.model} from {updated.models}. The choice is saved.")
+                elif len(parts) == 1:
                     output.json({"model": settings.model.model, "model_file": settings.models,
                                  "model_files": model_files(root), "usage": "/model [NAME] [MODEL_ID]"})
                 elif len(parts) == 2:
