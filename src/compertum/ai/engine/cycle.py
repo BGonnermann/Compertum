@@ -98,7 +98,8 @@ class Engine:
 
 def market_sha256(engine):
     """One fingerprint of the two files a cycle sees. Never a vault file: the engine has none."""
-    return sha(canonical({'train_csv':engine.train_csv,'validation_csv':engine.validation_csv}).decode())
+    if not isinstance(engine.train_csv,str) or not isinstance(engine.validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    return sha(json.dumps({'train_csv':engine.train_csv,'validation_csv':engine.validation_csv},sort_keys=True,separators=(',',':')))
 
 
 def run_cycle(engine,cycle_index):

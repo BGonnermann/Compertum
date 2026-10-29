@@ -411,6 +411,22 @@ Shared state is guarded: the model client counts requests and writes rows under 
 and the sandbox, which has one fixed profile, runs one job at a time while model calls overlap. Bench and practice runs stay sequential for now.
 GEPA runs before this change are not comparable with later runs. The real gate and the lessons table still use the global count.
 
+Calibrated markets (29 October 2026, owner: "let's do step one first"). A market is a fair test only when the exact planted rule can pass the gate
+and a simple search cannot pass it on a market with no pattern. `tools/calibrate_markets.py` checks both with no model call and no sandbox.
+It scores the planted rule, and 45 simple rules on empty markets, at 6 lengths, on calibration seeds 5000 to 5007, at 60, 192 and 1,200 trials.
+Finding: at 500 sessions (150 VALIDATION sessions) the planted rule passed the gate on 7 of 64 patterned markets at 192 trials.
+Every practice, GEPA and bench market until now had 500 sessions, so no cycle could reach the top levels, and GEPA scores stayed near level 7.
+At 2,000 sessions every strong pattern (strength 0.004) passed on all seeds, also at 1,200 trials. At 4,096 sessions, the generator maximum,
+weak patterns (0.002) passed on 4 to 7 of 8 seeds. Simple rules on empty markets passed once in 144 empty-market checks at 192 trials
+(3,000 sessions, steady drift) and never at 1,200 trials.
+Decision: synthetic markets use `bench.CALIBRATED_SESSIONS` (4,096) by default: 1,228 VALIDATION sessions, 820 vault sessions.
+Practice and GEPA markets follow it unless `--sessions` is given. Market data goes only into sandbox files, so the length adds no model tokens.
+`bench-4` is bench-3's layout on new seeds 127 to 142 at 4,096 sessions. Its planted rule passes the bench gate on 8 of 10 patterned markets.
+It fails on the two weak reversal markets (seeds 133 and 134), so those two measure capture only.
+bench-1, bench-2, bench-3 and holdout-1 keep 500 sessions and are unchanged byte for byte; they stay as history.
+Real markets keep their 500-session cap, so the same limit applies to them. That is open real-market work.
+The cycle's market fingerprint no longer passes through the 64 KiB event encoder. It keeps the same value for every earlier market.
+
 `engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.
 It rechecks paths, hashes, scope, duplicates and complete coverage. It never exposes vault rows.
 Practice and GEPA accept repeatable real-market manifests. Bench and holdout reject them.

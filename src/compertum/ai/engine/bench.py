@@ -26,6 +26,7 @@ from .levels import AUDIT_STATUSES,audited,candidate_level
 from .market import market_csv,regime_at,score_signals,split_market_tiers,synthetic_market
 
 SESSIONS=500
+CALIBRATED_SESSIONS=4096
 STRENGTH=0.004
 CYCLES_PER_MARKET=4  # 5 markets x 4 cycles = 20 cycles, about 85 minutes with Flint
 MAX_CYCLES_PER_MARKET=10
@@ -43,6 +44,9 @@ SETS={
     'bench-3':(('momentum',5,111),('momentum',5,112),('reversal',3,113),('reversal',3,114),
                ('momentum',5,115),('momentum',5,116),('reversal',3,117),('reversal',3,118),('regimes',5,119),('regimes',3,120),
                (None,0,121),(None,0,122),(None,0,123),('regimes',0,124),('regimes',0,125),('regimes',0,126)),
+    'bench-4':(('momentum',5,127),('momentum',5,128),('reversal',3,129),('reversal',3,130),
+               ('momentum',5,131),('momentum',5,132),('reversal',3,133),('reversal',3,134),('regimes',5,135),('regimes',3,136),
+               (None,0,137),(None,0,138),(None,0,139),('regimes',0,140),('regimes',0,141),('regimes',0,142)),
     'holdout-1':(('momentum',5,901),('momentum',10,902),('reversal',3,903),(None,0,904),(None,0,905)),
 }
 
@@ -61,9 +65,15 @@ REGIME_SETS={
     124:[regime(0,None,0,noise=0.005),regime(200,None,0,noise=0.02)],
     125:[regime(0,None,0,noise=0.02),regime(300,None,0,noise=0.006)],
     126:[regime(0,None,0,drift=0.001)],
+    135:[regime(0,'momentum',5),regime(2048,'reversal',3)],
+    136:[regime(0,'reversal',3,noise=0.006),regime(2048,'reversal',3,noise=0.02)],
+    140:[regime(0,None,0,noise=0.005),regime(1638,None,0,noise=0.02)],
+    141:[regime(0,None,0,noise=0.02),regime(2457,None,0,noise=0.006)],
+    142:[regime(0,None,0,drift=0.001)],
 }
 WEAK_STRENGTH=STRENGTH/2
-STRENGTHS={115:WEAK_STRENGTH,116:WEAK_STRENGTH,117:WEAK_STRENGTH,118:WEAK_STRENGTH}
+STRENGTHS={seed:WEAK_STRENGTH for seed in (115,116,117,118,131,132,133,134)}
+SET_SESSIONS={'bench-4':CALIBRATED_SESSIONS}
 BENCH_SET='bench-1'
 HOLDOUT_SET='holdout-1'
 
@@ -92,13 +102,13 @@ def reserved_fingerprints():
 def set_markets(name):
     """The markets of one set, in a fixed order. Each market carries its set, kind and window for the report."""
     if name not in SETS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
-    out=[]
+    out=[];sessions=SET_SESSIONS.get(name,SESSIONS)
     for kind,window,seed in SETS[name]:
         regimes=REGIME_SETS.get(seed) if kind=='regimes' else None
         if kind=='regimes' and regimes is None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
         strength=None if kind in (None,'regimes') else STRENGTHS.get(seed,STRENGTH)
         planted=None if strength is None else {'kind':kind,'window':window,'strength':strength}
-        train,validation,vault=split_market_tiers(synthetic_market(seed,SESSIONS,planted=planted,regimes=regimes))
+        train,validation,vault=split_market_tiers(synthetic_market(seed,sessions,planted=planted,regimes=regimes))
         market_kind=kind
         if regimes is not None:
             market_kind='regimes' if any(r['kind'] is not None for r in regimes) else None
@@ -107,7 +117,7 @@ def set_markets(name):
             else: pattern=f"steady drift {regimes[0]['drift']}, no pattern"
         else: pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
         out.append({'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,
-                    'label':f'{name}: seed {seed}, {SESSIONS} sessions, {pattern}','set':name,'kind':market_kind,'window':window,'seed':seed,
+                    'label':f'{name}: seed {seed}, {sessions} sessions, {pattern}','set':name,'kind':market_kind,'window':window,'seed':seed,
                     'strength':strength,'regimes':regimes,'train_rows':train,'vault_sessions':len(vault)})  # the vault rows stay here, unused
     return out
 

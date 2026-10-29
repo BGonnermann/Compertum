@@ -6,6 +6,7 @@ report counts them as skipped. Every model reply comes from a scripted loopback 
 from contextlib import contextmanager
 from datetime import date
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+import hashlib
 import json
 from multiprocessing.connection import Listener
 import os
@@ -604,3 +605,15 @@ def test_the_chat_message_carries_the_stop_reason_and_the_token_counts():
     message=model.invoke('x')
     assert message.response_metadata['finish_reason']=='stop' and message.response_metadata['call_id']=='c1'
     assert message.usage_metadata=={'input_tokens':900,'output_tokens':700,'total_tokens':1600,'output_token_details':{'reasoning':512}}
+
+
+def test_the_market_fingerprint_keeps_its_value_for_small_markets_and_accepts_calibrated_ones():
+    from types import SimpleNamespace
+    from compertum.ai.engine.cycle import market_sha256
+    from compertum.ai.engine.market import split_market_tiers
+    from compertum.events import canonical
+    small=SimpleNamespace(train_csv='session,close,return\n0,100,0\n',validation_csv='session,close,return\n1,101,0.01\n')
+    assert market_sha256(small)==hashlib.sha256(canonical({'train_csv':small.train_csv,'validation_csv':small.validation_csv})).hexdigest()
+    train,validation,_=split_market_tiers(synthetic_market(12,4096))
+    large=SimpleNamespace(train_csv=market_csv(train),validation_csv=market_csv(validation))
+    assert len(large.train_csv)+len(large.validation_csv)>65536 and len(market_sha256(large))==64

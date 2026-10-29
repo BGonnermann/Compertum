@@ -40,7 +40,7 @@ param(
     [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
     [int]$Cycles=1,
     [int]$CyclesPerMarket=4,
-    [ValidateSet('bench-1','bench-2','bench-3')][string]$BenchSet='bench-1',
+    [ValidateSet('bench-1','bench-2','bench-3','bench-4')][string]$BenchSet='bench-1',
     [string[]]$MarketManifest=@(),
     [int]$Seed=12,
     [string]$PromptsRun='',

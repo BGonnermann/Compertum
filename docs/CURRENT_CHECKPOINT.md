@@ -1,5 +1,38 @@
 # Current Compertum checkpoint
 
+## Markets calibrated: 4,096 sessions, bench-4 - 29 October 2026
+
+The owner asked whether about 1,000 cycles and several GEPA runs changed nothing. The record says yes: 39 run summaries,
+about 1,160 trials, 0 candidates passed the gate and the Auditor, and no GEPA candidate was applied.
+Cause found with bench-3: on 500-session markets even the exact planted rule fails the gate. So no cycle could reach the top levels,
+and GEPA got almost the same score for every candidate. The owner chose to calibrate the markets first: "Okay let's do step one first."
+
+Built:
+- `tools/calibrate_markets.py`: no model call, no sandbox, 528 markets in 9 seconds, calibration seeds 5000 to 5007.
+  At 500 sessions the planted rule passed the gate on 7 of 64 patterned markets (192 trials). At 2,000 sessions all strong patterns passed on every seed,
+  also at 1,200 trials. At 4,096 sessions weak patterns passed on 4 to 7 of 8 seeds. Simple rules on empty markets passed 1 of 144 checks at 192 trials, 0 at 1,200.
+  Output: `.cache/test-runs/calibration-20261029/calibration.json`.
+- `bench.CALIBRATED_SESSIONS` is 4,096. Practice and GEPA synthetic markets use it by default (`--sessions` still overrides). Real markets keep 500.
+- `bench-4`: bench-3's layout on seeds 127 to 142 at 4,096 sessions, regime starts scaled to 2048, 1638 and 2457.
+  The planted rule passes its gate (192 trials) on 8 of 10 patterned markets. It fails on weak reversal seeds 133 and 134. No empty market passes,
+  and no simple rule passes on its empty markets. `tools\practice.ps1 -BenchSet bench-4` selects it.
+- bench-1, bench-2, bench-3 and holdout-1 are unchanged (bench-3 is now pinned by digest too).
+- Defect found by the engine lane: a 4,096-session practice run refused with `EVENT_INVALID`, because the market fingerprint used the 64 KiB event encoder.
+  The fingerprint now uses the same encoding without the cap. Earlier markets keep the same fingerprint, so their lessons history stays linked.
+  A practice market at 4,096 sessions is a new market, so it starts with an empty lessons table.
+
+Verification, source, simulated markets: engine lane, all engine files with `test_ai_models_interface.py`, `test_run_tests_tool.py` and
+`test_clean_test_runs.py`: 312 passed, 0 failed, 0 skipped, 8 pandas warnings. Product lane, the same files: 247 passed, 0 failed, 7 skipped.
+The first engine lane failed 1 test (`test_practice_run_as_a_separate_process`, the refusal above); its files are in `.cache/test-runs/calibrated-markets-engine-20261029-171654`.
+
+Open:
+- Holdout-1 has 500 sessions, so it is not calibrated. A calibrated holdout set is needed before the next holdout use.
+- Real markets have the same limit: 500 sessions give 150 VALIDATION sessions. That is part of the real-market work.
+- Step 2 is the owner's decision: count trials for the whole history, as now, or per research question or market.
+
+Exact next action: the bench-4 flash baseline, off-peak, then the weekend GEPA run on the calibrated markets:
+`tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
+
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
 
 Owner direction, 29 October 2026: fix the workflow flaws found after the seventh GEPA run, and review the workflow.

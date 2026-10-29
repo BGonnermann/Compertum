@@ -2,7 +2,7 @@
 
     python -m compertum.ai.engine.practice --project PATH models
     python -m compertum.ai.engine.practice --project PATH run --cycles N [--hours H] --requests R --note "why"
-                                                            [--seed 12 --sessions 500 --strength 0.004]
+                                                            [--seed 12 --sessions 4096 --strength 0.004]
 
 `models` lists the model IDs that each configured loopback server reports (read-only, no completion). The owner copies
 the IDs into config/models.toml. `run` starts one bounded run against the configured servers on a synthetic market with a
@@ -127,7 +127,7 @@ def gepa_markets(sessions,strength):
     return out[:GEPA_TRAIN_MARKETS],out[GEPA_TRAIN_MARKETS:]
 
 
-def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False,
+def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=None,strength=0.004,available_memory=available_physical_memory,gepa=False,
                  purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None,bench_set=bench.BENCH_SET,market_manifests=None):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
@@ -135,7 +135,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     root=Path(project_root).absolute()
     available=available_memory()
     if type(available) is not int or available<START_FLOOR: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
-    if type(seed) is not int or type(sessions) is not int or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    if type(seed) is not int or (sessions is not None and type(sessions) is not int) or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
     if purpose not in ('practice','bench','holdout') or (gepa and purpose!='practice'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if purpose!='bench' and bench_set!=bench.BENCH_SET: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if market_manifests is not None and purpose!='practice': raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
@@ -152,9 +152,10 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         from .real_market import load_market_manifest
         if (not isinstance(market_manifests,(list,tuple)) or any(not isinstance(p,str) for p in market_manifests)
                 or not 1<=len(market_manifests)<=(MAX_MARKETS if gepa else 1)): raise RuntimeRefused('ENGINE_MARKET_DENIED')
-        loaded=[load_market_manifest(root,path,sessions=sessions) for path in market_manifests]
+        loaded=[load_market_manifest(root,path,**({} if sessions is None else {'sessions':sessions})) for path in market_manifests]
         market=loaded[0][0];markets=[item[0] for item in loaded];validation_markets=None
     else:
+        sessions=bench.CALIBRATED_SESSIONS if sessions is None else sessions
         market=practice_market(seed,sessions,strength)[0];validation_markets=None
         if purpose=='practice':
             if gepa: markets,validation_markets=gepa_markets(sessions,strength)
@@ -221,7 +222,7 @@ def main(argv=None):
     for name in ('run','gepa'):
         sub=commands.add_parser(name)
         sub.add_argument('--cycles',type=int);sub.add_argument('--hours',type=float);sub.add_argument('--requests',type=int,required=True);sub.add_argument('--note',required=True)
-        sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int,default=500);sub.add_argument('--strength',type=float,default=0.004)
+        sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int);sub.add_argument('--strength',type=float,default=0.004)
         sub.add_argument('--market-manifest',action='append',dest='market_manifests')
     for name in ('bench','holdout'):
         sub=commands.add_parser(name)

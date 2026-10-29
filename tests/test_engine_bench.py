@@ -87,12 +87,51 @@ def test_bench_3_has_six_empty_markets_two_seeds_per_pattern_and_a_weak_strength
     assert bench.trials_for(4,len(markets))==192
 
 
+def simple_rules(train,validation):
+    history=[float(r['return']) for r in train];closes=[float(r['close']) for r in train];rules={}
+    for row in validation:
+        history.append(float(row['return']));closes.append(float(row['close']))
+        for window in range(1,21):
+            recent=sum(history[-window:])
+            rules.setdefault(f'momentum {window}',[]).append(1 if recent>0 else 0);rules.setdefault(f'reversal {window}',[]).append(1 if recent<0 else 0)
+        for window in (5,10,20,50,100):
+            rules.setdefault(f'above ma {window}',[]).append(1 if closes[-1]>sum(closes[-window:])/len(closes[-window:]) else 0)
+    return rules
+
+
+def test_bench_4_is_bench_3_on_new_seeds_at_the_calibrated_length():
+    markets=bench.set_markets('bench-4')
+    assert [m['seed'] for m in markets]==list(range(127,143)) and all(bench.reserved_seed(m['seed']) for m in markets)
+    assert [(k,w) for k,w,_ in bench.SETS['bench-4']]==[(k,w) for k,w,_ in bench.SETS['bench-3']]
+    assert [m['strength'] for m in markets]==[m['strength'] for m in bench.set_markets('bench-3')]
+    assert bench.CALIBRATED_SESSIONS==4096 and len(markets[0]['validation_rows'])==1228 and markets[0]['vault_sessions']==820
+    assert markets[4]['label']=='bench-4: seed 131, 4096 sessions, momentum window 5, strength 0.002'
+    assert markets[15]['label']=='bench-4: seed 142, 4096 sessions, steady drift 0.001, no pattern'
+    assert [r['start'] for r in markets[8]['regimes']]==[0,2048] and [r['start'] for r in markets[13]['regimes']]==[0,1638]
+    others=frozenset().union(*(bench.set_fingerprints(n) for n in bench.SETS if n!='bench-4'))
+    assert bench.set_fingerprints('bench-4').isdisjoint(others) and bench.trials_for(4,len(markets))==192
+
+
+def test_on_bench_4_the_planted_rule_passes_the_gate_and_a_simple_search_finds_nothing_in_empty_markets():
+    """Calibration of 29 October 2026: on 500 sessions the exact planted rule passed the bench gate on 7 of 64 calibration markets.
+    At 4096 sessions every strong pattern passes; the weak reversal markets stay out of reach, and the report says so for each market."""
+    markets=bench.set_markets('bench-4');trials=bench.trials_for(4,len(markets))
+    statuses=[bench.bench_deflation(bench.reference_score(m),trials)['status'] for m in markets]
+    assert statuses==['PASS']*6+['FAIL','FAIL','PASS','PASS']+['FAIL']*6
+    for market in markets:
+        if market['kind'] is not None: continue
+        for name,positions in simple_rules(market['train_rows'],market['validation_rows']).items():
+            score=score_signals(bench.signals_text(market['validation_rows'],positions),market['validation_rows'])
+            assert not (score['beats_baseline'] and bench.bench_deflation(score,trials)['status']=='PASS'),(market['label'],name)
+
+
 def test_adding_bench_3_leaves_the_earlier_sets_byte_for_byte_unchanged():
     def digest(name):
         return hashlib.sha256('\n'.join(m['label']+'\0'+m['train_csv']+'\0'+m['validation_csv'] for m in bench.set_markets(name)).encode()).hexdigest()
     assert digest('bench-1')=='927922558f7d493ec449940eb3eb03dcb503fdfeae0e6a598d0282b65ecc62ed'
     assert digest('bench-2')=='63c340ce33c30305fdff194dc813f87431e2a2b95e5c2401c6d7a500e2e2db88'
     assert digest('holdout-1')=='5ffbb6040f37779e303d67c87ad0887560a13393b5a29eb07ce67e30094aab7c'
+    assert digest('bench-3')=='aed7f6d8c6298c8310547603bb89bc7c0cb644d8e53f6c6a38309316b46314e5'
     assert all(m['strength']==bench.STRENGTH for m in bench.set_markets('bench-1')[:3])
 
 
@@ -272,6 +311,14 @@ def test_the_bench_command_runs_bench_3_with_its_sixteen_markets(tmp_path,fake_r
     labels=[m['label'] for m in bench.set_markets('bench-3')]
     assert [m['label'] for m in fake_run['schedule']]==labels*2 and fake_run['limits'].cycle_limit==32
     assert record['preflight']['markets']==16 and record['vault_sessions_held_back']==16*100
+
+
+def test_the_bench_command_runs_bench_4_at_the_calibrated_length(tmp_path,fake_run):
+    root=project(tmp_path)
+    record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 4 fixture',purpose='bench',bench_set='bench-4',
+                                 cycles_per_market=1,available_memory=lambda:practice.START_FLOOR+1)
+    assert [m['label'] for m in fake_run['schedule']]==[m['label'] for m in bench.set_markets('bench-4')] and fake_run['limits'].cycle_limit==16
+    assert record['preflight']['markets']==16 and record['vault_sessions_held_back']==16*820
 
 
 def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_path,fake_run):
