@@ -8,7 +8,12 @@ The owner asked what to fix before regular use and approved four items.
 2. Tasks now default to 100 steps and 60 minutes, the highest the harness allows. The earlier default was 30 steps and 15 minutes.
    `/limits` shows the limits. `/limits STEPS MINUTES` changes them for the open console and for `/new` and `/resume` there.
 3. Any unexpected error, such as a failed disk write, now ends a task with an error outcome. A failed session save shows a note.
-4. The project-map PDF refresh follows in a separate step, as `docs/PROJECT_MAP_REFRESH.md` requires.
+4. The project-map PDF was refreshed under `docs/PROJECT_MAP_REFRESH.md`. The map last showed harness 0.3.3.
+   Since then, only harness files and the `AGENTS.md` bash exception changed. The owner node now shows the model picker,
+   saved choice, Kimi engine-run refusal and `/limits`. The tools node now shows search and the host `bash` exception,
+   with engine code still sandboxed. The status footer and roadmap scope show harness 0.5.7 with 98 unit and 4 native tests.
+   The rebuilt PDF has nine pages, 91 function groups and 502 source files. All nine renders were inspected.
+   All 81 internal links reach existing pages, and all 91 source notes are present.
 
 The product-environment harness lane passed 98 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
 
