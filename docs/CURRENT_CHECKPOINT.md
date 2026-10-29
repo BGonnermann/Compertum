@@ -118,7 +118,7 @@ Owner questions of 29 October, answered from public sources (no change made): th
 its Unsloth UD-IQ3_XXS build (13.2 GB, 91.2% top-1 agreement with the full model) fits the 16 GB card; UD-Q3_K_M (16.6 GB, 93.0%) and
 UD-Q4_K_S (20.9 GB, 94.8%) need offload. Mainline llama.cpp now has a MoE expert cache (`--moe-cache-mib`) and MTP speculative decoding for Qwen3.6;
 LM Studio's engine lags both. Parallel slots give no throughput on one local MoE model. Proposed, not done: replace LM Studio with the official
-`llama-server` Windows CUDA build as a child process of `tools\practice.ps1`. That changes the AGENTS.md server rule and waits for the owner's explicit OK.
+`llama-server` Windows CUDA build as a child process of `toolspractice.ps1`. That changes the AGENTS.md server rule and waits for the owner's explicit OK.
 
 Exact next action: the owner decides on `llama-server`. Then bench-4 small tests of Qwen3.6-35B-A3B (UD-IQ3_XXS, then UD-Q3_K_M with the expert cache) and gpt-oss-20b.
 
