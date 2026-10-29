@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from compertum.events import canonical
+from .packets import MAX_CONVERSATION, encode
 
 MAX_BYTES = 16 * 1024**2
 MAX_RECORDS = 4096
@@ -44,7 +44,12 @@ class Session:
         if kind not in ("message", "outcome") or not isinstance(payload, dict):
             raise SessionError("the session record is not valid")
         record = {"kind": kind, "payload": payload}
-        raw = canonical(record) + b"\n"
+        try:
+            raw = encode(record) + b"\n"
+        except (TypeError, ValueError, RecursionError):
+            raise SessionError("the session record is not valid") from None
+        if len(raw) > MAX_CONVERSATION:
+            raise SessionError("the session record is too large")
         try:
             size = self.path.stat().st_size if self.path.exists() else 0
             if size + len(raw) > MAX_BYTES or self.records >= MAX_RECORDS:

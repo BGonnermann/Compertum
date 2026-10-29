@@ -11,7 +11,7 @@ import time
 import unicodedata
 
 SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-TOOL_LABELS = {"read": "Read", "write": "Write", "edit": "Edit", "run": "Run"}
+TOOL_LABELS = {"read": "Read", "write": "Write", "edit": "Edit", "run": "Run", "bash": "Bash", "search": "Search"}
 DIFF_ROWS, OUTPUT_ROWS = 20, 4
 # The changed region of a diff may hold at most this many line pairs, about 200 by 200 lines.
 # Repetitive text near this limit takes about 0.1 second. Larger regions show a summary only.
@@ -214,8 +214,23 @@ class Display:
         self.line(self._c("2", f"[reply] {calls} tool calls" if calls else "[reply] final answer"))
 
     def tool_call(self, name, args):
+        # Like tool_result, a display failure must never interrupt the task.
+        try:
+            self._tool_call(name, args)
+        except Exception:  # noqa: BLE001
+            self.line(self._c("1;36", "● ") + self._c("1", visible(str(name))[:60]))
+
+    def _tool_call(self, name, args):
         path = args.get("path") if isinstance(args, dict) else None
-        if isinstance(path, str):
+        if name == "bash" and isinstance(args, dict) and isinstance(args.get("command"), str):
+            target, label = args["command"].replace("\n", " ⏎ "), "Bash"
+        elif name == "search" and isinstance(args, dict) and isinstance(args.get("pattern"), str):
+            target, label = repr(args["pattern"]), "Search"
+            if isinstance(path, str):
+                target += f" in {path}"
+            if isinstance(args.get("glob"), str):
+                target += f" ({args['glob']})"
+        elif isinstance(path, str):
             extra = args.get("args") if name == "run" else None
             target = path + ("".join(f" {value}" for value in extra) if isinstance(extra, list) else "")
             label = TOOL_LABELS.get(name, name)
@@ -249,7 +264,16 @@ class Display:
         if name == "read":
             self._result(f"Read {_plural(len(text.splitlines()), 'line')}")
             return
-        if name == "run" and self._run_result(text):
+        if name in ("run", "bash") and self._run_result(text):
+            return
+        if name == "search":
+            lines = text.splitlines()
+            matches = [] if text in ("no matches", "no matching files") else lines
+            self._result(f"{_plural(len(matches), 'result')}" if matches else text)
+            for row in matches[:OUTPUT_ROWS]:
+                self.line(self._c("2", "    " + row[:200]))
+            if len(matches) > OUTPUT_ROWS:
+                self.line(self._c("2", f"    ... {len(matches) - OUTPUT_ROWS} more"))
             return
         lines = text.splitlines() or [""]
         self._result(f"{_plural(len(lines), 'line')}")

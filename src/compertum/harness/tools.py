@@ -1,19 +1,33 @@
-"""Four plain tools with hard boundaries and no permission prompts."""
+"""Plain tools with no permission prompts: read, write, edit, search, bash and sandbox run."""
 from __future__ import annotations
 
+import fnmatch
 import json
+import os
+import re
+import shutil
+import subprocess
 import time
+import tomllib
 from pathlib import Path
 from uuid import uuid4
 
 from compertum.ai.manual import sanitized
 from compertum.runtime.errors import RuntimeRefused
+from compertum.runtime.jobs import available_physical_memory
 from compertum.runtime.sandbox import run_sandboxed
 
+from . import shell
 from .agent import ToolError
+from .packets import hide_secrets, looks_secret
 
 MAX_TEXT = 32 * 1024
 MAX_OUTPUT = 64 * 1024
+# Search stops at a match, file and size limit.
+MAX_MATCHES, MAX_SEARCH_FILES, MAX_SEARCH_FILE = 200, 20000, 1024**2
+# Variables with these words in their names never reach the shell. The shell could still read the registry.
+SECRET_VARIABLE = re.compile(r"(?i)key|token|secret|passw|credential|(?<!git_)auth|dsn|database_url")
+SECRET_TEXT = "[text hidden: it looks like a secret]"
 MEMORY_FLOOR = 8 * 1024**3
 BLOCKED_PARTS = {".git", ".venv", ".cache", "state", "backups", "credentials", "__pycache__"}
 BLOCKED_NAMES = {"id_rsa", "id_ed25519", "credentials.json"}
@@ -25,6 +39,27 @@ PROTECTED_FOLDERS = {"config", "schemas", "evaluation", "ai", "runtime", "harnes
 def _schema(description, properties, required):
     return {"type": "function", "function": {"name": description[0], "description": description[1],
             "parameters": {"type": "object", "properties": properties, "required": required, "additionalProperties": False}}}
+
+
+def _git_bash():
+    """Find Git Bash. The bash.exe in System32 starts WSL, so the tool never uses it."""
+    git = shutil.which("git")
+    candidates = [Path(git).resolve().parents[1] / "bin" / "bash.exe"] if git else []
+    candidates.append(Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Git" / "bin" / "bash.exe")
+    return next((path for path in candidates if path.is_file()), None)
+
+
+def _shell_environment(root):
+    names = set()
+    try:
+        providers = tomllib.loads((root / "config" / "providers.toml").read_text(encoding="utf-8"))
+        # The file holds [providers.NAME] tables, each with an optional key_variable.
+        names = {str(entry.get("key_variable", "")).upper() for entry in providers.get("providers", {}).values()
+                 if isinstance(entry, dict)} - {""}
+    except (OSError, ValueError, AttributeError):
+        pass
+    return {name: value for name, value in os.environ.items()
+            if not SECRET_VARIABLE.search(name) and name.upper() not in names}
 
 
 def _previous(path):
@@ -58,6 +93,16 @@ class WorkspaceTools:
                     {"path": path, "content": {"type": "string"}}, ["path", "content"]),
             _schema(("edit", "Replace one exact text match in a project file."),
                     {"path": path, "old": {"type": "string"}, "new": {"type": "string"}}, ["path", "old", "new"]),
+            _schema(("search", "Search project files with a regular expression. Returns path:line: text matches. "
+                     "With names_only, returns the matching file paths. Credential, state and cache folders are skipped."),
+                    {"pattern": {"type": "string"}, "path": {**path, "description": "a folder or file; default ."},
+                     "glob": {"type": "string", "description": "a file name pattern such as *.py"},
+                     "names_only": {"type": "boolean"}}, ["pattern"]),
+            _schema(("bash", "Run a command with Git Bash on the host in the workspace folder. Output keeps the first "
+                     "4 KiB and the last 24 KiB. Use it for ls, find, git status, git diff and tests. "
+                     "Do not push, install software, start engine runs or read credentials."),
+                    {"command": {"type": "string"}, "seconds": {"type": "integer", "minimum": 1, "maximum": 600}},
+                    ["command"]),
             _schema(("run", "Run one Python file in the AppContainer sandbox."),
                     {"path": path, "args": {"type": "array", "items": {"type": "string"}},
                      "seconds": {"type": "integer", "minimum": 1, "maximum": 600}}, ["path"]),
@@ -97,6 +142,10 @@ class WorkspaceTools:
             return self._write(args)
         if name == "edit":
             return self._edit(args)
+        if name == "search":
+            return self._search(args, deadline)
+        if name == "bash":
+            return self._bash(args, deadline)
         if name == "run":
             return self._sandbox(args, deadline)
         raise ToolError(f"unknown tool {name!r}")
@@ -150,6 +199,113 @@ class WorkspaceTools:
             raise ToolError(getattr(error, "code", "cannot write the file")) from None
         self.change = path.relative_to(self.workspace).as_posix(), text, updated, False
         return f"edited {path.relative_to(self.workspace).as_posix()}"
+
+    def _search(self, args, deadline):
+        pattern, glob, names_only = args.get("pattern"), args.get("glob"), args.get("names_only", False)
+        if not isinstance(pattern, str) or not pattern or len(pattern) > 512 or type(names_only) is not bool:
+            raise ToolError("search needs a pattern of 1 to 512 characters")
+        if glob is not None and (not isinstance(glob, str) or not glob or len(glob) > 128):
+            raise ToolError("the glob is not valid")
+        try:
+            expression = re.compile(pattern)
+        except re.error as exc:
+            raise ToolError(f"the pattern is not a valid regular expression: {exc}") from None
+        base = args.get("path", ".")
+        start = self.workspace if base in (".", "./", "") else self._path(base)
+        if not start.exists():
+            raise ToolError("the search path does not exist")
+        found, scanned = [], 0
+        for path in self._search_files(start):
+            relative = path.relative_to(self.workspace).as_posix()
+            lowered, parts = path.name.lower(), {part.lower() for part in Path(relative).parts}
+            if (parts & BLOCKED_PARTS or lowered in BLOCKED_NAMES or lowered == ".env" or lowered.startswith(".env.")
+                    or lowered.endswith((".pem", ".key", ".pfx", ".p12"))):
+                continue
+            if glob and not (fnmatch.fnmatch(path.name, glob) or fnmatch.fnmatch(relative, glob)):
+                continue
+            scanned += 1
+            if scanned > MAX_SEARCH_FILES or time.monotonic() > deadline:
+                found.append(f"... the search stopped after {scanned - 1} files")
+                break
+            try:
+                if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_SEARCH_FILE:
+                    continue
+                raw = path.read_bytes()
+            except OSError:
+                continue
+            if b"\0" in raw[:8192]:
+                continue
+            for number, line in enumerate(raw.decode("utf-8", "replace").splitlines(), 1):
+                if not expression.search(line):
+                    continue
+                if names_only:
+                    found.append(relative)
+                    break
+                shown = line.strip()[:300]
+                found.append(f"{relative}:{number}: {SECRET_TEXT if looks_secret(shown) else shown}")
+                if len(found) >= MAX_MATCHES:
+                    break
+            if len(found) >= MAX_MATCHES:
+                found.append("... more results; narrow the pattern, path or glob")
+                break
+        return self._found(found, names_only)
+
+    def _search_files(self, start):
+        """List files under start. In a Git repository, skip ignored files, as ripgrep does."""
+        if start.is_file():
+            return [start]
+        # Use Git only when the workspace is the repository top. A parent repository may ignore the whole workspace.
+        trusted = ["git", "-c", f"safe.directory={self.workspace.as_posix()}"]
+        quiet = {"cwd": self.workspace, "capture_output": True, "timeout": 30, "creationflags": subprocess.CREATE_NO_WINDOW}
+        try:
+            top = subprocess.run([*trusted, "rev-parse", "--show-toplevel"], **quiet)
+            if top.returncode == 0 and Path(top.stdout.decode("utf-8", "replace").strip()).resolve() == self.workspace:
+                listed = subprocess.run([*trusted, "ls-files", "-co", "--exclude-standard", "-z", "--", str(start)], **quiet)
+                if listed.returncode == 0:
+                    names = listed.stdout.decode("utf-8", "replace").split("\0")
+                    return sorted(self.workspace / name for name in names if name)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        files = []
+        for folder, dirs, names in os.walk(start):
+            dirs[:] = sorted(d for d in dirs if d.lower() not in BLOCKED_PARTS)
+            files.extend(Path(folder) / name for name in sorted(names))
+        return files
+
+    def _found(self, found, names_only):
+        text = hide_secrets("\n".join(found)) if found else ("no matching files" if names_only else "no matches")
+        try:
+            return sanitized(text.encode("utf-8"))
+        except RuntimeRefused as error:
+            raise ToolError(error.code) from None
+
+    def _bash(self, args, deadline):
+        command, seconds = args.get("command"), args.get("seconds", 120)
+        if not isinstance(command, str) or not command.strip() or len(command) > 8192 or "\0" in command:
+            raise ToolError("bash needs a command of 1 to 8192 characters")
+        if type(seconds) is not int or not 1 <= seconds <= 600:
+            raise ToolError("bash needs 1 to 600 seconds")
+        if self.busy():
+            # One heavy job at a time: an owner-started run holds the job slot.
+            raise ToolError("JOB_SLOT_BUSY: an owner-started run is active; read and search still work")
+        if available_physical_memory() < MEMORY_FLOOR:
+            raise ToolError("AVAILABLE_RAM_FLOOR")
+        program = _git_bash()
+        if program is None:
+            raise ToolError("Git Bash is not installed")
+        limit = max(1, min(seconds, int(deadline - time.monotonic())))
+        try:
+            code, timed_out, output = shell.run(program, command, self.workspace, _shell_environment(self.root), limit)
+        except OSError as exc:
+            raise ToolError(f"cannot start the command: {exc}") from None
+        result = {"status": "COMPLETED" if code == 0 and not timed_out else "FAILED",
+                  "exit_code": code, "timed_out": timed_out,
+                  "stdout": hide_secrets(output.replace("\r\n", "\n")), "stderr": ""}
+        try:
+            # Raw UTF-8 keeps binary output near its own size. ASCII escapes would grow it six times.
+            return sanitized(json.dumps(result, ensure_ascii=False).encode("utf-8"))
+        except RuntimeRefused as error:
+            raise ToolError(error.code) from None
 
     def _sandbox(self, args, deadline):
         if self.busy():

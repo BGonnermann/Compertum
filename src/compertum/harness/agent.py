@@ -9,10 +9,14 @@ from compertum.ai.manual import sanitized
 from compertum.runtime.errors import RuntimeRefused
 
 from .model import DeadlineReached, ModelError
+from .packets import MAX_CONVERSATION, WARN_CONVERSATION, encode, kib
 
 SYSTEM = """You are Compertum's terminal agent. Work in the project workspace: {workspace}
-Use read, write, and edit for project files. Use run only for Python code that must execute.
-The run tool uses a sandbox. Never try to reach credentials, runtime state, protected rules, or the network.
+Use search to find code and bash with ls or find to list folders. Read only the files you need.
+Use read, write, and edit for project files. Use bash for git status, git diff, git log and tests.
+Bash runs on the owner's PC, not in a sandbox. Follow AGENTS.md. Do not push, commit, install software,
+start model servers, delete files outside the workspace, or read credentials, keys or runtime state.
+Use run for AI-written Python that must execute. The run tool uses the sandbox.
 Do not start research, evaluation, or GEPA runs. The owner starts those with slash commands.
 When the task is done, reply with a short answer and no tool call."""
 
@@ -42,9 +46,11 @@ class Agent:
         self.workspace = workspace
         self.emit = emit or (lambda kind, payload: None)
         self.messages = []
+        self.warned = False
 
     def start(self, messages=None):
-        self.messages = messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
+        self.warned = False
+        self.messages =messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
         if not messages:
             self.emit("message", self.messages[0])
         else:
@@ -77,6 +83,10 @@ class Agent:
                 if self.clock() >= deadline:
                     return end("time_limit", detail="the task time limit was reached")
                 step += 1
+                size = len(encode(self.messages))
+                if size > WARN_CONVERSATION and not self.warned:
+                    self.warned = True
+                    self.display.note(f"The conversation holds {kib(size)} of {kib(MAX_CONVERSATION)}. Use /new soon.")
                 self.display.step(step, self.limits.max_steps, self.clock() - start)
                 reply = self.client.chat(self.messages, self.tools.specs(), self.display.model_event, deadline)
                 self.display.reply(reply)

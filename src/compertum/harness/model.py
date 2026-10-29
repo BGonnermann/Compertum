@@ -9,11 +9,11 @@ import threading
 import time
 from dataclasses import dataclass, field
 
-from compertum.ai.manual import read_json, sanitized
-from compertum.events import canonical
+from compertum.ai.manual import read_json
 from compertum.runtime.jobs import available_physical_memory
 
 from .endpoint import Endpoint
+from .packets import MAX_CONVERSATION, checked, encode, kib
 
 POLL = 0.2
 MAX_REPLY_BYTES = 120 * 1024
@@ -77,9 +77,13 @@ class ModelClient:
         if available_physical_memory() < 8 * 1024**3:
             raise ModelError("AVAILABLE_RAM_FLOOR")
         try:
-            sanitized(canonical(messages))
+            checked(messages, MAX_CONVERSATION, "CONVERSATION_FULL")
         except Exception as exc:
-            raise ModelError(getattr(exc, "code", "the model request was refused")) from None
+            code = getattr(exc, "code", "the model request was refused")
+            if code == "CONVERSATION_FULL":
+                code = (f"CONVERSATION_FULL: the conversation holds {kib(len(encode(messages)))} of "
+                        f"{kib(MAX_CONVERSATION)}; use /new")
+            raise ModelError(code) from None
         body = {"model": self.model, "messages": messages, "stream": True,
                 "stream_options": {"include_usage": True}, **self.options}
         if tools:
@@ -124,7 +128,9 @@ class ModelClient:
         if reply.server_model is not None and reply.server_model != self.model:
             raise ModelError("MODEL_IDENTITY_MISMATCH")
         try:
-            sanitized(canonical([reply.content, reply.reasoning, reply.tool_calls]))
+            # A reply holds only what the model wrote, so it gets the size check. Local text gets the secret scan.
+            # Scanning replies would end a task for an ordinary search such as grep password.
+            checked([reply.content, reply.reasoning, reply.tool_calls], MAX_REPLY_BYTES, "AI_REPLY_BOUND", scan=False)
         except Exception as exc:
             raise ModelError(getattr(exc, "code", "the model reply was refused")) from None
         return reply

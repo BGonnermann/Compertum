@@ -25,6 +25,8 @@ def test_streamed_reply_and_model_list(tmp_path):
             self.end_headers()
             self.wfile.write(raw)
         def do_POST(self):
+            # Read the request first. Closing with unread data makes Windows reset the connection (WinError 10053).
+            self.rfile.read(int(self.headers["Content-Length"]))
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.end_headers()
@@ -53,6 +55,7 @@ def test_streamed_reply_and_model_list(tmp_path):
 def test_bad_reply_finish_or_model_is_refused(finish, model, code):
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
             raw = json.dumps({"model": model, "choices": [{"message": {"role": "assistant", "content": "x"},
                                                             "finish_reason": finish}]}).encode()
             self.send_response(200)
@@ -75,5 +78,11 @@ def test_bad_reply_finish_or_model_is_refused(finish, model, code):
 
 def test_oversized_conversation_is_a_clean_model_error():
     client = ModelClient(parse("http://127.0.0.1:1/v1"), "scripted", {})
-    with pytest.raises(ModelError, match="EVENT_INVALID"):
+    with pytest.raises(ModelError, match=r"CONVERSATION_FULL: the conversation holds 586 KiB of 512 KiB; use /new"):
+        client.chat([{"role": "user", "content": "x" * 600000}], [], deadline=time.monotonic() + 5)
+    with pytest.raises(ModelError, match="AI_SENSITIVE_INPUT_DENIED"):
+        client.chat([{"role": "user", "content": "my api_key is here"}], [], deadline=time.monotonic() + 5)
+    # The old 64 KiB event limit no longer applies. This request passes the checks and fails only at the closed port.
+    with pytest.raises(ModelError) as failure:
         client.chat([{"role": "user", "content": "x" * 140000}], [], deadline=time.monotonic() + 5)
+    assert "CONVERSATION_FULL" not in str(failure.value) and "EVENT_INVALID" not in str(failure.value)

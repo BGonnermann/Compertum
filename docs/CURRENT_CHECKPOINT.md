@@ -1,5 +1,31 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.0 bash, search and 512 KiB conversations - 28 October 2026
+
+The owner's first real task ended with `EVENT_INVALID` after three file reads. The model also had to guess file names.
+`EVENT_INVALID` came from the reused 64 KiB event-store record limit. Three reads of 469 to 634 lines filled it.
+The owner chose tools like the pi agent and a 512 KiB conversation limit. The owner chose a full host shell over safer options.
+
+The harness now has six tools: read, write, edit, search, bash and sandbox run.
+`search` finds regular-expression matches with file and line numbers. It skips Git-ignored files and protected folders.
+`bash` runs Git Bash on the host. `AGENTS.md` records this owner exception; engine and strategy code still runs only in the sandbox.
+The shell receives no key variables. Output lines that match common secret formats are hidden. This is a safeguard, not a boundary.
+Each command runs in a Job object, so background processes end with it. Ctrl+C works. Bash waits while an owner run holds the job slot.
+The conversation limit is 512 KiB. A note appears at 80 percent. A full conversation reports `CONVERSATION_FULL` with the size and `/new`.
+
+An independent review found no blockers and eight should-fix items. All eight are fixed and tested.
+They covered provider key names, background processes, Ctrl+C, the job slot, the decoded secret scan, searches for words such as password,
+a parent repository that ignores the workspace, and common token formats. A later check found that one new secret rule backtracked on long text.
+The rule now starts at the keyword with bounded repeats. A 600 KB worst case takes 0.33 seconds.
+The fake model server in `tests/test_harness_model.py` now reads each request body. Unread data caused the intermittent `WinError 10053`.
+Eight repeated model-test runs then passed.
+
+The product-environment harness lane passed 86 tests, zero failed and zero skipped, in two consecutive runs.
+The native lane passed four tests, zero failed and zero skipped.
+
+Exact next action: the owner restarts `compertum-harness` and repeats the task that failed. The model should now search and list folders.
+The physical Windows Terminal checks from 0.3.4 onward remain pending. No provider, GEPA, benchmark or engine run occurred.
+
 ## Harness 0.4.0 activity display - 28 October 2026
 
 The owner asked for coloured code changes and a working indicator like Codex or Claude Code. The owner approved three display upgrades.

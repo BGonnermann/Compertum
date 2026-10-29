@@ -4,7 +4,15 @@ Status, 28 October 2026: the minimum harness is implemented in `src/compertum/ha
 The owner started it after agreeing the minimum target in this session.
 
 The console opens without a model request. It supports local models and owner-listed providers through the existing provider checks.
-The four tools are read, write, edit and sandbox run. The model receives no host shell and no run-start tool.
+Harness 0.5 has six tools: read, write, edit, search, bash and sandbox run. The model receives no run-start tool.
+Owner decision, 28 October 2026: `bash` runs Git Bash commands on the host, as in the pi agent. `AGENTS.md` records this exception.
+The shell gets no variables with key, token, secret, password, credential or auth in their names. Provider key variables are also removed.
+The shell could still read keys from the registry, so this removal is a safeguard, not a boundary.
+Bash output keeps the first 4 KiB and the last 24 KiB. Lines that match common secret formats are hidden; the list is not complete.
+Each command runs in a Windows Job object. Every process it started, including background processes, ends when the command ends.
+Commands time out after 1 to 600 seconds. Ctrl+C stops a command within 0.2 seconds. Bash waits while an owner-started run holds the job slot.
+Bash bypasses the read, write and edit path protections. The system prompt forbids pushing, installing, engine runs and credential reads.
+`search` finds regular-expression matches with file and line numbers. It skips Git-ignored files and the protected folders.
 Hard refusals protect credentials, runtime state, fixed code and rules. YOLO removes prompts, not these boundaries.
 Sessions are append-only under `state/harness/sessions`. Run records and logs stay under `state/harness/runs`.
 A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
@@ -47,6 +55,9 @@ The owner then completed a live DeepSeek smoke task. It read the goal, wrote `ha
 The owner-started `/test` command completed with 24 passed. Its run card showed `COMPLETED` and exit code 0.
 An independent review found eight defects. The fixes are applied and regression-tested. The focused re-review found no blockers.
 Long conversations still need `/new` when they reach the model packet limit. The harness records a clean refusal instead of losing the session.
+Harness 0.5 replaces the reused 64 KiB event-record limit with a 512 KiB conversation limit, the owner's choice on 28 October 2026.
+The secret scan still checks all local text, from the system prompt, the owner and the tools, before each request.
+Model replies get only a size check, because they hold only what the model wrote. A search for a word such as password no longer ends a task. A note appears at 80 percent, and a full conversation reports `CONVERSATION_FULL`.
 
 Remaining limits: no live engine run has started from this console.
 Process deadlines re-arm after recovery, but a closed console cannot enforce a test-process deadline. Engine cycle, request and hour limits still apply.
@@ -93,6 +104,7 @@ The two fit together if the barrier is a box, not a prompt.
   So the model can try anything, and the fixed parts stay out of reach.
 - **Why not a plain bash tool.** `AGENTS.md` says AI-written code runs only in the section 19 sandbox.
   A bash tool on the host would break that rule. A run tool in the sandbox keeps it.
+  Superseded on 28 October 2026: the owner chose a host `bash` tool, recorded as an `AGENTS.md` exception for this tool only.
 - **Owner commands.** The owner types `/run`, `/stop` and the other commands. Those are the owner acting, not the model.
 - **Reading results.** The owner uses `/runs`, `/watch` and `/report` for bounded results.
   The model has no ledger-reading tools in the minimum. Fixed read-only tools can come later.

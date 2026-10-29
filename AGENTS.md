@@ -67,6 +67,10 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 - Automated search over strategies, features, and models is allowed under `docs/BUILD_SPEC.md` section 19.
 - Never let the engine change the judge, the Auditor, the baseline, the vault, the data tiers, the ledger, or the rules.
 - Run AI-written code only in the section 19 sandbox. Promote code only after automated tests and the Auditor pass.
+  Owner exception, 28 October 2026: the interactive harness `bash` tool runs model commands on the host, as in the pi agent.
+  The exception covers only that tool. Engine, autoresearch and strategy code still runs only in the sandbox.
+  The shell receives no variables with key, token, secret, password, credential or auth in their names, and no provider key variables.
+  Output lines that match common secret formats are hidden. This is a safeguard, not a complete filter: the shell can still read host files.
 - Open the vault only in batches, with the owner's OK. Count every look before the vault opens.
 - Start unattended runs only with a cycle or hour limit, an owner-approved AI request limit, the kill switch, Auditor freeze, and a daily summary.
 - Never raise the per-run hard maximum for AI requests. Only the owner raises it.
