@@ -86,3 +86,34 @@ def test_oversized_conversation_is_a_clean_model_error():
     with pytest.raises(ModelError) as failure:
         client.chat([{"role": "user", "content": "x" * 140000}], [], deadline=time.monotonic() + 5)
     assert "CONVERSATION_FULL" not in str(failure.value) and "EVENT_INVALID" not in str(failure.value)
+
+
+def test_requests_leave_temperature_to_the_provider_and_errors_give_the_reason():
+    # Kimi k3.1-pro answered HTTP 400 "invalid temperature: only 1 is allowed for this model" to temperature 0.
+    bodies = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            bodies.append(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
+            raw = json.dumps({"error": {"message": "invalid temperature:\n only 1 is allowed", "type": "bad"}}).encode()
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+        def log_message(self, *args):
+            pass
+    server, thread = server_for(Handler)
+    try:
+        client = ModelClient(parse(f"http://127.0.0.1:{server.server_port}/v1"), "scripted", {})
+        with pytest.raises(ModelError, match=r"^the model server returned HTTP 400: invalid temperature: only 1 is allowed$"):
+            client.chat([{"role": "user", "content": "hello"}], [], deadline=time.monotonic() + 5)
+        fixed = ModelClient(parse(f"http://127.0.0.1:{server.server_port}/v1"), "scripted", {}, temperature=1)
+        with pytest.raises(ModelError):
+            fixed.chat([{"role": "user", "content": "hello"}], [], deadline=time.monotonic() + 5)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+    assert "temperature" not in bodies[0] and bodies[0]["max_tokens"] == 8192
+    assert bodies[1]["temperature"] == 1

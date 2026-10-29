@@ -17,7 +17,7 @@ Type `/model` and press Enter to pick a model with the arrow keys. `/model kimi`
 `/models [NAME]` lists model IDs without a completion or a selection change. Selection preserves the conversation and future run defaults.
 Type `/help` for commands. Engine commands require cycle, request and hour limits.
 The model receives no run-start tool. Read, write and edit protect fixed code, rules, credentials and runtime state. Bash relies on the system prompt.
-The product-environment harness lane passed 94 tests, with zero failures and zero skips.
+The product-environment harness lane passed 95 tests, with zero failures and zero skips.
 The final native lane passed four tests, with zero failures and zero skips. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
 
 ## M3 engineering accepted; 19 October work committed - 23 October 2026

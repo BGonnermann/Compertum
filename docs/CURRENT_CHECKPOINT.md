@@ -1,5 +1,25 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.6 Kimi subscription works - 29 October 2026
+
+The owner created a Kimi Code Console key from the membership subscription and set `KIMI_API_KEY`.
+Kimi Code keys draw on the membership quota, not pay-as-you-go billing, according to Kimi's documentation.
+The configured overseas address `https://api.kimi.ai/coding/v1` and model `k3.1-pro` match that documentation.
+Kimi's community guidelines limit subscriptions to interactive use. Harness chat is interactive. Engine runs are batch work.
+The owner was told to select DeepSeek before `/gepa`, `/bench` or `/run`.
+
+The first Kimi task failed with HTTP 400. The harness discarded the server's reason.
+A model-list request confirmed the key: Kimi listed six model IDs, including `k3.1-pro`.
+One short diagnostic request then showed the reason: "invalid temperature: only 1 is allowed for this model".
+The harness sent temperature 0 on every request. It now sends no temperature, so each provider uses its default.
+A refused request now shows the server's short reason after the HTTP status.
+A second short request returned `OK` in 4.2 seconds with 129 tokens. Live Kimi authentication and a reply are now verified.
+The engine still sends temperature 0. Kimi engine runs would fail, and Kimi's terms do not permit them on a subscription.
+
+The product-environment harness lane passed 95 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
+Exact next action: the owner sends the task again with `k3.1-pro` selected.
+
 ## Harness 0.5.3 model picker - 29 October 2026
 
 The owner typed `/model` and pressed Enter. The harness printed a JSON listing and offered no way to choose.

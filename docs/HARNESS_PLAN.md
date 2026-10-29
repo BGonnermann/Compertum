@@ -43,6 +43,8 @@ Harness 0.5.2 saves each `/model` choice in `state/harness/model.json`. A restar
 The box title shows the active model. Selecting a model without its key variable shows a warning at once.
 Tab leaves out optional `[...]` parts, so `/model` inserts `/model ` and never sends a bracket by mistake.
 Harness 0.5.3: plain `/model` in the interactive console opens an arrow-key picker. Enter selects and saves; Esc keeps the model.
+Harness 0.5.6 sends no `temperature`, so each provider uses its default. Kimi `k3.1-pro` accepts only 1.
+A refused request now shows the server's short reason after the HTTP status. The engine keeps its own fixed settings.
 Harness 0.5.4 shows the picker as plain text without a box. It hides the text cursor and erases itself, so only the result line stays.
 The picker lists each model file's default, the active model and IDs cached by `/models`. It sends no request.
 It marks the current model and any model whose key variable is not set. Scripted input still receives the JSON listing.

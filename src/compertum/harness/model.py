@@ -41,9 +41,13 @@ class Reply:
 
 class ModelClient:
     def __init__(self, endpoint: Endpoint, model: str, headers: dict, request_timeout: float = 300,
-                 max_tokens: int = 8192, temperature: float = 0):
+                 max_tokens: int = 8192, temperature: float | None = None):
         self.ep, self.model, self.headers = endpoint, model, dict(headers)
-        self.request_timeout, self.options = request_timeout, {"temperature": temperature, "max_tokens": max_tokens}
+        # By default the provider chooses the temperature. Kimi k3.1-pro refuses any value except 1.
+        self.request_timeout = request_timeout
+        self.options: dict = {"max_tokens": max_tokens}
+        if temperature is not None:
+            self.options["temperature"] = temperature
 
     def _connection(self, timeout: float):
         kind = http.client.HTTPSConnection if self.ep.scheme == "https" else http.client.HTTPConnection
@@ -140,8 +144,7 @@ class ModelClient:
             conn.request("POST", f"{self.ep.path}/chat/completions", json.dumps(body).encode(), self._headers())
             response = conn.getresponse()
             if response.status != 200:
-                response.read(800)
-                items.put(("error", f"the model server returned HTTP {response.status}"))
+                items.put(("error", f"the model server returned HTTP {response.status}{_reason(response.read(800))}"))
                 return
             if "text/event-stream" not in (response.getheader("Content-Type") or ""):
                 raw = response.read(MAX_REPLY_BYTES + 1)
@@ -201,6 +204,18 @@ def _as_chunk(data):
         message["tool_calls"] = [{**call, "index": i} for i, call in enumerate(message.get("tool_calls") or [])]
         choices.append({"delta": message, "finish_reason": choice.get("finish_reason")})
     return {"model": data.get("model"), "usage": data.get("usage"), "choices": choices}
+
+
+def _reason(raw):
+    """Return the server's short error message, so a refused request explains itself."""
+    try:
+        data = json.loads(raw)
+        error = data.get("error") if isinstance(data, dict) else None
+        text = error.get("message") if isinstance(error, dict) else error if isinstance(error, str) else None
+    except ValueError:
+        text = raw.decode("utf-8", "replace")
+    text = " ".join(str(text or "").split())[:300]
+    return f": {text}" if text else ""
 
 
 def _abort(conn):
