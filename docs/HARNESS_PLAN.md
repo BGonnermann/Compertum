@@ -61,6 +61,11 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.2: `/run`, `/gepa` and `/bench` start the engine run in its own hidden console.
+The run also leaves the console's job object when that job allows it. So closing the Windows Terminal tab no longer ends the run.
+A reopened harness finds the run again through its saved process identity. `/stop` still uses the kill switch.
+`/test` runs stay tied to the console, because only an open console enforces a test deadline. Engine runs keep their own hour limit.
+If a job forbids leaving, the run still gets its own console, but it ends when that job closes.
 Harness 0.6.1: `/watch` without an ID opens a picker of runs, running ones first. It includes engine runs that
 `tools\practice.ps1` started outside the harness. They are read from `state/research.sqlite` in read-only mode.
 Enter opens a live view that refreshes every 2 seconds. Esc, Enter or q returns to the prompt, and the last snapshot stays.
@@ -75,7 +80,7 @@ Results print as labelled lines in a terminal. Scripted input keeps JSON. `/sess
 A session file starts with its first task. `/watch` shows the newest run that was not dismissed. Finished run times stop.
 The harness removes a kill switch that it set once the stopped run ends. A STOP file left by anyone else blocks engine runs with a clear message.
 Run processes get no console input. Bare `/test` runs every `tests/test_harness_*.py` file.
-Known limits: closing the Windows Terminal tab probably ends runs that the harness started. Wide characters can misalign the box.
+Known limits (0.6.2 fixed the closed-tab limit for engine runs): wide characters can misalign the box.
 Keys typed ahead while the harness is busy can count as a paste, so a typed-ahead Tab stays a tab. Up and Down have no prompt history.
 An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.

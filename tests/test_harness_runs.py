@@ -1,6 +1,6 @@
 import pytest
 
-from compertum.harness.runs import MEMORY_FLOOR, RunError, RunManager
+from compertum.harness.runs import BREAKAWAY, DETACHED, GROUP, MEMORY_FLOOR, RunError, RunManager
 
 TESTS = ["tests/test_harness_example.py"]
 
@@ -144,3 +144,22 @@ def test_engine_stop_clears_only_its_own_kill_switch_and_cards_stay_true(tmp_pat
     record = manager.active[first]
     os.utime(log, (record["started_wall"] + 30, record["started_wall"] + 30))
     assert manager.card(first)["elapsed_seconds"] == 30.0  # A finished run's time stops at its last log write.
+
+
+def test_engine_runs_leave_the_console_and_the_job_and_test_runs_stay(tmp_path):
+    flags = []
+
+    def spawn(command, **kwargs):
+        flags.append(kwargs["creationflags"])
+        if kwargs["creationflags"] & BREAKAWAY and len(flags) == 3:
+            raise PermissionError(5, "Access is denied")
+        return Process()
+
+    manager = RunManager(tmp_path, spawn=spawn, available_memory=lambda: MEMORY_FLOOR)
+    manager.start("test", paths=TESTS)
+    manager.active.clear()
+    manager.start("practice", cycles=1, requests=10, hours=1, note="detached")
+    manager.active.clear()
+    manager.start("bench", cycles=1, requests=10, hours=1, note="job forbids breakaway")
+    assert flags == [GROUP, DETACHED | BREAKAWAY, DETACHED | BREAKAWAY, DETACHED]
+    assert DETACHED & 0x08000000 and BREAKAWAY == 0x01000000

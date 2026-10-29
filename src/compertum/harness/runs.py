@@ -17,10 +17,20 @@ from compertum.runtime.jobs import available_physical_memory
 
 MEMORY_FLOOR = 8 * 1024**3
 STILL_ACTIVE = 259
+GROUP = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+DETACHED = GROUP | getattr(subprocess, "CREATE_NO_WINDOW", 0)
+BREAKAWAY = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
 
 
 class RunError(Exception):
     pass
+
+
+def spawn_detached(spawn, command, **options):
+    try:
+        return spawn(command, creationflags=DETACHED | BREAKAWAY, **options)
+    except PermissionError:
+        return spawn(command, creationflags=DETACHED, **options)
 
 
 def _process_handle(pid, terminate=False):
@@ -201,8 +211,11 @@ class RunManager:
         try:
             with log.open("wb") as stream:
                 # No console input: a run must not read the owner's keys or change the composer's console mode.
-                process = self.spawn(command, cwd=self.root, stdin=subprocess.DEVNULL, stdout=stream,
-                                     stderr=subprocess.STDOUT, creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+                options = {"cwd": self.root, "stdin": subprocess.DEVNULL, "stdout": stream, "stderr": subprocess.STDOUT}
+                if kind == "test":
+                    process = self.spawn(command, creationflags=GROUP, **options)
+                else:
+                    process = spawn_detached(self.spawn, command, **options)
         except OSError:
             raise RunError("cannot start the process") from None
         wall = time.time()

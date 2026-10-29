@@ -1,5 +1,28 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.2 engine runs outlive the terminal tab - 29 October 2026
+
+The owner asked what is next for the harness and approved the first open item: runs that the harness started probably ended when the tab closed.
+Cause: the run process shared the harness console, so a closed console could end it.
+Fix, in `src/compertum/harness/runs.py`: `/run`, `/gepa` and `/bench` start the run in its own hidden console (`CREATE_NO_WINDOW`).
+The run also leaves the console's job object (`CREATE_BREAKAWAY_FROM_JOB`). If the job forbids that, the harness starts the run without leaving the job.
+`/test` runs keep the old start, because only an open console enforces a test deadline. Engine runs have their own hour limit.
+Recovery after a restart and `/stop` through the kill switch are unchanged.
+
+New native test `tests/windows/test_harness_run_detach.py`: a parent in a job starts one run the new way and one the old way.
+The new run has its own console. It survives the closed job if the job allows leaving. The old run shares the console and ends with the job.
+This is a simulation with a job object and a hidden console. The owner's real Windows Terminal tab close is not yet checked.
+
+Verification, source, product environment: harness unit lane and the console native tests, 117 passed, 0 failed, 0 skipped.
+That is 113 unit tests, 2 console native tests and 2 new native tests. The new native test then passed 3 more times.
+The two sandbox native tests were not run, because the bench-4 baseline was running. This change does not touch the sandbox.
+Files: `.cache/test-runs/harness-detach-20261029-184815`. Free memory was 42.4 GiB before the tests.
+
+The project map was refreshed: footer and owner node show harness 0.6.2. 9 pages, 81 internal links with 0 broken; page 1 was inspected.
+Git refused the repository because `CodexSandboxOffline` owns `.git`. The owner added a `safe.directory` entry for this folder.
+
+Exact next action: the owner starts a short engine run from the harness, closes the tab, reopens the harness and checks `/runs`.
+
 ## Markets calibrated: 4,096 sessions, bench-4 - 29 October 2026
 
 The owner asked whether about 1,000 cycles and several GEPA runs changed nothing. The record says yes: 39 run summaries,
