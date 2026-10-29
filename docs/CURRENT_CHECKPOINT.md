@@ -15,6 +15,12 @@ The product-environment harness lane passed 94 tests, zero failed and zero skipp
 
 Exact next action: the owner restarts `compertum-harness`, types `/model`, presses Enter, and picks a model with the arrow keys.
 
+Owner follow-up, harness 0.5.5: the owner selected Kimi and sent a task. The console printed only `Error: AI_CREDENTIAL_UNAVAILABLE`.
+The cause is expected: `KIMI_API_KEY` is not set. The missing key now ends the task as a normal error outcome.
+It names the variable and says to set it or choose another model with `/model`.
+The product-environment harness lane passed 94 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+Exact next action: the owner sets the user variable `KIMI_API_KEY` from a Kimi Code Console key, or picks a DeepSeek model.
+
 Owner follow-up, harness 0.5.4: the owner checked the picker and asked for no second box. The picker is now plain text:
 a heading line, a blank line and the list. It hides the text cursor and erases itself after Enter or Esc, so only the result line stays.
 The product-environment harness lane passed 94 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.

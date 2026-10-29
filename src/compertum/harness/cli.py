@@ -29,7 +29,13 @@ class LazyClient:
 
     def make(self):
         spec = self.settings.model
-        return ModelClient(parse(spec.base_url), spec.model, self.settings.headers(),
+        try:
+            headers = self.settings.headers()
+        except RuntimeRefused as exc:
+            # A model error ends the task cleanly and tells the owner what to do.
+            raise ModelError(f"{exc.code}: {spec.key_env or 'the key variable'} is not set. Set it as a user "
+                             "environment variable, or choose another model with /model") from None
+        return ModelClient(parse(spec.base_url), spec.model, headers,
                            request_timeout=spec.seconds or 300, max_tokens=spec.max_tokens or 8192)
 
     def chat(self, *args):

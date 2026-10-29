@@ -207,6 +207,9 @@ def test_bracket_placeholders_and_missing_keys_get_clear_messages(tmp_path, monk
         raise RuntimeRefused("AI_CREDENTIAL_UNAVAILABLE")
 
     monkeypatch.setattr(Settings, "headers", refuse)
-    text = status_model(root, answers=("/model kimi", "/status", "/exit"))
+    text = status_model(root, answers=("/model kimi", "/status", "hello", "/exit"))
     assert "is not set in your user environment. Requests to kimi will fail until you set it." in text
     assert '"model": "kimi-default"' in text
+    # The task ends as a normal error outcome with the fix, not a bare code from the console loop.
+    assert "[error] 1 steps | 0:00 AI_CREDENTIAL_UNAVAILABLE: the key variable is not set." in text
+    assert "or choose another model with /model" in text and "Error: AI_CREDENTIAL_UNAVAILABLE" not in text
