@@ -52,6 +52,12 @@ def help_text():
     return "\n".join(lines)
 
 
+def insertion(usage):
+    """Return the text Tab inserts. Optional [PARTS] are left out, so Enter never sends a bracket by mistake."""
+    command, bracket, _ = usage.partition(" [")
+    return command + " " if bracket else usage
+
+
 def common_prefix(values):
     if not values:
         return ""
@@ -98,10 +104,10 @@ def complete(text, sessions=(), runs=(), model_files=(), model_ids=None):
     if len(parts) != 1:
         return None
     if command in USAGES:
-        return USAGES[command]
+        return insertion(USAGES[command])
     matches = [name for name, _, _ in COMMANDS if name.startswith(command)]
     if len(matches) == 1:
-        return USAGES[matches[0]]
+        return insertion(USAGES[matches[0]])
     shared = common_prefix(matches)
     if shared and len(shared) > len(command):
         return shared

@@ -63,6 +63,15 @@ def test_editor_completes_and_draws_the_box_and_hint():
     assert "start a bounded GEPA run" in rendered
 
 
+def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
+    editor = LineEditor(StringIO(), get_key=lambda: "\r", width=60, title="Compertum · deepseek-flash")
+    top, middle, _, _, _ = editor._lines()
+    assert top.startswith("╭─ Compertum · deepseek-flash ─") and len(top) == len(middle) == 58
+    keys = iter(["/", "\xe0P", "\xe0P", "\t", "\r"])
+    assert LineEditor(StringIO(), get_key=lambda: next(keys), width=80).read() == "/model "
+    assert complete("/model") == "/model " and complete("/watc") == "/watch " and complete("/res") == "/resume SESSION_ID"
+
+
 def test_editor_supports_cursor_editing():
     keys = iter([*"abc", "\x00K", "\x08", "\x00O", "d", "\x00G", "z", "\x00S", "\r"])
     editor = LineEditor(StringIO(), get_key=lambda: next(keys), width=60)

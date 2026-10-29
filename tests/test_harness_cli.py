@@ -145,3 +145,42 @@ def test_model_selection_survives_resume_inside_the_console(tmp_path):
     assert result == 0
     text = output.getvalue()
     assert '"model": "kimi-default"' in text and '"model_file": "kimi"' in text
+
+
+def status_model(root, argv=(), answers=("/status", "/exit")):
+    output = StringIO()
+    steps = iter(answers)
+    main(["--project", str(root), *argv], display=Display(output, color=False), input_fn=lambda _: next(steps))
+    return output.getvalue()
+
+
+def test_model_choice_survives_a_restart_and_options_still_win(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    model_file(root, "kimi", "kimi-default")
+    status_model(root, answers=("/model kimi kimi-exact", "/exit"))
+    assert '"model": "kimi-exact"' in status_model(root)
+    assert '"model": "kimi-exact"' in status_model(root, ["--resume", sorted((root / "state" / "harness" / "sessions").glob("*.jsonl"))[0].stem])
+    assert '"model": "scripted"' in status_model(root, ["--models", "local"])
+    assert '"model": "kimi-exact"' in status_model(root)  # Start options do not change the saved /model choice.
+    (root / "config" / "models-kimi.toml").unlink()
+    text = status_model(root)
+    assert "The saved model choice kimi kimi-exact no longer loads. Using local." in text and '"model": "scripted"' in text
+
+
+def test_bracket_placeholders_and_missing_keys_get_clear_messages(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    config(root)
+    model_file(root, "kimi", "kimi-default")
+    text = status_model(root, answers=("/model [NAME] [MODEL_ID]", "/exit"))
+    assert "replace the bracketed words, for example /model kimi" in text
+    from compertum.harness.config import Settings
+    from compertum.runtime.errors import RuntimeRefused
+
+    def refuse(self):
+        raise RuntimeRefused("AI_CREDENTIAL_UNAVAILABLE")
+
+    monkeypatch.setattr(Settings, "headers", refuse)
+    text = status_model(root, answers=("/model kimi", "/status", "/exit"))
+    assert "is not set in your user environment. Requests to kimi will fail until you set it." in text
+    assert '"model": "kimi-default"' in text

@@ -11,7 +11,7 @@ from compertum.runtime.errors import RuntimeRefused
 from . import __version__
 from .agent import Agent, Limits
 from .commands import help_text
-from .config import load, model_files
+from .config import load, model_files, remember, remembered
 from .display import Display
 from .editor import LineEditor, enable_vt
 from .endpoint import parse
@@ -64,7 +64,7 @@ def _console(argv, display, input_fn):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)
-    parser.add_argument("--models", default="local")
+    parser.add_argument("--models", help="model file; default: the last /model choice, else local")
     parser.add_argument("--model")
     parser.add_argument("--max-steps", type=int, default=30)
     parser.add_argument("--max-minutes", type=float, default=15)
@@ -73,10 +73,20 @@ def _console(argv, display, input_fn):
     output = display or Display()
     try:
         root = args.project.resolve(strict=True)
-        settings = load(root, args.workspace or root, args.models, args.model, args.max_steps, args.max_minutes)
+        # Explicit options win. Otherwise the last /model choice applies, so a restart or resume keeps the model.
+        saved = None if args.models else remembered(root)
+        models, model = (args.models, args.model) if args.models else (saved[0], args.model or saved[1]) if saved else ("local", args.model)
+        try:
+            settings = load(root, args.workspace or root, models, model, args.max_steps, args.max_minutes)
+        except (ValueError, RuntimeRefused):
+            if not saved:
+                raise
+            # A saved choice whose model file changed must not stop the harness from starting.
+            output.note(f"The saved model choice {models} {model or ''} no longer loads. Using local.".replace("  ", " "))
+            settings = load(root, args.workspace or root, "local", args.model, args.max_steps, args.max_minutes)
         sessions = SessionStore(root)
         session = sessions.load(args.resume) if args.resume else sessions.create()
-        runs = RunManager(root, args.models, args.model)
+        runs = RunManager(root, settings.models, settings.model.model)
         agent = Agent(LazyClient(settings), WorkspaceTools(root, settings.workspace, busy=runs.busy),
                       Limits(settings.max_steps, settings.max_seconds), output, settings.workspace, emit=session.append)
         agent.start(getattr(session, "messages", None))
@@ -87,6 +97,8 @@ def _console(argv, display, input_fn):
 
     def select(models, model=None):
         nonlocal settings
+        if models.startswith("[") or (model or "").startswith("["):
+            raise ValueError("replace the bracketed words, for example /model kimi or /model deepseek deepseek-v4-pro")
         if models not in model_files(root):
             raise ValueError("unknown model file; /model shows the choices")
         updated = load(root, settings.workspace, models, model, settings.max_steps, settings.max_seconds / 60)
@@ -94,6 +106,13 @@ def _console(argv, display, input_fn):
         runs.select(updated.models, updated.model.model)
         settings = updated
         catalog[updated.models] = sorted({*catalog.get(updated.models, ()), updated.model.model})
+        remember(root, updated.models, updated.model.model)
+        try:
+            updated.headers()
+        except RuntimeRefused:
+            # The choice stands, so the owner can set the key later. Requests fail until then.
+            output.note(f"{updated.model.key_env or 'The key variable'} is not set in your user environment. Requests to {updated.models} "
+                        "will fail until you set it.")
         return updated
 
     def listed_models(models):
@@ -110,7 +129,8 @@ def _console(argv, display, input_fn):
         if sys.stdin.isatty() and output.out.isatty() and enable_vt(output.out):
             input_fn = lambda prompt: LineEditor(output.out, sessions.list, runs.active,
                                                  model_files=lambda: model_files(root),
-                                                 model_ids=lambda name: catalog.get(name, ())).read()
+                                                 model_ids=lambda name: catalog.get(name, ()),
+                                                 title=f"Compertum · {settings.model.model}").read()
         else:
             input_fn = input
     while True:

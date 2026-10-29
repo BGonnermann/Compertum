@@ -6,7 +6,7 @@ import shutil
 import sys
 import time
 
-from .commands import DESCRIPTIONS, EXAMPLES, complete, matching_commands
+from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands
 
 VISIBLE_COMMANDS = 6
 # The menu indents rows under the input text and needs room for this much description beside the commands.
@@ -114,7 +114,9 @@ def _move(rows):
 
 
 class LineEditor:
-    def __init__(self, out=None, sessions=(), runs=(), get_key=None, width=None, model_files=(), model_ids=None):
+    def __init__(self, out=None, sessions=(), runs=(), get_key=None, width=None, model_files=(), model_ids=None,
+                 title="Compertum"):
+        self.title = title
         self.out = out or sys.stdout
         self.sessions, self.runs, self.get_key = sessions, runs, get_key
         self.model_files, self.model_ids = model_files, model_ids
@@ -167,7 +169,8 @@ class LineEditor:
 
     def _lines(self):
         width = self._size()
-        top = "╭─ Compertum " + "─" * max(1, width - 14) + "╮"
+        title = self.title[:max(1, width - 6)]
+        top = f"╭─ {title} " + "─" * max(1, width - len(title) - 5) + "╮"
         inside = width - 4
         start = max(0, self.cursor - inside + 1) if self.cursor >= inside else 0
         shown = self.buffer[start:start + inside]
@@ -234,7 +237,7 @@ class LineEditor:
 
     def _complete(self):
         matches = self._command_matches()
-        replacement = matches[min(self.selected, len(matches) - 1)] if matches else complete(
+        replacement = insertion(matches[min(self.selected, len(matches) - 1)]) if matches else complete(
             self.buffer, self.sessions, self.runs, self.model_files, self.model_ids)
         if replacement is not None:
             self.buffer, self.cursor = replacement, len(replacement)
