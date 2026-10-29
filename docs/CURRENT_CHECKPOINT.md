@@ -52,7 +52,21 @@ Owner decisions after the workflow review, 29 October 2026:
   bench-2 was unaffected. The first attempt quoted parameter names, so practice.ps1 read them as text; fixed. `-Show` prints the command line without starting.
 - Hand edits to prompts should take the same bench check as GEPA candidates (proposed; the old prompts survive as candidate 0 of `run-20261029-65d4d5c4`).
 
-Exact next action: report bench-2. Then the bench-3 flash baseline, started with `tools\start_run.ps1`, which must start by about 16:30 EDT to end before the 21:00 peak.
+Bench-2 flash baseline, `run-20261029-1bab0fc4` (committed prompts with the new Director prompt, bench-2, 4 cycles per market): verdict `MEASURED`,
+`CYCLE_LIMIT`, 20 cycles, 562 requests, 92 minutes, 2 step faults, 59 candidates. Patterns found 1 of 3; false discoveries 0 of 2 empty markets; mean level 6.10.
+- seed 106 (momentum 5, noise 0.006 then 0.02): levels 6, 5, 6, 5; no candidate beat buy-and-hold.
+- seed 107 (reversal 3, drift +0.002 then -0.002): levels 7, 5, 7, 7; 7 of 12 beat buy-and-hold, 6 audited, found in 2 cycles, best capture 0.665.
+- seed 108 (momentum 5 then reversal 3): levels 5, 5, 6, 6; no candidate beat buy-and-hold.
+- seed 109 (changing noise, no pattern): levels 7, 6, 7, 7; 3 beat buy-and-hold by luck, none passed the gate.
+- seed 110 (no pattern): levels 7, 7, 6, 5; 2 beat buy-and-hold by luck, none passed the gate.
+Reading: the firm finds a reversal rule even when the drift flips, and finds no momentum rule when the noise or the pattern changes halfway.
+This is the first bench-2 run, so there is no earlier bench-2 result to compare with. It is not comparable with the bench-1 flash baseline of
+26 October (2 of 3, mean 7.15): different markets and a different Director prompt. The sandbox cleanup ran after the run: 799 files and 137 folders removed.
+
+Bench-3 flash baseline started at 11:58 EDT through `tools\start_run.ps1` (process 30248, 4 cycles per market, 2,400 requests; bench-2 used 28 per cycle).
+It should end at about 17:30 EDT, before the 21:00 peak.
+
+Exact next action: report bench-3 and compare it with bench-1 and bench-2. Then build the parallel cycles for GEPA and test them with the sandbox free.
 
 ## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
 
