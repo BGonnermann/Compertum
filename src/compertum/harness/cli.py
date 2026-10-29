@@ -20,6 +20,10 @@ from .runs import RunError, RunManager
 from .sessions import SessionError, SessionStore
 from .tools import WorkspaceTools
 
+# Providers whose subscription terms allow interactive use only. Engine runs are batch work, so they need another model.
+INTERACTIVE_ONLY = {"kimi": "Kimi Code subscriptions are for interactive use only"}
+
+
 class LazyClient:
     def __init__(self, settings):
         self.settings = settings
@@ -72,8 +76,9 @@ def _console(argv, display, input_fn, choose):
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--models", help="model file; default: the last /model choice, else local")
     parser.add_argument("--model")
-    parser.add_argument("--max-steps", type=int, default=30)
-    parser.add_argument("--max-minutes", type=float, default=15)
+    # Owner choice, 29 October 2026: a real bug hunt needs room, so tasks default to the highest limits.
+    parser.add_argument("--max-steps", type=int, default=100)
+    parser.add_argument("--max-minutes", type=float, default=60)
     parser.add_argument("--resume")
     args = parser.parse_args(argv)
     output = display or Display()
@@ -247,7 +252,23 @@ def _console(argv, display, input_fn, choose):
             elif text in ("/run", "/gepa", "/bench") or text.startswith(("/run ", "/gepa ", "/bench ")):
                 parts = _arguments(text)
                 kind = "practice" if parts[0] == "/run" else parts[0][1:]
+                if settings.model.provider in INTERACTIVE_ONLY:
+                    raise ValueError(f"engine runs cannot use {settings.model.model}: {INTERACTIVE_ONLY[settings.model.provider]}. "
+                                     "Choose a DeepSeek or local model with /model first")
                 output.json(runs.start(kind, **_run_args(parts)))
+            elif text == "/limits" or text.startswith("/limits "):
+                parts = _arguments(text)
+                if len(parts) == 3:
+                    try:
+                        steps, minutes = int(parts[1]), float(parts[2])
+                    except ValueError:
+                        raise ValueError("use /limits STEPS MINUTES, for example /limits 100 60") from None
+                    settings = load(root, settings.workspace, settings.models, settings.model.model, steps, minutes)
+                    agent.limits = Limits(settings.max_steps, settings.max_seconds)
+                elif len(parts) != 1:
+                    raise ValueError("use /limits STEPS MINUTES, for example /limits 100 60")
+                output.json({"max_steps": settings.max_steps, "max_minutes": settings.max_seconds / 60,
+                             "range": "1 to 100 steps and 1 to 60 minutes per task"})
             elif text.startswith("/"):
                 output.error("unknown command; /help shows the commands")
             else:

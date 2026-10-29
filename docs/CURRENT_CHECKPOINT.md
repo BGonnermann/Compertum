@@ -1,5 +1,17 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.7 readiness fixes - 29 October 2026
+
+The owner asked what to fix before regular use and approved four items.
+1. `/run`, `/gepa` and `/bench` now refuse while a Kimi model is selected. Kimi Code subscriptions are interactive-only.
+   The engine also still sends temperature 0, which Kimi `k3.1-pro` refuses. The message says to choose DeepSeek or local first.
+2. Tasks now default to 100 steps and 60 minutes, the highest the harness allows. The earlier default was 30 steps and 15 minutes.
+   `/limits` shows the limits. `/limits STEPS MINUTES` changes them for the open console and for `/new` and `/resume` there.
+3. Any unexpected error, such as a failed disk write, now ends a task with an error outcome. A failed session save shows a note.
+4. The project-map PDF refresh follows in a separate step, as `docs/PROJECT_MAP_REFRESH.md` requires.
+
+The product-environment harness lane passed 98 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
 ## Harness 0.5.6 Kimi subscription works - 29 October 2026
 
 The owner created a Kimi Code Console key from the membership subscription and set `KIMI_API_KEY`.

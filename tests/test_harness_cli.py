@@ -194,6 +194,29 @@ def test_plain_model_command_opens_a_picker_that_selects_and_saves(tmp_path):
     assert "Kept kimi-default." in output.getvalue()
 
 
+def test_engine_runs_refuse_an_interactive_only_provider(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    config(root)
+    started = []
+    monkeypatch.setattr(RunManager, "start", lambda self, kind, **kwargs: started.append(kind) or {"status": "RUNNING"})
+    from compertum.harness import cli
+    monkeypatch.setitem(cli.INTERACTIVE_ONLY, "loopback", "test subscriptions are for interactive use only")
+    text = status_model(root, answers=("/gepa 1 20 1 note", "/test", "/exit"))
+    assert "engine runs cannot use scripted: test subscriptions are for interactive use only" in text
+    assert "Choose a DeepSeek or local model with /model first" in text
+    assert started == ["test"]
+
+
+def test_tasks_default_to_the_highest_limits_and_limits_can_change(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    text = status_model(root, answers=("/limits", "/limits 40 20", "/limits 0 5", "/limits x", "/exit"))
+    blocks = re.findall(r'"max_minutes": ([\d.]+),\s+"max_steps": (\d+)', text)
+    assert blocks == [("60.0", "100"), ("20.0", "40")]
+    assert "task limits must be 1 to 100 steps and 1 to 60 minutes" in text
+    assert "use /limits STEPS MINUTES, for example /limits 100 60" in text
+
+
 def test_bracket_placeholders_and_missing_keys_get_clear_messages(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)

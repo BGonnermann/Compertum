@@ -43,6 +43,9 @@ Harness 0.5.2 saves each `/model` choice in `state/harness/model.json`. A restar
 The box title shows the active model. Selecting a model without its key variable shows a warning at once.
 Tab leaves out optional `[...]` parts, so `/model` inserts `/model ` and never sends a bracket by mistake.
 Harness 0.5.3: plain `/model` in the interactive console opens an arrow-key picker. Enter selects and saves; Esc keeps the model.
+Harness 0.5.7 refuses `/run`, `/gepa` and `/bench` while a Kimi model is selected. Kimi Code subscriptions are interactive-only.
+Tasks default to 100 steps and 60 minutes, the highest allowed. `/limits STEPS MINUTES` changes them for the open console.
+Any unexpected error now ends a task with an outcome. A failed session save shows a note instead of hiding the outcome.
 Harness 0.5.6 sends no `temperature`, so each provider uses its default. Kimi `k3.1-pro` accepts only 1.
 A refused request now shows the server's short reason after the HTTP status. The engine keeps its own fixed settings.
 Harness 0.5.4 shows the picker as plain text without a box. It hides the text cursor and erases itself, so only the result line stays.

@@ -370,7 +370,7 @@ def test_command_menu_aligns_descriptions_and_spaces_its_sections():
     assert rows[-1].startswith("  › /resume SESSION_ID ")
     descriptions = [DESCRIPTIONS[name] for name in ("/status", "/model", "/models", "/new", "/sessions", "/resume")]
     assert len({row.index(text) for row, text in zip(rows, descriptions)}) == 1
-    assert hints[7] == "    ↑ 1 more   ↓ 10 more"
+    assert hints[7] == "    ↑ 1 more   ↓ 11 more"
     assert hints[-1] == "    Example: /resume session-20261028-104110-7382a492"
 
 
@@ -389,7 +389,7 @@ def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
     editor = LineEditor(output, get_key=lambda: next(keys), width=100)
     assert editor.read() == "/resume SESSION_ID"
     rendered = output.getvalue()
-    assert "↑ 1 more   ↓ 10 more" in rendered
+    assert "↑ 1 more   ↓ 11 more" in rendered
     assert "› /resume" in rendered
     assert "Example: /resume" in rendered
 
@@ -411,7 +411,7 @@ def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
     visible = [hint for hint in hints if hint.startswith(("  › /", "    /"))]
     assert len(visible) == 6
     assert visible[-1].startswith("  › /exit ")
-    assert "    ↑ 11 more" in hints and not any("↓" in hint for hint in hints)
+    assert "    ↑ 12 more" in hints and not any("↓" in hint for hint in hints)
 
 
 def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():

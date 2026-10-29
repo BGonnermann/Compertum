@@ -78,9 +78,13 @@ class Agent:
         step = 0
 
         def end(status, answer="", detail=""):
-            self._close_open_calls()
             outcome = Outcome(status, answer, step, self.clock() - start, detail)
-            self.emit("outcome", {"status": status, "steps": step, "seconds": outcome.seconds, "detail": detail})
+            try:
+                self._close_open_calls()
+                self.emit("outcome", {"status": status, "steps": step, "seconds": outcome.seconds, "detail": detail})
+            except Exception as exc:  # noqa: BLE001
+                # A failed save must not hide the outcome. The conversation in memory stays complete.
+                self.display.note(f"The session could not save the end of this task: {getattr(exc, 'code', exc)}")
             return outcome
 
         try:
@@ -116,6 +120,9 @@ class Agent:
             return end("time_limit", detail="the task time limit was reached")
         except ModelError as exc:
             return end("error", detail=str(exc))
+        except Exception as exc:  # noqa: BLE001
+            # Any other failure, such as a session that cannot be saved, still ends the task with an outcome.
+            return end("error", detail=f"{type(exc).__name__}: {getattr(exc, 'code', exc)}")
 
     def _call(self, call, deadline):
         name = call["name"]

@@ -91,3 +91,29 @@ def test_edit_diff_reaches_the_display_but_not_the_model(tmp_path):
     text = output.getvalue()
     assert "● Edit note.txt" in text and "1 - hello" in text and "1 + goodbye" in text
     assert agent.messages[-2] == {"role": "tool", "tool_call_id": "call-1", "content": "edited note.txt"}
+
+
+def test_unexpected_errors_and_failed_saves_still_end_the_task(tmp_path):
+    from types import SimpleNamespace
+    output = StringIO()
+
+    def broken(*args):
+        raise OSError("disk unavailable")
+
+    agent = Agent(SimpleNamespace(chat=broken), WorkspaceTools(tmp_path, tmp_path), Limits(4, 20),
+                  Display(output, color=False), tmp_path)
+    agent.start()
+    outcome = agent.run_task("hello")
+    assert outcome.status == "error" and outcome.detail == "OSError: disk unavailable"
+    saves = []
+
+    def emit(kind, payload):
+        saves.append(kind)
+        if kind == "outcome":
+            raise OSError("cannot save")
+
+    agent = Agent(SimpleNamespace(chat=lambda *args: SimpleNamespace(content="done", tool_calls=[])),
+                  WorkspaceTools(tmp_path, tmp_path), Limits(4, 20), Display(output, color=False), tmp_path, emit=emit)
+    agent.start()
+    assert agent.run_task("hello").status == "done"
+    assert "The session could not save the end of this task: cannot save" in output.getvalue()

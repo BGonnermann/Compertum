@@ -13,11 +13,12 @@ Tab inserts the selected command and completes identifiers and cached model IDs.
 Tool steps show as short lines such as `● Edit src/x.py`. Edits and writes show a coloured diff with line numbers.
 A spinner shows the step and elapsed time while the model or a tool works. The Windows Terminal tab shows a busy ring.
 The harness starts with the last `/model` choice, also after `/resume`. The box title shows the active model.
-Type `/model` and press Enter to pick a model with the arrow keys. `/model kimi` selects Kimi's default. `/model deepseek deepseek-flash` selects an exact model.
+Type `/model` and press Enter to pick a model with the arrow keys. Engine runs refuse Kimi, whose subscription is interactive-only.
+Each task may use 100 steps and 60 minutes. `/limits STEPS MINUTES` changes this for the open console. `/model kimi` selects Kimi's default. `/model deepseek deepseek-flash` selects an exact model.
 `/models [NAME]` lists model IDs without a completion or a selection change. Selection preserves the conversation and future run defaults.
 Type `/help` for commands. Engine commands require cycle, request and hour limits.
 The model receives no run-start tool. Read, write and edit protect fixed code, rules, credentials and runtime state. Bash relies on the system prompt.
-The product-environment harness lane passed 95 tests, with zero failures and zero skips.
+The product-environment harness lane passed 98 tests, with zero failures and zero skips.
 The final native lane passed four tests, with zero failures and zero skips. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
 
 ## M3 engineering accepted; 19 October work committed - 23 October 2026
