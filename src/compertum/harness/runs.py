@@ -117,7 +117,8 @@ class RunManager:
     def _recover(self):
         if not self.folder.is_dir():
             return
-        for path in sorted(self.folder.glob("*.json"))[:256]:
+        # The newest records come first, so the cap never drops a run that is still active.
+        for path in sorted(self.folder.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)[:256]:
             try:
                 meta = json.loads(path.read_text(encoding="utf-8"))
                 if (meta.get("id") != path.stem or meta.get("kind") not in ("test", "practice", "gepa", "bench")
@@ -140,7 +141,8 @@ class RunManager:
         timer.start()
 
     def _save(self, record):
-        keys = ("id", "kind", "pid", "started_wall", "started_at", "deadline", "created", "exit_code", "dismissed")
+        keys = ("id", "kind", "pid", "started_wall", "started_at", "deadline", "created", "exit_code", "dismissed",
+                "planted_stop")
         meta = {key: record.get(key) for key in keys}
         path = self.folder / f"{record['id']}.json"
         path.write_text(json.dumps({**meta, "log": f"{record['id']}.log"}, sort_keys=True), encoding="utf-8")
@@ -155,6 +157,9 @@ class RunManager:
             raise RunError("the run limits are not valid")
         if not isinstance(note, str) or not 1 <= len(note) <= 256:
             raise RunError("the run note is not valid")
+        if kind != "test" and self._stop_file().exists():
+            raise RunError("state/engine/STOP exists. It stops every engine run. Delete it if no stop is intended, "
+                           "then start the run again")
         try:
             sanitized(note.encode())
         except RuntimeRefused as error:
@@ -164,9 +169,10 @@ class RunManager:
         log = self.folder / f"{identity}.log"
         temp = self.root / ".cache" / "test-runs" / identity
         if kind == "test":
-            paths = paths or ["tests/test_harness_agent.py", "tests/test_harness_model.py", "tests/test_harness_tools.py",
-                              "tests/test_harness_sessions.py", "tests/test_harness_runs.py", "tests/test_harness_cli.py",
-                              "tests/test_harness_editor.py"]
+            paths = paths or sorted(path.relative_to(self.root).as_posix()
+                                    for path in (self.root / "tests").glob("test_harness_*.py"))
+            if not paths:
+                raise RunError("no harness test files were found; name the tests to run")  # Never the whole project.
             if not isinstance(paths, list) or len(paths) > 16 or any(not isinstance(p, str) or p.startswith("-") or ".." in Path(p).parts for p in paths):
                 raise RunError("the test paths are not valid")
             checked = []
@@ -194,8 +200,9 @@ class RunManager:
             raise RunError("unknown run kind")
         try:
             with log.open("wb") as stream:
-                process = self.spawn(command, cwd=self.root, stdout=stream, stderr=subprocess.STDOUT,
-                                     creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+                # No console input: a run must not read the owner's keys or change the composer's console mode.
+                process = self.spawn(command, cwd=self.root, stdin=subprocess.DEVNULL, stdout=stream,
+                                     stderr=subprocess.STDOUT, creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
         except OSError:
             raise RunError("cannot start the process") from None
         wall = time.time()
@@ -218,7 +225,7 @@ class RunManager:
             if record["kind"] == "test":
                 record["process"].terminate()
             else:
-                self._stop_engine()
+                self._stop_engine(record)
 
     def card(self, identity):
         record = self.active.get(identity)
@@ -231,10 +238,18 @@ class RunManager:
                 self._save(record)
             except OSError:
                 pass
+        if type(code) is int and record.get("planted_stop"):
+            # The stopped run has ended, so the kill switch the harness set has done its job. Leave any other STOP.
+            record["planted_stop"] = False
+            try:
+                self._stop_file().unlink(missing_ok=True)
+                self._save(record)
+            except OSError:
+                pass
         status = ("DISMISSED" if record.get("dismissed") else code if code in ("UNKNOWN", "LOST")
                   else "RUNNING" if code is None else "EXPIRED" if record.get("expired") else "COMPLETED" if code == 0 else "FAILED")
         card = {"run": identity, "type": record["kind"], "status": status,
-                "elapsed_seconds": round(time.monotonic() - record["started"], 1),
+                "elapsed_seconds": self._elapsed(record, code),
                 "exit_code": None if code in ("UNKNOWN", "LOST") else code}
         if record.get("recovered"):
             card["recovered"] = True
@@ -247,8 +262,23 @@ class RunManager:
             card["result"] = summary[-1]
         return card
 
+    @staticmethod
+    def _elapsed(record, code):
+        if code is None:
+            return round(time.monotonic() - record["started"], 1)
+        # A finished run stops at its last log write, so its time does not keep growing after a restart.
+        try:
+            return round(max(0.0, Path(record["log"]).stat().st_mtime - record["started_wall"]), 1)
+        except OSError:
+            return None
+
     def cards(self):
         return [self.card(identity) for identity in self.active]
+
+    def latest(self):
+        """Return the newest run that was not dismissed, or None."""
+        shown = [record for record in self.active.values() if not record.get("dismissed")]
+        return max(shown, key=lambda record: record["started_wall"])["id"] if shown else None
 
     def busy(self):
         return any(not record.get("dismissed") and record["process"].poll() in (None, "UNKNOWN")
@@ -267,9 +297,19 @@ class RunManager:
             raise RunError("cannot save the dismissed run record") from None
         return self.card(identity)
 
-    def _stop_engine(self):
-        stop = self.root / "state" / "engine" / "STOP"
+    def _stop_file(self):
+        return self.root / "state" / "engine" / "STOP"
+
+    def _stop_engine(self, record):
+        stop = self._stop_file()
         stop.parent.mkdir(parents=True, exist_ok=True)
+        if not stop.exists():
+            # Only a STOP the harness set is removed later. An owner's own kill switch stays.
+            record["planted_stop"] = True
+            try:
+                self._save(record)
+            except OSError:
+                pass
         stop.touch()
 
     def stop(self, identity):
@@ -282,7 +322,7 @@ class RunManager:
         if record["kind"] == "test":
             record["process"].terminate()
         else:
-            self._stop_engine()
+            self._stop_engine(record)
         return self.card(identity)
 
     def report(self, identity):

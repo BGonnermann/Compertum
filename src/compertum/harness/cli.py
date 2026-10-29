@@ -10,7 +10,7 @@ from compertum.runtime.errors import RuntimeRefused
 
 from . import __version__
 from .agent import Agent, Limits
-from .commands import help_text
+from .commands import EXAMPLES, USAGES, help_text
 from .config import known_models, load, model_files, remember, remember_models, remembered
 from .display import Display
 from .editor import LineEditor, Picker, enable_vt
@@ -50,16 +50,35 @@ class LazyClient:
 
 
 def _arguments(text):
+    """Split a command. Quotes group words; backslashes stay, so Windows paths keep their separators."""
     try:
-        return shlex.split(text)
+        parts = shlex.split(text, posix=False)
     except ValueError:
         raise RunError("the command has an unfinished quote") from None
+    return [part[1:-1] if len(part) > 1 and part[0] == part[-1] and part[0] in "\"'" else part for part in parts]
 
 
-def _run_args(parts):
+def _identity(text):
+    """Return the one session or run ID after a command, with the same quote rules for every command."""
+    parts = _arguments(text)
+    if len(parts) != 2:
+        raise RunError(f"use {USAGES[parts[0]]}, for example {EXAMPLES[parts[0]]}")
+    return parts[1]
+
+
+def _run_args(text):
+    """Read CYCLES REQUESTS HOURS and keep the rest as the note, word for word, including apostrophes."""
+    parts = text.split(maxsplit=4)
+    example = f"for example {EXAMPLES[parts[0]]}"
     if len(parts) < 5:
-        raise RunError("use CYCLES REQUESTS HOURS NOTE")
-    return {"cycles": int(parts[1]), "requests": int(parts[2]), "hours": float(parts[3]), "note": " ".join(parts[4:])}
+        raise RunError(f"use {USAGES[parts[0]]}, {example}")
+    try:
+        cycles, requests, hours = int(parts[1]), int(parts[2]), float(parts[3])
+    except ValueError:
+        raise RunError(f"CYCLES and REQUESTS need whole numbers and HOURS a number, {example}") from None
+    if parts[4] == "NOTE":
+        raise RunError(f"replace NOTE with a short description, {example}")
+    return {"cycles": cycles, "requests": requests, "hours": hours, "note": parts[4]}
 
 
 def main(argv=None, display=None, input_fn=None, choose=None):
@@ -115,6 +134,9 @@ def _console(argv, display, input_fn, choose):
         if models not in model_files(root):
             raise ValueError("unknown model file; /model shows the choices")
         updated = load(root, settings.workspace, models, model, settings.max_steps, settings.max_seconds / 60)
+        if model and catalog.get(models) and model not in catalog[models]:
+            # An unknown ID may be new, so it is selected. A typing mistake would fail at every request, so warn.
+            output.note(f"{model} is not a known model for {models}. /models {models} lists what the provider offers.")
         agent.client.select(updated)
         runs.select(updated.models, updated.model.model)
         settings = updated
@@ -180,9 +202,14 @@ def _console(argv, display, input_fn, choose):
             continue
         if not text:
             continue
+        head, _, rest = text.partition(" ")
+        if head.startswith("/"):
+            text = head.lower() + (" " + rest if rest else "")  # Command names work in any case; arguments keep theirs.
         if text in ("/exit", "/quit"):
             break
         try:
+            if text in ("/resume", "/stop", "/clear", "/report"):
+                raise ValueError(f"use {USAGES[text]}, for example {EXAMPLES[text]}")
             if text == "/help":
                 output.line(help_text())
             elif text == "/status":
@@ -208,11 +235,13 @@ def _console(argv, display, input_fn, choose):
                     output.json({"model": settings.model.model, "model_file": settings.models,
                                  "model_files": model_files(root), "usage": "/model [NAME] [MODEL_ID]"})
                 elif len(parts) == 2:
+                    files = {name.lower(): name for name in model_files(root)}
                     name = parts[1]
-                    updated = select(name) if name in model_files(root) else select(settings.models, name)
+                    updated = select(files[name.lower()]) if name.lower() in files else select(settings.models, name)
                     output.json({"model": updated.model.model, "model_file": updated.models, "session": session.identity})
                 elif len(parts) == 3:
-                    updated = select(parts[1], parts[2])
+                    files = {name.lower(): name for name in model_files(root)}
+                    updated = select(files.get(parts[1].lower(), parts[1]), parts[2])
                     output.json({"model": updated.model.model, "model_file": updated.models, "session": session.identity})
                 else:
                     raise ValueError("use /model [NAME] [MODEL_ID]")
@@ -227,39 +256,40 @@ def _console(argv, display, input_fn, choose):
                 agent = Agent(LazyClient(settings), WorkspaceTools(root, settings.workspace, busy=runs.busy),
                               Limits(settings.max_steps, settings.max_seconds), output, settings.workspace, emit=session.append)
                 agent.start()
+                output.idle("Compertum")
                 output.note(f"Started {session.identity}.")
             elif text == "/sessions":
-                output.json({"sessions": sessions.list()})
+                output.json({"sessions": sessions.summaries()})
             elif text.startswith("/resume "):
-                session = sessions.load(text.split(maxsplit=1)[1])
+                session = sessions.load(_identity(text))
                 agent = Agent(LazyClient(settings), WorkspaceTools(root, settings.workspace, busy=runs.busy),
                               Limits(settings.max_steps, settings.max_seconds), output, settings.workspace, emit=session.append)
                 agent.start(session.messages)
+                output.idle("Compertum")
                 output.note(f"Resumed {session.identity}.")
             elif text == "/runs":
                 output.json({"runs": runs.cards()})
             elif text == "/watch" or text.startswith("/watch "):
-                parts = _arguments(text)
-                identity = parts[1] if len(parts) > 1 else next(reversed(runs.active), None)
+                identity = _identity(text) if " " in text else runs.latest()
                 if identity is None:
                     output.note("No runs yet.")
                 else:
                     output.json(runs.card(identity))
             elif text.startswith("/stop "):
-                output.json(runs.stop(text.split(maxsplit=1)[1]))
+                output.json(runs.stop(_identity(text)))
             elif text.startswith("/clear "):
-                output.json(runs.clear(text.split(maxsplit=1)[1]))
+                output.json(runs.clear(_identity(text)))
             elif text.startswith("/report "):
-                output.json(runs.report(text.split(maxsplit=1)[1]))
+                output.json(runs.report(_identity(text)))
             elif text == "/test" or text.startswith("/test "):
                 output.json(runs.start("test", paths=_arguments(text)[1:]))
             elif text in ("/run", "/gepa", "/bench") or text.startswith(("/run ", "/gepa ", "/bench ")):
-                parts = _arguments(text)
-                kind = "practice" if parts[0] == "/run" else parts[0][1:]
+                command = text.split(maxsplit=1)[0]
+                kind = "practice" if command == "/run" else command[1:]
                 if settings.model.provider in INTERACTIVE_ONLY:
                     raise ValueError(f"engine runs cannot use {settings.model.model}: {INTERACTIVE_ONLY[settings.model.provider]}. "
                                      "Choose a DeepSeek or local model with /model first")
-                output.json(runs.start(kind, **_run_args(parts)))
+                output.json(runs.start(kind, **_run_args(text)))
             elif text == "/limits" or text.startswith("/limits "):
                 parts = _arguments(text)
                 if len(parts) == 3:
@@ -279,6 +309,8 @@ def _console(argv, display, input_fn, choose):
                 output.outcome(agent.run_task(text))
         except (RunError, SessionError, ModelError, RuntimeRefused, ValueError, StopIteration) as exc:
             output.error(getattr(exc, "code", str(exc)))
+        except KeyboardInterrupt:
+            output.note("Stopped the command.")  # Ctrl+C ends a slow command, not the harness.
     return 0
 
 

@@ -72,6 +72,61 @@ def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
     assert complete("/model") == "/model " and complete("/watc") == "/watch " and complete("/res") == "/resume SESSION_ID"
 
 
+def test_enter_runs_the_highlighted_command_or_fills_its_template():
+    # The owner typed "/", moved to /runs and pressed Enter; the harness sent "/" instead of /runs.
+    def typed(*keys):
+        pressed = iter(keys)
+        return LineEditor(StringIO(), get_key=lambda: next(pressed), width=100).read()
+
+    assert typed("/", "r", "u", "\xe0P", "\r") == "/runs"
+    assert typed("/", "\r") == "/help"
+    assert typed(*"/model", "\r") == "/model"
+    assert typed(*"/ge", "\r", "\r") == "/gepa CYCLES REQUESTS HOURS NOTE"
+    assert typed(*"/res", "\r", *["\x08"] * 10, *"session-1", "\r") == "/resume session-1"
+    assert typed(*"/nothing", "\r") == "/nothing"
+    assert typed(*"hello /", "\r") == "hello /"
+
+
+def test_paste_keeps_line_breaks_and_tabs_in_one_task():
+    keys = ["l", "1", "\r", "\t", "l", "2", "\r"]
+    # Characters wait after every pasted key except the last Enter, which sends the whole paste.
+    editor = LineEditor(StringIO(), get_key=lambda: keys.pop(0), width=60, more=lambda: bool(keys))
+    assert editor.read() == "l1\n\tl2"
+    _, middle, _, _, _ = editor._lines()
+    assert "l1↵→l2" in middle
+
+
+def test_composer_keys_for_clearing_moving_deleting_words_and_emoji():
+    def typed(*keys):
+        pressed = iter(keys)
+        return LineEditor(StringIO(), get_key=lambda: next(pressed), width=60).read()
+
+    assert typed(*"draft", "\x1b", *"new", "\r") == "new"
+    assert typed(*"hello", "\x01", "x", "\x05", "y", "\r") == "xhelloy"
+    assert typed(*"one two", "\x7f", *"three", "\r") == "one three"
+    assert typed(*"keep", "\x1a", "\r") == "keep"  # Ctrl+Z with text keeps the text; it quits only from an empty box.
+    assert typed("a", "\ud83d", "\ude00", "b", "\r") == "a\U0001F600b"
+    with pytest.raises(EOFError):
+        typed("\x1a")
+
+
+def test_enter_on_a_menu_choice_shows_the_command_that_runs():
+    output, screen = StringIO(), Screen(100)
+    pressed = iter(["/", "r", "u", "\xe0P", "\r"])
+    assert LineEditor(output, get_key=lambda: next(pressed), width=100).read() == "/runs"
+    screen.feed(output.getvalue())
+    assert screen.text()[1].startswith("│ /runs ")
+
+
+def test_tab_after_a_space_completes_the_argument_not_the_template():
+    sessions = lambda: ["session-20261029-one"]
+    runs = lambda: {"gepa-20261029-one": {}}
+    assert complete("/resume ", sessions, runs) == "/resume session-20261029-one"
+    assert complete("/report ", sessions, runs) == "/report gepa-20261029-one"
+    assert complete("/gepa ") is None
+    assert complete("/model ", model_files=lambda: ["kimi"]) == "/model kimi"
+
+
 def test_picker_moves_selects_cancels_and_clears_its_rows():
     options = [f"model-{n}" for n in range(12)]
     for keys, result in ((["\xe0P", "\xe0P", "\r"], 2), (["\xe0H", "\x1b"], None)):

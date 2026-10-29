@@ -1,3 +1,3 @@
 """A small terminal agent harness for Compertum."""
 
-__version__ = "0.5.8"
+__version__ = "0.6.0"

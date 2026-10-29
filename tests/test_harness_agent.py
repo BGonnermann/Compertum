@@ -72,7 +72,7 @@ def test_sensitive_task_is_not_sent_or_recorded(tmp_path):
     agent.start()
     outcome = agent.run_task("show my password")
     assert outcome.status == "error"
-    assert len(records) == 1
+    assert records == []  # Neither the refused task nor the unused system message is saved.
 
 
 def test_edit_diff_reaches_the_display_but_not_the_model(tmp_path):

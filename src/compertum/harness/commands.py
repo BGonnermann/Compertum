@@ -1,4 +1,5 @@
 """Slash-command usage and help in one place."""
+import re
 
 COMMANDS = (
     ("/help", "/help", "show commands"),
@@ -14,7 +15,7 @@ COMMANDS = (
     ("/bench", "/bench CYCLES REQUESTS HOURS NOTE", "start a bounded bench run"),
     ("/limits", "/limits [STEPS MINUTES]", "show or change the task step and time limits"),
     ("/runs", "/runs", "show uniform run cards"),
-    ("/watch", "/watch [RUN_ID]", "show the latest run card"),
+    ("/watch", "/watch [RUN_ID]", "show the newest run card, or one run"),
     ("/stop", "/stop RUN_ID", "stop a run you started"),
     ("/clear", "/clear RUN_ID", "dismiss a terminal or unverifiable run"),
     ("/report", "/report RUN_ID", "show a run card and bounded log tail"),
@@ -54,6 +55,11 @@ def help_text():
     return "\n".join(lines)
 
 
+def needs_arguments(usage):
+    """Return True when a usage has required parts outside [optional] brackets, such as /resume SESSION_ID."""
+    return bool(re.sub(r"\[[^\]]*\]", "", usage).split()[1:])
+
+
 def insertion(usage):
     """Return the text Tab inserts. Optional [PARTS] are left out, so Enter never sends a bracket by mistake."""
     command, bracket, _ = usage.partition(" [")
@@ -89,6 +95,8 @@ def complete(text, sessions=(), runs=(), model_files=(), model_ids=None):
         return None
     parts = text.split(maxsplit=1)
     command = parts[0]
+    if len(parts) == 1 and text.endswith(" "):
+        parts = [command, ""]  # After a space, Tab completes the argument, not the usage template.
     if len(parts) == 2 and (command == "/resume" or command in RUN_ID_COMMANDS):
         source = sessions if command == "/resume" else runs
         values = source() if callable(source) else source

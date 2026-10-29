@@ -35,6 +35,27 @@ class SessionStore:
             return []
         return sorted(path.stem for path in self.folder.glob("session-*.jsonl") if path.is_file())
 
+    def summaries(self, limit=20):
+        """Describe the newest sessions with their date and first task, so the owner can choose one to resume."""
+        rows = []
+        for identity in sorted(self.list(), reverse=True)[:limit]:
+            path = self.folder / f"{identity}.jsonl"
+            first = ""
+            try:
+                with path.open("rb") as stream:
+                    for line in stream.read(256 * 1024).splitlines():
+                        record = json.loads(line)
+                        payload = record.get("payload") or {}
+                        if record.get("kind") == "message" and payload.get("role") == "user":
+                            first = " ".join(str(payload.get("content") or "").split())[:80]
+                            break
+            except (OSError, ValueError, AttributeError):
+                first = "(cannot be read)"
+            stamp = identity[8:23]
+            rows.append(f"{identity}  {stamp[0:4]}-{stamp[4:6]}-{stamp[6:8]} {stamp[9:11]}:{stamp[11:13]} UTC  "
+                        f"{first or '(no task yet)'}")
+        return rows
+
 
 class Session:
     def __init__(self, identity, path):

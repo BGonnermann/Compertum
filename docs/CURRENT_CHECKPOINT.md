@@ -1,5 +1,26 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.0 bug fixes - 29 October 2026
+
+The owner found that typing `/`, moving to `/runs` and pressing Enter did nothing useful. Enter sent the typed `/`.
+Enter now runs the highlighted command and shows it in the box. A command that needs details gets its template first.
+An independent bug hunt then found 17 confirmed bugs and 5 suspected issues. The fixes cover:
+- Multi-line paste, which sent each line as a separate task. A real-console native test now confirms one task.
+- Esc, Ctrl+A, Ctrl+E, Ctrl+Backspace, emoji, and Ctrl+Z, which quit even with text in the box.
+- Run notes with apostrophes, Windows paths, upper-case commands, and raw Python errors for placeholders and missing details.
+- Ctrl+C during a slash command, which quit the harness. `/model` names in any case, and a warning for unknown model IDs.
+- Raw JSON results in the terminal. Scripted input still gets JSON. `/sessions` now shows dates and first tasks.
+- Empty session files at each start. A session file now starts with its first task. A full session now ends the task cleanly.
+- A kill switch that the harness set and never removed, which blocked every later engine run. Other STOP files now give a clear message.
+- Run cards whose elapsed time kept growing, `/watch` choosing an older run, and recovery dropping the newest records.
+- Run processes that could read console keys, bare `/test` that skipped two files, Tab after a space, and a stale tab title.
+Not fixed: closing the Windows Terminal tab probably ends harness-started runs. Wide characters can misalign the box.
+Keys typed ahead while the harness is busy can count as a paste. Up and Down have no prompt history.
+Another session changed `src/compertum/ai/engine/bench.py`, `tests/test_engine_bench.py` and `tools/practice.ps1` during this work.
+Those changes were left untouched and uncommitted.
+
+The product-environment harness lane passed 108 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+
 ## Harness 0.5.8 picker keeps known models - 29 October 2026
 
 The owner reported that `deepseek-flash` no longer appeared in the `/model` picker.

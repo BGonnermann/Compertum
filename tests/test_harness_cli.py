@@ -4,6 +4,7 @@ from io import StringIO
 from compertum.harness.cli import LazyClient, main
 from compertum.harness.display import Display
 from compertum.harness.runs import RunManager
+from compertum.harness.sessions import SessionStore
 
 
 def config(root):
@@ -18,6 +19,13 @@ def model_file(root, name, model):
     text += "[roles.engineer]\n" + entry
     filename = "models.toml" if name == "local" else f"models-{name}.toml"
     (root / "config" / filename).write_text(text, encoding="utf-8")
+
+
+def saved_session(root):
+    session = SessionStore(root).create()
+    session.append("message", {"role": "system", "content": "start"})
+    session.append("message", {"role": "user", "content": "an earlier task"})
+    return session.identity
 
 
 def test_console_opens_without_a_model_request_and_lists_sessions(tmp_path):
@@ -38,12 +46,14 @@ def test_console_can_resume_a_saved_session_without_a_model(tmp_path):
     config(root)
     first = main(["--project", str(root)], display=Display(StringIO(), color=False), input_fn=lambda _: "/exit")
     assert first == 0
-    sessions = list((root / "state" / "harness" / "sessions").glob("session-*.jsonl"))
+    # Opening and closing the console without a task leaves no session file.
+    assert not list((root / "state" / "harness" / "sessions").glob("session-*.jsonl"))
+    identity = saved_session(root)
     output = StringIO()
-    result = main(["--project", str(root), "--resume", sessions[0].stem], display=Display(output, color=False),
+    result = main(["--project", str(root), "--resume", identity], display=Display(output, color=False),
                   input_fn=lambda _: "/exit")
     assert result == 0
-    assert sessions[0].stem in output.getvalue()
+    assert identity in output.getvalue()
 
 
 def test_watch_without_runs_has_a_clear_message(tmp_path):
@@ -66,7 +76,7 @@ def test_watch_prefix_and_bare_run_command_have_correct_errors(tmp_path):
     assert result == 0
     text = output.getvalue()
     assert "unknown command" in text
-    assert "use CYCLES REQUESTS HOURS NOTE" in text
+    assert "use /gepa CYCLES REQUESTS HOURS NOTE, for example /gepa 20 450 2 improve reversal capture" in text
     assert '"status": "RUNNING"' not in text
 
 
@@ -130,12 +140,12 @@ def test_model_selection_survives_resume_inside_the_console(tmp_path):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
+    identity = saved_session(root)
 
     def answers():
         yield "/model kimi"
         yield "/new"
-        sessions = sorted((root / "state" / "harness" / "sessions").glob("session-*.jsonl"))
-        yield f"/resume {sessions[-1].stem}"
+        yield f"/resume {identity}"
         yield "/status"
         yield "/exit"
 
@@ -160,7 +170,7 @@ def test_model_choice_survives_a_restart_and_options_still_win(tmp_path):
     model_file(root, "kimi", "kimi-default")
     status_model(root, answers=("/model kimi kimi-exact", "/exit"))
     assert '"model": "kimi-exact"' in status_model(root)
-    assert '"model": "kimi-exact"' in status_model(root, ["--resume", sorted((root / "state" / "harness" / "sessions").glob("*.jsonl"))[0].stem])
+    assert '"model": "kimi-exact"' in status_model(root, ["--resume", saved_session(root)])
     assert '"model": "scripted"' in status_model(root, ["--models", "local"])
     assert '"model": "kimi-exact"' in status_model(root)  # Start options do not change the saved /model choice.
     (root / "config" / "models-kimi.toml").unlink()
@@ -213,6 +223,50 @@ def test_picker_keeps_models_used_before_and_a_listing_refreshes_them(tmp_path, 
          choose=lambda options, chosen: shown.append(options))
     labels = [label.split()[0] for label in shown[0]]
     assert "new-id" in labels and "flash-id" not in labels
+
+
+def test_commands_accept_real_notes_paths_case_and_explain_missing_parts(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    config(root)
+    model_file(root, "kimi", "kimi-default")
+    started = []
+    monkeypatch.setattr(RunManager, "start", lambda self, kind, **kwargs: started.append((kind, kwargs)) or {"status": "RUNNING"})
+    text = status_model(root, answers=(
+        "/gepa 20 450 2 improve the owner's prompts in C:\\Users\\notes",
+        "/test tests\\test_harness_cli.py",
+        "/run CYCLES REQUESTS HOURS NOTE", "/run 8 450 2 NOTE",
+        "/HELP", "/Model KIMI", "/resume", "/report", "/stop \"gepa-1\"",
+        "/model kimi kimi-typo", "/sessions", "/exit"))
+    assert started[0] == ("gepa", {"cycles": 20, "requests": 450, "hours": 2.0,
+                                   "note": "improve the owner's prompts in C:\\Users\\notes"})
+    assert started[1] == ("test", {"paths": ["tests\\test_harness_cli.py"]})
+    assert "CYCLES and REQUESTS need whole numbers and HOURS a number, for example /run 8 450 2" in text
+    assert "replace NOTE with a short description" in text
+    assert "Commands:" in text and '"model_file": "kimi"' in text
+    assert "use /resume SESSION_ID, for example /resume session-" in text
+    assert "use /report RUN_ID, for example /report test-" in text
+    assert "Error: the run was not found" in text  # The quoted ID was read as gepa-1, without its quotes.
+    assert "kimi-typo is not a known model for kimi. /models kimi lists what the provider offers." in text
+
+
+def test_ctrl_c_during_a_command_keeps_the_harness_open(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    config(root)
+
+    def slow(self):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(LazyClient, "list_models", slow)
+    text = status_model(root, answers=("/models", "/status", "/exit"))
+    assert "Stopped the command." in text and '"model": "scripted"' in text
+
+
+def test_sessions_list_dates_and_first_tasks(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    identity = saved_session(root)
+    text = status_model(root, answers=("/sessions", "/exit"))
+    assert f"{identity}  {identity[8:12]}-{identity[12:14]}-{identity[14:16]}" in text and "an earlier task" in text
 
 
 def test_engine_runs_refuse_an_interactive_only_provider(tmp_path, monkeypatch):

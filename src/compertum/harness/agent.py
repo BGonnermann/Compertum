@@ -46,14 +46,14 @@ class Agent:
         self.workspace = workspace
         self.emit = emit or (lambda kind, payload: None)
         self.messages = []
-        self.warned = False
+        self.warned = self._unsaved = False
 
     def start(self, messages=None):
         self.warned = False
         self.messages = messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
-        if not messages:
-            self.emit("message", self.messages[0])
-        else:
+        # A new session is saved with its first task, so opening and closing the console leaves no empty file.
+        self._unsaved = not messages
+        if messages:
             # Older sessions may hold text that the request check refuses. Clean it, so the session can resume.
             for message in self.messages[1:]:
                 if message.get("role") in ("user", "tool") and isinstance(message.get("content"), str):
@@ -62,6 +62,9 @@ class Agent:
 
     def _append(self, message):
         self.messages.append(message)
+        if self._unsaved:
+            self._unsaved = False
+            self.emit("message", self.messages[0])
         self.emit("message", message)
 
     def run_task(self, task: str) -> Outcome:
@@ -72,7 +75,6 @@ class Agent:
         if looks_secret(task):
             # Refuse here, before the task joins the conversation and blocks every later request.
             return Outcome("error", "", 0, 0.0, "AI_SENSITIVE_INPUT_DENIED: the task looks like it holds a secret")
-        self._append({"role": "user", "content": task})
         start = self.clock()
         deadline = start + self.limits.max_seconds
         step = 0
@@ -88,6 +90,8 @@ class Agent:
             return outcome
 
         try:
+            # Inside the try, so a full or unwritable session ends the task with an outcome.
+            self._append({"role": "user", "content": task})
             while True:
                 if step >= self.limits.max_steps:
                     return end("step_limit", detail=f"the step limit ({self.limits.max_steps}) was reached")

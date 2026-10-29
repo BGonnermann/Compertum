@@ -42,16 +42,34 @@ def key(char="\x00", virtual_key=0):
         records.append(record)
     return records
 
+import threading, time
+
+def write(records):
+    array = (_InputRecord * len(records))(*records)
+    written = ctypes.c_uint32()
+    assert kernel.WriteConsoleInputW(handle, array, len(records), ctypes.byref(written)) and written.value == len(records)
+
 resize = _InputRecord(event_type=0x4)
-records = [*key("/"), *key("g"), resize, *key(virtual_key=0x28), *key("e"), *key("\t"), resize, *key("\r")]
-array = (_InputRecord * len(records))(*records)
-written = ctypes.c_uint32()
-assert kernel.WriteConsoleInputW(handle, array, len(records), ctypes.byref(written)) and written.value == len(records)
+# Typed keys arrive one at a time. A paste arrives as one burst, with its final Enter typed afterwards.
+typed = [key("/"), key("g"), [resize], key(virtual_key=0x28), key("e"), key("\t"), [resize], key("\r")]
+pasted = [*key("a"), *key("\r"), *key("b")]
+
+def person():
+    for records in typed:
+        write(records)
+        time.sleep(0.1)
+    time.sleep(0.3)
+    write(pasted)
+    time.sleep(0.3)
+    write(key("\r"))
+
+threading.Thread(target=person, daemon=True).start()
 output = StringIO()
 text = LineEditor(output, width=80).read()
+paste = LineEditor(StringIO(), width=80).read()
 after = ctypes.c_uint32()
 kernel.GetConsoleMode(handle, ctypes.byref(after))
-json.dump({"text": text, "before": before.value, "after": after.value, "reading": reading,
+json.dump({"text": text, "paste": paste, "before": before.value, "after": after.value, "reading": reading,
            "output": output.getvalue()}, sys.stdout)
 """
 
@@ -65,6 +83,7 @@ def test_composer_reads_real_console_key_and_resize_events(tmp_path):
     assert result.returncode == 0, result.stderr
     report = json.loads(result.stdout)
     assert report["text"] == "/gepa CYCLES REQUESTS HOURS NOTE"
+    assert report["paste"] == "a\nb"  # A two-line paste stays one task.
     assert report["after"] == report["before"]
     # Window input is on. Processed, line, echo and virtual-terminal input are off during every read.
     assert report["reading"] and all(mode & 0x8 and not mode & 0x207 for mode in report["reading"])

@@ -56,9 +56,22 @@ It marks the current model and any model whose key variable is not set. Scripted
 Enter now erases the command menu, so only the box and the answer stay on screen.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
-Verification: 71 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
+Verification for harness 0.6.0: 108 product-environment unit tests passed, zero failed and zero skipped.
+These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
-real console input events and spinner removal from a real console screen.
+real console typing and paste events, and spinner removal from a real console screen.
+
+Harness 0.6.0 fixes the owner's report and a bug hunt. Enter on the command menu runs the highlighted command.
+A command that needs details gets its template first. A multi-line paste is one task. Esc clears the box.
+Ctrl+A and Ctrl+E move to the start and end. Ctrl+Backspace deletes a word. Ctrl+Z quits only from an empty box. Emoji type.
+Command names work in any case. Run notes keep apostrophes and paths keep backslashes. Missing details and placeholders get examples.
+Ctrl+C during a slash command stops the command, not the harness. `/model` matches file names in any case and warns about unknown IDs.
+Results print as labelled lines in a terminal. Scripted input keeps JSON. `/sessions` shows dates and first tasks.
+A session file starts with its first task. `/watch` shows the newest run that was not dismissed. Finished run times stop.
+The harness removes a kill switch that it set once the stopped run ends. A STOP file left by anyone else blocks engine runs with a clear message.
+Run processes get no console input. Bare `/test` runs every `tests/test_harness_*.py` file.
+Known limits: closing the Windows Terminal tab probably ends runs that the harness started. Wide characters can misalign the box.
+Keys typed ahead while the harness is busy can count as a paste, so a typed-ahead Tab stays a tab. Up and Down have no prompt history.
 An independent review found a client-switch test gap and small hardening items. The fixes and new regression checks pass.
 A separate menu review found no blockers. Registry, wrap-around and changing-row cursor checks were added.
 A separate interactive-code review found cursor and key-code defects. The fixes passed review with no blockers.

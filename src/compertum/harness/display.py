@@ -73,6 +73,41 @@ def diff_rows(before, after, context=1):
     return rows, added, removed
 
 
+HIDDEN_FIELDS = {"completion_sent"}
+
+
+def _scalar(value):
+    if value is None:
+        return "none"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return visible(value)
+
+
+def readable(value, indent=0):
+    """Show a command result as labelled lines. Multi-line text, such as a log tail, prints as real lines."""
+    pad = "  " * indent
+    if isinstance(value, dict):
+        rows = []
+        for key, item in value.items():
+            if key in HIDDEN_FIELDS:
+                continue
+            label = f"{pad}{str(key).replace('_', ' ')}:"
+            if isinstance(item, (dict, list)) and item:
+                rows += [label, readable(item, indent + 1)]
+            elif isinstance(item, str) and "\n" in item.strip():
+                rows += [label, *(f"{pad}  {row}" for row in visible(item).rstrip().splitlines())]
+            else:
+                rows.append(f"{label} {_scalar(item) if item != [] else 'none'}")
+        return "\n".join(rows)
+    if isinstance(value, list):
+        if all(not isinstance(item, (dict, list)) for item in value):
+            joined = ", ".join(_scalar(item) for item in value)
+            return pad + joined if len(joined) <= 100 else "\n".join(f"{pad}- {_scalar(item)}" for item in value)
+        return "\n\n".join(readable(item, indent) for item in value)
+    return pad + _scalar(value)
+
+
 def _plural(count, word):
     return f"{count} {word}{'' if count == 1 else 's'}"
 
@@ -111,7 +146,8 @@ class Display:
         print(text, file=self.out, flush=True)
 
     def json(self, value):
-        self.line(json.dumps(value, indent=2, sort_keys=True))
+        # A person at a terminal reads labelled lines. Scripts and tests keep the exact JSON.
+        self.line(readable(value) if self.animate else json.dumps(value, indent=2, sort_keys=True))
 
     def _end_stream(self):
         if self._streaming:

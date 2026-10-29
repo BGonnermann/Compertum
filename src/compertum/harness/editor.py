@@ -6,7 +6,7 @@ import shutil
 import sys
 import time
 
-from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands
+from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands, needs_arguments
 
 VISIBLE_COMMANDS, PICKER_ROWS = 6, 8
 # The menu indents rows under the input text and needs room for this much description beside the commands.
@@ -108,6 +108,16 @@ class ConsoleInput:
         # Resize and ignored events return an empty key, so the editor redraws only when the frame changed.
         return self.pending.pop(0) if self.pending else ""
 
+    def more(self):
+        """Return True when typed characters already wait, as during a paste. A key release alone does not count."""
+        if self.pending:
+            return True
+        records, count = (_InputRecord * 32)(), ctypes.c_uint32()
+        if not self.kernel.PeekConsoleInputW(self.handle, records, 32, ctypes.byref(count)):
+            return False
+        return any(item.event_type == KEY_EVENT and item.event.key.key_down and item.event.key.char != "\x00"
+                   for item in records[:count.value])
+
 
 def _move(rows):
     return f"\x1b[{rows}B" if rows > 0 else f"\x1b[{-rows}A" if rows < 0 else ""
@@ -115,8 +125,11 @@ def _move(rows):
 
 class LineEditor:
     def __init__(self, out=None, sessions=(), runs=(), get_key=None, width=None, model_files=(), model_ids=None,
-                 title="Compertum"):
+                 title="Compertum", more=None):
         self.title = title
+        # more() tells whether pasted characters already wait. Enter and Tab inside a paste then stay in the text.
+        self.more = more or (lambda: False)
+        self._surrogate = ""
         self.out = out or sys.stdout
         self.sessions, self.runs, self.get_key = sessions, runs, get_key
         self.model_files, self.model_ids = model_files, model_ids
@@ -177,7 +190,9 @@ class LineEditor:
         width = self._size()
         inside = width - 4
         start = max(0, self.cursor - inside + 1) if self.cursor >= inside else 0
-        top, middle, bottom = self._box(width, self.buffer[start:start + inside])
+        # Pasted line breaks and tabs show as one visible mark each, so the box keeps its shape.
+        shown = self.buffer[start:start + inside].replace("\n", "↵").replace("\t", "→")
+        top, middle, bottom = self._box(width, shown)
         return top, middle, bottom, self._hints(width), self.cursor - start + 3
 
     def _render(self):
@@ -256,24 +271,58 @@ class LineEditor:
         try:
             console = ConsoleInput().__enter__()
         except (AttributeError, OSError):
+            import msvcrt
+            self.more = msvcrt.kbhit
             return self._read(windows_key)
+        self.more = console.more
         try:
             return self._read(console.read)
         finally:
             console.__exit__()
 
+    def _insert(self, text):
+        self.buffer = self.buffer[:self.cursor] + text + self.buffer[self.cursor:]
+        self.cursor += len(text)
+
     def _read(self, get_key):
         while True:
             self._render()
             key = get_key()
+            if key in ("\r", "\n") and self.more():
+                self._insert("\n")  # A line break inside a paste stays in the text, so the paste is one task.
+                continue
             if key in ("\r", "\n"):
+                matches = self._command_matches()
+                if matches:
+                    # Enter acts on the highlighted command. One that needs details gets its template, as Tab does.
+                    usage = matches[min(self.selected, len(matches) - 1)]
+                    if needs_arguments(usage):
+                        self.buffer = insertion(usage)
+                        self.cursor = len(self.buffer)
+                        continue
+                    self.buffer, self.cursor = usage.split()[0], len(usage.split()[0])
+                    self._render()  # Show the command that runs, not the typed prefix.
                 return self._finish()
-            if key == "\t":
+            if key == "\t" and self.more():
+                self._insert("\t")
+            elif key == "\t":
                 self._complete()
             elif key == "\x03":
                 raise KeyboardInterrupt()
             elif key in ("\x04", "\x1a"):
-                raise EOFError()
+                if not self.buffer:
+                    raise EOFError()  # Ctrl+Z or Ctrl+D quits only from an empty box, so it never discards typed text.
+            elif key == "\x1b":
+                self.buffer, self.cursor = "", 0
+            elif key == "\x01":
+                self.cursor = 0
+            elif key == "\x05":
+                self.cursor = len(self.buffer)
+            elif key == "\x7f":
+                # Ctrl+Backspace deletes the word before the cursor.
+                before = self.buffer[:self.cursor].rstrip()
+                start = max(before.rfind(" "), before.rfind("\n")) + 1
+                self.buffer, self.cursor = self.buffer[:start] + self.buffer[self.cursor:], start
             elif key == "\x08":
                 if self.cursor:
                     self.buffer = self.buffer[:self.cursor - 1] + self.buffer[self.cursor:]
@@ -292,9 +341,13 @@ class LineEditor:
                 self.cursor = len(self.buffer)
             elif key in ("\x00S", "\xe0S"):
                 self.buffer = self.buffer[:self.cursor] + self.buffer[self.cursor + 1:]
+            elif len(key) == 1 and "\ud800" <= key <= "\udbff":
+                self._surrogate = key  # The first half of an emoji. The second half follows.
+            elif len(key) == 1 and "\udc00" <= key <= "\udfff" and self._surrogate:
+                pair, self._surrogate = self._surrogate + key, ""
+                self._insert(pair.encode("utf-16", "surrogatepass").decode("utf-16"))
             elif len(key) == 1 and key.isprintable():
-                self.buffer = self.buffer[:self.cursor] + key + self.buffer[self.cursor:]
-                self.cursor += 1
+                self._insert(key)
 
 
 class Picker(LineEditor):
