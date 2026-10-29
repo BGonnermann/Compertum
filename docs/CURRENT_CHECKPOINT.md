@@ -17,7 +17,14 @@ Final verification, source, simulated markets:
 - Engine lane, all engine files with `test_ai_models_interface.py` and `test_run_tests_tool.py`: 299 passed, 0 failed, 0 skipped, 8 pandas deprecation warnings.
 - Product lane, the same files: 236 passed, 0 failed, 7 skipped (engine libraries absent in that environment).
 
-Exact next action: the owner's normal practice run on `deepseek-flash`, off-peak. Then the bench-2 and bench-3 flash baselines, unless the owner changes the order.
+The project map was refreshed for bench-3 and the GEPA score: 9 pages, 91 function groups, 503 source files, 81 internal links with 0 broken.
+All nine renders were inspected. The map footer still names harness 0.5.7; the harness entries above are newer.
+
+The owner's practice run (20 cycles, `deepseek-flash`, 600 requests) was first refused with `STORAGE_SCAN_DEADLINE`, before any request.
+`.cache/test-runs` holds 148,299 folders, and the storage scan limit is 30 seconds. Only 930 folders were new since the last passing scan.
+The retry passed the scan and started `run-20261029-7514150d` at about 08:40 EDT. Routine cleanup of old passing test folders is the next storage step.
+
+Exact next action: report `run-20261029-7514150d`. Then the bench-2 and bench-3 flash baselines, unless the owner changes the order.
 
 ## Harness 0.6.1 run watching - 29 October 2026
 
