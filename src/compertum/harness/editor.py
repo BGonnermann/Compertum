@@ -400,3 +400,40 @@ class Picker(LineEditor):
                     self.chosen = (self.chosen + 1) % len(self.options)
         finally:
             self._finish()
+
+
+class LiveView(Picker):
+    """A plain-text view that refreshes until Esc, Enter or q. Watching never changes the run."""
+
+    def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic):
+        super().__init__(out, [], get_key=get_key, width=width, title=title)
+        self.fetch, self.every, self.clock, self.rows, self.fetched = fetch, every, clock, ["loading"], None
+
+    def _lines(self):
+        width = self._size()
+        heading = f"{self.title} · refreshes every {self.every:g} s · Esc returns to the prompt"
+        rows = [row[:width] for row in self.rows] or [""]
+        return heading[:width], "", rows[0], rows[1:], 1
+
+    def _refresh(self):
+        try:
+            self.rows = list(self.fetch()) or ["no progress yet"]
+        except Exception as exc:  # noqa: BLE001
+            self.rows = [f"cannot read progress now: {getattr(exc, 'code', exc)}"]  # Keep watching; the next refresh may work.
+        self.fetched = self.clock()
+
+    def _read(self, get_key):
+        self.out.write("\x1b[?25l")
+        try:
+            while True:
+                if self.fetched is None or self.clock() - self.fetched >= self.every:
+                    self._refresh()
+                self._render()
+                # The console reader wakes at least every half second, so the view refreshes without its own timer.
+                key = get_key()
+                if key in ("\x1b", "\r", "\n", "q", "Q", "\x04", "\x1a"):
+                    return None
+                if key == "\x03":
+                    raise KeyboardInterrupt()
+        finally:
+            self._finish()

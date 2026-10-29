@@ -1,5 +1,17 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.1 run watching - 29 October 2026
+
+The owner typed `/watch` during the seventh GEPA run and saw nothing. That run was started outside the harness with `tools\practice.ps1`.
+`/watch` knew only harness-started runs. It now opens a picker of runs, running ones first, including such engine runs.
+Engine runs are read from `state/research.sqlite` in read-only mode. Enter opens a live view that refreshes every 2 seconds.
+It shows status, cycles, requests, elapsed time and the last six cycles. Esc, Enter or q returns, and the last snapshot stays.
+Watching never changes or stops a run. `/runs` also lists engine runs. A preview read the live run `run-20261029-65d4d5c4`.
+
+The product-environment harness lane passed 112 tests, zero failed and zero skipped.
+The two console native tests passed. The two sandbox native tests were not run, because they start a sandbox job during the GEPA run.
+This change does not touch the sandbox or run starts.
+
 ## Harness 0.6.0 bug fixes - 29 October 2026
 
 The owner found that typing `/`, moving to `/runs` and pressing Enter did nothing useful. Enter sent the typed `/`.

@@ -61,6 +61,11 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.1: `/watch` without an ID opens a picker of runs, running ones first. It includes engine runs that
+`tools\practice.ps1` started outside the harness. They are read from `state/research.sqlite` in read-only mode.
+Enter opens a live view that refreshes every 2 seconds. Esc, Enter or q returns to the prompt, and the last snapshot stays.
+The view shows status, cycles, requests, elapsed time and the last six cycles. Watching never changes or stops a run.
+`/runs` also lists engine runs. Scripted `/watch` prints the newest running run's card.
 Harness 0.6.0 fixes the owner's report and a bug hunt. Enter on the command menu runs the highlighted command.
 A command that needs details gets its template first. A multi-line paste is one task. Esc clears the box.
 Ctrl+A and Ctrl+E move to the start and end. Ctrl+Backspace deletes a word. Ctrl+Z quits only from an empty box. Emoji type.

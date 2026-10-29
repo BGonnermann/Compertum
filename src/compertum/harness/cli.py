@@ -12,8 +12,9 @@ from . import __version__
 from .agent import Agent, Limits
 from .commands import EXAMPLES, USAGES, help_text
 from .config import known_models, load, model_files, remember, remember_models, remembered
-from .display import Display
-from .editor import LineEditor, Picker, enable_vt
+from .display import Display, readable
+from .editor import LineEditor, LiveView, Picker, enable_vt
+from .engine_watch import engine_card, engine_runs
 from .endpoint import parse
 from .model import ModelClient, ModelError
 from .runs import RunError, RunManager
@@ -81,15 +82,15 @@ def _run_args(text):
     return {"cycles": cycles, "requests": requests, "hours": hours, "note": parts[4]}
 
 
-def main(argv=None, display=None, input_fn=None, choose=None):
+def main(argv=None, display=None, input_fn=None, choose=None, pick_run=None, watch=None):
     output = display or Display()
     try:
-        return _console(argv, output, input_fn, choose)
+        return _console(argv, output, input_fn, choose, pick_run, watch)
     finally:
         output.idle("")  # An empty title returns the tab to the terminal's own title, even after an error.
 
 
-def _console(argv, display, input_fn, choose):
+def _console(argv, display, input_fn, choose, pick_run, watch):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)
@@ -171,8 +172,36 @@ def _console(argv, display, input_fn, choose):
             if choose is None:
                 choose = lambda options, chosen: Picker(output.out, options, chosen, title="Choose a model",
                                                          prompt="↑/↓ choose · Enter selects · Esc keeps the current model").read()
+            if pick_run is None:
+                pick_run = lambda options: Picker(output.out, options, 0, title="Choose a run to watch",
+                                                  prompt="↑/↓ choose · Enter watches · Esc cancels").read()
+            if watch is None:
+                watch = lambda title, fetch: LiveView(output.out, fetch, title).read()
         else:
             input_fn = input
+
+    def run_card(identity):
+        """Return a harness run card with its last log lines, or an engine run's progress."""
+        if identity in runs.active:
+            card = runs.report(identity)
+            card["log_tail"] = "\n".join(card.get("log_tail", "").splitlines()[-10:])
+            return card
+        return engine_card(root, identity)
+
+    def watch_choices():
+        """List runs to watch: running ones first, then the newest ended ones. Engine runs started outside count too."""
+        rows = []
+        for identity in sorted(runs.active, key=lambda key: runs.active[key]["started_wall"], reverse=True):
+            if runs.active[identity].get("dismissed"):
+                continue
+            card = runs.card(identity)
+            rows.append((card["status"] != "RUNNING", identity,
+                         f"{identity}  {card['type']}  {card['status']}  {card.get('progress', '')}".rstrip()))
+        for item in engine_runs(root):
+            rows.append((item["status"] != "RUNNING", item["run"],
+                         f"{item['run']}  {item['type']}  {item['status']}  cycles {item['cycles']}  {item['elapsed']}"))
+        rows.sort(key=lambda row: row[0])  # Stable: running first, newest first within each group.
+        return [(identity, label) for _, identity, label in rows[:12]]
 
     def model_choices():
         """List each model file's default, the active model and IDs cached by /models. Nothing is requested."""
@@ -268,13 +297,24 @@ def _console(argv, display, input_fn, choose):
                 output.idle("Compertum")
                 output.note(f"Resumed {session.identity}.")
             elif text == "/runs":
-                output.json({"runs": runs.cards()})
+                output.json({"runs": runs.cards(), "engine_runs": engine_runs(root)})
             elif text == "/watch" or text.startswith("/watch "):
-                identity = _identity(text) if " " in text else runs.latest()
+                identity = _identity(text) if " " in text else None
                 if identity is None:
-                    output.note("No runs yet.")
-                else:
-                    output.json(runs.card(identity))
+                    choices = watch_choices()
+                    if not choices:
+                        output.note("No runs yet.")
+                    elif pick_run is None:
+                        identity = choices[0][0]  # Scripted input: the newest running run, else the newest run.
+                    else:
+                        picked = pick_run([label for _, label in choices])
+                        identity = None if picked is None else choices[picked][0]
+                if identity is not None:
+                    fetch = lambda: run_card(identity)
+                    fetch()  # An unknown run reports its error before any view opens.
+                    if watch is not None:
+                        watch(f"Watching {identity}", lambda: readable(fetch()).splitlines())
+                    output.json(fetch())  # The last snapshot stays on screen after the live view closes.
             elif text.startswith("/stop "):
                 output.json(runs.stop(_identity(text)))
             elif text.startswith("/clear "):
