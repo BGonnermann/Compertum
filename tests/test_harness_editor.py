@@ -487,3 +487,23 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     assert patch.startswith("\r\x1b[2K│ /x")
     assert "\x1b[2B\r\x1b[J" in patch
     assert patch.endswith("\x1b[2A\x1b[5G")
+
+
+def test_color_paints_the_frame_without_changing_its_text():
+    from compertum.harness.display import ACCENT, FAINT, MUTED
+    editor = LineEditor(StringIO(), width=80, title="Compertum · m", color=True)
+    editor.buffer, editor.cursor = "/r", 2
+    top, middle, bottom, hints, _ = editor._lines()
+    lines = [top, middle, bottom, *hints]
+    painted = [editor._painted(lines, index) for index in range(len(lines))]
+    assert [re.sub(r"\x1b\[[0-9;]*m", "", line) for line in painted] == lines
+    assert f"\x1b[{ACCENT}mCompertum · m\x1b[0m" in painted[0] and painted[2].startswith(f"\x1b[{FAINT}m")
+    selected = next(line for line in painted if "›" in line)
+    assert selected.startswith(f"\x1b[{ACCENT}m  › /") and f"\x1b[{MUTED}m" in selected
+    picker = Picker(StringIO(), ["one", "two"], 1, width=80, title="Choose", color=True)
+    heading, blank, first, rest, _ = picker._lines()
+    rows = [heading, blank, first, *rest]
+    shown = [picker._painted(rows, index) for index in range(len(rows))]
+    assert [re.sub(r"\x1b\[[0-9;]*m", "", line) for line in shown] == rows
+    assert shown[0].startswith(f"\x1b[1;{ACCENT}mChoose") and shown[3] == f"\x1b[{ACCENT}m  › two\x1b[0m"
+    assert LineEditor(StringIO(), width=80)._painted(lines, 0) == top

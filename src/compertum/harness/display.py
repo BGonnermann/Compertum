@@ -21,6 +21,14 @@ FIRST_FRAME, FRAME = 0.15, 0.1
 TAB_BUSY, TAB_IDLE = "\x1b]9;4;3;0\x07", "\x1b]9;4;0;0\x07"
 # Model, file and program text must not reach the terminal as control sequences, for example a clipboard write.
 CONTROLS = {code: f"\\x{code:02x}" for code in [*range(0x20), 0x7F, *range(0x80, 0xA0)] if code not in (0x09, 0x0A)}
+ACCENT, MUTED, FAINT = "38;2;232;131;58", "38;2;160;152;142", "38;2;110;104;98"
+GOOD, BAD = "38;2;120;190;120", "38;2;226;98;92"
+STATUS_COLORS = {"RUNNING": ACCENT, "COMPLETED": GOOD, "MEASURED": GOOD, "FAILED": BAD, "EXPIRED": BAD, "LOST": BAD,
+                 "UNKNOWN": BAD}
+
+
+def paint(code, text, on=True):
+    return f"\x1b[{code}m{text}\x1b[0m" if on and code and text else text
 
 
 def clock(seconds):
@@ -84,27 +92,29 @@ def _scalar(value):
     return visible(value)
 
 
-def readable(value, indent=0):
+def readable(value, indent=0, color=False):
     """Show a command result as labelled lines. Multi-line text, such as a log tail, prints as real lines."""
     pad = "  " * indent
     if isinstance(value, dict):
         rows = []
-        for key, item in value.items():
-            if key in HIDDEN_FIELDS:
-                continue
-            label = f"{pad}{str(key).replace('_', ' ')}:"
+        shown = [(key, item) for key, item in value.items() if key not in HIDDEN_FIELDS]
+        width = max((len(str(key)) for key, _ in shown), default=0) + 2 if color else 0
+        for key, item in shown:
+            label = f"{str(key).replace('_', ' ')}:"
+            label = pad + (paint(MUTED, label.ljust(width)) if color else label)
             if isinstance(item, (dict, list)) and item:
-                rows += [label, readable(item, indent + 1)]
+                rows += [label, readable(item, indent + 1, color)]
             elif isinstance(item, str) and "\n" in item.strip():
-                rows += [label, *(f"{pad}  {row}" for row in visible(item).rstrip().splitlines())]
+                rows += [label, *(f"{pad}  {paint(FAINT, row, color)}" for row in visible(item).rstrip().splitlines())]
             else:
-                rows.append(f"{label} {_scalar(item) if item != [] else 'none'}")
+                text = _scalar(item) if item != [] else "none"
+                rows.append(f"{label}{'' if color else ' '}{paint(STATUS_COLORS.get(text), text, color)}")
         return "\n".join(rows)
     if isinstance(value, list):
         if all(not isinstance(item, (dict, list)) for item in value):
             joined = ", ".join(_scalar(item) for item in value)
             return pad + joined if len(joined) <= 100 else "\n".join(f"{pad}- {_scalar(item)}" for item in value)
-        return "\n\n".join(readable(item, indent) for item in value)
+        return "\n\n".join(readable(item, indent, color) for item in value)
     return pad + _scalar(value)
 
 
@@ -133,9 +143,16 @@ class Display:
         self._spinner = self._stop_spin = None
         self._drawn = False
         self._busy_tab = False
+        self._blank = True
 
     def _c(self, code, text):
-        return f"\x1b[{code}m{text}\x1b[0m" if self.color else text
+        return paint(code, text, self.color)
+
+    def gap(self):
+        self._quiet()
+        self._end_stream()
+        if self.animate and not self._blank:
+            self.line()
 
     def _width(self):
         return max(10, shutil.get_terminal_size((100, 24)).columns)
@@ -144,10 +161,15 @@ class Display:
         self._quiet()
         self._end_stream()
         print(text, file=self.out, flush=True)
+        self._blank = not text
 
     def json(self, value):
         # A person at a terminal reads labelled lines. Scripts and tests keep the exact JSON.
-        self.line(readable(value) if self.animate else json.dumps(value, indent=2, sort_keys=True))
+        if self.animate:
+            self.gap()
+            self.line(readable(value, color=self.color))
+        else:
+            self.line(json.dumps(value, indent=2, sort_keys=True))
 
     def _end_stream(self):
         if self._streaming:
@@ -185,7 +207,7 @@ class Display:
                 if stop.is_set():
                     break
                 status = fit(f"{label} · {clock(time.monotonic() - started)} · Ctrl+C to stop", self._width() - 3)
-                text = self._c("36", SPINNER[frame % len(SPINNER)]) + " " + self._c("2", status)
+                text = self._c(ACCENT, SPINNER[frame % len(SPINNER)]) + " " + self._c(FAINT, status)
                 self.out.write("\r\x1b[2K" + text)
                 self.out.flush()
                 self._drawn = True
@@ -212,34 +234,47 @@ class Display:
 
     def banner(self, version, rows):
         self._title("Compertum")
-        self.line(self._c("1", f"Compertum harness {version}"))
+        self.line(self._c("1;" + ACCENT, "◆ Compertum") + self._c(MUTED, f" harness {version}"))
         for key, value in rows:
-            self.line(f"  {key:<10}{value}")
-        self.line("Type a task. /help shows the commands.")
+            self.line(self._c(MUTED, f"  {key:<11}") + str(value))
+        self.line(self._c(FAINT, "  Type a task. /help shows the commands."))
+
+    def help(self, text):
+        self.gap()
+        for row in text.splitlines():
+            stripped = row.lstrip()
+            _, gap, description = stripped.partition("  ")
+            if row.startswith("  ") and gap:
+                start = len(row) - len(description.lstrip())
+                self.line(row[:start] + self._c(MUTED, row[start:]))
+            else:
+                self.line(self._c("1;" + ACCENT, row) if row.endswith(":") else self._c(FAINT, row))
 
     def error(self, text):
         if self._busy_tab:
             self.idle("Compertum · error")
-        self.line(self._c("31", f"Error: {visible(text)}"))
+        self.gap()
+        self.line(self._c(BAD, ("✗ " if self.animate else "") + f"Error: {visible(text)}"))
 
     def note(self, text):
-        self.line(self._c("2", text))
+        self.line(self._c(MUTED, text))
 
     def step(self, number, maximum, elapsed):
         if self.animate:
             self.busy(f"Working · step {number}/{maximum}", since=elapsed)
         else:
-            self.line(self._c("36", f"[asking] step {number}/{maximum} | {clock(elapsed)}"))
+            self.line(self._c(ACCENT, f"[asking] step {number}/{maximum} | {clock(elapsed)}"))
 
     def model_event(self, kind, text):
         self._quiet()
         if self._streaming != kind:
-            self._end_stream()
+            self.gap()
             if kind == "reasoning":
-                print(self._c("2", "thinking: "), end="", file=self.out)
+                print(self._c(FAINT, "thinking: "), end="", file=self.out)
             self._streaming = kind
         text = visible(text)
-        print(self._c("2", text) if kind == "reasoning" else text, end="", file=self.out, flush=True)
+        print(self._c("3;" + FAINT, text) if kind == "reasoning" else text, end="", file=self.out, flush=True)
+        self._blank = False
 
     def reply(self, reply):
         if self.animate:
@@ -247,14 +282,14 @@ class Display:
             self._end_stream()
             return
         calls = len(reply.tool_calls)
-        self.line(self._c("2", f"[reply] {calls} tool calls" if calls else "[reply] final answer"))
+        self.line(self._c(FAINT, f"[reply] {calls} tool calls" if calls else "[reply] final answer"))
 
     def tool_call(self, name, args):
         # Like tool_result, a display failure must never interrupt the task.
         try:
             self._tool_call(name, args)
         except Exception:  # noqa: BLE001
-            self.line(self._c("1;36", "● ") + self._c("1", visible(str(name))[:60]))
+            self.line(self._c(ACCENT, "● ") + self._c("1", visible(str(name))[:60]))
 
     def _tool_call(self, name, args):
         path = args.get("path") if isinstance(args, dict) else None
@@ -274,25 +309,26 @@ class Display:
             target = json.dumps(args, ensure_ascii=False) if isinstance(args, dict) else repr(args)
             label = visible(name)
         target = visible(target)
-        self.line(self._c("1;36", "● ") + self._c("1", label) + " " + target[:240])
+        self.gap()
+        self.line(self._c(ACCENT, "● ") + self._c("1", label) + " " + self._c(MUTED, target[:240]))
         self.busy(f"{label} {target[:60]}")
 
-    def _result(self, text, code="2"):
-        self.line(self._c("2", "  ⎿ ") + self._c(code, text))
+    def _result(self, text, code=MUTED):
+        self.line(self._c(FAINT, "  ⎿ ") + self._c(code, text))
 
     def tool_result(self, text, ok, name=None, change=None):
         # The display must never interrupt the task. A display failure falls back to a plain summary.
         try:
             self._tool_result(visible(text), ok, name, change)
         except Exception:  # noqa: BLE001
-            self._result("finished; the details cannot be shown" if ok else "tool failed", "2" if ok else "31")
+            self._result("finished; the details cannot be shown" if ok else "tool failed", MUTED if ok else BAD)
 
     def _tool_result(self, text, ok, name, change):
         if not ok:
             lines = text.splitlines() or [""]
-            self._result(lines[0][:200], "31")
+            self._result(lines[0][:200], BAD)
             for row in lines[1:OUTPUT_ROWS]:
-                self.line(self._c("31", "    " + row[:200]))
+                self.line(self._c(BAD, "    " + row[:200]))
             return
         if change is not None:
             self._change(*change)
@@ -307,16 +343,16 @@ class Display:
             matches = [] if text in ("no matches", "no matching files") else lines
             self._result(f"{_plural(len(matches), 'result')}" if matches else text)
             for row in matches[:OUTPUT_ROWS]:
-                self.line(self._c("2", "    " + row[:200]))
+                self.line(self._c(FAINT, "    " + row[:200]))
             if len(matches) > OUTPUT_ROWS:
-                self.line(self._c("2", f"    ... {len(matches) - OUTPUT_ROWS} more"))
+                self.line(self._c(FAINT, f"    ... {len(matches) - OUTPUT_ROWS} more"))
             return
         lines = text.splitlines() or [""]
         self._result(f"{_plural(len(lines), 'line')}")
         for row in lines[:3]:
-            self.line(self._c("2", "    " + row[:200]))
+            self.line(self._c(FAINT, "    " + row[:200]))
         if len(lines) > 3:
-            self.line(self._c("2", f"    ... {len(lines) - 3} more lines"))
+            self.line(self._c(FAINT, f"    ... {len(lines) - 3} more lines"))
 
     def _change(self, path, before, after, created=False):
         path = visible(path)
@@ -342,13 +378,13 @@ class Display:
         width = self._width() - digits - 8
         for sign, number, text in rows[:DIFF_ROWS]:
             if sign == "⋮":
-                self.line(self._c("2", " " * (digits + 5) + "⋮"))
+                self.line(self._c(FAINT, " " * (digits + 5) + "⋮"))
                 continue
             body = f"    {number:>{digits}} {sign} {fit(visible(text).expandtabs(4), width)}"
-            self.line(self._c({"+": "32", "-": "31"}.get(sign, "2"), body))
+            self.line(self._c({"+": GOOD, "-": BAD}.get(sign, FAINT), body))
         hidden = sum(1 for sign, _, _ in rows[DIFF_ROWS:] if sign != "⋮")
         if hidden:
-            self.line(self._c("2", f"    ... {hidden} more diff lines"))
+            self.line(self._c(FAINT, f"    ... {hidden} more diff lines"))
 
     def _run_result(self, text):
         try:
@@ -357,16 +393,23 @@ class Display:
         except (ValueError, KeyError, TypeError):
             return False
         summary = "timed out" if result.get("timed_out") else f"exit {code}"
-        self._result(summary, "32" if status == "COMPLETED" else "31")
-        for key, color in (("stdout", "2"), ("stderr", "31")):
+        self._result(summary, GOOD if status == "COMPLETED" else BAD)
+        for key, color in (("stdout", FAINT), ("stderr", BAD)):
             lines = visible(result.get(key) or "").splitlines()
             for row in lines[-OUTPUT_ROWS:]:
                 self.line(self._c(color, "    " + row[:200]))
             if len(lines) > OUTPUT_ROWS:
-                self.line(self._c("2", f"    ... {len(lines) - OUTPUT_ROWS} earlier {key} lines"))
+                self.line(self._c(FAINT, f"    ... {len(lines) - OUTPUT_ROWS} earlier {key} lines"))
         return True
 
     def outcome(self, outcome):
         self.idle("Compertum · done" if outcome.status == "done" else f"Compertum · {outcome.status}")
-        steps = f"{outcome.steps} steps | {clock(outcome.seconds)}"
-        self.line(self._c("1;32" if outcome.status == "done" else "1;31", f"[{outcome.status}] {steps} {outcome.detail}".rstrip()))
+        done = outcome.status == "done"
+        if not self.animate:
+            steps = f"{outcome.steps} steps | {clock(outcome.seconds)}"
+            self.line(self._c(GOOD if done else BAD, f"[{outcome.status}] {steps} {outcome.detail}".rstrip()))
+            return
+        self.gap()
+        mark = self._c("1;" + (GOOD if done else BAD), ("✓ " if done else "✗ ") + outcome.status)
+        detail = f"  ·  {visible(outcome.detail)}" if outcome.detail else ""
+        self.line(mark + self._c(MUTED, f"  ·  {_plural(outcome.steps, 'step')}  ·  {clock(outcome.seconds)}{detail}"))

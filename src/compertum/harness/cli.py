@@ -168,15 +168,17 @@ def _console(argv, display, input_fn, choose, pick_run, watch):
             input_fn = lambda prompt: LineEditor(output.out, sessions.list, runs.active,
                                                  model_files=lambda: model_files(root),
                                                  model_ids=lambda name: catalog.get(name, ()),
-                                                 title=f"Compertum · {settings.model.model}").read()
+                                                 title=f"Compertum · {settings.model.model}",
+                                                 color=output.color).read()
             if choose is None:
                 choose = lambda options, chosen: Picker(output.out, options, chosen, title="Choose a model",
-                                                         prompt="↑/↓ choose · Enter selects · Esc keeps the current model").read()
+                                                         prompt="↑/↓ choose · Enter selects · Esc keeps the current model",
+                                                         color=output.color).read()
             if pick_run is None:
                 pick_run = lambda options: Picker(output.out, options, 0, title="Choose a run to watch",
-                                                  prompt="↑/↓ choose · Enter watches · Esc cancels").read()
+                                                  prompt="↑/↓ choose · Enter watches · Esc cancels", color=output.color).read()
             if watch is None:
-                watch = lambda title, fetch: LiveView(output.out, fetch, title).read()
+                watch = lambda title, fetch: LiveView(output.out, fetch, title, color=output.color).read()
         else:
             input_fn = input
 
@@ -223,6 +225,7 @@ def _console(argv, display, input_fn, choose, pick_run, watch):
         return choices
     while True:
         try:
+            output.gap()
             text = input_fn("\ncompertum> ").strip()
         except EOFError:
             break
@@ -240,7 +243,7 @@ def _console(argv, display, input_fn, choose, pick_run, watch):
             if text in ("/resume", "/stop", "/clear", "/report"):
                 raise ValueError(f"use {USAGES[text]}, for example {EXAMPLES[text]}")
             if text == "/help":
-                output.line(help_text())
+                output.help(help_text())
             elif text == "/status":
                 output.json({"model": settings.model.model, "model_file": settings.models,
                              "session": session.identity, "runs": runs.cards()})

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import ctypes
+import re
 import shutil
 import sys
 import time
 
+from .display import ACCENT, FAINT, MUTED, paint
 from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands, needs_arguments
 
 VISIBLE_COMMANDS, PICKER_ROWS = 6, 8
@@ -125,8 +127,8 @@ def _move(rows):
 
 class LineEditor:
     def __init__(self, out=None, sessions=(), runs=(), get_key=None, width=None, model_files=(), model_ids=None,
-                 title="Compertum", more=None):
-        self.title = title
+                 title="Compertum", more=None, color=False):
+        self.title, self.color = title, color
         # more() tells whether pasted characters already wait. Enter and Tab inside a paste then stay in the text.
         self.more = more or (lambda: False)
         self._surrogate = ""
@@ -227,7 +229,7 @@ class LineEditor:
         old, parts, row = self._rows(), [], 1
         for index, line in enumerate(lines):
             if old[index] != line:
-                parts.append(_move(index - row) + "\r\x1b[2K" + line)
+                parts.append(_move(index - row) + "\r\x1b[2K" + self._painted(lines, index))
                 row = index
         if len(lines) < len(old):
             parts.append(_move(len(lines) - row) + "\r\x1b[J")
@@ -242,10 +244,28 @@ class LineEditor:
             top_rows = max(1, (len(old_top) + columns - 1) // columns)
             input_row = (old_column - 1) // columns
             parts.append(f"\x1b[{top_rows + input_row}A")
-        parts.append("\r\x1b[J\r" + "\n".join(lines))
+        parts.append("\r\x1b[J\r" + "\n".join(self._painted(lines, index) for index in range(len(lines))))
         if len(lines) > 1:
             parts.append(f"\x1b[{len(lines) - 2}A")
         return "".join(parts)
+
+    def _painted(self, lines, index):
+        return self._paint(index, lines[index]) if self.color else lines[index]
+
+    def _paint(self, index, line):
+        if index == 0:
+            head = line[:-1].rstrip("─")
+            return paint(FAINT, "╭─ ") + paint(ACCENT, head[3:-1]) + paint(FAINT, line[len(head) - 1:])
+        if index == 1:
+            return paint(FAINT, line[0]) + line[1:-1] + paint(FAINT, line[-1])
+        if index == 2:
+            return paint(FAINT, line)
+        row = re.match(r"( *(?:› )?)(/\S+(?: \S+)*)( {3,})?(.*)$", line)
+        if not row:
+            return paint(FAINT, line)
+        lead, command, gap, description = row.groups()
+        selected = "›" in lead
+        return paint(ACCENT if selected else None, lead + command) + (gap or "") + paint(MUTED, description)
 
     def _finish(self):
         # Erase the menu rows below the box, so only the box and the answer stay on screen.
@@ -354,8 +374,8 @@ class Picker(LineEditor):
     """A plain-text arrow-key list with no box. Enter returns the chosen index; Esc returns None."""
 
     def __init__(self, out, options, chosen=0, get_key=None, width=None, title="Choose",
-                 prompt="↑/↓ choose · Enter selects · Esc keeps the current choice"):
-        super().__init__(out, get_key=get_key, width=width, title=title)
+                 prompt="↑/↓ choose · Enter selects · Esc keeps the current choice", color=False):
+        super().__init__(out, get_key=get_key, width=width, title=title, color=color)
         self.options, self.chosen, self.prompt, self.offset = list(options), chosen, prompt, 0
 
     def _lines(self):
@@ -374,6 +394,13 @@ class Picker(LineEditor):
         # The renderer keeps its cursor on the second row, so a blank row there separates the heading from the list.
         heading = f"{self.title} · {self.prompt}"
         return heading[:width], "", rows[0][:width], [row[:width] for row in rows[1:]], 1
+
+    def _paint(self, index, line):
+        if index == 0:
+            return paint("1;" + ACCENT, line[:len(self.title)]) + paint(FAINT, line[len(self.title):])
+        if line.lstrip().startswith(("↑", "↓")):
+            return paint(FAINT, line)
+        return paint(ACCENT, line) if line.startswith("  › ") else line
 
     def _finish(self):
         # Erase the whole picker, so only the result line remains. Show the cursor again.
@@ -405,8 +432,8 @@ class Picker(LineEditor):
 class LiveView(Picker):
     """A plain-text view that refreshes until Esc, Enter or q. Watching never changes the run."""
 
-    def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic):
-        super().__init__(out, [], get_key=get_key, width=width, title=title)
+    def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic, color=False):
+        super().__init__(out, [], get_key=get_key, width=width, title=title, color=color)
         self.fetch, self.every, self.clock, self.rows, self.fetched = fetch, every, clock, ["loading"], None
 
     def _lines(self):

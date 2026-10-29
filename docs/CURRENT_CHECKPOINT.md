@@ -1,5 +1,24 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.3 calmer display - 29 October 2026
+
+The owner asked for more space, cleaner text and some color: "my eyes go everywhere". Most output was plain white with no gaps.
+Changed, in `src/compertum/harness/display.py`, `editor.py` and `cli.py`:
+- Palette from the project map: orange for tool marks, the box title, the selected command and `RUNNING`; warm grey for detail; green and red for results.
+- One blank line between the task box, thinking, each tool step, the answer, the result line and each command result. Never two.
+- The result line is now `✓ done  ·  2 steps  ·  0:31`. Errors start with `✗`.
+- Run cards align their keys. `/help` shows descriptions in grey. Thinking is faint italic.
+- Colors are added only when a line is written, so the box's width checks still measure plain text.
+Scripts and logs keep the earlier plain output. A rendered before-and-after preview was checked during the work.
+
+Verification, source, product environment: harness unit lane and the console native tests, 119 passed, 0 failed, 0 skipped.
+That is 115 unit tests, 2 console native tests and 2 run-detach native tests. One earlier attempt failed 1 test, which pinned the old diff colors;
+the test now pins the new palette. The two sandbox native tests were not run, because the bench-4 baseline was running.
+Files: `.cache/test-runs/harness-style-20261029-190426`.
+The project map was not refreshed. This change affects only how text looks, so its footer still names harness 0.6.2.
+
+Exact next action: the owner restarts `compertum-harness` and checks the colors and spacing in Windows Terminal.
+
 ## Harness 0.6.2 engine runs outlive the terminal tab - 29 October 2026
 
 The owner asked what is next for the harness and approved the first open item: runs that the harness started probably ended when the tab closed.

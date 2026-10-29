@@ -61,6 +61,10 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.3: the terminal display uses the project map's palette: orange for marks and status, warm grey for detail.
+A blank line separates the task box, thinking, each tool step, the answer, the result line and each command result.
+Run cards align their keys and color status words. `/help`, the box, the command menu and the pickers have the same colors.
+Scripts and logs still get plain text without blank-line spacing.
 Harness 0.6.2: `/run`, `/gepa` and `/bench` start the engine run in its own hidden console.
 The run also leaves the console's job object when that job allows it. So closing the Windows Terminal tab no longer ends the run.
 A reopened harness finds the run again through its saved process identity. `/stop` still uses the kill switch.

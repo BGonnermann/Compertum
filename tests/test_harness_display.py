@@ -1,9 +1,11 @@
 import json
+import re
 import time
 from io import StringIO
 from types import SimpleNamespace
 
-from compertum.harness.display import DIFF_ROWS, SPINNER, TAB_BUSY, TAB_IDLE, Display, diff_rows
+from compertum.harness.display import (ACCENT, BAD, DIFF_ROWS, FAINT, GOOD, MUTED, SPINNER, TAB_BUSY, TAB_IDLE, Display,
+                                       diff_rows)
 from compertum.harness.tools import WorkspaceTools
 
 
@@ -26,11 +28,39 @@ def test_edit_shows_a_colored_diff_with_line_numbers():
     display.tool_call("edit", {"path": "notes.py", "old": "b", "new": "B"})
     display.tool_result("edited notes.py", True, name="edit", change=("notes.py", "a\nb\nc\n", "a\nB\nc\n"))
     text = out.getvalue()
-    assert "Edit\x1b[0m notes.py" in text
+    assert f"Edit\x1b[0m \x1b[{MUTED}mnotes.py" in text
     assert "Added 1 line, removed 1 line" in text
-    assert "\x1b[31m    2 - b\x1b[0m" in text
-    assert "\x1b[32m    2 + B\x1b[0m" in text
+    assert f"\x1b[{BAD}m    2 - b\x1b[0m" in text
+    assert f"\x1b[{GOOD}m    2 + B\x1b[0m" in text
     assert '"old"' not in text
+
+
+def test_terminal_output_separates_blocks_and_colors_status_words():
+    out = StringIO()
+    display = Display(out, color=True, animate=True)
+    display.busy = lambda *args, **kwargs: None
+    display._terminal = lambda text: None
+    display.model_event("reasoning", "plan")
+    display.tool_call("read", {"path": "a.txt"})
+    display.tool_result("x\ny", True, name="read")
+    display.tool_call("read", {"path": "b.txt"})
+    display.model_event("content", "answer")
+    display.outcome(SimpleNamespace(status="done", steps=2, seconds=5, detail=""))
+    display.gap()
+    display.gap()
+    display.json({"run": "r1", "status": "RUNNING", "elapsed_seconds": 1.0})
+    display.error("AVAILABLE_RAM_FLOOR")
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", out.getvalue())
+    assert plain == ("thinking: plan\n\n● Read a.txt\n  ⎿ Read 2 lines\n\n● Read b.txt\n\nanswer\n\n✓ done  ·  2 steps  ·  0:05\n\n"
+                     "run:             r1\nstatus:          RUNNING\nelapsed seconds: 1.0\n\n✗ Error: AVAILABLE_RAM_FLOOR\n")
+    assert f"\x1b[{ACCENT}mRUNNING\x1b[0m" in out.getvalue()
+    help_out = StringIO()
+    Display(help_out, color=True, animate=False).help("Commands:\n  /runs    show run cards\nTab completes.")
+    assert help_out.getvalue() == (f"\x1b[1;{ACCENT}mCommands:\x1b[0m\n  /runs    \x1b[{MUTED}mshow run cards\x1b[0m\n"
+                                   f"\x1b[{FAINT}mTab completes.\x1b[0m\n")
+    script = StringIO()
+    Display(script, color=False, animate=False).help("Commands:\n  /runs    show run cards")
+    assert script.getvalue() == "Commands:\n  /runs    show run cards\n"
 
 
 def test_new_file_and_long_diff_are_summarized():
