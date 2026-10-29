@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.4 resize-safe echo and side-pane watching - 29 October 2026
+
+The owner reported two problems with a screenshot: finished boxes broke apart after a terminal resize, and `/watch` blocked typing.
+Cause of the first: each finished box stayed in the scrollback at the old width. Windows Terminal re-wraps such lines on resize.
+Fix: after Enter, the box is erased and a one-line echo, `› task`, stays. Ctrl+C and Ctrl+Z also erase the box. Only the live box is drawn as a box.
+Second: inside Windows Terminal, `/watch` now runs `wt -w 0 split-pane -V` with `python -m compertum.harness.pane`, then moves focus back left.
+The pane is read-only. It reads the run record and log, or the research store in read-only mode. A new `read_card` in `runs.py` avoids `RunManager`,
+which would arm deadline timers and could set the kill switch. Run IDs are checked before they reach the `wt` command. Outside Windows Terminal, `/watch` is unchanged.
+
+Verification, source, product environment: harness unit lane and the console native tests, 122 passed, 0 failed, 0 skipped.
+An earlier attempt failed 3 editor tests, which pinned the old box that stayed after Enter; they now check the echo on an emulated screen.
+A live smoke test ran the pane viewer for 4 seconds in a hidden console on `run-20261029-d783224d`: no error, and it showed the run and its cycles.
+Not checked: a real Windows Terminal split pane. The two sandbox native tests were not run, because the bench-4 baseline was running.
+Files: `.cache/test-runs/harness-pane-20261029-192604`. The project map was not refreshed; this change affects only the console display.
+
+Exact next action: the owner restarts `compertum-harness`, resizes the window after a task, and types `/watch` to check the side pane.
+
 ## Harness 0.6.3 calmer display - 29 October 2026
 
 The owner asked for more space, cleaner text and some color: "my eyes go everywhere". Most output was plain white with no gaps.

@@ -353,3 +353,36 @@ class RunManager:
                 return stream.read().decode("utf-8", "replace")
         except OSError:
             return ""
+
+
+def read_card(root: Path, identity: str):
+    folder = root / "state" / "harness" / "runs"
+    try:
+        meta = json.loads((folder / f"{identity}.json").read_text(encoding="utf-8"))
+        if meta.get("id") != identity or type(meta.get("pid")) is not int:
+            raise ValueError
+    except (OSError, ValueError):
+        raise RunError("the run was not found") from None
+    code = meta.get("exit_code")
+    if type(code) is not int:
+        process = OwnedProcess(meta["pid"], meta.get("created"))
+        code = process.poll()
+        process._close()
+    record = {"started_wall": meta.get("started_wall") or time.time(), "log": str(folder / f"{identity}.log")}
+    status = ("DISMISSED" if meta.get("dismissed") else code if code in ("UNKNOWN", "LOST")
+              else "RUNNING" if code is None else "COMPLETED" if code == 0 else "FAILED")
+    if code is None:
+        elapsed = round(time.time() - record["started_wall"], 1)
+    else:
+        elapsed = RunManager._elapsed(record, code)
+    card = {"run": identity, "type": meta.get("kind"), "status": status, "elapsed_seconds": elapsed,
+            "exit_code": code if type(code) is int else None}
+    tail = RunManager._tail(record["log"])
+    progress = re.findall(r"\[\s*(\d+)%\]", tail)
+    if progress:
+        card["progress"] = f"{progress[-1]}%"
+    summary = re.findall(r"=+ (.*?(?:passed|failed|error|skipped).*?) =+", tail)
+    if summary:
+        card["result"] = summary[-1]
+    card["log_tail"] = "\n".join(tail.splitlines()[-10:])
+    return card

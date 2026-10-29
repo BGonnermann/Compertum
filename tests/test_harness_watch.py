@@ -119,3 +119,53 @@ def test_live_view_refreshes_on_its_interval_and_survives_a_read_error():
     text = output.getvalue()
     assert "refresh 1" in text and "cannot read progress now: the research store cannot be read now" in text
     assert text.startswith("\x1b[?25l") and text.endswith("\x1b[?25h")
+
+
+def test_watch_opens_a_side_pane_so_the_prompt_stays_free(tmp_path):
+    from compertum.harness import pane
+    root = project(tmp_path)
+    store(root, [("run-live", "gepa", 5, False, 2)])
+    opened = []
+    output = StringIO()
+    steps = iter(["/watch run-live", "/exit"])
+    main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
+         watch=lambda title, fetch: pytest.fail("the side pane replaces the inline view"), side=opened.append)
+    assert opened == ["run-live"]
+    assert "in the pane on the right" in output.getvalue() and '"run": "run-live"' not in output.getvalue()
+    commands = []
+    pane.open_pane(root, "run-live", spawn=lambda command, **kwargs: commands.append(command), which=lambda name: "wt.exe")
+    command = commands[0]
+    assert command[:5] == ["wt.exe", "-w", "0", "split-pane", "-V"]
+    assert command[-4:] == ["run-live", ";", "move-focus", "left"]
+    assert command[command.index("-m") + 1] == "compertum.harness.pane"
+    with pytest.raises(RunError, match="not valid"):
+        pane.open_pane(root, "run;new-tab", spawn=lambda command, **kwargs: pytest.fail("bad ID"), which=lambda name: "wt")
+    assert pane.available({"WT_SESSION": "x"}, lambda name: "wt") and not pane.available({}, lambda name: "wt")
+    assert not pane.available({"WT_SESSION": "x"}, lambda name: None)
+
+
+def test_pane_view_reads_engine_and_harness_runs_without_changing_them(tmp_path):
+    import os
+    from compertum.harness import pane
+    root = project(tmp_path)
+    store(root, [("run-live", "gepa", 5, False, 2)])
+    out = StringIO()
+    keys = iter(["", "q"])
+    assert pane.main(["--project", str(root), "run-live"], out=out, get_key=lambda: next(keys)) == 0
+    assert "Watching run-live" in out.getvalue() and "q closes this pane" in out.getvalue()
+    assert "cycles: 2 of 100" in out.getvalue()
+    folder = root / "state" / "harness" / "runs"
+    folder.mkdir(parents=True)
+    record = {"id": "test-1", "kind": "test", "pid": os.getpid(), "started_wall": 1.0, "deadline": 60, "log": "test-1.log"}
+    (folder / "test-1.json").write_text(json.dumps(record), encoding="utf-8")
+    (folder / "test-1.log").write_text("tests/a.py .. [ 40%]\n", encoding="utf-8")
+    before = sorted((path.name, path.stat().st_mtime_ns) for path in folder.iterdir())
+    card = pane.card(root, "test-1")
+    assert card["status"] == "RUNNING" and card["progress"] == "40%" and card["exit_code"] is None
+    (folder / "test-1.json").write_text(json.dumps({**record, "exit_code": 0}), encoding="utf-8")
+    before = sorted((path.name, path.stat().st_mtime_ns) for path in folder.iterdir())
+    assert pane.card(root, "test-1")["status"] == "COMPLETED"
+    assert sorted((path.name, path.stat().st_mtime_ns) for path in folder.iterdir()) == before
+    assert not (root / "state" / "engine" / "STOP").exists()
+    with pytest.raises(RunError, match="not found"):
+        pane.card(root, "run-missing")

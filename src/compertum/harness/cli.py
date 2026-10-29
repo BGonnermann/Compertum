@@ -15,6 +15,7 @@ from .config import known_models, load, model_files, remember, remember_models, 
 from .display import Display, readable
 from .editor import LineEditor, LiveView, Picker, enable_vt
 from .engine_watch import engine_card, engine_runs
+from .pane import available as pane_available, open_pane
 from .endpoint import parse
 from .model import ModelClient, ModelError
 from .runs import RunError, RunManager
@@ -82,15 +83,15 @@ def _run_args(text):
     return {"cycles": cycles, "requests": requests, "hours": hours, "note": parts[4]}
 
 
-def main(argv=None, display=None, input_fn=None, choose=None, pick_run=None, watch=None):
+def main(argv=None, display=None, input_fn=None, choose=None, pick_run=None, watch=None, side=None):
     output = display or Display()
     try:
-        return _console(argv, output, input_fn, choose, pick_run, watch)
+        return _console(argv, output, input_fn, choose, pick_run, watch, side)
     finally:
         output.idle("")  # An empty title returns the tab to the terminal's own title, even after an error.
 
 
-def _console(argv, display, input_fn, choose, pick_run, watch):
+def _console(argv, display, input_fn, choose, pick_run, watch, side):
     parser = argparse.ArgumentParser(prog="compertum.harness", description="The minimum Compertum terminal agent harness.")
     parser.add_argument("--project", type=Path, default=Path("."))
     parser.add_argument("--workspace", type=Path)
@@ -179,6 +180,8 @@ def _console(argv, display, input_fn, choose, pick_run, watch):
                                                   prompt="↑/↓ choose · Enter watches · Esc cancels", color=output.color).read()
             if watch is None:
                 watch = lambda title, fetch: LiveView(output.out, fetch, title, color=output.color).read()
+            if side is None and pane_available():
+                side = lambda identity: open_pane(root, identity)
         else:
             input_fn = input
 
@@ -315,6 +318,10 @@ def _console(argv, display, input_fn, choose, pick_run, watch):
                 if identity is not None:
                     fetch = lambda: run_card(identity)
                     fetch()  # An unknown run reports its error before any view opens.
+                    if side is not None:
+                        side(identity)
+                        output.note(f"Watching {identity} in the pane on the right. Press q there to close it.")
+                        continue
                     if watch is not None:
                         watch(f"Watching {identity}", lambda: readable(fetch()).splitlines())
                     output.json(fetch())  # The last snapshot stays on screen after the live view closes.

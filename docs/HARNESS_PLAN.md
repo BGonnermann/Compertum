@@ -61,6 +61,10 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.4: after Enter, the box is replaced by a one-line echo, `› task`. A finished box broke apart when the terminal was resized.
+Inside Windows Terminal, `/watch` opens a read-only view in a split pane on the right, and focus returns to the harness.
+The pane runs `python -m compertum.harness.pane`. It reads run records and the research store and never arms, stops or writes anything.
+Press q in the pane to close it. Outside Windows Terminal, `/watch` keeps the inline view.
 Harness 0.6.3: the terminal display uses the project map's palette: orange for marks and status, warm grey for detail.
 A blank line separates the task box, thinking, each tool step, the answer, the result line and each command result.
 Run cards align their keys and color status words. `/help`, the box, the command menu and the pickers have the same colors.

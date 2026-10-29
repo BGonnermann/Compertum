@@ -7,7 +7,7 @@ import shutil
 import sys
 import time
 
-from .display import ACCENT, FAINT, MUTED, paint
+from .display import ACCENT, FAINT, MUTED, STATUS_COLORS, paint
 from .commands import DESCRIPTIONS, EXAMPLES, complete, insertion, matching_commands, needs_arguments
 
 VISIBLE_COMMANDS, PICKER_ROWS = 6, 8
@@ -267,11 +267,28 @@ class LineEditor:
         selected = "›" in lead
         return paint(ACCENT if selected else None, lead + command) + (gap or "") + paint(MUTED, description)
 
+    def _erase(self):
+        if not self.rendered:
+            return ""
+        columns = max(1, self.width or shutil.get_terminal_size((100, 24)).columns)
+        top, _, _, _, column = self._frame[0]
+        rows = max(1, (len(top) + columns - 1) // columns) + (column - 1) // columns
+        self.rendered = 0
+        return f"\r\x1b[{rows}A\x1b[J"
+
     def _finish(self):
-        # Erase the menu rows below the box, so only the box and the answer stay on screen.
-        self.out.write(_move(2) + "\r\x1b[J" if self.rendered > 3 else _move(self.rendered - 2) * (self.rendered > 2) + "\r\n")
+        # A finished box would break apart when the terminal is resized, so a one-line echo replaces it.
+        lines = self.buffer.split("\n")
+        echo = "".join(f"{paint(ACCENT, '›', self.color) if not index else ' '} {line}\n"
+                       for index, line in enumerate(lines)) if self.buffer else ""
+        self.out.write(self._erase() + echo)
         self.out.flush()
         return self.buffer
+
+    def _abandon(self, error):
+        self.out.write(self._erase())
+        self.out.flush()
+        raise error
 
     def _complete(self):
         matches = self._command_matches()
@@ -328,10 +345,10 @@ class LineEditor:
             elif key == "\t":
                 self._complete()
             elif key == "\x03":
-                raise KeyboardInterrupt()
+                self._abandon(KeyboardInterrupt())
             elif key in ("\x04", "\x1a"):
                 if not self.buffer:
-                    raise EOFError()  # Ctrl+Z or Ctrl+D quits only from an empty box, so it never discards typed text.
+                    self._abandon(EOFError())  # Ctrl+Z or Ctrl+D quits only from an empty box, so it never discards typed text.
             elif key == "\x1b":
                 self.buffer, self.cursor = "", 0
             elif key == "\x01":
@@ -432,15 +449,24 @@ class Picker(LineEditor):
 class LiveView(Picker):
     """A plain-text view that refreshes until Esc, Enter or q. Watching never changes the run."""
 
-    def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic, color=False):
+    def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic, color=False,
+                 hint="Esc returns to the prompt"):
         super().__init__(out, [], get_key=get_key, width=width, title=title, color=color)
         self.fetch, self.every, self.clock, self.rows, self.fetched = fetch, every, clock, ["loading"], None
+        self.hint = hint
 
     def _lines(self):
         width = self._size()
-        heading = f"{self.title} · refreshes every {self.every:g} s · Esc returns to the prompt"
+        heading = f"{self.title} · refreshes every {self.every:g} s · {self.hint}"
         rows = [row[:width] for row in self.rows] or [""]
         return heading[:width], "", rows[0], rows[1:], 1
+
+    def _paint(self, index, line):
+        row = re.match(r"( *[a-z][a-z ]*:)( .*)?$", line) if index else None
+        if not row:
+            return super()._paint(index, line)
+        value = row.group(2) or ""
+        return paint(MUTED, row.group(1)) + paint(STATUS_COLORS.get(value.strip()), value)
 
     def _refresh(self):
         try:

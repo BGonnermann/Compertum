@@ -115,7 +115,8 @@ def test_enter_on_a_menu_choice_shows_the_command_that_runs():
     pressed = iter(["/", "r", "u", "\xe0P", "\r"])
     assert LineEditor(output, get_key=lambda: next(pressed), width=100).read() == "/runs"
     screen.feed(output.getvalue())
-    assert screen.text()[1].startswith("│ /runs ")
+    assert screen.text()[0] == "› /runs"
+    assert set(screen.text()[1:]) <= {""}
 
 
 def test_tab_after_a_space_completes_the_argument_not_the_template():
@@ -150,8 +151,8 @@ def test_enter_erases_the_command_menu():
     screen = Screen(80)
     LineEditor(output, get_key=lambda: next(keys), width=80).read()
     screen.feed(output.getvalue())
-    assert screen.text()[3:] == [] or set(screen.text()[3:]) == {""}
-    assert (screen.row, screen.column) == (3, 0)
+    assert screen.text()[0].startswith("› /") and set(screen.text()[1:]) <= {""}
+    assert (screen.row, screen.column) == (1, 0)
 
 
 def test_editor_supports_cursor_editing():
@@ -262,7 +263,7 @@ def test_each_frame_is_one_synchronized_write():
     # Down on the only match changes nothing, so it writes no frame.
     assert len(frames) == 5
     assert all(frame.startswith(SYNC_START) and frame.endswith(SYNC_END) for frame in frames)
-    assert output.frames[-1] == "\x1b[1B\r\n"
+    assert output.frames[-1] == "\r\x1b[1A\x1b[J› /gepa CYCLES REQUESTS HOURS NOTE\n"
 
 
 def test_stable_frame_rewrites_only_changed_rows():
@@ -507,3 +508,19 @@ def test_color_paints_the_frame_without_changing_its_text():
     assert [re.sub(r"\x1b\[[0-9;]*m", "", line) for line in shown] == rows
     assert shown[0].startswith(f"\x1b[1;{ACCENT}mChoose") and shown[3] == f"\x1b[{ACCENT}m  › two\x1b[0m"
     assert LineEditor(StringIO(), width=80)._painted(lines, 0) == top
+
+
+def test_a_sent_task_leaves_a_one_line_echo_instead_of_the_box():
+    from compertum.harness.display import ACCENT
+    output = StringIO()
+    keys = iter(list("fix it") + ["\r"])
+    assert LineEditor(output, width=40, get_key=lambda: next(keys), color=True).read() == "fix it"
+    text = output.getvalue()
+    erased = text.rindex("\x1b[J")
+    assert text[erased:] == f"\x1b[J\x1b[{ACCENT}m›\x1b[0m fix it\n"
+    assert "\r\x1b[1A\x1b[J" in text
+    output = StringIO()
+    keys = iter(["a", "\x03"])
+    with pytest.raises(KeyboardInterrupt):
+        LineEditor(output, width=40, get_key=lambda: next(keys)).read()
+    assert output.getvalue().endswith("\r\x1b[1A\x1b[J")
