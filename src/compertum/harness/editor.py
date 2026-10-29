@@ -8,7 +8,7 @@ import time
 
 from .commands import DESCRIPTIONS, EXAMPLES, complete, matching_commands
 
-VISIBLE_COMMANDS = 4
+VISIBLE_COMMANDS = 6
 # The menu indents rows under the input text and needs room for this much description beside the commands.
 MENU_INDENT, MENU_GAP, MIN_DESCRIPTION = 4, 3, 16
 SYNC_START, SYNC_END = "\x1b[?2026h", "\x1b[?2026l"

@@ -7,7 +7,7 @@ from random import Random
 
 import pytest
 
-from compertum.harness.commands import COMMANDS, EXAMPLES, complete, help_text
+from compertum.harness.commands import COMMANDS, DESCRIPTIONS, EXAMPLES, complete, help_text
 from compertum.harness.editor import SYNC_END, SYNC_START, LineEditor, _InputRecord, console_keys
 
 
@@ -330,12 +330,11 @@ def test_command_menu_aligns_descriptions_and_spaces_its_sections():
     editor.selected = 6
     _, _, _, hints, _ = editor._lines()
     assert hints[0] == "" and hints[-2] == ""
-    rows = hints[1:5]
+    rows = hints[1:7]
     assert rows[-1].startswith("  › /resume SESSION_ID ")
-    descriptions = ("list models without a completion", "start a new conversation",
-                    "list saved conversations", "resume a conversation")
+    descriptions = [DESCRIPTIONS[name] for name in ("/status", "/model", "/models", "/new", "/sessions", "/resume")]
     assert len({row.index(text) for row, text in zip(rows, descriptions)}) == 1
-    assert hints[5] == "    ↑ 3 more   ↓ 10 more"
+    assert hints[7] == "    ↑ 1 more   ↓ 10 more"
     assert hints[-1] == "    Example: /resume session-20261028-104110-7382a492"
 
 
@@ -350,13 +349,13 @@ def test_narrow_command_menu_moves_the_description_below_the_list():
 
 def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
     output = StringIO()
-    keys = iter(["/", *["\xe0P"] * 4, "\t", "\r"])
+    keys = iter(["/", *["\xe0P"] * 6, "\t", "\r"])
     editor = LineEditor(output, get_key=lambda: next(keys), width=100)
-    assert editor.read() == "/new"
+    assert editor.read() == "/resume SESSION_ID"
     rendered = output.getvalue()
-    assert "↑ 1 more   ↓ 12 more" in rendered
-    assert "› /new" in rendered
-    assert "Example: /new" in rendered
+    assert "↑ 1 more   ↓ 10 more" in rendered
+    assert "› /resume" in rendered
+    assert "Example: /resume" in rendered
 
 
 def test_command_examples_cover_every_registered_command():
@@ -374,9 +373,9 @@ def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
     menu.selected = len(menu._command_matches()) - 1
     _, _, _, hints, _ = menu._lines()
     visible = [hint for hint in hints if hint.startswith(("  › /", "    /"))]
-    assert len(visible) == 4
+    assert len(visible) == 6
     assert visible[-1].startswith("  › /exit ")
-    assert "    ↑ 13 more" in hints and not any("↓" in hint for hint in hints)
+    assert "    ↑ 11 more" in hints and not any("↓" in hint for hint in hints)
 
 
 def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
@@ -388,7 +387,7 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     output.truncate()
     editor._render()
     assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
-    assert body(output.getvalue()).endswith("\x1b[9A\x1b[4G")
+    assert body(output.getvalue()).endswith("\x1b[11A\x1b[4G")
     editor.buffer, editor.cursor = "/x", 2
     output.seek(0)
     output.truncate()

@@ -6,6 +6,7 @@ The owner reported that the slash-command menu looked cramped. Commands, descrip
 The menu now indents commands under the input text. Each command shows its description in one aligned column.
 The column stays fixed while the list scrolls. One footer row shows the hidden counts, for example `↑ 3 more   ↓ 10 more`.
 Blank rows separate the box, the list and the example. Narrow terminals show the selected description above the example.
+At the owner's request, the menu shows six commands before it scrolls instead of four.
 
 The product-environment harness lane passed 57 tests, zero failed and zero skipped. The native lane passed three tests, zero failed and zero skipped.
 The screen-emulator test passed with the new layout.

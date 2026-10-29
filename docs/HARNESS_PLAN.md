@@ -10,7 +10,7 @@ Sessions are append-only under `state/harness/sessions`. Run records and logs st
 A new console can recover a live process only when its process number and creation time match. A dead process is marked `LOST`.
 The owner starts tests, practice, bench and GEPA with slash commands. Engine commands require cycle, request and hour limits.
 The interactive composer draws a box and shows matching commands. Tab inserts editable usage templates and completes identifiers.
-Up/Down scrolls through four visible commands. Descriptions share one aligned column. Blank rows separate the box, the list and the example.
+Up/Down scrolls through six visible commands. Descriptions share one aligned column. Blank rows separate the box, the list and the example.
 The selected command shows a concrete example. Narrow terminals show its description above the example. Tab inserts the selection.
 The composer width follows the terminal. It detects resizing and redraws from the frame start without leaving old borders.
 Long input scrolls horizontally without changing the box width. Unchanged frames produce no output.
