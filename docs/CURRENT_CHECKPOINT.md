@@ -107,7 +107,20 @@ These are the first level-10 cycles in the project: on calibrated markets an aud
 The real gate, with the global count of 1,183 trials and the recorded trial variance, still gave these candidates a deflated Sharpe of 0.
 The recorded variance mixes trials from 500-session markets, so step 2 (how trials are counted) now decides whether any practice candidate can be promoted.
 
-Exact next action: the owner's small Flint test on bench-4 (1 cycle per market, local, $0), then a full bench-4 baseline.
+Flint small test `run-20261029-d783224d` (owner-started 19:00 EDT, `flint@q4_k_m` in LM Studio, bench-4, 1 cycle per market): `MEASURED`, `CYCLE_LIMIT`,
+16 cycles, 316 requests, 48.3 minutes, 7 step faults, 31 candidates, $0. Patterns found 2 of 10; false discoveries 0 of 6; mean level 5.88.
+Level 10 on seeds 127 (momentum, capture 0.777) and 130 (reversal, 0.532): one candidate each passed the bench gate. Level 9 on seed 132 and 8 on seed 129.
+Levels 1 and 2 on seeds 128, 135 and 140 (nothing built). Median generation speed 63 tokens per second, 173k output tokens.
+Not comparable with the stopped DeepSeek run (6 cycles). Both models reached level 10 on seed 127. The comparison needs equal runs.
+Record: `.cache/test-runs/practice-bench-20261029-190000-record.json`.
+
+Owner questions of 29 October, answered from public sources (no change made): the best local model for the firm is Qwen3.6-35B-A3B;
+its Unsloth UD-IQ3_XXS build (13.2 GB, 91.2% top-1 agreement with the full model) fits the 16 GB card; UD-Q3_K_M (16.6 GB, 93.0%) and
+UD-Q4_K_S (20.9 GB, 94.8%) need offload. Mainline llama.cpp now has a MoE expert cache (`--moe-cache-mib`) and MTP speculative decoding for Qwen3.6;
+LM Studio's engine lags both. Parallel slots give no throughput on one local MoE model. Proposed, not done: replace LM Studio with the official
+`llama-server` Windows CUDA build as a child process of `tools\practice.ps1`. That changes the AGENTS.md server rule and waits for the owner's explicit OK.
+
+Exact next action: the owner decides on `llama-server`. Then bench-4 small tests of Qwen3.6-35B-A3B (UD-IQ3_XXS, then UD-Q3_K_M with the expert cache) and gpt-oss-20b.
 
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
 
