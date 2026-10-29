@@ -62,7 +62,16 @@ Record: `.cache/test-runs/cleanup-records/resolved-failures-20261029-183410.json
 Bench-4 flash baseline `run-20261029-3c88c5bb` started at 18:34 EDT on the owner's yes, through `tools\start_run.ps1` (process 19096, 4 cycles per market,
 2,400 requests). It runs into the 21:00 to 00:00 EDT peak. Record: `.cache/test-runs/practice-bench-20261029-183426-record.json`.
 
-Exact next action: report bench-4 and compare it with bench-3. Then the weekend GEPA run on the calibrated markets.
+Stopped by the owner at 18:57 EDT ("just stop deepseek") through the stop file, which was removed after the END row: `KILL_SWITCH`, 6 cycles,
+138 requests, 23.6 minutes. Verdict `INCOMPLETE: a market has no finished cycle` (6 of 16 markets had a cycle). Patterns found 1 of the 6 markets reached; false discoveries 0.
+- seed 127 (momentum 5, 0.004): level 10; 3 candidates passed the bench gate; found by 2, best capture 0.560.
+- seed 128 (momentum 5, 0.004): level 10; 1 candidate passed the bench gate; best capture 0.381, below the found mark of 0.5.
+- seed 129: level 7. seed 130: level 6. seed 131 (weak): level 7. seed 132 (weak): level 2.
+These are the first level-10 cycles in the project: on calibrated markets an audited candidate passed the bench gate.
+The real gate, with the global count of 1,183 trials and the recorded trial variance, still gave these candidates a deflated Sharpe of 0.
+The recorded variance mixes trials from 500-session markets, so step 2 (how trials are counted) now decides whether any practice candidate can be promoted.
+
+Exact next action: the owner's small Flint test on bench-4 (1 cycle per market, local, $0), then a full bench-4 baseline.
 
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
 
