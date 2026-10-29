@@ -39,6 +39,11 @@ Final verification, source, simulated markets, after the Director prompt change:
   `--seed 875` under the old offset scheme. GEPA no longer reads `--seed`; the case now checks that a practice run refuses GEPA seed 200.
   Those two job folders keep their working files under `.cache/test-runs/engine-lane-gepa-split-20261029-101600` and `engine-files-product-gepa-split-20261029-101856`.
 
+Committed as `c825b71`. The project map was refreshed for the GEPA design: 9 pages, 81 internal links with 0 broken; pages 1 and 2 were inspected.
+The bench-2 flash baseline, `run-20261029-1bab0fc4`, started at 10:25 EDT (4 cycles per market, 600 requests, new Director prompt), inside off-peak.
+
+Exact next action: report bench-2. Then the bench-3 flash baseline, which must start by about 16:30 EDT to end before the 21:00 peak.
+
 ## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
 
 The owner stopped the seventh GEPA run on 29 October 2026 at 08:26 EDT ("ok lets stop the GEPA cycle").
