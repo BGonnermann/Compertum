@@ -1,9 +1,14 @@
+import ctypes
+import os
+import re
+import sys
 from io import StringIO
+from random import Random
 
 import pytest
 
 from compertum.harness.commands import COMMANDS, EXAMPLES, complete, help_text
-from compertum.harness.editor import LineEditor
+from compertum.harness.editor import SYNC_END, SYNC_START, LineEditor, _InputRecord, console_keys
 
 
 def test_slash_completion_inserts_an_editable_run_template():
@@ -19,6 +24,7 @@ def test_identifier_completion_uses_session_and_run_ids():
     assert complete("/resume ses", sessions, runs) == "/resume session-20261028-one"
     assert complete("/watch te", sessions, runs) == "/watch test-20261028-one"
     assert complete("/stop te", sessions, runs) == "/stop test-20261028-one"
+    assert complete("/report te") is None
 
 
 def test_help_comes_from_the_same_command_registry():
@@ -63,17 +69,163 @@ def test_editor_supports_cursor_editing():
     assert editor.read() == "zcd"
 
 
+class Writes(StringIO):
+    def __init__(self):
+        super().__init__()
+        self.frames = []
+
+    def write(self, text):
+        self.frames.append(text)
+        return super().write(text)
+
+
+class Screen:
+    """A minimal terminal: enough cursor control to check what the composer leaves on screen."""
+
+    def __init__(self, columns):
+        self.columns, self.rows, self.row, self.column = columns, [[]], 0, 0
+
+    def feed(self, text):
+        for code in re.findall(r"\x1b\[\??[0-9]*[A-Za-z]|.", text, re.S):
+            if code.startswith("\x1b["):
+                count, op = int(code[2:-1].lstrip("?") or 1), code[-1]
+                if code in (SYNC_START, SYNC_END):
+                    continue
+                if op == "A":
+                    assert count <= self.row, "the composer moved above its first row"
+                    self.row -= count
+                elif op == "B":
+                    assert self.row + count < len(self.rows), "the composer moved below its last row"
+                    self.row += count
+                elif op == "G":
+                    self.column = count - 1
+                elif op == "J":
+                    del self.rows[self.row + 1:]
+                    del self.rows[self.row][self.column:]
+                elif code == "\x1b[2K":
+                    self.rows[self.row] = []
+                else:
+                    raise AssertionError(f"unexpected control {code!r}")
+            elif code == "\r":
+                self.column = 0
+            elif code == "\n":
+                # Windows text output writes "\n" as "\r\n".
+                self.row, self.column = self.row + 1, 0
+                if self.row == len(self.rows):
+                    self.rows.append([])
+            else:
+                assert self.column < self.columns, "the composer wrapped a row"
+                line = self.rows[self.row]
+                line.extend(" " * (self.column - len(line)))
+                line[self.column:self.column + 1] = [code]
+                self.column += 1
+
+    def text(self):
+        # Erased rows below the frame stay on screen as blank rows.
+        rows = ["".join(line).rstrip() for line in self.rows]
+        while len(rows) > 1 and not rows[-1] and self.row < len(rows) - 1:
+            rows.pop()
+        return rows
+
+
+def body(text):
+    assert text.startswith(SYNC_START) and text.endswith(SYNC_END)
+    return text[len(SYNC_START):-len(SYNC_END)]
+
+
+def test_console_events_translate_to_editor_keys():
+    assert console_keys(1, True, 0x41, "a") == ["a"]
+    assert console_keys(1, True, 0x41, "a", repeat=3) == ["a", "a", "a"]
+    assert console_keys(1, True, 0x26) == ["\xe0H"]
+    assert console_keys(1, True, 0x28) == ["\xe0P"]
+    assert console_keys(1, True, 0x25) == ["\xe0K"]
+    assert console_keys(1, True, 0x27) == ["\xe0M"]
+    assert console_keys(1, True, 0x24) == ["\xe0G"]
+    assert console_keys(1, True, 0x23) == ["\xe0O"]
+    assert console_keys(1, True, 0x2E) == ["\xe0S"]
+    assert console_keys(1, True, 0x0D, "\r") == ["\r"]
+    assert console_keys(1, True, 0x43, "\x03") == ["\x03"]
+    assert console_keys(1, False, 0x41, "a") == []
+    assert console_keys(1, False, 0x12, "é") == ["é"]
+    assert console_keys(1, True, 0x10) == []
+    assert console_keys(4) == []
+    assert console_keys(1, True, 0x25, control=0x8) == []
+    assert console_keys(1, True, 0x26, control=0x2) == []
+    assert console_keys(1, True, 0x41, "a", control=0x2) == []
+    assert console_keys(1, True, 0x09, "\t", control=0x10) == []
+    assert console_keys(1, True, 0x51, "@", control=0x1 | 0x8) == ["@"]
+    assert console_keys(1, True, 0x41, "A", control=0x10) == ["A"]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows console record layout")
+def test_console_record_matches_the_windows_layout():
+    assert ctypes.sizeof(_InputRecord) == 20
+
+
+def test_each_frame_is_one_synchronized_write():
+    output = Writes()
+    keys = iter([*"/ge", "\xe0P", "\t", "\r"])
+    editor = LineEditor(output, get_key=lambda: next(keys), width=80)
+    editor.read()
+    frames = output.frames[:-1]
+    # Down on the only match changes nothing, so it writes no frame.
+    assert len(frames) == 5
+    assert all(frame.startswith(SYNC_START) and frame.endswith(SYNC_END) for frame in frames)
+    assert output.frames[-1] == "\x1b[1B\r\n"
+
+
+def test_stable_frame_rewrites_only_changed_rows():
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r", width=60)
+    editor._render()
+    output.seek(0)
+    output.truncate()
+    editor.buffer, editor.cursor = "a", 1
+    editor._render()
+    _, middle, _, _, _ = editor._lines()
+    assert body(output.getvalue()) == "\r\x1b[2K" + middle + "\x1b[4G"
+    output.seek(0)
+    output.truncate()
+    editor.cursor = 0
+    editor._render()
+    assert body(output.getvalue()) == "\x1b[3G"
+
+
+def test_height_change_forces_a_full_redraw(monkeypatch):
+    size = [os.terminal_size((80, 30))]
+    monkeypatch.setattr("compertum.harness.editor.shutil.get_terminal_size", lambda fallback: size[0])
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r")
+    editor.buffer, editor.cursor = "/", 1
+    editor._render()
+    editor._move_menu(1)
+    size[0] = os.terminal_size((80, 12))
+    output.seek(0)
+    output.truncate()
+    editor._render()
+    assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
+
+
+def test_menu_movement_rewrites_menu_rows_without_the_box():
+    output = StringIO()
+    editor = LineEditor(output, get_key=lambda: "\r", width=100)
+    editor.buffer, editor.cursor = "/", 1
+    editor._render()
+    top, middle, bottom, _, _ = editor._lines()
+    output.seek(0)
+    output.truncate()
+    editor._move_menu(1)
+    editor._render()
+    patch = body(output.getvalue())
+    assert top not in patch and middle not in patch and bottom not in patch
+    assert "› " in patch and "\x1b[J" not in patch
+
+
 def test_redraw_returns_to_the_input_row_and_borders_align():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=60)
     editor._render()
-    assert output.getvalue().endswith("\x1b[1A\x1b[3G")
-    output.seek(0)
-    output.truncate()
-    editor.buffer = "a"
-    editor.cursor = 1
-    editor._render()
-    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
+    assert body(output.getvalue()).endswith("\x1b[1A\x1b[3G")
     top, middle, bottom, _, _ = editor._lines()
     assert len(top) == len(middle) == len(bottom) == 58
 
@@ -86,14 +238,45 @@ def test_resize_rewinds_reflowed_lines_and_erases_from_line_start():
     output.truncate()
     editor.width = 40
     editor._render()
-    assert output.getvalue().startswith("\x1b[3A\r\x1b[J")
+    assert body(output.getvalue()).startswith("\x1b[3A\r\x1b[J")
     top, middle, bottom, _, _ = editor._lines()
     assert len(top) == len(middle) == len(bottom) == 38
     output.seek(0)
     output.truncate()
     editor.width = 100
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
+    assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
+
+
+def test_typing_menu_movement_and_widening_leave_only_the_current_frame():
+    random = Random(20261028)
+    keys = ["g", "e", "m", "o", "n", "x", " ", "\x08", "\xe0H", "\xe0P", "\xe0P", "\xe0P", "\xe0K", "\xe0M", "\t"]
+    # Each round opens the command menu, edits and scrolls it, then clears the input.
+    script = [key for _ in range(25) for key in ["/", *random.choices(keys, k=12), "\xe0O", *["\x08"] * 60]]
+    sizes = [60] * 300 + list(range(61, 201)) + [200] * len(script)
+    output = StringIO()
+    screen = Screen(60)
+    editor = LineEditor(output, width=60)
+    steps = iter(zip(sizes, script))
+    checked = 0
+
+    def next_key():
+        nonlocal checked
+        screen.feed(output.getvalue())
+        output.seek(0)
+        output.truncate()
+        top, middle, bottom, hints, column = editor._lines()
+        assert screen.text() == [top, middle, bottom, *hints]
+        assert (screen.row, screen.column) == (1, column - 1)
+        checked += 1
+        width, key = next(steps, (screen.columns, "\r"))
+        # Widening keeps every short row in place, so this screen needs no reflow model.
+        editor.width = screen.columns = width
+        return key
+
+    editor.get_key = next_key
+    editor.read()
+    assert checked == len(script) + 1
 
 
 def test_unchanged_frame_does_not_write_during_resize_polling():
@@ -181,11 +364,13 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     output.seek(0)
     output.truncate()
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
-    assert output.getvalue().endswith("\x1b[8A\x1b[4G")
+    assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
+    assert body(output.getvalue()).endswith("\x1b[8A\x1b[4G")
     editor.buffer, editor.cursor = "/x", 2
     output.seek(0)
     output.truncate()
     editor._render()
-    assert output.getvalue().startswith("\x1b[1A\r\x1b[J")
-    assert output.getvalue().endswith("\x1b[1A\x1b[5G")
+    patch = body(output.getvalue())
+    assert patch.startswith("\r\x1b[2K│ /x")
+    assert "\x1b[2B\r\x1b[J" in patch
+    assert patch.endswith("\x1b[2A\x1b[5G")

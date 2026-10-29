@@ -1,5 +1,27 @@
 # Current Compertum checkpoint
 
+## Harness 0.3.4 composer rendering pass - 28 October 2026
+
+The owner approved four rendering changes after the 0.3.3 resize repair. The design is in `docs/superpowers/specs/2026-10-28-harness-rendering-design.md`.
+The composer now waits for Windows console key and resize events. It no longer polls the keyboard every 50 milliseconds.
+A 500-millisecond safety wake still repairs a missed resize. Unchanged frames write nothing.
+Each frame is one write inside synchronized-output markers. Terminals without that mode ignore the markers.
+A stable frame rewrites only its changed rows. A width change, a height change or a taller frame still uses the full reflow-safe redraw.
+The composer restores the console input mode on exit, including after Ctrl+C and Ctrl+Z. It falls back to keyboard polling without console input.
+Completion now also accepts plain session and run lists. This fixes a Tab crash that only the editor's default arguments could reach.
+
+The product-environment harness lane passed 55 tests, zero failed and zero skipped.
+A new screen-emulator test drives 1,850 keys through typing, menu movement and widening. It checks the screen after every frame.
+Three deliberately broken patch versions each failed that test.
+The native lane passed three tests, zero failed and zero skipped. The new native test sends real key and resize records to a hidden console.
+It confirms the event reader, the input mode during reads and the restored mode. A forced fallback and a wrong mode mask each failed it.
+An independent review found no blockers. It found one should-fix item: modified keys now acted as plain keys. That item and five minor items are fixed.
+Two minor items remain. Repeated keys after Enter in one console record are lost; Windows Terminal sends single records.
+The screen test does not model narrowing reflow. String assertions still cover the narrowing redraw.
+
+Exact next action: the owner restarts `compertum-harness` in Windows Terminal. The owner then types, moves through the command menu and resizes quickly.
+The physical rendering result remains unverified until that check. No provider, GEPA, benchmark or engine run occurred.
+
 ## Harness 0.3.3 composer resize repair - 28 October 2026
 
 The owner reported leftover borders after moving Windows Terminal. The composer erased from the cursor column and assumed one row above it.

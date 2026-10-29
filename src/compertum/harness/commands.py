@@ -82,7 +82,8 @@ def complete(text, sessions=(), runs=(), model_files=(), model_ids=None):
     parts = text.split(maxsplit=1)
     command = parts[0]
     if len(parts) == 2 and (command == "/resume" or command in RUN_ID_COMMANDS):
-        values = sessions() if command == "/resume" else runs()
+        source = sessions if command == "/resume" else runs
+        values = source() if callable(source) else source
         return _completion(values, parts[1], f"{command} ")
     if len(parts) == 2 and command in ("/model", "/models"):
         argument = parts[1]

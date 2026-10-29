@@ -6,15 +6,15 @@ Start the harness from any folder with `compertum-harness`.
 The direct command is `.cache\clean-env-m0\Scripts\python.exe -m compertum.harness --models deepseek --model deepseek-flash`.
 Opening the console sends no model request. The owner starts every model task and engine run.
 The harness provides read, write, edit and sandbox-run tools, append-only sessions, process recovery and uniform run cards.
-The boxed composer follows the terminal width and redraws after a resize. Long input scrolls horizontally without widening the box.
+The boxed composer follows the terminal width and redraws after a resize. It waits for console events and redraws only changed rows. Long input scrolls horizontally without widening the box.
 Up/Down scrolls through matching slash commands. The selected command shows a description and example.
 Tab inserts the selected command and completes identifiers and cached model IDs.
 Use `/model` to show model files. `/model kimi` selects Kimi's default. `/model deepseek deepseek-flash` selects an exact model.
 `/models [NAME]` lists model IDs without a completion or a selection change. Selection preserves the conversation and future run defaults.
 Type `/help` for commands. Engine commands require cycle, request and hour limits.
 The model receives no host shell and no run-start tool. Fixed code, rules, credentials and runtime state stay protected.
-The product-environment harness lane passed 48 tests, with zero failures and zero skips.
-The final native lane passed two tests, with zero failures and zero skips. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
+The product-environment harness lane passed 55 tests, with zero failures and zero skips.
+The final native lane passed three tests, with zero failures and zero skips. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
 
 ## M3 engineering accepted; 19 October work committed - 23 October 2026
 
