@@ -208,6 +208,7 @@ try {
     & $python @arguments 2>&1 | Tee-Object -FilePath $record
     $exit=$LASTEXITCODE
     Write-Host "practice command exit code $exit"
+    if ($exit -eq 0) { & $python (Join-Path $root 'tools\clean_test_runs.py') --engine-sandboxes --apply 2>&1 | Write-Host }
 } finally {
     if ($sampler) { Stop-Job $sampler -ErrorAction SilentlyContinue; Remove-Job $sampler -Force -ErrorAction SilentlyContinue }
     # 7. Memory back.

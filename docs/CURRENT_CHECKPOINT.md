@@ -1,5 +1,44 @@
 # Current Compertum checkpoint
 
+## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
+
+Owner direction, 29 October 2026: fix the workflow flaws found after the seventh GEPA run, and review the workflow.
+Principle agreed the same day: free exploration, strict measurement. No prompt tells a role which ideas to pursue or avoid.
+The gate, the trial count, the Auditor, the vault and the empty markets decide what is believed. GEPA is the optimizer, never the scorer.
+
+Built:
+- GEPA markets (`practice.py`): 24 generated markets on seeds 200 to 223 (`GEPA_SEEDS`, 200 to 299, reserved for GEPA; a practice run refuses them).
+  16 training markets, which GEPA reflects on, and 8 validation markets, which rank candidates. Each set cycles through eight patterns:
+  momentum 5, momentum 10, reversal 3, reversal 5 at strength 0.004; momentum 5 and reversal 3 at 0.002; two with no pattern.
+  Before this, GEPA learned and selected on the same four markets, one of which (seed 12) was also the practice market.
+- GEPA cycles have purpose `gepa` (`ledger.py`, `cycle.py`, `gepa_run.py`): no history in (blank summary), nothing out (no lessons, no recent list), no agenda step.
+  Every candidate is measured under the same conditions, and practice runs no longer change what GEPA cycles see. A GEPA cycle may still promote and queue a strategy.
+  `run_bounded` refuses purpose `gepa`. The START row records `validation_markets`. `MAX_MARKETS` is 24, `MINIBATCH` is 4, `SPEED_WEIGHT` is 0.004.
+- The Director's lessons table (`levels.py`) shows each idea's best outcome as a sentence, without the level number or the `best_level` field.
+  The seventh GEPA run had 12 idea titles with the literal word "level-7".
+- `config/engine_prompts/director.md` (applied after the practice run, because the engine reads the prompt files every cycle) no longer says
+  "build on partial successes", "level 7 or higher" or "level 6 or lower". It says the table holds outcomes in words and a repeated idea must say what changed.
+
+Results of GEPA runs 1 to 7 are not comparable with later runs. The next GEPA run is the first on this design.
+Bench results from this point use the new Director prompt, so they are not comparable on prompts with the bench-1 baselines of 26 October.
+
+Practice run `run-20261029-7514150d` (20 cycles, `deepseek-flash`, old Director prompt): `CYCLE_LIMIT`, 504 requests, 92.9 minutes, 0 faults.
+Levels: 18 cycles at 7 and 2 at 5, mean 6.80. 57 candidates: 37 `REJECTED_DEFLATED`, 20 `REJECTED`. Of 60 ideas, 27 were "brakes" and 2 were reversal.
+The last cycle saw 40 lessons rows. The run used the old prompt and the old lessons table.
+
+Storage cleanup, owner OK on 29 October 2026 ("OK for storage cleanup", then "yes" for the three old suite folders): `tools/clean_test_runs.py` removed
+102,620 files and 56,467 folders (3.3 GB) in 55 seconds from 38 engine sandbox folders and `e8-full-product-03`, `e8-full-product-02` and
+`scratch50-full-20261024-224412`. Each target keeps its top folder. The record is under `.cache/test-runs/cleanup-records/`.
+`.cache/test-runs` went from 148,299 to 100,672 folders. `tools\practice.ps1` now runs the sandbox cleanup after every run that exits 0.
+The tool refuses while an engine run is open, below 8 GiB free, for the economics fixture folder, and skips a folder with a link that points outside it.
+
+Final verification, source, simulated markets, after the Director prompt change:
+- Engine lane, all engine files with `test_ai_models_interface.py`, `test_run_tests_tool.py` and `test_clean_test_runs.py`: 306 passed, 0 failed, 0 skipped, 8 pandas warnings.
+- Product lane, the same files: 242 passed, 0 failed, 7 skipped (engine libraries absent).
+- One earlier attempt of each lane failed one test, `test_bad_bench_options_are_refused_before_the_lease[options11]`: it expected a GEPA run to refuse
+  `--seed 875` under the old offset scheme. GEPA no longer reads `--seed`; the case now checks that a practice run refuses GEPA seed 200.
+  Those two job folders keep their working files under `.cache/test-runs/engine-lane-gepa-split-20261029-101600` and `engine-files-product-gepa-split-20261029-101856`.
+
 ## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
 
 The owner stopped the seventh GEPA run on 29 October 2026 at 08:26 EDT ("ok lets stop the GEPA cycle").

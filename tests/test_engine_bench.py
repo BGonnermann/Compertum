@@ -25,7 +25,7 @@ PROJECT=Path(__file__).resolve().parents[1]
 def test_bench_and_holdout_use_separate_fixed_seed_sets_with_two_empty_markets_each():
     seeds={name:{seed for _,_,seed in markets} for name,markets in bench.SETS.items()}
     assert seeds['bench-1'].isdisjoint(seeds['holdout-1'])
-    used_elsewhere={12}|{12+offset for _,_,offset in practice.GEPA_MARKETS}  # the practice market and the GEPA markets
+    used_elsewhere={12}|set(practice.GEPA_SEEDS)
     assert all(s.isdisjoint(used_elsewhere) for s in seeds.values())
     for name in ('bench-1','holdout-1'):
         kinds=[(kind,window) for kind,window,_ in bench.SETS[name]]
@@ -210,6 +210,9 @@ def test_bench_and_holdout_cycles_never_reach_the_summary_the_lessons_or_gepa_fe
     assert [r['idea'] for r in summary['lessons']]==['Old practice idea','New practice idea']
     assert set(earlier_titles(ledger,'none'))=={'old practice idea','new practice idea'}
     assert ledger.blank_summary()=={'cycles_completed':0,'active_freezes':0,'recent':[],'lessons':[]}
+    from compertum.ai.engine.ledger import HISTORY_FREE_PURPOSES,PURPOSES,learning_cycle
+    assert HISTORY_FREE_PURPOSES=={'gepa','bench','holdout'} and PURPOSES==('practice','gepa','bench','holdout')
+    assert [learning_cycle({'purpose':p}) for p in ('practice','gepa','bench','holdout',None)]==[True,False,False,False,True]
 
 
 def test_holdout_uses_count_every_started_run_of_that_set(bridge):
@@ -302,7 +305,7 @@ def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_
     ({'purpose':'practice','prompts_run':'run-20261025-00001111','prompts_candidate':1},'ENGINE_PROMPT_INVALID'),
     ({'purpose':'bench','prompts_run':'run-20261025-00009999','prompts_candidate':1},'ENGINE_PROMPT_UNAVAILABLE'),
     ({'seed':901},'ENGINE_SEED_RESERVED'),  # practice market 1 would equal holdout market 1
-    ({'seed':875,'gepa':True},'ENGINE_SEED_RESERVED'),  # the no-pattern GEPA market (offset 29) would be seed 904, a holdout empty market
+    ({'seed':200},'ENGINE_SEED_RESERVED'),
     ({'seed':150},'ENGINE_SEED_RESERVED'),
 ])
 def test_bad_bench_options_are_refused_before_the_lease(tmp_path,fake_run,options,code):

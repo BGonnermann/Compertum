@@ -24,6 +24,7 @@ from compertum.ai.models import ModelClient  # noqa: E402
 from compertum.ai.engine import PROVIDER_KEYS,harden_environment  # noqa: E402
 from compertum.ai.engine.cycle import Engine,parse_decision,parse_hypotheses,parse_json_reply,run_cycle  # noqa: E402
 from compertum.ai.engine.execution import EngineerSandbox,job_files,run_job_tool  # noqa: E402
+from compertum.ai.engine.levels import LEVELS  # noqa: E402
 from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.market import market_csv,parse_signals,score_signals,split_market,synthetic_market  # noqa: E402
 from compertum.ai.engine.prompts import ROUTING_DEFAULT,SETTINGS_DEFAULT,load_component,options_text,parse_routing,routing_text  # noqa: E402
@@ -455,8 +456,8 @@ def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_mark
         pick=state['posts'][posts]['messages'][-1]['content'];assert pick.startswith('Pick at most')
         summary=json.loads(pick.split('Ledger summary:\n',1)[1])
         level=next(r for r in summary['lessons'] if r['idea']=='Five-session momentum')
-        assert level['tries']==1 and level['last_cycle']==1 and level['best_outcome'].startswith(f"Level {level['best_level']} of 10.")
-        assert {'idea':'Mean reversion','tries':1,'last_cycle':1,'best_level':None,'best_outcome':'Not built: the Director rejected the memo.'} in summary['lessons']
+        assert level['tries']==1 and level['last_cycle']==1 and level['best_outcome'] in LEVELS.values() and 'best_level' not in level
+        assert {'idea':'Mean reversion','tries':1,'last_cycle':1,'best_outcome':'Not built: the Director rejected the memo.'} in summary['lessons']
         assert 'lessons' in state['posts'][0]['messages'][-1]['content'] and json.loads(state['posts'][0]['messages'][-1]['content'].split('Ledger summary:\n',1)[1])['lessons']==[]
         starts=[r for r in engine.ledger.cycles() if r['phase']=='START'];assert all(r['market_sha256']==first['market_sha256'] for r in starts)
 

@@ -17,13 +17,14 @@ SUMMARY_BYTES=16384
 MAX_EXTERNAL_TRIALS=100000
 QUEUE_EVENTS=('QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
 RUN_ID=r'run-[0-9]{8}-[0-9a-f]{8}'
-PURPOSES=('practice','bench','holdout')
+PURPOSES=('practice','gepa','bench','holdout')
 EVALUATION_PURPOSES=frozenset({'bench','holdout'})  # cycles that measure prompts; nothing learns from them (bench.py)
+HISTORY_FREE_PURPOSES=frozenset({'gepa','bench','holdout'})
 
 
 def learning_cycle(cycle):
-    """True for a cycle whose results may teach the engine: not a bench or holdout cycle. Cycles before 25 October 2026 carry no purpose."""
-    return cycle.get('purpose') not in EVALUATION_PURPOSES
+    """True for a cycle whose results may teach the engine: not a GEPA, bench or holdout cycle. Cycles before 25 October 2026 carry no purpose."""
+    return cycle.get('purpose') not in HISTORY_FREE_PURPOSES
 
 
 def now():

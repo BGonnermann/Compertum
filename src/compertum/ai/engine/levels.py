@@ -76,7 +76,7 @@ def lessons(cycle_ends,market_sha256):
     """The Director's lessons table: one row per distinct idea tried on this market, oldest first, at most MAX_LESSONS rows.
 
     Built by code from the cycles' END records; no model writes a row. A row holds the idea's title, how often it was tried, the last
-    cycle that tried it, and its best outcome as a level and a sentence. It holds no Sharpe, return or deflated value: the Director
+    cycle that tried it, and its best outcome as a sentence without the level number. It holds no Sharpe, return or deflated value: the Director
     learns what failed and why, not which numbers to chase. Cycles on another market, or recorded before cycles carried a market
     fingerprint (25 October 2026), are left out: an idea that failed on one market says nothing about another.
     Ideas match by normalized title, so a reworded idea is a new row.
@@ -96,10 +96,10 @@ def lessons(cycle_ends,market_sha256):
             rejected=isinstance(decision,dict) and decision.get('decision')=='reject' and decision.get('source')!='code'
             if level is None and not rejected and stopped: continue
             if level is None: outcome=NOT_BUILT_REJECTED if rejected else NOT_BUILT_OTHER
-            else: outcome=f'Level {level} of 10. {LEVELS[level]}'
+            else: outcome=LEVELS[level]
             key=norm_title(hypothesis['title']);row=rows.pop(key,None)  # pop and reinsert: the dict stays in order of last use
             if row is None: row={'idea':str(hypothesis['title'])[:IDEA_CHARS],'tries':0,'best_level':None,'best_outcome':outcome}
             row['tries']+=1;row['last_cycle']=cycle.get('cycle_index')
             if level is not None and (row['best_level'] is None or level>row['best_level']): row['best_level']=level;row['best_outcome']=outcome
             rows[key]=row
-    return list(rows.values())[-MAX_LESSONS:]
+    return [{k:v for k,v in row.items() if k!='best_level'} for row in list(rows.values())[-MAX_LESSONS:]]

@@ -95,6 +95,7 @@ def test_holdout_uses_are_counted_before_the_first_cycle_and_retired_after_the_l
     ({'purpose':'bench'},'ENGINE_RUN_PURPOSE_DENIED'),  # bench needs a schedule
     ({'purpose':'practice','schedule':'S'},'ENGINE_RUN_PURPOSE_DENIED'),  # a schedule is for bench or holdout only
     ({'purpose':'vault','schedule':'S'},'ENGINE_RUN_PURPOSE_DENIED'),
+    ({'purpose':'gepa'},'ENGINE_RUN_PURPOSE_DENIED'),
     ({'purpose':'holdout','schedule':'S'},'ENGINE_RUN_PURPOSE_DENIED'),  # holdout needs its set
     ({'purpose':'bench','schedule':'S','holdout_set':'holdout-1'},'ENGINE_RUN_PURPOSE_DENIED'),
     ({'purpose':'holdout','schedule':'S','holdout_set':'bench-1'},'ENGINE_RUN_PURPOSE_DENIED'),

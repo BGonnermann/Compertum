@@ -79,17 +79,13 @@ def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch)
     assert record['kind']=='gepa' and record['reason']=='CYCLE_LIMIT' and record['cycles'][0]['candidates'][0]['audit']=='VERIFIED_PASS' and record['research_state_after']=='PAUSED'
     assert record['prompts']=={'folder':str(tmp_path/'state'/'engine'/'prompts'/'run-20261024-0123abcd'),'best_index':1,'mean_scores':[0.7,1.0],'candidate_count':2,
                                'gepa_best_folder_index':1,'gepa_val_aggregate_scores':[0.7,1.0],'gepa_total_metric_calls':4}
-    # Varied markets (owner decision, 25 October 2026): two momentum windows, reversal, and one with no pattern.
-    assert [m['label'] for m in seen['markets']]==['seed 12, 500 sessions, momentum window 5, strength 0.004','seed 21, 500 sessions, momentum window 10, strength 0.004',
-                                                   'seed 31, 500 sessions, reversal window 3, strength 0.004','seed 41, 500 sessions, no pattern'] and seen['limits'].cycle_limit==4
-    assert len({m['validation_csv'] for m in seen['markets']})==4  # four different markets
-    # Each market really carries the pattern its label names (review, 25 October 2026), and the last one has none.
+    train,validation=practice.gepa_markets(500,0.004)
+    assert [m['label'] for m in seen['markets']]==[m['label'] for m in train] and [m['label'] for m in seen['validation_markets']]==[m['label'] for m in validation]
+    assert seen['markets'][0]['label']=='seed 200, 500 sessions, momentum window 5, strength 0.004' and seen['validation_markets'][-1]['label']=='seed 223, 500 sessions, no pattern'
+    assert seen['limits'].cycle_limit==4 and record['preflight']['markets']==24 and record['vault_sessions_held_back']==24*100
     from compertum.ai.engine.market import market_csv,split_market_tiers,synthetic_market
-    assert [kind for kind,_,_ in practice.GEPA_MARKETS]==['momentum','momentum','reversal',None]
-    for market,(kind,window,offset) in zip(seen['markets'],practice.GEPA_MARKETS):
-        planted=None if kind is None else {'kind':kind,'window':window,'strength':0.004}
-        assert market['validation_csv']==market_csv(split_market_tiers(synthetic_market(12+offset,500,planted=planted))[1])
-    assert all('vault' not in m for m in seen['markets']) and seen['owner_approval']=='GEPA fixture' and record['verification']['failed']==[]
+    assert seen['validation_markets'][2]['validation_csv']==market_csv(split_market_tiers(synthetic_market(218,500,planted={'kind':'reversal','window':3,'strength':0.004}))[1])
+    assert all('vault' not in m for m in seen['markets']+seen['validation_markets']) and seen['owner_approval']=='GEPA fixture' and record['verification']['failed']==[]
     json.dumps(record)  # printable
 
 

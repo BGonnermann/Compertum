@@ -105,9 +105,10 @@ def research_state(store):
     with store._live(): return store.get_state('research_state') or 'PAUSED'
 
 
-# GEPA's markets (owner decision, 25 October 2026): different patterns and one with none, so GEPA cannot learn one planted pattern into a prompt.
-# Each entry: planted kind (None: no pattern), window, seed offset from --seed. A good prompt finds nothing on the market with no pattern.
-GEPA_MARKETS=(('momentum',5,0),('momentum',10,9),('reversal',3,19),(None,0,29))
+GEPA_SEEDS=range(200,300)
+GEPA_PATTERNS=(('momentum',5,1),('momentum',10,1),('reversal',3,1),('reversal',5,1),('momentum',5,0.5),('reversal',3,0.5),(None,0,0),(None,0,0))
+GEPA_TRAIN_MARKETS=16
+GEPA_VALIDATION_MARKETS=8
 
 
 def practice_market(seed,sessions,strength,kind='momentum',window=5):
@@ -116,6 +117,14 @@ def practice_market(seed,sessions,strength,kind='momentum',window=5):
     pattern='no pattern' if kind is None else f'{kind} window {window}, strength {strength}'
     return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':f'seed {seed}, {sessions} sessions, {pattern}',
             'kind':kind,'vault_sessions':len(vault)},vault
+
+
+def gepa_markets(sessions,strength):
+    out=[]
+    for index in range(GEPA_TRAIN_MARKETS+GEPA_VALIDATION_MARKETS):
+        kind,window,factor=GEPA_PATTERNS[index%len(GEPA_PATTERNS)]
+        out.append(practice_market(GEPA_SEEDS[index],sessions,strength*factor,kind,window)[0])
+    return out[:GEPA_TRAIN_MARKETS],out[GEPA_TRAIN_MARKETS:]
 
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=500,strength=0.004,available_memory=available_physical_memory,gepa=False,
@@ -131,7 +140,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     if purpose!='bench' and bench_set!=bench.BENCH_SET: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if market_manifests is not None and purpose!='practice': raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     # Seeds of the bench and holdout sets are reserved, so a practice or GEPA run never reproduces an evaluation market (review, 25 October 2026).
-    if market_manifests is None and purpose=='practice' and any(bench.reserved_seed(s) for s in [seed]+([seed+offset for _,_,offset in GEPA_MARKETS] if gepa else [])): raise RuntimeRefused('ENGINE_SEED_RESERVED')
+    if market_manifests is None and purpose=='practice' and not gepa and (bench.reserved_seed(seed) or seed in GEPA_SEEDS): raise RuntimeRefused('ENGINE_SEED_RESERVED')
     prompts=None
     if (prompts_run is None)!=(prompts_candidate is None) or (prompts_run is not None and purpose=='practice'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
     if prompts_run is not None:
@@ -144,11 +153,12 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         if (not isinstance(market_manifests,(list,tuple)) or any(not isinstance(p,str) for p in market_manifests)
                 or not 1<=len(market_manifests)<=(MAX_MARKETS if gepa else 1)): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         loaded=[load_market_manifest(root,path,sessions=sessions) for path in market_manifests]
-        market=loaded[0][0];markets=[item[0] for item in loaded]
+        market=loaded[0][0];markets=[item[0] for item in loaded];validation_markets=None
     else:
-        market=practice_market(seed,sessions,strength)[0]
+        market=practice_market(seed,sessions,strength)[0];validation_markets=None
         if purpose=='practice':
-            markets=[practice_market(seed+offset,sessions,strength,kind,window)[0] for kind,window,offset in GEPA_MARKETS] if gepa else [market]
+            if gepa: markets,validation_markets=gepa_markets(sessions,strength)
+            else: markets=[market]
         else:
             if type(cycles_per_market) is not int or not 1<=cycles_per_market<=bench.MAX_CYCLES_PER_MARKET: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
             if bench_set not in bench.SETS or not bench_set.startswith('bench-'): raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -156,8 +166,8 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
             markets=bench.set_markets(bench_set if purpose=='bench' else bench.HOLDOUT_SET)
             schedule=markets*cycles_per_market;cycles=len(schedule)  # interleaved: an early stop leaves every market with about the same number of cycles
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
-    checked=preflight(root,markets,prompts=prompts)
-    held_back=sum(m.get('vault_sessions',0) for m in markets)
+    checked=preflight(root,markets+(validation_markets or []),prompts=prompts)
+    held_back=sum(m.get('vault_sessions',0) for m in markets+(validation_markets or []))
     roles=chosen_roles(root,models,model)
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
@@ -172,7 +182,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
             if gepa:
                 from .gepa_run import run_gepa
                 result=run_gepa(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,markets=markets,
-                                memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,
+                                validation_markets=validation_markets,memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,
                                 transcript_training_allowed=False if market_manifests is not None else None)
             else:
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none

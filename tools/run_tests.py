@@ -39,7 +39,8 @@ FLOOR_GIB=8  # the owner's start floor for free host memory (8 GiB since 26 Octo
 # 26 October 2026: test_engine_practice.py and test_engine_bench.py ran during bench baseline 1; their sandbox verification uses the same
 # fixed profile as the run and could have refused a live job. No job was refused, by luck. A single test node (file::name) is the caller's choice.
 SANDBOX_FREE={'tests/test_engine_preflight.py','tests/test_engine_lessons.py','tests/test_engine_limits.py','tests/test_engine_validator.py',
-              'tests/test_engine_gepa.py','tests/test_engine_audit.py','tests/test_ai_models_interface.py','tests/test_run_tests_tool.py'}
+              'tests/test_engine_gepa.py','tests/test_engine_audit.py','tests/test_ai_models_interface.py','tests/test_run_tests_tool.py',
+              'tests/test_clean_test_runs.py'}
 NAME=re.compile(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,80}')
 GENERATION=re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
 NO_FILES='(no test file named; pytest would collect its testpaths, the whole suite)'

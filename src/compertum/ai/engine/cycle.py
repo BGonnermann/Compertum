@@ -18,7 +18,7 @@ from compertum.runtime.errors import RuntimeRefused
 from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
-from .ledger import EVALUATION_PURPOSES,PURPOSES
+from .ledger import EVALUATION_PURPOSES,HISTORY_FREE_PURPOSES,PURPOSES
 from .limits import STEP_FAULTS
 from .market import score_signals
 from .promotion import promote
@@ -92,7 +92,7 @@ class Engine:
     gate:Any=None  # E5: callable that raises when no step may start (kill switch, hour limit, freeze)
     run_id:Any=None  # E5: the bounded run this cycle belongs to
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate), and optionally its 'routing' text; None reads config/engine_prompts
-    purpose:str='practice'  # 'bench' or 'holdout' (bench.py): no history in, no lessons or GEPA feedback out, no agenda step
+    purpose:str='practice'  # 'gepa', 'bench' or 'holdout': no history in, no lessons out, no agenda step; bench and holdout also never promote
 
 
 def market_sha256(engine):
@@ -109,7 +109,7 @@ def run_cycle(engine,cycle_index):
     # The market fingerprint scopes the Director's lessons table to cycles on the same TRAIN and VALIDATION files (owner request, 25 October 2026).
     market=market_sha256(engine)
     # A bench or holdout cycle starts with no history (bench.py), so every evaluation cycle sees the same task whatever ran before it.
-    summary=ledger.summary(market) if engine.purpose not in EVALUATION_PURPOSES else ledger.blank_summary()
+    summary=ledger.summary(market) if engine.purpose not in HISTORY_FREE_PURPOSES else ledger.blank_summary()
     ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[],'tool':None}
@@ -300,7 +300,7 @@ def run_cycle(engine,cycle_index):
             ledger.record_step(cycle_id,state['steps'],'archivist','promotion',{'phase':'PROMOTED','candidate_id':candidate['candidate_id'],'queue_event_id':queued['event_id'],
                                                                               'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
-        if cycle_index%AGENDA_EVERY==0 and engine.purpose not in EVALUATION_PURPOSES:
+        if cycle_index%AGENDA_EVERY==0 and engine.purpose not in HISTORY_FREE_PURPOSES:
             agenda=attempt('director','agenda',agenda_task(brief,summary),{})
             if agenda is not None: state['agenda']=agenda['text']
         state['status']='COMPLETED'

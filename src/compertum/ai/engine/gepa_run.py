@@ -31,7 +31,7 @@ from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
 from . import bench
 from .audit import check_request_invariant
-from .ledger import EngineLedger,RUN_ID,learning_cycle
+from .ledger import EVALUATION_PURPOSES,EngineLedger,RUN_ID
 from .levels import CLEARLY_WORSE,LEVELS,audited,candidate_level,cycle_level,norm_title as _norm
 from .limits import NOTE_LIMIT,STEP_FAULTS,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import COMPONENT_FILES,COMPONENTS,PROMPT_BYTES,ROLES,ROUTING_OPTIONS,SETTINGS_OPTIONS,check_component,load_component
@@ -50,11 +50,11 @@ PROMPTS_DIR='state/engine/prompts'
 GEPA_TRIALS=bench.BENCH_TRIALS
 FALSE_DISCOVERY_LEVEL=0
 FALSE_DISCOVERY_TEXT='A false discovery: a strategy passed the gate on a market with no pattern.'
-MINIBATCH=2  # markets per reflection step; every market is still in the validation set
+MINIBATCH=4
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
 MAX_RECORDS=6
-MAX_MARKETS=8
+MAX_MARKETS=24
 MAX_CANDIDATES=1000  # every prompt set a long run evaluates is kept (owner, 26 October 2026: no GEPA limits)
 PROPOSAL_INSTRUCTION=('Improve the system prompt below for the {role} role of a research engine. The records show the role\'s inputs, outputs and the '
                       'outcome of each attempt. Write the complete improved prompt. Keep the first line exactly "ROLE: {role}". Keep every output format '
@@ -129,7 +129,7 @@ def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 # extra short calls, which make a cycle slower. A total cannot fall by adding calls, and a call without token counts counts as UNCOUNTED_CALL_TOKENS,
 # so failed calls never look fast. Dividing by the candidates built keeps GEPA from learning to build less. SPEED_WEIGHT is below the smallest gap
 # between two mean level scores over equal markets (0.1 divided by at most MAX_MARKETS markets). write_candidates ranks by mean level first in any case.
-SPEED_WEIGHT=0.009
+SPEED_WEIGHT=0.004
 SPEED_TOKEN_CAP=16384  # output tokens per candidate built at which speed reaches 0
 UNCOUNTED_CALL_TOKENS=2048
 
@@ -181,7 +181,7 @@ def earlier_titles(ledger,current_cycle_id):
     """Normalized hypothesis titles of every finished cycle except the current one, mapped to the first cycle index that used them."""
     seen={}
     for cycle in ledger.cycles():
-        if cycle.get('phase')!='END' or cycle.get('cycle_id')==current_cycle_id or not learning_cycle(cycle): continue  # never bench or holdout ideas
+        if cycle.get('phase')!='END' or cycle.get('cycle_id')==current_cycle_id or cycle.get('purpose') in EVALUATION_PURPOSES: continue
         for hypothesis in cycle.get('hypotheses') or []:
             if isinstance(hypothesis,dict) and hypothesis.get('title'): seen.setdefault(_norm(hypothesis['title']),cycle.get('cycle_index'))
     return seen
@@ -404,17 +404,21 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
     return {'folder':str(folder),**record}
 
 
-def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,memory_floor_bytes,limits,owner_approval,
+def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,memory_floor_bytes,limits,owner_approval,validation_markets=None,
              available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None,transcript_training_allowed=None):
-    """One bounded GEPA run. cycle_limit bounds the number of evaluation cycles (GEPA metric calls); the request limit and the gate apply to every call."""
+    """One bounded GEPA run. cycle_limit bounds the number of evaluation cycles (GEPA metric calls); the request limit and the gate apply to every call.
+    markets: the training markets GEPA reflects on. validation_markets: the markets that rank candidates; None uses the training markets."""
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))
     goal=load_goal(project_root)
-    if not isinstance(markets,list) or not 1<=len(markets)<=MAX_MARKETS or any(not isinstance(m,dict) or not {'train_csv','validation_csv','validation_rows','label'}<=m.keys() for m in markets):
+    if validation_markets is None: validation_markets=markets
+    every=markets+validation_markets if markets is not validation_markets else markets
+    if (not isinstance(markets,list) or not isinstance(validation_markets,list) or not markets or not validation_markets or len(every)>MAX_MARKETS
+            or any(not isinstance(m,dict) or not {'train_csv','validation_csv','validation_rows','label'}<=m.keys() for m in every)):
         raise RuntimeRefused('ENGINE_MARKET_DENIED')
     # GEPA learns from its markets, so a bench or holdout market is refused here as in run_bounded, whoever the caller is (review, 26 October 2026).
     from .bench import fingerprint,reserved_fingerprints
-    if {fingerprint(m['train_csv'],m['validation_csv']) for m in markets}&reserved_fingerprints(): raise RuntimeRefused('ENGINE_MARKET_RESERVED')
+    if {fingerprint(m['train_csv'],m['validation_csv']) for m in every}&reserved_fingerprints(): raise RuntimeRefused('ENGINE_MARKET_RESERVED')
     from .cycle import Engine,run_cycle  # after the cheap checks: a refused call loads no agent libraries
     settings=load_run_settings(project_root);bounds=check_limits(limits,settings['request_hard_maximum'])
     if bounds['cycle_limit'] is None: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')  # GEPA needs a cycle budget
@@ -435,14 +439,15 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
     def build_engine(prompts,market):
         return Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
                       train_csv=market['train_csv'],validation_csv=market['validation_csv'],validation_rows=market['validation_rows'],
-                      memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts)
+                      memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose='gepa')
     adapter=PromptAdapter(build_engine=build_engine,run_cycle=run_cycle,client=client,ledger=ledger,run_id=run_id,next_index=first,cycle_limit=bounds['cycle_limit'],
                           goal=goal)
     logger=QuietLogger();started=utc_now()
     state={'run_id':run_id,'kind':'gepa','started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':adapter.evaluations,'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None,'prompts':None,'seed_sha256':{name:sha(seed_candidate[name]) for name in COMPONENTS}}
     ledger.record_run_phase(run_id,'START',{'kind':'gepa','limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
-                                           'models':models,'markets':[m['label'] for m in markets],'seed_sha256':state['seed_sha256'],'started_at':started,
+                                           'models':models,'markets':[m['label'] for m in markets],'validation_markets':[m['label'] for m in validation_markets],
+                                           'seed_sha256':state['seed_sha256'],'started_at':started,
                                            'stop_file':str(gate.stop_file),'gepa_seed':seed,'goal_sha256':None if goal is None else sha(goal),'score_trials':GEPA_TRIALS,
                                            **({'market_provenance':[m['provenance'] for m in markets if m.get('provenance')]} if any(m.get('provenance') for m in markets) else {})})
     gepa_result=None
@@ -454,7 +459,7 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
         # limit bounds the work. No merge, no progress bar, no tracking service, no run directory.
         # reflection_minibatch_size: at most MINIBATCH markets per reflection step, never more than there are (GEPA's default of 3 would pad a
         # 2-market minibatch and run one market twice). Every market stays in the validation set that ranks candidates.
-        gepa_result=optimize(seed_candidate=seed_candidate,trainset=markets,valset=markets,adapter=adapter,max_metric_calls=bounds['cycle_limit'],logger=logger,
+        gepa_result=optimize(seed_candidate=seed_candidate,trainset=markets,valset=validation_markets,adapter=adapter,max_metric_calls=bounds['cycle_limit'],logger=logger,
                              display_progress_bar=False,raise_on_exception=True,track_best_outputs=False,use_merge=False,seed=seed,skip_perfect_score=False,
                              reflection_minibatch_size=min(MINIBATCH,len(markets)))
         state['reason']='GEPA_COMPLETE'

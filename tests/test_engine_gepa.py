@@ -9,7 +9,7 @@ import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
 from compertum.ai.engine import bench,practice
-from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GEPA_TRIALS,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
+from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GEPA_TRIALS,SPEED_WEIGHT,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
                                           candidate_prompts,feedback_for,gepa_cycle_level,gepa_level,load_goal,records_text,score_for_cycle,sha,write_candidates)
 from compertum.ai.engine.prompts import (COMPONENT_FILES,ROUTING_DEFAULT,SETTINGS_DEFAULT,default_component,options_text,parse_routing,parse_settings,
                                          routing_text)
@@ -131,8 +131,7 @@ def test_gepa_levels_use_a_fixed_trial_count_and_never_reward_a_find_on_an_empty
     false=feedback_for(both,empty=True)
     assert false.startswith('Cycle level 0 of 10: A false discovery: a strategy passed the gate on a market with no pattern.')
     assert 'Candidate h2 (untitled): level 0. A false discovery' in false and 'It failed the Auditor' not in false
-    markets=[practice.practice_market(12+offset,500,0.004,kind,window)[0] for kind,window,offset in practice.GEPA_MARKETS]
-    assert [m['kind'] for m in markets]==['momentum','momentum','reversal',None]
+    assert practice.practice_market(41,500,0.004,None,0)[0]['kind'] is None and practice.practice_market(12,500,0.004)[0]['kind']=='momentum'
 
 
 def test_feedback_explains_the_level_with_the_numbers_behind_it(bridge):
@@ -348,22 +347,38 @@ def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
     """Review, 26 October 2026: only practice.py's seed check kept GEPA off reserved markets. run_gepa now refuses them itself."""
     from compertum.ai.engine import bench
     from compertum.ai.engine.gepa_run import run_gepa
-    market=bench.set_markets(name)[0]
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_RESERVED$'):
-        run_gepa(store=None,lease=None,project_root=PROJECT,sandbox_root=None,verification=None,roles=None,markets=[market],memory_floor_bytes=1,
-                 limits=None,owner_approval='review fixture')
+    market=bench.set_markets(name)[0];train,validation=practice.gepa_markets(500,0.004)
+    def go(**kw):
+        run_gepa(store=None,lease=None,project_root=PROJECT,sandbox_root=None,verification=None,roles=None,memory_floor_bytes=1,limits=None,owner_approval='review fixture',**kw)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_RESERVED$'): go(markets=[market])
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_RESERVED$'): go(markets=train[:1],validation_markets=[market])
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): go(markets=train,validation_markets=validation+train[:1])
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): go(markets=train[:1],validation_markets=[])
+
+
+def test_gepa_markets_have_their_own_seeds_a_split_and_a_mix_of_patterns():
+    train,validation=practice.gepa_markets(500,0.004)
+    assert len(train)==16 and len(validation)==8 and len({m['validation_csv'] for m in train+validation})==24
+    assert [int(m['label'].split(',')[0].split()[1]) for m in train+validation]==list(range(200,224))
+    kinds=[(m['kind'],m['label'].split(', ')[2]) for m in validation]
+    assert kinds==[('momentum','momentum window 5'),('momentum','momentum window 10'),('reversal','reversal window 3'),('reversal','reversal window 5'),
+                   ('momentum','momentum window 5'),('reversal','reversal window 3'),(None,'no pattern'),(None,'no pattern')]
+    assert [m['label'].split('strength ')[-1] for m in validation[:6]]==['0.004','0.004','0.004','0.004','0.002','0.002']
+    assert [m['kind'] for m in train]==[m['kind'] for m in validation]*2
+    assert not any(bench.reserved_seed(s) for s in practice.GEPA_SEEDS) and 12 not in practice.GEPA_SEEDS
+    assert not ({bench.fingerprint(m['train_csv'],m['validation_csv']) for m in train+validation}&bench.reserved_fingerprints())
 
 
 def test_the_best_candidate_has_the_highest_mean_level_whatever_the_counts():
-    """Review, 26 October 2026: 3 evaluations against 4 give a mean gap of 0.1/12 in score, below SPEED_WEIGHT, so ranking by
+    """Review, 26 October 2026: unequal evaluation counts give a mean gap in score below SPEED_WEIGHT, so ranking by
     mean score picked a faster candidate with a lower level. The ranking now compares exact mean levels first."""
     from compertum.ai.engine.gepa_run import best_candidate,mean_level,score_with_speed
     def entries(levels,speed): return [{'level':v,'score':score_with_speed(v/10,{'speed':speed}),'speed':{'speed':speed}} for v in levels]
-    better={'scores':entries([6,6,7],0.0)};faster={'scores':entries([6,6,6,7],1.0)}
+    better={'scores':entries([6]*7+[7],0.0)};faster={'scores':entries([6]*8+[7],1.0)}
     old=[sum(s['score'] for s in c['scores'])/len(c['scores']) for c in (better,faster)]
     assert old[1]>old[0]  # the defect: by mean score the lower level won
     assert best_candidate([better,faster])==0 and best_candidate([faster,better])==1
-    assert mean_level(better['scores'])==6.3333 and mean_level([]) is None
+    assert mean_level(better['scores'])==6.125 and mean_level([]) is None
     # Equal mean levels: the faster candidate wins; equal speed too: the lower index. No scores: never best.
     assert best_candidate([{'scores':entries([6,7],0.2)},{'scores':entries([7,6],0.4)}])==1
     assert best_candidate([{'scores':entries([6],0.2)},{'scores':entries([6],0.2)}])==0
@@ -384,7 +399,7 @@ def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
     adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=client,ledger=ledger,run_id='run-20261025-0123abcd',next_index=8,cycle_limit=2)
     batch=adapter.evaluate([{'label':'a'}],prompts,capture_traces=True)
     speed=round(1-2048/16384,6)  # 4 calls of 512 output tokens, one candidate built
-    assert batch.scores==[round(0.6+0.009*speed,6)] and batch.outputs[0]['level']==6
+    assert batch.scores==[round(0.6+SPEED_WEIGHT*speed,6)] and batch.outputs[0]["level"]==6
     assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'output_tokens':2048,'candidates_built':1,'tokens_per_candidate':2048.0,'speed':speed}
     assert '2048 output tokens, 2048.0 per candidate built' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4
 

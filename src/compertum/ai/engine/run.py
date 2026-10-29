@@ -32,7 +32,7 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))  # the note enters the ledger and the summary; no secret may ride along
     settings=load_run_settings(project_root);bounds=check_limits(limits,settings['request_hard_maximum'])
-    if purpose not in PURPOSES or (purpose in EVALUATION_PURPOSES)!=(schedule is not None): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    if purpose not in PURPOSES or purpose=='gepa' or (purpose in EVALUATION_PURPOSES)!=(schedule is not None): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if schedule is None: schedule=[market]
     elif not isinstance(schedule,list) or not schedule or bounds['cycle_limit'] is None or bounds['cycle_limit']>len(schedule): raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
     if any(not isinstance(m,dict) or not {'train_csv','validation_csv','validation_rows'}<=m.keys() for m in schedule): raise RuntimeRefused('ENGINE_MARKET_DENIED')

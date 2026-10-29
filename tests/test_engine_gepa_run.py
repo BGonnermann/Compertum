@@ -44,8 +44,11 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     before={role:load_prompt(project,role) for role in ROLES};markets=markets_for(tiers)
     markets[0]['provenance']={'provider':'alpaca','financial_accepted':False,'snapshot_sha256':'b'*64}
     with role_server() as (port,state):
-        result=start(bridge,project,root,verification,markets,port,RunLimits(request_limit=200,cycle_limit=6))
+        result=start(bridge,project,root,verification,markets[:1],port,RunLimits(request_limit=200,cycle_limit=6),validation_markets=markets[1:])
     assert result['reason'] in ('CYCLE_LIMIT','GEPA_COMPLETE') and result['kind']=='gepa' and 2<=len(result['cycles'])<=6 and result['requests']==len(state['posts'])<=200
+    starts=[c for c in ledger.cycles() if c['phase']=='START']
+    assert starts and all(c['purpose']=='gepa' and c['summary']==ledger.blank_summary() for c in starts)
+    assert all(c['purpose']=='gepa' for c in ledger.cycles() if c['phase']=='END') and ledger.summary('m'*64)['cycles_completed']==0
     assert result['request_invariant'] is True and all(c['status']=='COMPLETED' for c in result['cycles'])
     # Every evaluation was a real cycle on TRAIN and VALIDATION: candidates audited and queued, trials counted, no vault.
     statuses={x['status'] for c in result['cycles'] for x in c['candidates']};assert statuses<={'QUEUED','REJECTED_AUDIT','REJECTED_DEFLATED','REJECTED'} and 'QUEUED' in statuses
@@ -64,7 +67,8 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     assert (folder/'candidate-0'/'director.md').read_text(encoding='utf-8')==before['director'] and {role:load_prompt(project,role) for role in ROLES}==before
     changed=any((folder/f'candidate-{i}'/f'{role}.md').read_text(encoding='utf-8')!=before[role] for i in range(1,prompts['candidate_count']) for role in ROLES);assert changed
     # START and END rows, the summary, and the owner's apply command.
-    rows=ledger.run_rows(result['run_id']);assert rows[0]['kind']=='gepa' and rows[0]['markets']==['seed 12','seed 16'] and rows[1]['reason']==result['reason'] and rows[1]['proposals']==len(proposals)
+    rows=ledger.run_rows(result['run_id']);assert rows[0]['kind']=='gepa' and rows[0]['markets']==['seed 12'] and rows[0]['validation_markets']==['seed 16']
+    assert rows[1]['reason']==result['reason'] and rows[1]['proposals']==len(proposals)
     assert rows[0]['market_provenance']==[markets[0]['provenance']]
     assert rows[1]['prompt_candidates']==prompts['candidate_count'] and f"ended, reason {result['reason']}" in Path(result['summary_path']).read_text(encoding='utf-8')
     applied=apply_prompts(project,result['run_id'],1);assert set(applied['applied_sha256'])==set(COMPONENTS) and load_prompt(project,'director')!=before['director']

@@ -399,6 +399,12 @@ The global count made almost every honest cycle level 7 and made later candidate
 On a practice market with no pattern, levels above 6 count as 6, and any false discovery makes the cycle level 0.
 A candidate with a false discovery is never the best candidate while a clean one exists.
 60 fixed trials is fewer than a long run really tries, so GEPA levels rank candidates and are not evidence of an edge.
+
+GEPA's markets and history (29 October 2026, owner direction): GEPA reflects on 16 training markets and ranks candidates on 8 validation markets,
+all generated from seeds 200 to 223, which practice runs refuse. Each set mixes momentum and reversal at two strengths with markets that have no pattern.
+GEPA cycles carry purpose `gepa`: they see no history and write no lessons, so every candidate is measured alike and practice runs cannot change the test.
+Reflection reads 4 training markets per step. One full ranking costs 8 cycles, so a weekend run of about 880 cycles compares roughly 60 to 100 candidates.
+The Director's lessons table shows outcomes as sentences without level numbers, and the Director prompt no longer tells it which outcomes to build on.
 GEPA runs before this change are not comparable with later runs. The real gate and the lessons table still use the global count.
 
 `engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.
