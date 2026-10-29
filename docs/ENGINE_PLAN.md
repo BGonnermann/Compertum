@@ -405,6 +405,10 @@ all generated from seeds 200 to 223, which practice runs refuse. Each set mixes 
 GEPA cycles carry purpose `gepa`: they see no history and write no lessons, so every candidate is measured alike and practice runs cannot change the test.
 Reflection reads 4 training markets per step. One full ranking costs 8 cycles, so a weekend run of about 880 cycles compares roughly 60 to 100 candidates.
 The Director's lessons table shows outcomes as sentences without level numbers, and the Director prompt no longer tells it which outcomes to build on.
+
+Parallel GEPA cycles (29 October 2026): a cycle is mostly waiting for the model, so `PromptAdapter.evaluate` runs up to `PARALLEL_CYCLES` (4) cycles of a batch at once.
+Shared state is guarded: the model client counts requests and writes rows under locks, every call row names its cycle through a context variable,
+and the sandbox, which has one fixed profile, runs one job at a time while model calls overlap. Bench and practice runs stay sequential for now.
 GEPA runs before this change are not comparable with later runs. The real gate and the lessons table still use the global count.
 
 `engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.

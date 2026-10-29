@@ -16,6 +16,8 @@ numbers behind it, built from the cycle's own records. Every strategy a candidat
 VALIDATION only; the run has no vault rows. Every model call, including GEPA's reflection calls, goes through the E1
 client under the run's request limit, the owner's hard maximum and the run gate (E5).
 """
+from concurrent.futures import ThreadPoolExecutor
+import contextvars
 from dataclasses import dataclass,field
 from datetime import datetime,timezone
 from fractions import Fraction
@@ -23,6 +25,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import threading
 from typing import Any
 from uuid import uuid4
 from compertum.events import canonical
@@ -51,6 +54,7 @@ GEPA_TRIALS=bench.BENCH_TRIALS
 FALSE_DISCOVERY_LEVEL=0
 FALSE_DISCOVERY_TEXT='A false discovery: a strategy passed the gate on a market with no pattern.'
 MINIBATCH=4
+PARALLEL_CYCLES=4
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
 MAX_RECORDS=6
@@ -237,6 +241,9 @@ class PromptAdapter:
     proposals:list=field(default_factory=list)
     candidates:list=field(default_factory=list)  # every distinct prompt set evaluated, with its scores
     stop_code:Any=None  # a refusal seen during reflection; GEPA swallows exceptions there, so evaluate re-raises it
+    parallel:int=PARALLEL_CYCLES
+    pending:int=0
+    lock:Any=field(default_factory=threading.Lock)
 
     def find_index(self,prompts):
         key={name:sha(prompts[name]) for name in COMPONENTS}
@@ -252,21 +259,35 @@ class PromptAdapter:
     def evaluate(self,batch,candidate,capture_traces=False):
         if self.stop_code is not None: raise RuntimeRefused(self.stop_code)
         prompts={name:check_prompt(name,candidate[name]) for name in COMPONENTS};index=self._candidate_index(prompts)
-        outputs=[];scores=[];trajectories=[]
-        for market in batch:
+        markets=list(batch)
+        with self.lock:
             # The owner's cycle limit is a hard bound. GEPA's own budget is checked between iterations only.
-            if len(self.evaluations)>=self.cycle_limit: raise RuntimeRefused('ENGINE_CYCLE_LIMIT')
-            engine=self.build_engine(prompts,market)
-            rows=getattr(getattr(self.client,'ledger',None),'rows',None);before=len(rows()) if callable(rows) else None
-            result=self.run_cycle(engine,self.next_index);self.next_index+=1
-            speed=speed_for_calls(rows()[before:],len(result.get('candidates') or [])) if before is not None else None
-            record={'cycle_id':result['cycle_id'],'cycle_index':self.next_index-1,'market':market.get('label'),'status':result['status'],'stop_code':result.get('stop_code'),
-                    'hypotheses':result.get('hypotheses'),'candidates':result.get('candidates'),'runs':result.get('runs'),'requests_after':result.get('requests_after'),
-                    'total_trials':result.get('total_trials'),'prompt_candidate':index}
-            self.evaluations.append(record)
+            allowed=markets[:max(0,self.cycle_limit-len(self.evaluations)-self.pending)]
+            first=self.next_index;self.next_index+=len(allowed);self.pending+=len(allowed)
+        rows=getattr(getattr(self.client,'ledger',None),'rows',None);before=len(rows()) if callable(rows) else None
+        def one(market,cycle_index):
+            return market,cycle_index,self.run_cycle(self.build_engine(prompts,market),cycle_index)
+        try:
+            if len(allowed)<=1 or self.parallel<=1: outcomes=[contextvars.copy_context().run(one,m,first+i) for i,m in enumerate(allowed)]
+            else:
+                with ThreadPoolExecutor(max_workers=min(self.parallel,len(allowed))) as pool:
+                    outcomes=[f.result() for f in [pool.submit(contextvars.copy_context().run,one,m,first+i) for i,m in enumerate(allowed)]]
+        finally:
+            with self.lock: self.pending-=len(allowed)
+        with self.lock:
+            records=[]
+            for market,cycle_index,result in outcomes:
+                record={'cycle_id':result['cycle_id'],'cycle_index':cycle_index,'market':market.get('label'),'status':result['status'],'stop_code':result.get('stop_code'),
+                        'hypotheses':result.get('hypotheses'),'candidates':result.get('candidates'),'runs':result.get('runs'),'requests_after':result.get('requests_after'),
+                        'total_trials':result.get('total_trials'),'prompt_candidate':index}
+                self.evaluations.append(record);records.append(record)
+        outputs=[];scores=[];trajectories=[]
+        for (market,cycle_index,result),record in zip(outcomes,records):
             if result.get('stop_code') is not None:
                 # A refusal from the model path, the gate or a freeze is systemic: GEPA must stop, not score it.
                 raise RuntimeRefused(result['stop_code'])
+            mine=[r for r in rows()[before:] if r.get('cycle_id') in (None,result['cycle_id'])] if before is not None else None
+            speed=speed_for_calls(mine,len(result.get('candidates') or [])) if mine is not None else None
             empty='kind' in market and market['kind'] is None
             level=gepa_cycle_level(result,empty);score=score_with_speed(score_for_cycle(result,empty),speed)
             found={'false_discovery':True} if empty and level==FALSE_DISCOVERY_LEVEL else {}
@@ -278,6 +299,7 @@ class PromptAdapter:
                 feedback=_clip(feedback+f" Speed: {speed['calls']} model calls, {speed['output_tokens']} output tokens, {speed['tokens_per_candidate']} per candidate built. "
                            'Fewer output tokens per candidate break ties between prompts at the same level; they never outweigh a better level.')
             trajectories.append({'transcript':result.get('transcript') or [],'feedback':feedback,'score':score})
+        if len(allowed)<len(markets): raise RuntimeRefused('ENGINE_CYCLE_LIMIT')
         return EvaluationBatch(outputs=outputs,scores=scores,trajectories=trajectories if capture_traces else None)
 
     def make_reflective_dataset(self,candidate,eval_batch,components_to_update):

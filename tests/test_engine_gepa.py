@@ -194,6 +194,40 @@ def test_evaluate_caps_only_markets_that_are_known_to_have_no_pattern(bridge):
     assert 'This market has no pattern.' in batch.trajectories[1]['feedback'] and 'no pattern' not in batch.trajectories[2]['feedback']
 
 
+def test_evaluate_runs_the_markets_of_a_batch_at_the_same_time_and_records_them_in_order(bridge):
+    import threading
+    from compertum.ai.models import CYCLE
+    s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
+    prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
+    barrier=threading.Barrier(3,timeout=10);calls=[];seen={}
+    class Rows:
+        def rows(self): return list(calls)
+    def fake_cycle(engine,index):
+        cycle_id=f'cycle-{index:04d}-fake';CYCLE.set(cycle_id);barrier.wait();seen[index]=threading.current_thread().name
+        calls.extend([{'cycle_id':cycle_id,'usage':{'prompt_tokens':1,'completion_tokens':256*index}}]*2)
+        return {'cycle_id':cycle_id,'status':'COMPLETED','stop_code':None,'hypotheses':[{'id':'h1','title':'t'}],
+                'candidates':[{'hypothesis_id':'h1','status':'REJECTED'}],'scores':{'h1':s['near']},'transcript':[]}
+    client=type('C',(),{'ledger':Rows()})()
+    adapter=PromptAdapter(build_engine=lambda p,m:None,run_cycle=fake_cycle,client=client,ledger=ledger,run_id='run-20261029-0123abcd',next_index=1,cycle_limit=9,parallel=3)
+    batch=adapter.evaluate([{'label':'a'},{'label':'b'},{'label':'c'}],prompts)
+    assert [e['cycle_index'] for e in adapter.evaluations]==[1,2,3] and [e['market'] for e in adapter.evaluations]==['a','b','c'] and len(set(seen.values()))==3
+    assert [o['level'] for o in batch.outputs]==[6,6,6] and [o['speed']['output_tokens'] for o in batch.outputs]==[512,1024,1536]
+    assert CYCLE.get() is None and adapter.pending==0 and adapter.next_index==4
+    # The cycle limit cuts a batch after the allowed cycles ran and were recorded.
+    plain=PromptAdapter(build_engine=lambda p,m:None,run_cycle=lambda e,i:{'cycle_id':f'cycle-{i:04d}-fake','status':'COMPLETED','stop_code':None,'hypotheses':[],'candidates':[],'scores':{},'transcript':[]},
+                        client=None,ledger=ledger,run_id='run-20261029-0123abcd',next_index=1,cycle_limit=2,parallel=1)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_CYCLE_LIMIT$'): plain.evaluate([{'label':'a'},{'label':'b'},{'label':'c'}],prompts)
+    assert [e['cycle_index'] for e in plain.evaluations]==[1,2] and [s['level'] for s in plain.candidates[0]['scores']]==[1,1]
+    with pytest.raises(RuntimeRefused,match='^ENGINE_CYCLE_LIMIT$'): plain.evaluate([{'label':'d'}],prompts)
+    assert len(plain.evaluations)==2
+    # A stopped cycle is recorded, then its code stops GEPA.
+    def stopping(engine,index):
+        return {'cycle_id':f'cycle-{index:04d}-fake','status':'STOPPED_ENGINE_STOP_FILE_PRESENT','stop_code':'ENGINE_STOP_FILE_PRESENT','hypotheses':[],'candidates':[],'scores':{},'transcript':[]}
+    halted=PromptAdapter(build_engine=lambda p,m:None,run_cycle=stopping,client=None,ledger=ledger,run_id='run-20261029-0123abcd',next_index=5,cycle_limit=9,parallel=2)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_STOP_FILE_PRESENT$'): halted.evaluate([{'label':'a'},{'label':'b'}],prompts)
+    assert [e['cycle_index'] for e in halted.evaluations]==[5,6] and all(e['stop_code']=='ENGINE_STOP_FILE_PRESENT' for e in halted.evaluations)
+
+
 def test_a_candidate_with_a_false_discovery_is_never_best_while_a_clean_one_exists():
     from compertum.ai.engine.gepa_run import best_candidate
     reckless={'scores':[{'level':10},{'level':10},{'level':10},{'level':0,'false_discovery':True}]}
@@ -282,7 +316,7 @@ def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observation
     def stopped_cycle(engine,index): return {'cycle_id':'cycle-0009-fake','status':'STOPPED_AI_REQUEST_BUDGET','stop_code':'AI_REQUEST_BUDGET','candidates':[],'transcript':[]}
     adapter2=PromptAdapter(build_engine=lambda p,m:None,run_cycle=stopped_cycle,client=None,ledger=ledger,run_id='run-20261024-0123abcd',next_index=1,cycle_limit=3)
     with pytest.raises(RuntimeRefused,match='^AI_REQUEST_BUDGET$'): adapter2.evaluate(markets,prompts)
-    assert adapter2.candidates[0]['scores']==[] and len(adapter2.evaluations)==1
+    assert adapter2.candidates[0]['scores']==[] and len(adapter2.evaluations)==2 and all(e['stop_code']=='AI_REQUEST_BUDGET' for e in adapter2.evaluations)
 
 
 def record_hashes(run_folder,index):

@@ -1,6 +1,8 @@
 """One Chat Completions interface for every AI role: loopback servers, plus the remote providers the owner lists in
 config/providers.toml. The ledger records each call and each refusal, never a key."""
 import asyncio
+import contextvars
+import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
@@ -23,6 +25,7 @@ from .manual import sanitized,read_json
 
 ENGINE_ROLES=frozenset({'director','researcher','mathematician','engineer'})
 PROVIDER='loopback'
+CYCLE:contextvars.ContextVar[str|None]=contextvars.ContextVar('engine_cycle',default=None)
 MAX_BYTES=65536
 MAX_OUTPUT_TOKENS,MAX_SECONDS=16384,600
 RESPONSE_BYTES=262144  # a reply, thinking text included; raised from 65536 with the per-model caps (26 October 2026)
@@ -296,6 +299,7 @@ class ModelClient:
         if type(request_limit) is not int or not 1<=request_limit<=10000: raise RuntimeRefused('AI_REQUEST_BUDGET')
         if (gate is not None and not callable(gate)) or (transcript is not None and not callable(transcript)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         self.roles=roles;self.ledger=ledger;self.memory_floor_bytes=memory_floor_bytes;self.request_limit=request_limit
+        self._count_lock=threading.Lock();self._record_lock=threading.Lock()
         # gate: a callable with no arguments that raises RuntimeRefused when no new request may start (stage E5 kill switch,
         # hour limit, freeze). It runs before every request, so a stop takes effect at the next request boundary.
         self.available_memory=available_memory;self.requests=0;self.native_limits=None;self.gate=gate
@@ -365,7 +369,7 @@ class ModelClient:
                            'request_seconds':recorded_number(seconds),'stream':False},
                'prompt_sha256':None,'response_sha256':None,'usage':None,'finish_reason':None,'refusal_detail':None,'elapsed_seconds':None,
                'available_memory_bytes':None,'memory_floor_bytes':self.memory_floor_bytes,
-               'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None}
+               'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None,'cycle_id':CYCLE.get()}
         exchange=None  # set once the request is sent: only sent requests reach the transcript
         try:
             if spec is None: raise RuntimeRefused('AI_ROLE_DENIED')
@@ -383,7 +387,10 @@ class ModelClient:
             if tools is not None: sanitized(canonical(tools))
             headers=auth_headers(spec)  # a remote provider without its key refuses here, before the request counts
             # The attempt counts before any byte leaves. A failed request still uses a request.
-            self.requests+=1;exchange={'messages':messages,'tools':names}
+            with self._count_lock:
+                if self.requests>=self.request_limit: raise RuntimeRefused('AI_REQUEST_BUDGET')
+                self.requests+=1;entry['request_index']=self.requests
+            exchange={'messages':messages,'tools':names}
             payload={'model':spec.model,'messages':messages,'temperature':temperature,'max_tokens':max_tokens,'stream':False}
             if tools is not None: payload.update(tools=tools,tool_choice='auto')
             tool_calls=[]
@@ -431,7 +438,8 @@ class ModelClient:
             # Any other exception still leaves a complete row. The ledger never loses a counted attempt.
             if entry['status'] is None: entry['status']='FAILED_UNEXPECTED'
             entry['elapsed_seconds']=time.monotonic()-started
-            self.ledger.record(entry)
-            if self.transcript is not None and exchange is not None:
-                try: self.transcript({**{k:entry[k] for k in ('call_id','role','purpose','provider','model_requested','model_reported','request_index','status','finish_reason','usage','elapsed_seconds','settings')},**exchange})
-                except Exception: self.transcript_failures+=1  # a lost transcript line never stops the run; the count is reported
+            with self._record_lock:
+                self.ledger.record(entry)
+                if self.transcript is not None and exchange is not None:
+                    try: self.transcript({**{k:entry[k] for k in ('call_id','role','purpose','provider','model_requested','model_reported','request_index','status','finish_reason','usage','elapsed_seconds','settings','cycle_id')},**exchange})
+                    except Exception: self.transcript_failures+=1  # a lost transcript line never stops the run; the count is reported

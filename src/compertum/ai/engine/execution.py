@@ -8,8 +8,11 @@ import json
 from pathlib import Path
 from uuid import uuid4
 from compertum.runtime.errors import RuntimeRefused
+import threading
 from compertum.runtime.jobs import hold_job_slot
 from compertum.runtime.sandbox import LoopbackWatcher,REPARSE_POINT,require_verified,run_sandboxed
+
+SANDBOX_LOCK=threading.Lock()
 
 MAX_FILES,MAX_FILE_BYTES,MAX_TOTAL_BYTES=32,262144,262144
 OUTPUT_HEAD=8192
@@ -135,7 +138,7 @@ class EngineerSandbox:
                 target=job/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content,encoding='utf-8',newline='\n')
             (job/'train.csv').write_text(self.train_csv,encoding='utf-8');(job/'validation.csv').write_text(validation_csv,encoding='utf-8')
             watcher=LoopbackWatcher()
-            with hold_job_slot(self.lease,f'engine-{purpose}-job'):
+            with SANDBOX_LOCK,hold_job_slot(self.lease,f'engine-{purpose}-job'):
                 result=run_sandboxed(self.root,job,[entry],seconds=self.seconds,memory_bytes=self.memory_bytes,memory_floor_bytes=self.memory_floor_bytes,watcher=watcher)
             watched=watcher.record()
             record.update(result=result.record(),watcher=watched,stdout=head(result.stdout),stderr=head(result.stderr))

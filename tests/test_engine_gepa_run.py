@@ -49,6 +49,9 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     starts=[c for c in ledger.cycles() if c['phase']=='START']
     assert starts and all(c['purpose']=='gepa' and c['summary']==ledger.blank_summary() for c in starts)
     assert all(c['purpose']=='gepa' for c in ledger.cycles() if c['phase']=='END') and ledger.summary('m'*64)['cycles_completed']==0
+    ids={c['cycle_id'] for c in starts};calls=StoreLedger(store).rows()
+    assert calls and all(r.get('cycle_id') in ids for r in calls if str(r.get('purpose','')).startswith('engine:'))
+    assert all(r.get('cycle_id') is None for r in calls if str(r.get('purpose','')).startswith('gepa-reflect-'))
     assert result['request_invariant'] is True and all(c['status']=='COMPLETED' for c in result['cycles'])
     # Every evaluation was a real cycle on TRAIN and VALIDATION: candidates audited and queued, trials counted, no vault.
     statuses={x['status'] for c in result['cycles'] for x in c['candidates']};assert statuses<={'QUEUED','REJECTED_AUDIT','REJECTED_DEFLATED','REJECTED'} and 'QUEUED' in statuses

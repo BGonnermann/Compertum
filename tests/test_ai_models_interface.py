@@ -236,6 +236,29 @@ def test_incomplete_or_foreign_model_files_are_refused(tmp_path,fault):
     with pytest.raises(RuntimeRefused,match='UNKNOWN_CONFIG_FIELD|CONFIG_OUTSIDE_PROJECT'): load_models(path,root)
 
 
+def test_calls_carry_the_cycle_they_belong_to_and_the_budget_holds_under_concurrent_calls():
+    import contextvars
+    import threading
+    from compertum.ai.models import CYCLE
+    with server() as (port,state):
+        ledger=ListLedger();c=client(port,ledger,limit=4)
+        messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'tag me'}]
+        def tagged():
+            CYCLE.set('cycle-0007-test');return c.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)[1]
+        entry=contextvars.copy_context().run(tagged)
+        assert entry['cycle_id']=='cycle-0007-test' and CYCLE.get() is None
+        plain=c.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)[1];assert plain['cycle_id'] is None
+        outcomes=[]
+        def one():
+            try: outcomes.append(c.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)[1]['status'])
+            except RuntimeRefused as error: outcomes.append(error.code)
+        threads=[threading.Thread(target=one) for _ in range(5)]
+        for t in threads: t.start()
+        for t in threads: t.join(30)
+        assert sorted(outcomes)==['AI_REQUEST_BUDGET']*3+['COMPLETED']*2 and c.requests==4 and len(state['posts'])==4
+        assert sorted(e['request_index'] for e in ledger.entries if e['status']=='COMPLETED')==[1,2,3,4]
+
+
 def test_completion_records_role_address_model_and_hashes_for_each_call():
     with server() as (port,state):
         ledger=ListLedger();c=client(port,ledger)

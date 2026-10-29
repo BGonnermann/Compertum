@@ -63,10 +63,46 @@ Reading: the firm finds a reversal rule even when the drift flips, and finds no 
 This is the first bench-2 run, so there is no earlier bench-2 result to compare with. It is not comparable with the bench-1 flash baseline of
 26 October (2 of 3, mean 7.15): different markets and a different Director prompt. The sandbox cleanup ran after the run: 799 files and 137 folders removed.
 
-Bench-3 flash baseline started at 11:58 EDT through `tools\start_run.ps1` (process 30248, 4 cycles per market, 2,400 requests; bench-2 used 28 per cycle).
-It should end at about 17:30 EDT, before the 21:00 peak.
+Bench-3 flash baseline, `run-20261029-5fa9cd3c` (new Director prompt, 4 cycles per market, started 11:58 EDT through `tools\start_run.ps1`):
+verdict `MEASURED`, `CYCLE_LIMIT`, 64 cycles, 1,675 requests, 291 minutes, 191 candidates. Patterns found 6 of 10; false discoveries 0 of 6; mean level 6.22.
+Record: `.cache/test-runs/practice-bench-20261029-115804-record.json`.
+- Momentum 5 at 0.004: seed 111 not found (best capture 0.313), seed 112 found by 4 candidates (1.106).
+- Reversal 3 at 0.004: seed 113 not found (no candidate beat buy-and-hold), seed 114 found by 1 candidate (0.536).
+- Momentum 5 at 0.002: seed 115 found by 5 candidates (1.369), seed 116 not found (no candidate beat buy-and-hold).
+- Reversal 3 at 0.002: seed 117 found by 4 candidates (2.448), seed 118 by 1 (0.502).
+- Changing regimes: seed 119 not found (0.379), seed 120 found by 2 candidates (0.988).
+- Empty markets 121 to 126: 0 passed the bench gate. Seed 124 had 4 audited candidates that beat buy-and-hold by luck, seed 126 had 2 (levels 8 and 8).
+No candidate on any market passed the bench gate. The planted reference rule did not pass it either (best reference bench deflated Sharpe 0.823, seed 111).
+So on 500-session markets the bench measures "found" through capture only, and level 10 is out of reach even for the true rule.
+Capture is noisy where buy-and-hold has a negative Sharpe: the ratio passed 1 on four markets.
+The two seeds of one pattern disagreed on four of five patterns, so one seed per pattern says little. Bench-3's 2 seeds per pattern were the right choice.
+12 build steps ended with `AI_RESPONSE_TRUNCATED` (11 Engineer, 1 Mathematician) and 2 with `AI_TOOL_EXECUTION_DENIED`; each cycle went on.
+Comparison, all `deepseek-flash` at 4 cycles per market: bench-1 (26 October, old prompt) 2 of 3, mean 7.15; bench-2 1 of 3, mean 6.10; bench-3 6 of 10, mean 6.22.
+The sets have different markets, so the numbers rank nothing. False discoveries were 0 in all three. Bench-3 is the baseline for the next prompt changes.
 
-Exact next action: report bench-3 and compare it with bench-1 and bench-2. Then build the parallel cycles for GEPA and test them with the sandbox free.
+Parallel GEPA cycles, built on 29 October 2026 (owner: weekend GEPA runs "should not take that long if we optimize it"):
+- `PromptAdapter.evaluate` (`gepa_run.py`) runs the markets of a batch at the same time, up to `PARALLEL_CYCLES` (4), each cycle in its own thread and context.
+  Cycle indices are given before the cycles start, so records stay in batch order. The cycle limit cuts a batch to the cycles still allowed, records them, then stops.
+  A stopped cycle is recorded with its code, and the batch's other cycles finish before the code stops GEPA.
+- `ModelClient` (`models.py`): the budget check and the request count are one locked step, so concurrent calls never pass the limit, and the ledger row and
+  transcript line are written under a second lock. Every call row carries `cycle_id` from a context variable that `run_cycle` sets (`CYCLE` in `models.py`).
+  LangGraph copies the context into its worker threads, so role calls made inside an agent keep their cycle. Reflection calls carry no cycle.
+- `EngineerSandbox` (`execution.py`): one lock around the sandbox job, because the sandbox has one fixed profile. Model calls overlap; sandbox runs queue.
+- The cycle's speed measure counts only the rows of its own cycle.
+Expected effect: a 10,000-request GEPA run in about 9 hours instead of 36, because a cycle is mostly waiting for the model.
+Product lane, `test_engine_gepa.py` and `test_ai_models_interface.py`: 94 passed, 0 failed, 0 skipped.
+The first engine lane after bench-3 failed 3 tests, 305 passed (evidence kept in `.cache/test-runs/parallel-gepa-engine-20261029-165013`).
+Cause: `run_cycle` set the cycle tag and never reset it, so calls after a cycle in the same thread carried that cycle's tag.
+`run_cycle` now sets the tag for its own run only and restores the earlier value when the cycle ends.
+Final verification, source, simulated markets: engine lane, all engine files with `test_ai_models_interface.py`, `test_run_tests_tool.py` and
+`test_clean_test_runs.py`: 308 passed, 0 failed, 0 skipped, 8 pandas warnings. Product lane, the same files: 244 passed, 0 failed, 7 skipped (engine libraries absent).
+The parallel speed is not measured yet. The first weekend GEPA run measures it.
+Bench and practice runs (`run_bounded`) still run one cycle at a time.
+
+Recommended, not applied: the Engineer's cap in `config/models-deepseek.toml` is 8,192 output tokens. In the 11 cut-off Engineer replies,
+reasoning used 2,991 to 7,531 of them. Raising the cap to 16,384, the engine maximum, waits for the owner because it changes the bench-3 conditions.
+
+Exact next action: the owner decides on the Engineer cap and the hand-edit bench check. Then the first weekend GEPA run, off-peak, through `tools\start_run.ps1`.
 
 ## Seventh GEPA run stopped; bench-3 and GEPA scoring verified - 29 October 2026
 

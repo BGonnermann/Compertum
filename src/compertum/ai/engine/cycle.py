@@ -15,6 +15,7 @@ from typing import Any
 from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
+from compertum.ai.models import CYCLE
 from .audit import audit_candidate
 from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
@@ -101,11 +102,17 @@ def market_sha256(engine):
 
 
 def run_cycle(engine,cycle_index):
+    token=CYCLE.set(None)
+    try: return _run_cycle(engine,cycle_index)
+    finally: CYCLE.reset(token)
+
+
+def _run_cycle(engine,cycle_index):
     if type(cycle_index) is not int or cycle_index<1: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     if type(engine.max_hypotheses) is not int or not 1<=engine.max_hypotheses<=MAX_HYPOTHESES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     if engine.purpose not in PURPOSES: raise RuntimeRefused('ENGINE_CYCLE_DENIED')
     ledger=engine.ledger;ledger.require_unfrozen()
-    cycle_id=f'cycle-{cycle_index:04d}-{uuid4().hex[:8]}'
+    cycle_id=f'cycle-{cycle_index:04d}-{uuid4().hex[:8]}';CYCLE.set(cycle_id)
     # The market fingerprint scopes the Director's lessons table to cycles on the same TRAIN and VALIDATION files (owner request, 25 October 2026).
     market=market_sha256(engine)
     # A bench or holdout cycle starts with no history (bench.py), so every evaluation cycle sees the same task whatever ran before it.
