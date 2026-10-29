@@ -1,5 +1,30 @@
 # Current Compertum checkpoint
 
+## Harness 0.5.2 model choice repair - 29 October 2026
+
+The owner reported that the harness seemed stuck on `deepseek-flash`. `/model` switching worked inside one console.
+Three causes made it feel stuck. The global `compertum-harness.cmd` passed `--models deepseek --model deepseek-flash` at every start.
+The choice was not saved, so a restart or `/resume` returned to flash. Tab on `/model` inserted `/model [NAME] [MODEL_ID]`,
+and Enter then reported an unknown model file. A check also found that `KIMI_API_KEY` is not set, so Kimi requests would fail.
+Only the presence of the variable was checked; no value was read.
+
+The harness now saves each `/model` choice in `state/harness/model.json` and uses it at the next start and resume.
+Start options still override it for one start. A saved choice that no longer loads falls back to `local` with a note.
+The box title shows the active model, for example `Compertum · deepseek-flash`. Selecting a model whose key is missing shows a warning.
+Tab leaves out optional bracket parts. A bracket sent by mistake gets an example of the correct form.
+The wrapper `C:\Users\bgonn\AppData\Local\Programs\Compertum\compertum-harness.cmd`, outside the repository, no longer forces a model.
+The saved choice was set to `deepseek deepseek-flash`, so the next start matches the previous default.
+A first scripted rewrite of the wrapper damaged its paths for about one minute. The Write tool then restored it, and `--help` ran.
+
+The code commit `caa7305` went out before its document update, because a failed document script did not stop the commit.
+This follow-up commit adds the documents and the version 0.5.2.
+
+The product-environment harness lane passed 91 tests, zero failed and zero skipped. The native lane passed four tests, zero failed and zero skipped.
+A scripted check before the fix switched to Kimi and `deepseek-v4-pro` without a request. It created one empty session, which was deleted.
+
+Exact next action: the owner restarts `compertum-harness`, types `/model deepseek deepseek-v4-pro`, restarts and confirms the box title.
+To use Kimi, the owner sets the user variable `KIMI_API_KEY` from a Kimi Code Console key.
+
 ## Harness 0.5.1 secret-check repair - 29 October 2026
 
 The owner's next task ended after 17 steps and 11 minutes with `AI_SENSITIVE_INPUT_DENIED`.

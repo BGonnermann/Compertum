@@ -39,6 +39,9 @@ A NAME that matches a model file takes precedence. Use the three-part form to se
 `/models` lists IDs from the active endpoint. `/models NAME` lists another endpoint without changing the selection. Neither sends a completion.
 Selection preserves the conversation and changes future engine-run defaults. A failed selection leaves the active model unchanged.
 Tab completes model-file names and IDs cached by `/models`. Tab itself sends no request.
+Harness 0.5.2 saves each `/model` choice in `state/harness/model.json`. A restart or `/resume` uses it; `--models` overrides it for one start.
+The box title shows the active model. Selecting a model without its key variable shows a warning at once.
+Tab leaves out optional `[...]` parts, so `/model` inserts `/model ` and never sends a bracket by mistake.
 The `/run` command now maps to the practice run kind. `/bench` uses only `-CyclesPerMarket`, as the wrapper requires.
 
 Verification: 71 product-environment unit tests passed, zero failed and zero skipped. These tests use scripted local models and fake process runners.
