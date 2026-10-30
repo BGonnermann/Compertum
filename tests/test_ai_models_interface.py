@@ -35,6 +35,7 @@ def server(mode='ok',model='synthetic-model'):
             if state['mode']=='timeout': time.sleep(1.5)
             if state['mode']=='malformed': return self.send(b'{no')
             if state['mode']=='http': return self.send({},503)
+            if state['mode']=='payment': return self.send({'error':{'message':'Insufficient Balance'}},402)
             if state['mode']=='bound': return self.send(b'x'*270000)
             message={'role':'assistant','content':'echo: '+p['messages'][-1]['content']}
             if state['mode']=='tool': message['tool_calls']=[{'function':{'name':'read_file','arguments':'{}'}}]
@@ -303,7 +304,7 @@ def test_request_limit_refuses_before_http_and_counts_failed_attempts():
 
 
 # Since 26 October 2026 the reply checks keep their own code; other inner refusals stay AI_RESPONSE_REJECTED with the inner code as refusal_detail.
-@pytest.mark.parametrize('mode,code,detail',[('malformed','AI_RESPONSE_REJECTED','AI_JSON_INVALID'),('http','AI_RESPONSE_REJECTED','HTTPStatusError'),
+@pytest.mark.parametrize('mode,code,detail',[('malformed','AI_RESPONSE_REJECTED','AI_JSON_INVALID'),('http','AI_RESPONSE_REJECTED','HTTP_503'),
                                              ('bound','AI_RESPONSE_BOUND','AI_RESPONSE_BOUND'),('tool','AI_TOOL_EXECUTION_DENIED','AI_TOOL_EXECUTION_DENIED'),
                                              ('two','AI_RESPONSE_INVALID','AI_RESPONSE_INVALID')])
 def test_malformed_tool_and_oversized_responses_are_rejected(mode,code,detail):
@@ -545,3 +546,17 @@ def test_reflection_calls_go_to_the_reflector_models_and_count_against_the_same_
         partial={role:spec for role,spec in roles(other).items() if role!='engineer'}
         with pytest.raises(RuntimeRefused,match='^UNKNOWN_CONFIG_FIELD$'):
             ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False,reflectors=partial)
+
+
+def test_a_provider_payment_or_auth_refusal_stops_the_run_instead_of_counting_as_a_step_fault():
+    from compertum.ai.engine.limits import STEP_FAULTS,STOP_REASONS,stop_reason
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'pay'}]
+    with server(mode='payment') as (port,state):
+        ledger=ListLedger();c=client(port,ledger,limit=3)
+        with pytest.raises(RuntimeRefused,match='^AI_PROVIDER_DENIED$'): c.complete('director',messages,purpose='e1-fixture',max_tokens=64)
+        assert ledger.entries[-1]['status']=='REFUSED_AI_PROVIDER_DENIED' and ledger.entries[-1]['refusal_detail']=='HTTP_402' and c.requests==1
+    with server(mode='http') as (port,state):
+        ledger=ListLedger();c=client(port,ledger,limit=3)
+        with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_REJECTED$'): c.complete('director',messages,purpose='e1-fixture',max_tokens=64)
+        assert ledger.entries[-1]['refusal_detail']=='HTTP_503'
+    assert 'AI_PROVIDER_DENIED' not in STEP_FAULTS and STOP_REASONS['AI_PROVIDER_DENIED']=='PROVIDER_DENIED' and stop_reason('AI_PROVIDER_DENIED')=='PROVIDER_DENIED'

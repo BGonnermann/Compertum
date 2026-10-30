@@ -160,6 +160,16 @@ Built while the baseline ran: GEPA's reflection calls may go to a second model f
 Verification, source, simulated markets: engine lane 314 passed, 0 failed, 0 skipped; product lane 249 passed, 0 failed, 7 skipped. Not used in any run yet.
 Noise measured from the bench-4 run: within-market level spread 0.75; the two halves of the run (32 cycles each) gave means 6.78 and 6.72.
 A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19. Proposed, waiting for the owner: 16 GEPA validation markets instead of 8.
+Owner, 17:05 EDT ("Ok let's do it"): the exam of GEPA candidates 5 and 2 on bench-4 at 2 cycles per market, then the first real-market practice run (SPY),
+chained once. All three ended within minutes: `run-20261030-8bda1d87` and `run-20261030-3fa0fa17` (32 cycles each, 32 requests), `run-20261030-03815a10`
+(10 cycles, 11 requests). Every Director call was `AI_RESPONSE_REJECTED`: DeepSeek answered HTTP 402, the balance is $0.00 (`/user/balance`,
+`is_available: false`). Nothing was measured; the failed calls cost nothing. My cost estimates were wrong by about three times: the token prices I used
+for `deepseek-flash` gave about $0.001 a request, while the account's own spend was about $0.003 a request (the owner's $8 for Thursday's 2,740 requests).
+Today's roughly 6,500 requests therefore cost about $12, not $3.50, and emptied the account. Record spend from the balance endpoint from now on, not from estimates.
+Defect found: the engine treated the payment refusal as a per-step fault and ran every cycle to its end with nothing built. Fix: HTTP 401, 402 and 403 raise
+`AI_PROVIDER_DENIED`, which is not a step fault, so the run stops at the first such reply with reason `PROVIDER_DENIED`; other HTTP errors keep `AI_RESPONSE_REJECTED`
+with the status in `refusal_detail` (was the exception class name).
+
 Owner, 13:40 EDT: real markets at "the max we can do for maximum data attention", a wider symbol list, more Alpaca bars as needed.
 Built (docs/ENGINE_PLAN.md, "History markets"): `tools/pull_bars.py`, `src/compertum/ai/engine/history_market.py`, `schemas/engine_market_history.v1.json`;
 the evidence reader accepts any ticker when asked; provider and history markets may reach the engine maximum of 4,096 sessions (was 500).

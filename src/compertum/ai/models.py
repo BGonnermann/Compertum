@@ -267,6 +267,7 @@ class StoreLedger:
 # Every other refusal inside the request block still becomes AI_RESPONSE_REJECTED, so the engine's behavior does not change; the inner code is kept
 # in the record as refusal_detail. A reply stopped at the token cap (finish_reason 'length') is AI_RESPONSE_TRUNCATED.
 PASSED_CODES=frozenset({'AI_RESPONSE_INVALID','AI_RESPONSE_INCOMPLETE','AI_RESPONSE_TRUNCATED','AI_RESPONSE_BOUND','AI_TOOL_EXECUTION_DENIED','AI_USAGE_BOUND'})
+PROVIDER_DENIED_STATUSES=frozenset({401,402,403})
 FINISH_CHARS=32
 
 
@@ -429,7 +430,11 @@ class ModelClient:
                 if error.code=='MODEL_IDENTITY_MISMATCH': raise
                 entry['refusal_detail']=error.code
                 raise RuntimeRefused(error.code if error.code in PASSED_CODES else 'AI_RESPONSE_REJECTED') from None
-            except (ContractError,httpx.HTTPStatusError,KeyError,TypeError,ValueError) as error:
+            except httpx.HTTPStatusError as error:
+                status=error.response.status_code;entry['refusal_detail']=f'HTTP_{status}'
+                if status in PROVIDER_DENIED_STATUSES: raise RuntimeRefused('AI_PROVIDER_DENIED') from None
+                raise RuntimeRefused('AI_RESPONSE_REJECTED') from None
+            except (ContractError,KeyError,TypeError,ValueError) as error:
                 entry['refusal_detail']=type(error).__name__[:64]
                 raise RuntimeRefused('AI_RESPONSE_REJECTED') from None
             entry.update(usage=usage,status='COMPLETED')
