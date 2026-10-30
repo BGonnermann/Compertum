@@ -141,7 +141,13 @@ that cost cycle 564 all three ideas). Flint in 20 minutes: 4 cycles, 11 candidat
 Both Directors chose gates and brakes in every cycle on a market with a planted momentum pattern; DeepSeek's one momentum idea came in the stopped last cycle.
 The Director's old habit survives the prompt change and the blank lessons table. That is the first target for the weekend GEPA run.
 
-Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
+Owner instruction, 29 October 2026, 22:10 EDT: "during the next off peak begin another run using deepseek." The next window that fits a bench run
+opens Friday 30 October at 06:00 EDT (the midnight window is two hours). A one-time delayed start was set in this session for 06:00: the bench-4 flash baseline,
+4 cycles per market, 2,400 requests, about $5 off-peak, through the detached starter. It is a single timer in this session, not a schedule; if the session
+ends before 06:00, nothing starts, and the owner runs the command below by hand.
+
+Exact next action: at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
+Then the Flint baseline on the same set, when the owner starts it (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
 
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
