@@ -135,6 +135,12 @@ Result: `HOUR_LIMIT`, 4 cycles, 99 requests, 20.4 minutes, $0. 11 candidates, al
 volatility-regime gates, semivariance ladders and z-score trend filters in every cycle, each a variant of the last; no plain momentum rule was tried.
 The wrapper loaded Flint itself and unloaded it at the end, as the fixed rule says. Whether the hidden-window start showed no tab is not confirmed by the owner yet.
 
+The owner then asked for the same 20-minute run on DeepSeek flash: `run-20261030-422ea28e`, 20:58 EDT, same market and limits. `HOUR_LIMIT`, 6 cycles,
+102 requests, 20.9 minutes, about $0.10. 11 candidates: 9 beat buy-and-hold but failed the gate (`REJECTED_DEFLATED`), 2 did not beat it; 1 fault (a truncated reply
+that cost cycle 564 all three ideas). Flint in 20 minutes: 4 cycles, 11 candidates, 0 beat buy-and-hold, 6 faults.
+Both Directors chose gates and brakes in every cycle on a market with a planted momentum pattern; DeepSeek's one momentum idea came in the stopped last cycle.
+The Director's old habit survives the prompt change and the blank lessons table. That is the first target for the weekend GEPA run.
+
 Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
 
