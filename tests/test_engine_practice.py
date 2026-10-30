@@ -122,3 +122,25 @@ def test_a_gepa_run_may_send_its_reflection_calls_to_another_model_file(tmp_path
         practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,reflect_models='reflect')
     with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
         practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,reflect_models='reflect')
+
+
+def test_a_gepa_run_may_weight_speed_and_carry_an_instruction_for_this_run(tmp_path,monkeypatch):
+    from compertum.ai.engine import gepa_run
+    def project(name):
+        root=tmp_path/name;root.mkdir()
+        shutil.copyfile(PROJECT/'config/default.toml',root/'config.toml')
+        write_models(root,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+        shutil.copytree(PROJECT/'config'/'engine_prompts',root/'config'/'engine_prompts');return root
+    seen={}
+    def fake_run_gepa(**kwargs):
+        seen.update(kwargs)
+        return {'run_id':'run-20261030-0123abce','reason':'CYCLE_LIMIT','cycles':[],'requests':0,'elapsed_seconds':1.0,'summary_path':str(tmp_path/'s.md'),'models':{}}
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    goal='Cut the time per cycle without lowering the level.';first=project('first');second=project('second')
+    practice.run_practice(first,first/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,speed_weight=0.05,goal=goal)
+    assert seen['speed_weight']==0.05 and seen['goal_extra']==goal
+    seen.clear()
+    practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1)
+    assert 'speed_weight' not in seen and 'goal_extra' not in seen
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
+        practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,goal=goal)

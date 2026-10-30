@@ -57,6 +57,8 @@ param(
     [ValidatePattern('^[a-z0-9][a-z0-9-]{0,31}$')][string]$Models='local',
     [string]$ReflectModels='',
     [string]$ReflectModel='',
+    [double]$SpeedWeight=-1,
+    [string]$Goal='',
     [switch]$Pick,
     [switch]$KeepLoaded
 )
@@ -214,6 +216,11 @@ try {
             if ($ReflectModels -eq '') { $ReflectModels='local' }
             $arguments+=@('--reflect-models',$ReflectModels)
             if ($ReflectModel -ne '') { $arguments+=@('--reflect-model',$ReflectModel) }
+        }
+        if ($SpeedWeight -ge 0 -or $Goal -ne '') {
+            if ($Mode -ne 'gepa') { Fail '-SpeedWeight and -Goal apply to -Mode gepa only' }
+            if ($SpeedWeight -ge 0) { $arguments+=@('--speed-weight',"$SpeedWeight") }
+            if ($Goal -ne '') { $arguments+=@('--goal',$Goal) }
         }
         Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
     }

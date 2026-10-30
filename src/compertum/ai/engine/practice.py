@@ -129,7 +129,7 @@ def gepa_markets(sessions,strength):
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=None,strength=0.004,available_memory=available_physical_memory,gepa=False,
                  purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None,bench_set=bench.BENCH_SET,market_manifests=None,
-                 reflect_models=None,reflect_model=None):
+                 reflect_models=None,reflect_model=None,speed_weight=None,goal=None):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
     committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record."""
@@ -140,7 +140,8 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     if purpose not in ('practice','bench','holdout') or (gepa and purpose!='practice'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if purpose!='bench' and bench_set!=bench.BENCH_SET: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     if market_manifests is not None and purpose!='practice': raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
-    if (reflect_models is not None or reflect_model is not None) and not gepa: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    if (reflect_models is not None or reflect_model is not None or speed_weight is not None or goal is not None) and not gepa: raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    gepa_options={k:v for k,v in (('speed_weight',speed_weight),('goal_extra',goal)) if v is not None}
     reflector_roles=None
     if reflect_models is not None:
         listing=models_report(root,reflect_models,reflect_model)
@@ -191,7 +192,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                 from .gepa_run import run_gepa
                 result=run_gepa(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,markets=markets,
                                 validation_markets=validation_markets,memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,
-                                transcript_training_allowed=False if market_manifests is not None else None,reflector_roles=reflector_roles)
+                                transcript_training_allowed=False if market_manifests is not None else None,reflector_roles=reflector_roles,**gepa_options)
             else:
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none
                 result=run_bounded(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,market=market,
@@ -235,6 +236,8 @@ def main(argv=None):
         if name=='gepa':
             sub.add_argument('--reflect-models',help='the model file for the reflection calls: NAME is config/models-NAME.toml')
             sub.add_argument('--reflect-model',help='one model ID for every reflection call, for this run only')
+            sub.add_argument('--speed-weight',type=float,help='the weight of the speed bonus in the score, 0 to 0.1 (default: a tie-breaker)')
+            sub.add_argument('--goal',help='the owner\'s instruction for this run, added to config/gepa_goal.md for every reflection')
     for name in ('bench','holdout'):
         sub=commands.add_parser(name)
         sub.add_argument('--cycles-per-market',type=int,default=bench.CYCLES_PER_MARKET);sub.add_argument('--hours',type=float)
@@ -253,7 +256,8 @@ def main(argv=None):
                                 cycles_per_market=args.cycles_per_market,prompts_run=args.prompts_run,prompts_candidate=args.prompts_candidate,models=args.models,model=args.model,bench_set=args.bench_set)
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
                                   gepa=args.command=='gepa',models=args.models,model=args.model,market_manifests=args.market_manifests,
-                                  reflect_models=getattr(args,'reflect_models',None),reflect_model=getattr(args,'reflect_model',None))
+                                  reflect_models=getattr(args,'reflect_models',None),reflect_model=getattr(args,'reflect_model',None),
+                                  speed_weight=getattr(args,'speed_weight',None),goal=getattr(args,'goal',None))
     except RuntimeRefused as error:
         refused={'refused':error.code}
         if getattr(error,'problems',None): refused['problems']=error.problems

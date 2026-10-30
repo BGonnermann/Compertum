@@ -433,6 +433,12 @@ The client keeps one request counter and one gate for both sets of models; each 
 run record carry `reflector_models`. Published results say the reflection model's quality matters more than the harness, so a strong remote reflector
 with cheap local roles is the intended use. Not used yet.
 
+A run may weight speed and carry an instruction (30 October 2026, owner: "ask GEPA if it can find a way to reduce time per task").
+`run_gepa(..., speed_weight=, goal_extra=)`, `gepa --speed-weight W --goal TEXT`, `tools\practice.ps1 -Mode gepa -SpeedWeight W -Goal TEXT`.
+The speed bonus weight runs from 0 to `MAX_SPEED_WEIGHT` (0.1, one level at full speed); the default stays the tie-breaker. The instruction is appended to
+the owner's goal for every reflection under "THE OWNER'S INSTRUCTION FOR THIS RUN", checked like a prompt. The START row records both.
+`best_candidate` still ranks by mean level first, so a faster candidate is reported as best only at an equal level; the bench exam decides the rest.
+
 Finding local models (29 October 2026, owner: "I know there's more models out there I just don't know how to find them").
 `tools/find_models.py` asks the Hugging Face Hub's public API for every repository with GGUF files, groups the uploads of one base model,
 and prints the groups that fit a card, most downloaded first. It needs no key and costs nothing. The first run found the most downloaded local

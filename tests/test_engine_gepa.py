@@ -358,6 +358,8 @@ def test_speed_only_breaks_ties_between_equal_levels():
         better=[score_with_speed(0.6,slow)]*(k-1)+[score_with_speed(0.7,slow)];worse=[score_with_speed(0.6,fast)]*k
         assert sum(better)/k>sum(worse)/k,k
     assert score_with_speed(0.6,fast)>score_with_speed(0.6,slow)>=0.6 and score_with_speed(0.6,None)==0.6
+    from compertum.ai.engine.gepa_run import MAX_SPEED_WEIGHT
+    assert MAX_SPEED_WEIGHT==0.1 and score_with_speed(0.6,fast,MAX_SPEED_WEIGHT)==0.7 and score_with_speed(0.6,{'speed':0.5},0.05)==0.625
     for level,speed in product(range(1,11),(0.0,0.5,1.0)):
         assert level/10<=score_with_speed(level/10,{'speed':speed})<(level+1)/10
 
@@ -389,6 +391,9 @@ def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_RESERVED$'): go(markets=train[:1],validation_markets=[market])
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): go(markets=train,validation_markets=validation+train[:1])
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): go(markets=train[:1],validation_markets=[])
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_LIMITS_DENIED$'): go(markets=train[:1],speed_weight=0.5)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_GOAL_INVALID$'): go(markets=train[:1],goal_extra='short')
+    with pytest.raises(RuntimeRefused,match='^AI_SENSITIVE_INPUT_DENIED$'): go(markets=train[:1],goal_extra='Use api_key=abcd1234 for every call, always.')
 
 
 def test_gepa_markets_have_their_own_seeds_a_split_and_a_mix_of_patterns():

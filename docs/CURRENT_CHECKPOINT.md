@@ -160,6 +160,9 @@ Built while the baseline ran: GEPA's reflection calls may go to a second model f
 Verification, source, simulated markets: engine lane 314 passed, 0 failed, 0 skipped; product lane 249 passed, 0 failed, 7 skipped. Not used in any run yet.
 Noise measured from the bench-4 run: within-market level spread 0.75; the two halves of the run (32 cycles each) gave means 6.78 and 6.72.
 A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19. Proposed, waiting for the owner: 16 GEPA validation markets instead of 8.
+Owner, 12:05 EDT: "ask GEPA if it can find a way to reduce time per task ... before we go into the weekend we should optimize that part."
+Built: a GEPA run may raise the speed weight (up to 0.1) and carry an instruction for this run (docs/ENGINE_PLAN.md). Engine lane 315 passed, 0 failed;
+product lane 250 passed, 0 failed, 7 skipped. The first lane failed the new practice test once on `OWNER_BUSY` (two runs in one test project); the test now uses two.
 Owner, 11:12 EDT: "Don't use Flint yet." The chained Flint baseline start was cancelled before the flash run ended; nothing started after it.
 
 Superseded (the run started): at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.

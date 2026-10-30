@@ -147,9 +147,13 @@ def speed_for_calls(entries,candidates_built):
             'tokens_per_candidate':round(total/built,1),'speed':round(1-min(total/built,SPEED_TOKEN_CAP)/SPEED_TOKEN_CAP,6)}
 
 
-def score_with_speed(score,speed):
-    """The level score plus the tie-breaking bonus. Without speed data the score is the level score alone."""
-    return score if speed is None else round(score+SPEED_WEIGHT*speed['speed'],6)
+MAX_SPEED_WEIGHT=0.1
+
+
+def score_with_speed(score,speed,weight=SPEED_WEIGHT):
+    """The level score plus the speed bonus. The default weight breaks ties only; a run may raise it up to one level (MAX_SPEED_WEIGHT).
+    Without speed data the score is the level score alone."""
+    return score if speed is None else round(score+weight*speed['speed'],6)
 
 
 def false_discovery(candidate,score):
@@ -242,6 +246,7 @@ class PromptAdapter:
     candidates:list=field(default_factory=list)  # every distinct prompt set evaluated, with its scores
     stop_code:Any=None  # a refusal seen during reflection; GEPA swallows exceptions there, so evaluate re-raises it
     parallel:int=PARALLEL_CYCLES
+    speed_weight:float=SPEED_WEIGHT
     pending:int=0
     lock:Any=field(default_factory=threading.Lock)
 
@@ -289,7 +294,7 @@ class PromptAdapter:
             mine=[r for r in rows()[before:] if r.get('cycle_id') in (None,result['cycle_id'])] if before is not None else None
             speed=speed_for_calls(mine,len(result.get('candidates') or [])) if mine is not None else None
             empty='kind' in market and market['kind'] is None
-            level=gepa_cycle_level(result,empty);score=score_with_speed(score_for_cycle(result,empty),speed)
+            level=gepa_cycle_level(result,empty);score=score_with_speed(score_for_cycle(result,empty),speed,self.speed_weight)
             found={'false_discovery':True} if empty and level==FALSE_DISCOVERY_LEVEL else {}
             outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level,'speed':speed,**found});scores.append(score)
             self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level,**({'speed':speed} if speed else {}),**found})
@@ -427,13 +432,19 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
 
 
 def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,memory_floor_bytes,limits,owner_approval,validation_markets=None,
-             available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None,transcript_training_allowed=None,reflector_roles=None):
+             available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None,transcript_training_allowed=None,reflector_roles=None,
+             speed_weight=SPEED_WEIGHT,goal_extra=None):
     """One bounded GEPA run. cycle_limit bounds the number of evaluation cycles (GEPA metric calls); the request limit and the gate apply to every call.
     markets: the training markets GEPA reflects on. validation_markets: the markets that rank candidates; None uses the training markets.
     reflector_roles: the models for the reflection calls, when they differ from the firm's roles; they share the run's request limit and gate."""
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))
+    if type(speed_weight) not in (int,float) or not 0<=speed_weight<=MAX_SPEED_WEIGHT: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+    if goal_extra is not None:
+        if not isinstance(goal_extra,str) or not 20<=len(goal_extra.strip())<=GOAL_BYTES: raise RuntimeRefused('ENGINE_GOAL_INVALID')
+        sanitized(goal_extra.encode('utf-8'))
     goal=load_goal(project_root)
+    if goal_extra is not None: goal=(goal or '')+"\n\nTHE OWNER'S INSTRUCTION FOR THIS RUN\n"+goal_extra.strip()
     if validation_markets is None: validation_markets=markets
     every=markets+validation_markets if markets is not validation_markets else markets
     if (not isinstance(markets,list) or not isinstance(validation_markets,list) or not markets or not validation_markets or len(every)>MAX_MARKETS
@@ -465,11 +476,12 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
                       train_csv=market['train_csv'],validation_csv=market['validation_csv'],validation_rows=market['validation_rows'],
                       memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose='gepa')
     adapter=PromptAdapter(build_engine=build_engine,run_cycle=run_cycle,client=client,ledger=ledger,run_id=run_id,next_index=first,cycle_limit=bounds['cycle_limit'],
-                          goal=goal)
+                          goal=goal,speed_weight=speed_weight)
     logger=QuietLogger();started=utc_now()
     state={'run_id':run_id,'kind':'gepa','started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':adapter.evaluations,'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None,'prompts':None,'seed_sha256':{name:sha(seed_candidate[name]) for name in COMPONENTS}}
     ledger.record_run_phase(run_id,'START',{'kind':'gepa','limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
+                                           'speed_weight':speed_weight,'goal_extra':goal_extra,
                                            'models':models,'reflector_models':reflector_models,'markets':[m['label'] for m in markets],'validation_markets':[m['label'] for m in validation_markets],
                                            'seed_sha256':state['seed_sha256'],'started_at':started,
                                            'stop_file':str(gate.stop_file),'gepa_seed':seed,'goal_sha256':None if goal is None else sha(goal),'score_trials':GEPA_TRIALS,
