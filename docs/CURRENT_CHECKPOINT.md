@@ -123,7 +123,7 @@ LM Studio's engine lags both. Parallel slots give no throughput on one local MoE
 Owner decision, 29 October 2026, 20:10 EDT: "nvm, im just going to keep flint." No model download, no engine switch, no rule change.
 The model findings stay recorded here and in docs/ENGINE_PLAN.md ("Finding local models"); `tools/find_models.py` lists GGUF models from the Hub on demand.
 
-Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
+Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `toolsstart_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
 
 ## GEPA gets its own markets, a split and no history; the Director sees outcomes in words - 29 October 2026
