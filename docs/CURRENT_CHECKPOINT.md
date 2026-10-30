@@ -130,6 +130,10 @@ My check of that change, a second start against the live lease, was refused with
 and the live run stopped after 2 cycles and 7 requests with `STOPPED_MODEL_IDENTITY_MISMATCH`. My mistake: the wrapper unloaded a model it had not loaded.
 Fix: `tools\practice.ps1` unloads only a model that the same run loaded (`$ownLoad`). A model the owner loaded by hand now stays loaded after a run.
 The run was restarted as `run-20261030-0a75c594` at 20:15 EDT.
+Result: `HOUR_LIMIT`, 4 cycles, 99 requests, 20.4 minutes, $0. 11 candidates, all `REJECTED` (none beat buy-and-hold), 1 `BUILD_FAILED`; faults: 5 repeated tool calls,
+1 truncated reply. The market is the calibrated seed 12 (momentum 5, strength 0.004) with a blank lessons table. The Director's three ideas were
+volatility-regime gates, semivariance ladders and z-score trend filters in every cycle, each a variant of the last; no plain momentum rule was tried.
+The wrapper loaded Flint itself and unloaded it at the end, as the fixed rule says. The hidden-window start worked for this run.
 
 Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
