@@ -123,6 +123,14 @@ LM Studio's engine lags both. Parallel slots give no throughput on one local MoE
 Owner decision, 29 October 2026, 20:10 EDT: "nvm, im just going to keep flint." No model download, no engine switch, no rule change.
 The model findings stay recorded here and in docs/ENGINE_PLAN.md ("Finding local models"); `tools/find_models.py` lists GGUF models from the Hub on demand.
 
+Evening of 29 October 2026: the owner asked for a 20-minute Flint practice run. `run-20261030-f8f2e7ef` started at 20:12 EDT on the calibrated
+practice market (seed 12, 4,096 sessions). The owner asked why a blank terminal tab opens with each run: it is the detached run's own console,
+blank because output goes to the log. `tools\start_run.ps1` now creates the process with a hidden window.
+My check of that change, a second start against the live lease, was refused with `OWNER_BUSY` as intended, but its cleanup step then unloaded Flint,
+and the live run stopped after 2 cycles and 7 requests with `STOPPED_MODEL_IDENTITY_MISMATCH`. My mistake: the wrapper unloaded a model it had not loaded.
+Fix: `tools\practice.ps1` unloads only a model that the same run loaded (`$ownLoad`). A model the owner loaded by hand now stays loaded after a run.
+The run was restarted as `run-20261030-0a75c594` at 20:15 EDT.
+
 Exact next action: the owner starts the bench-4 Flint baseline (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
 
