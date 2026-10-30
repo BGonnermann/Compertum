@@ -148,6 +148,20 @@ ends before 06:00, nothing starts, and the owner runs the command below by hand.
 
 The timer fired: `run-20261030-4b8ab911` opened at 06:01 EDT on Friday 30 October, 45.1 GiB free at the start. Record: `.cache/test-runs/practice-bench-20261030-060045-record.json`.
 
+Bench-4 flash baseline result, `run-20261030-4b8ab911` (new Director prompt, 4 cycles per market, started 06:01 EDT): verdict `MEASURED`, `CYCLE_LIMIT`,
+64 cycles, 1,720 requests, 321 minutes, about $1.84, 191 candidates, 14 step faults (13 cut-off replies). Patterns found 4 of 10; false discoveries 0 of 6; mean level 6.75.
+10 candidates passed the bench gate, the first full bench where any did: seed 127 (5 passes, levels 10, 8, 10, 10, best capture 0.963), seed 128 (3 passes, 10, 10, 9, 10, 0.828),
+seed 129 (1 pass, best capture 0.509), seed 130 (1 pass, 0.335). All four strong-pattern markets were solved at least once. No weak-pattern (0.002) market passed the gate;
+seed 134 was found by capture 0.990 without a gate pass. The regime markets (135, 136) stayed at levels 5 to 7. Empty markets: 0 gate passes, 18 audited candidates by luck.
+Comparison with bench-3 (500 sessions, same model and prompt): found 6 of 10 by capture only, 0 gate passes, mean 6.22. On calibrated markets the firm proves its finds.
+Record: `.cache/test-runs/practice-bench-20261030-060045-record.json` (UTF-16: the timer started the run under Windows PowerShell 5.1, whose Tee-Object writes UTF-16;
+`tools\start_run.ps1` now prefers `pwsh` when it is installed).
+Built while the baseline ran: GEPA's reflection calls may go to a second model file (`-ReflectModels`, `-ReflectModel`; docs/ENGINE_PLAN.md, "Reflection on another model").
+Verification, source, simulated markets: engine lane 314 passed, 0 failed, 0 skipped; product lane 249 passed, 0 failed, 7 skipped. Not used in any run yet.
+Noise measured from the bench-4 run: within-market level spread 0.75; the two halves of the run (32 cycles each) gave means 6.78 and 6.72.
+A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19. Proposed, waiting for the owner: 16 GEPA validation markets instead of 8.
+Owner, 11:12 EDT: "Don't use Flint yet." The chained Flint baseline start was cancelled before the flash run ended; nothing started after it.
+
 Superseded (the run started): at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
 Then the Flint baseline on the same set, when the owner starts it (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.

@@ -18,6 +18,8 @@ Steps, in order, each one checked before the next:
 LM Studio file config\models.toml, and skips steps 2, 3, 4 and 7: LM Studio is not started or loaded. Remote addresses in that file must
 belong to a provider in config\providers.toml; the engine reads the provider's key from the user environment variable named there and
 refuses at step 5 if it is missing. The key is never printed. Example: -Models deepseek (authorized 26 October 2026).
+-ReflectModels NAME and -ReflectModel ID (gepa only) send GEPA's reflection calls to another model file, for example -ReflectModels deepseek
+-ReflectModel deepseek-flash while the four roles run on the local model. The reflection requests count against the same request limit.
 The kill switch is unchanged: New-Item state\engine\STOP in a second window.
 
 .EXAMPLE
@@ -53,6 +55,8 @@ param(
     [int]$ContextLength=16384,
     [int]$Parallel=1,
     [ValidatePattern('^[a-z0-9][a-z0-9-]{0,31}$')][string]$Models='local',
+    [string]$ReflectModels='',
+    [string]$ReflectModel='',
     [switch]$Pick,
     [switch]$KeepLoaded
 )
@@ -205,6 +209,12 @@ try {
         if ($Hours -le 0 -or $PSBoundParameters.ContainsKey('Cycles')) { $arguments+=@('--cycles',"$Cycles") }
         if ($Mode -eq 'run' -and $PSBoundParameters.ContainsKey('Seed')) { $arguments+=@('--seed',"$Seed") }
         foreach ($manifest in $MarketManifest) { $arguments+=@('--market-manifest',$manifest) }
+        if ($ReflectModels -ne '' -or $ReflectModel -ne '') {
+            if ($Mode -ne 'gepa') { Fail '-ReflectModels and -ReflectModel apply to -Mode gepa only' }
+            if ($ReflectModels -eq '') { $ReflectModels='local' }
+            $arguments+=@('--reflect-models',$ReflectModels)
+            if ($ReflectModel -ne '') { $arguments+=@('--reflect-model',$ReflectModel) }
+        }
         Write-Host "starting $Mode (cycles $Cycles, hours $Hours, requests $Requests): $Note"
     }
     Write-Host "record: $record"

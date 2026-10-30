@@ -529,3 +529,19 @@ def test_gate_runs_before_every_request_and_consumes_nothing():
         c.complete('engineer',[{'role':'user','content':'z'}],purpose='e5-fixture');assert c.requests==2 and len(state['posts'])==2
         with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'):
             ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=5,available_memory=available,native_limits=False,gate='not callable')
+
+
+def test_reflection_calls_go_to_the_reflector_models_and_count_against_the_same_budget():
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'reflect'}]
+    with server() as (port,state),server() as (other,other_state):
+        ledger=ListLedger()
+        c=ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False,reflectors=roles(other))
+        plain=c.complete('director',messages,purpose='e1-fixture',max_tokens=64)[1]
+        reflect=c.complete('director',messages,purpose='gepa-reflect-director',max_tokens=64,reflector=True)[1]
+        assert plain['address']==f'http://127.0.0.1:{port}/v1' and reflect['address']==f'http://127.0.0.1:{other}/v1'
+        assert plain['request_index']==1 and reflect['request_index']==2 and len(state['posts'])==1 and len(other_state['posts'])==1
+        same=client(port,ledger,limit=3)
+        assert same.complete('director',messages,purpose='e1-fixture',max_tokens=64,reflector=True)[1]['address']==f'http://127.0.0.1:{port}/v1'
+        partial={role:spec for role,spec in roles(other).items() if role!='engineer'}
+        with pytest.raises(RuntimeRefused,match='^UNKNOWN_CONFIG_FIELD$'):
+            ModelClient(roles(port),ledger,memory_floor_bytes=FLOOR,request_limit=3,available_memory=lambda:FLOOR+1,native_limits=False,reflectors=partial)

@@ -427,6 +427,12 @@ bench-1, bench-2, bench-3 and holdout-1 keep 500 sessions and are unchanged byte
 Real markets keep their 500-session cap, so the same limit applies to them. That is open real-market work.
 The cycle's market fingerprint no longer passes through the 64 KiB event encoder. It keeps the same value for every earlier market.
 
+Reflection on another model (30 October 2026). A GEPA run may send its reflection calls to a second model file: `run_gepa(..., reflector_roles=...)`,
+`practice ... gepa --reflect-models NAME [--reflect-model ID]`, `tools\practice.ps1 -Mode gepa -ReflectModels deepseek -ReflectModel deepseek-flash`.
+The client keeps one request counter and one gate for both sets of models; each call row records the address and model it went to; the START row and the
+run record carry `reflector_models`. Published results say the reflection model's quality matters more than the harness, so a strong remote reflector
+with cheap local roles is the intended use. Not used yet.
+
 Finding local models (29 October 2026, owner: "I know there's more models out there I just don't know how to find them").
 `tools/find_models.py` asks the Hugging Face Hub's public API for every repository with GGUF files, groups the uploads of one base model,
 and prints the groups that fit a card, most downloaded first. It needs no key and costs nothing. The first run found the most downloaded local

@@ -99,3 +99,26 @@ def test_command_reports_json_and_exit_codes(tmp_path,capsys):
     assert practice.main(['--project',str(tmp_path),'--config','config.toml','models'])==2
     assert json.loads(capsys.readouterr().out)=={'refused':'UNKNOWN_CONFIG_FIELD'}
     with pytest.raises(SystemExit): practice.main(['--project',str(tmp_path),'run','--cycles','1'])  # --requests and --note are required
+
+
+def test_a_gepa_run_may_send_its_reflection_calls_to_another_model_file(tmp_path,monkeypatch):
+    from compertum.ai.engine import gepa_run
+    from compertum.ai.models import ENGINE_ROLES
+    shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+    path=write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+    shutil.copyfile(path,tmp_path/'config'/'models-reflect.toml');shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    seen={};listed=[]
+    def fake_run_gepa(**kwargs):
+        seen.update(kwargs)
+        return {'run_id':'run-20261030-0123abcd','reason':'CYCLE_LIMIT','cycles':[],'requests':0,'elapsed_seconds':1.0,'summary_path':str(tmp_path/'s.md'),'models':{}}
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    monkeypatch.setattr(practice,'models_report',lambda root,models,model=None:(listed.append((models,model)) or {'all_listed':True}))
+    record=practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,
+                                 reflect_models='reflect',reflect_model='other-model')
+    assert listed==[('reflect','other-model')] and seen['reflector_roles'].keys()==ENGINE_ROLES and seen['reflector_roles']['director'].model=='other-model'
+    assert record['reflector_models']['engineer']=={'address':'http://127.0.0.1:1234/v1','model':'other-model'}
+    monkeypatch.setattr(practice,'models_report',lambda root,models,model=None:{'all_listed':False})
+    with pytest.raises(RuntimeRefused,match='^LOCAL_COMPLETION_UNVERIFIED$'):
+        practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,reflect_models='reflect')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
+        practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,reflect_models='reflect')

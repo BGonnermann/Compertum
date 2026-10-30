@@ -22,7 +22,8 @@ $log=Join-Path $root ".cache\test-runs\practice-detached-$stamp.log"
 $quoted=($PracticeArguments | ForEach-Object { if ($_ -match '^-[A-Za-z]') { $_ } else { "'"+$_.Replace("'","''")+"'" } }) -join ' '
 $script=Join-Path $root 'tools\practice.ps1'
 $command="& '$script' $quoted *>&1 | Out-File -FilePath '$log' -Encoding utf8"
-$pwsh=(Get-Process -Id $PID).Path
+$pwsh=(Get-Command pwsh -ErrorAction SilentlyContinue).Source
+if (-not $pwsh) { $pwsh=(Get-Process -Id $PID).Path }
 $line="`"$pwsh`" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command `"$command`""
 if ($Show) { Write-Host $line; exit 0 }
 $startup=New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow=[uint16]0}

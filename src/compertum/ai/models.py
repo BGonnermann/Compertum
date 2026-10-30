@@ -288,13 +288,13 @@ class ModelClient:
     256 MiB, no-child Job for the rest of its life. Only a dedicated adapter process may construct it that way.
     The supervisor, the coordinator and tests must pass native_limits=False.
     """
-    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True,gate=None,transcript=None):
-        if (not isinstance(roles,Mapping) or roles.keys()!=ENGINE_ROLES
-                or any(not isinstance(spec,RoleModel) or spec.role!=role for role,spec in roles.items())):
-            raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+    def __init__(self,roles,ledger,*,memory_floor_bytes,request_limit,available_memory=available_physical_memory,native_limits=True,gate=None,transcript=None,reflectors=None):
         # The sender checks every address and model ID again. A RoleModel built by hand gets no exemption.
-        for spec in roles.values():
-            if not checked_spec(spec): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        for mapping in (roles,) if reflectors is None else (roles,reflectors):
+            if (not isinstance(mapping,Mapping) or mapping.keys()!=ENGINE_ROLES
+                    or any(not isinstance(spec,RoleModel) or spec.role!=role or not checked_spec(spec) for role,spec in mapping.items())):
+                raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        self.reflectors=reflectors
         if type(memory_floor_bytes) is not int or memory_floor_bytes<1: raise RuntimeRefused('AVAILABLE_RAM_UNVERIFIED')
         if type(request_limit) is not int or not 1<=request_limit<=10000: raise RuntimeRefused('AI_REQUEST_BUDGET')
         if (gate is not None and not callable(gate)) or (transcript is not None and not callable(transcript)): raise RuntimeRefused('AI_SETTINGS_DENIED')
@@ -346,18 +346,20 @@ class ModelClient:
                 response,raw=await self._json(client,'POST',spec.base_url+'/chat/completions',payload=payload)
                 return reported,response,raw
 
-    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False):
-        """One text completion. No tools are offered, so any tool call in the reply is refused."""
-        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds,override_tokens=override_tokens)
+    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False,reflector=False):
+        """One text completion. No tools are offered, so any tool call in the reply is refused.
+        reflector=True sends the call to the role's reflection model when the client has one; the request counts the same."""
+        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds,override_tokens=override_tokens,reflector=reflector)
         return content,entry
 
     def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False):
         """One completion with an allowlist of tools. Returns (content, tool_calls, entry). The engine executes the calls, never the model."""
         return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True,override_tokens=override_tokens)
 
-    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False,override_tokens=False):
+    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False,override_tokens=False,reflector=False):
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
-        spec=self.roles.get(role) if isinstance(role,str) else None;started=time.monotonic()
+        specs=self.reflectors if reflector and self.reflectors is not None else self.roles
+        spec=specs.get(role) if isinstance(role,str) else None;started=time.monotonic()
         # The model file's cap for this model, unless the caller overrides it: the engine's settings slot (26 October 2026) may choose a cap per role.
         # The override stays inside the same bound of 1 to 16384 tokens.
         if spec is not None and spec.max_tokens is not None and not override_tokens: max_tokens=spec.max_tokens

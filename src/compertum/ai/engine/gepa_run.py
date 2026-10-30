@@ -342,7 +342,7 @@ class PromptAdapter:
                       {'role':'user','content':instruction+goal+'\n\nCURRENT PROMPT\n'+current+'\n\nRECORDS\n'+records}]
             # A slot is reflected on by the model of the role closest to it (SLOT_REFLECTOR); a prompt by its own role's model.
             fault=None
-            try: content,entry=self.client.complete(SLOT_REFLECTOR.get(role,role),messages,purpose=f'gepa-reflect-{role}',max_tokens=4096)
+            try: content,entry=self.client.complete(SLOT_REFLECTOR.get(role,role),messages,purpose=f'gepa-reflect-{role}',max_tokens=4096,reflector=True)
             except RuntimeRefused as error:
                 if error.code not in STEP_FAULTS: self.stop_code=error.code;raise
                 fault=error.code;entry={'call_id':None}
@@ -427,9 +427,10 @@ def write_candidates(project_root,run_id,adapter,reason,gepa_result=None):
 
 
 def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,memory_floor_bytes,limits,owner_approval,validation_markets=None,
-             available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None,transcript_training_allowed=None):
+             available_memory=None,recursion_limit=40,seed=0,summary=True,optimize=None,transcript_training_allowed=None,reflector_roles=None):
     """One bounded GEPA run. cycle_limit bounds the number of evaluation cycles (GEPA metric calls); the request limit and the gate apply to every call.
-    markets: the training markets GEPA reflects on. validation_markets: the markets that rank candidates; None uses the training markets."""
+    markets: the training markets GEPA reflects on. validation_markets: the markets that rank candidates; None uses the training markets.
+    reflector_roles: the models for the reflection calls, when they differ from the firm's roles; they share the run's request limit and gate."""
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))
     goal=load_goal(project_root)
@@ -455,8 +456,9 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
     run_id=f'run-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
     from .transcripts import TranscriptWriter
     transcript=TranscriptWriter(project_root,run_id,'gepa',training_allowed=transcript_training_allowed)
-    client=ModelClient(roles,StoreLedger(store),transcript=transcript,**options)
+    client=ModelClient(roles,StoreLedger(store),transcript=transcript,reflectors=reflector_roles,**options)
     models={role:{'address':spec.base_url,'model':spec.model} for role,spec in roles.items()}
+    reflector_models=None if reflector_roles is None else {role:{'address':spec.base_url,'model':spec.model} for role,spec in reflector_roles.items()}
     first=len([c for c in ledger.cycles() if c['phase']=='END'])+1
     def build_engine(prompts,market):
         return Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
@@ -468,7 +470,7 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
     state={'run_id':run_id,'kind':'gepa','started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':adapter.evaluations,'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None,'prompts':None,'seed_sha256':{name:sha(seed_candidate[name]) for name in COMPONENTS}}
     ledger.record_run_phase(run_id,'START',{'kind':'gepa','limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
-                                           'models':models,'markets':[m['label'] for m in markets],'validation_markets':[m['label'] for m in validation_markets],
+                                           'models':models,'reflector_models':reflector_models,'markets':[m['label'] for m in markets],'validation_markets':[m['label'] for m in validation_markets],
                                            'seed_sha256':state['seed_sha256'],'started_at':started,
                                            'stop_file':str(gate.stop_file),'gepa_seed':seed,'goal_sha256':None if goal is None else sha(goal),'score_trials':GEPA_TRIALS,
                                            **({'market_provenance':[m['provenance'] for m in markets if m.get('provenance')]} if any(m.get('provenance') for m in markets) else {})})
