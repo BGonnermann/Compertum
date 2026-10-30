@@ -160,6 +160,20 @@ Built while the baseline ran: GEPA's reflection calls may go to a second model f
 Verification, source, simulated markets: engine lane 314 passed, 0 failed, 0 skipped; product lane 249 passed, 0 failed, 7 skipped. Not used in any run yet.
 Noise measured from the bench-4 run: within-market level spread 0.75; the two halves of the run (32 cycles each) gave means 6.78 and 6.72.
 A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19. Proposed, waiting for the owner: 16 GEPA validation markets instead of 8.
+Owner, 17:25 EDT: "download ornith and run that for one cycle. See if it can complete it." Downloaded `ornith-ai/Ornith-1.5-9B-GGUF` (LM Studio chose Q4_K_M; the
+Q8_0 file, 9.8 GB, was fetched directly; keys `ornith-1.5-9b@q4_k_m` and `ornith-1.5-9b@q8_0`). `config/models-ornith.toml` gives the roles 8,192 output tokens
+(Mathematician 16,384) and 300 seconds; `tools\practice.ps1` now treats a named model file with loopback addresses as local and loads `-Model` in LM Studio.
+One cycle, `run-20261030-aa5bddfd`: the Director's call hit the 300-second limit with no reply (`LOCAL_COMPLETION_UNVERIFIED`); nothing built. Cause: a new
+model has no saved LM Studio settings, so thinking was unlimited at 13 tokens a second. A settings file like Flint's was written for the Q8_0 file
+(all layers on the card, flash attention, Q8 KV cache, 4 context checkpoints, thinking budget 1,024 tokens). Speed stayed 14 to 18 tokens a second, and the card
+showed 14.7 GB in use with no model loaded: the owner's own Boulder loop (`python -m boulder.cli -c configs/long.yaml loop`, started 07:16) holds most of the card.
+Ornith cannot be judged until that loop ends or the owner pauses it. Owner, 19:20 EDT: "Ok run it." A second Boulder job (`speed-one --steps 15`) held the card,
+so a one-time watcher started the run when the card was free: `run-20261030-245c0299` at 19:48 EDT, Ornith fully on the card (10.9 GB), 42 GiB host memory free.
+Result: the cycle completed. 3 ideas (lag-1 autocorrelation momentum, short-horizon mean reversion, session-index seasonality), 22 requests, 3.9 minutes, $0,
+median 130 tokens a second (Flint 63). Two strategies were built and scored; neither beat buy-and-hold. One Mathematician specification was cut off at its
+16,384-token limit (`AI_RESPONSE_TRUNCATED`), so the second idea was not built. Seed 12 calibrated practice market, one cycle: says nothing yet about quality. Ornith itself answered in JSON with its thinking separated, so the engine can read it.
+An earlier attempt was refused with `STORAGE_SCAN_DEADLINE` while the disk was busy with the download; the retry passed.
+
 Owner, 17:05 EDT ("Ok let's do it"): the exam of GEPA candidates 5 and 2 on bench-4 at 2 cycles per market, then the first real-market practice run (SPY),
 chained once. All three ended within minutes: `run-20261030-8bda1d87` and `run-20261030-3fa0fa17` (32 cycles each, 32 requests), `run-20261030-03815a10`
 (10 cycles, 11 requests). Every Director call was `AI_RESPONSE_REJECTED`: DeepSeek answered HTTP 402, the balance is $0.00 (`/user/balance`,

@@ -1,0 +1,27 @@
+# Local thinking model in LM Studio: Ornith-1.5-9B at 8-bit (owner, 30 October 2026). Same loopback rules as models.toml.
+# max_tokens and seconds replace the engine's default of 2048 output tokens and 120 seconds, because the model thinks before it answers.
+# Use tools\practice.ps1 -Models ornith -Model <the ID that lms ls reports>.
+
+[roles.director]
+base_url = "http://127.0.0.1:1234/v1"
+model = "ornith-1.5-9b@q8_0"
+max_tokens = 8192
+seconds = 300
+
+[roles.researcher]
+base_url = "http://127.0.0.1:1234/v1"
+model = "ornith-1.5-9b@q8_0"
+max_tokens = 8192
+seconds = 300
+
+[roles.mathematician]
+base_url = "http://127.0.0.1:1234/v1"
+model = "ornith-1.5-9b@q8_0"
+max_tokens = 16384
+seconds = 600
+
+[roles.engineer]
+base_url = "http://127.0.0.1:1234/v1"
+model = "ornith-1.5-9b@q8_0"
+max_tokens = 8192
+seconds = 300

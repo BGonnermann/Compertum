@@ -15,7 +15,8 @@ Steps, in order, each one checked before the next:
      not -Cycles. A holdout run is counted before its first cycle; the holdout retires after its allowed uses.
   7. The model is unloaded at the end unless -KeepLoaded is given, so the memory comes back.
 -Models NAME (owner standard, 26 October 2026: any local model, API key or sign-in) uses config\models-NAME.toml instead of the
-LM Studio file config\models.toml, and skips steps 2, 3, 4 and 7: LM Studio is not started or loaded. Remote addresses in that file must
+LM Studio file config\models.toml. A named file whose addresses are all loopback is local too (30 October 2026: a thinking local model
+needs a file with max_tokens), and LM Studio loads -Model as usual. A file with a remote address skips steps 2, 3, 4 and 7: LM Studio is not started or loaded. Remote addresses in that file must
 belong to a provider in config\providers.toml; the engine reads the provider's key from the user environment variable named there and
 refuses at step 5 if it is missing. The key is never printed. Example: -Models deepseek (authorized 26 October 2026).
 -ReflectModels NAME and -ReflectModel ID (gepa only) send GEPA's reflection calls to another model file, for example -ReflectModels deepseek
@@ -110,7 +111,10 @@ if ($Pick) {
 }
 $modelArguments=@('--models',$Models)
 if ($modelChosen) { $modelArguments+=@('--model',$Model) }
-$remote=($Models -ne 'local')
+$modelFile=if ($Models -eq 'local') { Join-Path $root 'config\models.toml' } else { Join-Path $root "config\models-$Models.toml" }
+if (-not (Test-Path $modelFile)) { Fail "model file not found: $modelFile" }
+$addresses=@(Select-String -Path $modelFile -Pattern '^\s*base_url\s*=\s*"([^"]+)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+$remote=(@($addresses | Where-Object { $_ -notmatch '^http://(127\.0\.0\.1|localhost):' }).Count -gt 0)
 if ($remote) {
     if (-not (Test-Path (Join-Path $root "config\models-$Models.toml"))) { Fail "model file config\models-$Models.toml not found" }
 } elseif (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
