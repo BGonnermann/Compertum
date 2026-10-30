@@ -163,6 +163,9 @@ A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19.
 Owner, 12:05 EDT: "ask GEPA if it can find a way to reduce time per task ... before we go into the weekend we should optimize that part."
 Built: a GEPA run may raise the speed weight (up to 0.1) and carry an instruction for this run (docs/ENGINE_PLAN.md). Engine lane 315 passed, 0 failed;
 product lane 250 passed, 0 failed, 7 skipped. The first lane failed the new practice test once on `OWNER_BUSY` (two runs in one test project); the test now uses two.
+GEPA speed run `run-20261030-dcc66d82` started at 13:11 EDT on DeepSeek flash (purpose gepa, 16 training and 8 validation markets at 4,096 sessions,
+80 cycles or 2,000 requests, speed weight 0.1, instruction: reduce the time per cycle at the same level or better; keep every check). Off-peak, about $2.
+The first start returned process-creation error 8: the starter had picked the Store alias of pwsh, which the process service cannot launch; it now uses the running host.
 Owner, 11:12 EDT: "Don't use Flint yet." The chained Flint baseline start was cancelled before the flash run ended; nothing started after it.
 
 Superseded (the run started): at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
