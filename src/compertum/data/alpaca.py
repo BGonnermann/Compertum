@@ -26,6 +26,7 @@ MAX_ROWS = 4096
 PARAMS = frozenset('symbols start end timeframe adjustment feed asof sort currency limit'.split())
 HASH = re.compile(r'[0-9a-f]{64}')
 IDENTIFIER = re.compile(r'[A-Za-z0-9][A-Za-z0-9_.:-]{0,95}')
+SYMBOL = re.compile(r'[A-Z]{1,5}(?:\.[A-Z])?')
 
 
 def _fields(value, fields, code):
@@ -110,7 +111,7 @@ def _sessions(start, end):
     return result
 
 
-def _profile(params):
+def _profile(params, universe: frozenset | None = SYMBOLS):
     _fields(params, PARAMS, 'PROVIDER_PROFILE')
     start = _timestamp(params['start'])
     end = _timestamp(params['end'])
@@ -125,7 +126,7 @@ def _profile(params):
         raise DataError('PROVIDER_PROFILE')
     symbols = params['symbols'].split(',')
     if (not 1 <= len(symbols) <= 13 or len(set(symbols)) != len(symbols)
-            or any(symbol not in SYMBOLS for symbol in symbols)
+            or any((symbol not in universe) if universe is not None else not SYMBOL.fullmatch(symbol) for symbol in symbols)
             or asof < end.date()):
         raise DataError('PROVIDER_PROFILE')
     if params['timeframe'] == '1Day':
@@ -186,8 +187,9 @@ class NormalizedEvidence:
     sha256: str
 
 
-def read_bar_evidence(raw: bytes) -> BarEvidence:
-    """Validate frozen request/page evidence; missing bars remain explicit."""
+def read_bar_evidence(raw: bytes, universe: frozenset | None = SYMBOLS) -> BarEvidence:
+    """Validate frozen request/page evidence; missing bars remain explicit.
+    universe: the symbols a request may name. None accepts any ticker of the SYMBOL form (engine history markets)."""
     value = _load(safe_text(raw))
     _fields(value, ('schema_version', 'host', 'requests', 'pages'), 'PROVIDER_ENVELOPE')
     if value['host'] != HOST:
@@ -206,7 +208,7 @@ def read_bar_evidence(raw: bytes) -> BarEvidence:
             raise DataError('PROVIDER_REQUEST')
         if request['path'] != '/v2/stocks/bars':
             raise DataError('PROVIDER_PROFILE')
-        profile = _profile(request['params'])
+        profile = _profile(request['params'], universe)
         profiles[rid] = (request['params'], profile)
     if sum(len(profile[0]) * len(profile[1]) for _, profile in profiles.values()) > MAX_ROWS:
         raise DataError('INPUT_BOUND')

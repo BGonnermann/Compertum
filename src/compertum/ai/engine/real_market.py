@@ -9,7 +9,7 @@ from compertum.data.provider_snapshot import MAX_CHUNKS,MAX_TOTAL,ProviderSnapsh
 from compertum.data.snapshot_text import MAX_INPUT
 from compertum.domain import ContractError,resolve_project_path,validate_record
 from compertum.runtime.errors import RuntimeRefused
-from .market import market_csv,split_market_tiers
+from .market import MAX_SESSIONS,MIN_SESSIONS,market_csv,split_market_tiers
 
 MANIFEST_BYTES=65536
 
@@ -70,7 +70,7 @@ def load_snapshot(project_root,manifest_path):
 
 
 def provider_market(snapshot,symbol,*,sessions=500):
-    if type(sessions) is not int or not 40<=sessions<=500: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    if type(sessions) is not int or not MIN_SESSIONS<=sessions<=MAX_SESSIONS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     if not isinstance(symbol,str) or symbol not in SYMBOLS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     try: snapshot=verify_provider_snapshot(snapshot)
     except DataError as error: raise RuntimeRefused(error.code) from None
@@ -92,6 +92,13 @@ def provider_market(snapshot,symbol,*,sessions=500):
     return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':label,'provenance':provenance,'vault_sessions':len(vault)},vault
 
 
-def load_market_manifest(project_root,manifest_path,*,sessions=500):
-    snapshot,symbol=load_snapshot(project_root,manifest_path)
-    return provider_market(snapshot,symbol,sessions=sessions)
+def load_market_manifest(project_root,manifest_path,*,sessions=None):
+    """A history manifest (kind "history") gives every retained session up to MAX_SESSIONS unless sessions is given; a provider
+    snapshot manifest keeps its 500-session default."""
+    root=Path(project_root).absolute()
+    value=_json(_read(root,manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
+    if isinstance(value,dict) and value.get('kind')=='history':
+        from .history_market import load_history_market
+        return load_history_market(root,manifest_path,sessions=sessions)
+    snapshot,symbol=load_snapshot(root,manifest_path)
+    return provider_market(snapshot,symbol,sessions=500 if sessions is None else sessions)

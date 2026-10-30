@@ -439,6 +439,20 @@ The speed bonus weight runs from 0 to `MAX_SPEED_WEIGHT` (0.1, one level at full
 the owner's goal for every reflection under "THE OWNER'S INSTRUCTION FOR THIS RUN", checked like a prompt. The START row records both.
 `best_candidate` still ranks by mean level first, so a faster candidate is reported as best only at an equal level; the bench exam decides the rest.
 
+History markets (30 October 2026; owner: real markets with "the max we can do for maximum data attention", a wider symbol list, more bars as needed).
+`tools/pull_bars.py` is the owner-started pull: one Alpaca bars request per symbol and calendar year (1Day, split-adjusted, SIP, 100 rows a page,
+every page followed), retained as an alpaca-bars-v1 envelope at `data/history/SYMBOL/YEAR.json`, never replaced, plus a history manifest per symbol.
+The credentials are the owner's `Desktop/v20/.env` entries (authorized 9 October 2026); they go into the request headers and nowhere else.
+`src/compertum/ai/engine/history_market.py` loads a manifest (`schemas/engine_market_history.v1.json`, kind `history`, any ticker of the form
+`[A-Z]{1,5}(.[A-Z])?`): it rechecks every chunk with the evidence reader, keeps that symbol's daily closes of the named adjustment, refuses a
+calendar gap, and builds the market from the last sessions available, up to the engine maximum of 4,096 (`MAX_SESSIONS`); `--sessions` shortens it.
+The evidence reader keeps every date before 2024, the vault period, so a history runs from 2016 to 2023: about 2,010 sessions, above the 2,000
+that the calibration found sufficient for strong patterns. The reader's symbol universe is widened only when a caller asks (`universe=None`);
+the paper-trading snapshot keeps its fixed 13 symbols. `real_market.load_market_manifest` dispatches on the manifest kind, and provider
+snapshots may now be cut at up to 4,096 sessions instead of 500. Minimum history: 50 sessions, so the split leaves a vault of 10.
+A history market is a practice or GEPA market (`-MarketManifest data/history/SPY/manifest.json`); bench and holdout stay synthetic, because only
+a planted pattern has an answer key, and a generated series cannot be remembered by the model. Transcripts of real-market runs stay out of training.
+
 Finding local models (29 October 2026, owner: "I know there's more models out there I just don't know how to find them").
 `tools/find_models.py` asks the Hugging Face Hub's public API for every repository with GGUF files, groups the uploads of one base model,
 and prints the groups that fit a card, most downloaded first. It needs no key and costs nothing. The first run found the most downloaded local

@@ -160,9 +160,26 @@ Built while the baseline ran: GEPA's reflection calls may go to a second model f
 Verification, source, simulated markets: engine lane 314 passed, 0 failed, 0 skipped; product lane 249 passed, 0 failed, 7 skipped. Not used in any run yet.
 Noise measured from the bench-4 run: within-market level spread 0.75; the two halves of the run (32 cycles each) gave means 6.78 and 6.72.
 A candidate scored on 8 cycles is known to about 0.27 of a level, on 16 to 0.19. Proposed, waiting for the owner: 16 GEPA validation markets instead of 8.
+Owner, 13:40 EDT: real markets at "the max we can do for maximum data attention", a wider symbol list, more Alpaca bars as needed.
+Built (docs/ENGINE_PLAN.md, "History markets"): `tools/pull_bars.py`, `src/compertum/ai/engine/history_market.py`, `schemas/engine_market_history.v1.json`;
+the evidence reader accepts any ticker when asked; provider and history markets may reach the engine maximum of 4,096 sessions (was 500).
+Pull of 30 October 2026, 14:11 to 14:28 EDT: 80 symbols, 2016 to 2023, SIP, split-adjusted, 1,906 requests, 17 minutes, $0, 23 MB under `data/history/` (outside Git).
+79 symbols have 2,000 to 2,011 sessions with no missing bar. META has 629 (the ticker was FB before June 2022, and the provider maps the name as of each year's end).
+Every manifest loaded through the engine's own loader. The earlier check pull (SPY 2023) was kept as that symbol's 2023 chunk.
+Verification, source: engine lane (engine files, model interface, test tools, pull tool, provider and data snapshots) 365 passed, 0 failed, 0 skipped, 12 warnings;
+product lane, the same files, 300 passed, 0 failed, 7 skipped. Committed with the GEPA speed run's findings.
 Owner, 12:05 EDT: "ask GEPA if it can find a way to reduce time per task ... before we go into the weekend we should optimize that part."
 Built: a GEPA run may raise the speed weight (up to 0.1) and carry an instruction for this run (docs/ENGINE_PLAN.md). Engine lane 315 passed, 0 failed;
 product lane 250 passed, 0 failed, 7 skipped. The first lane failed the new practice test once on `OWNER_BUSY` (two runs in one test project); the test now uses two.
+GEPA speed run result: `GEPA_COMPLETE`, 80 cycles, 1,556 requests, 87 minutes, about $1.60, 7 candidates, 0 false discoveries, 8 proposals (2 rejected as unparseable).
+Seed (candidate 0, 32 cycles): mean level 6.53, 13,803 output tokens per strategy built, 23.8 model calls per cycle.
+Verified against it on 16 cycles each: candidate 1 (Director rewrite: 1 or 2 ideas, word limits) 5.44, 18,134 tokens, 11.4 calls; candidate 6 (that Director plus a
+Researcher rewrite) 4.69, 9,133 tokens, 12.3 calls. Both halved the calls per cycle; candidate 6 cut tokens by a third; both lost 1 to 2 levels.
+On 4 cycles only (a reflection minibatch, noise about 0.4): candidate 2 (Researcher: one memo of 200 to 250 words, exact buildable rule, six falsifiers at most)
+8.25 at 15,860 tokens; candidate 5 (routing only: the Mathematician's code review turned off) 7.25 at 10,602 tokens; candidate 4 (Engineer rewrite) 7.00 at 12,860; candidate 3 (Mathematician) 3.50 at 24,412.
+`best_index` 2 with `selection_status` UNVERIFIED_UNEQUAL_EVALUATIONS; GEPA's own pick was folder 6. Nothing applied. Folder: `state/engine/prompts/run-20261030-dcc66d82/`.
+Reading: the proven speed levers cost accuracy; the promising ones (2, 5) are unproven. The exam decides: bench-4 at 2 cycles per market for candidates 5 and 2.
+
 GEPA speed run `run-20261030-dcc66d82` started at 13:11 EDT on DeepSeek flash (purpose gepa, 16 training and 8 validation markets at 4,096 sessions,
 80 cycles or 2,000 requests, speed weight 0.1, instruction: reduce the time per cycle at the same level or better; keep every check). Off-peak, about $2.
 The first start returned process-creation error 8: the starter had picked the Store alias of pwsh, which the process service cannot launch; it now uses the running host.
