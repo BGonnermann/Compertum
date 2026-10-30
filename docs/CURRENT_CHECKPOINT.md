@@ -146,7 +146,9 @@ opens Friday 30 October at 06:00 EDT (the midnight window is two hours). A one-t
 4 cycles per market, 2,400 requests, about $5 off-peak, through the detached starter. It is a single timer in this session, not a schedule; if the session
 ends before 06:00, nothing starts, and the owner runs the command below by hand.
 
-Exact next action: at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
+The timer fired: `run-20261030-4b8ab911` opened at 06:01 EDT on Friday 30 October, 45.1 GiB free at the start. Record: `.cache/test-runs/practice-bench-20261030-060045-record.json`.
+
+Superseded (the run started): at 06:00 the bench-4 flash baseline starts: `tools\start_run.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 flash baseline"`.
 Then the Flint baseline on the same set, when the owner starts it (4 cycles per market, $0): `tools\start_run.ps1 -Mode bench -BenchSet bench-4 -CyclesPerMarket 4 -Requests 2400 -Note "bench-4 Flint baseline"`.
 Then the weekend GEPA run on Flint in the off-peak block from Friday 06:00 EDT. Open: step 2, how trials are counted, before any promotion is possible.
 
