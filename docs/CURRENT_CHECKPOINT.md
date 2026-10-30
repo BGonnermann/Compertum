@@ -168,6 +168,7 @@ Pull of 30 October 2026, 14:11 to 14:28 EDT: 80 symbols, 2016 to 2023, SIP, spli
 Every manifest loaded through the engine's own loader. The earlier check pull (SPY 2023) was kept as that symbol's 2023 chunk.
 Verification, source: engine lane (engine files, model interface, test tools, pull tool, provider and data snapshots) 365 passed, 0 failed, 0 skipped, 12 warnings;
 product lane, the same files, 300 passed, 0 failed, 7 skipped. Committed with the GEPA speed run's findings.
+Committed as `4c56fcb`. The project map was refreshed for the real histories and the GEPA speed run: 9 pages, 81 internal links with 0 broken; pages 1 and 2 inspected.
 Owner, 12:05 EDT: "ask GEPA if it can find a way to reduce time per task ... before we go into the weekend we should optimize that part."
 Built: a GEPA run may raise the speed weight (up to 0.1) and carry an instruction for this run (docs/ENGINE_PLAN.md). Engine lane 315 passed, 0 failed;
 product lane 250 passed, 0 failed, 7 skipped. The first lane failed the new practice test once on `OWNER_BUSY` (two runs in one test project); the test now uses two.
