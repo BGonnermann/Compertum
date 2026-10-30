@@ -427,6 +427,12 @@ bench-1, bench-2, bench-3 and holdout-1 keep 500 sessions and are unchanged byte
 Real markets keep their 500-session cap, so the same limit applies to them. That is open real-market work.
 The cycle's market fingerprint no longer passes through the 64 KiB event encoder. It keeps the same value for every earlier market.
 
+Finding local models (29 October 2026, owner: "I know there's more models out there I just don't know how to find them").
+`tools/find_models.py` asks the Hugging Face Hub's public API for every repository with GGUF files, groups the uploads of one base model,
+and prints the groups that fit a card, most downloaded first. It needs no key and costs nothing. The first run found the most downloaded local
+models of 2026 (Ornith 1.5, 9B and 35B-A3B), the InternScience research-agent models (Agents-A1, Sage-A1.5) and the trained-ternary Bonsai models,
+none of which web searches had surfaced. Scores on model cards are the publishers' own; the bench decides.
+
 `engine/real_market.py` rebuilds chronological development markets from retained `BarEvidence` and a checked `engine_market_manifest.v1.json` manifest.
 It rechecks paths, hashes, scope, duplicates and complete coverage. It never exposes vault rows.
 Practice and GEPA accept repeatable real-market manifests. Bench and holdout reject them.
