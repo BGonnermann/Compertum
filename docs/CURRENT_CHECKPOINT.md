@@ -271,6 +271,12 @@ GLM everywhere scored 7.50 this afternoon (`run-20261031-d2263d0d`, same file li
 So the incumbent is now judged on the average of all its passes, and `route_search.py import RUN_ID --firm NAME` adds an earlier run as a pass (it checks each role's model).
 The afternoon run was imported; GLM everywhere stands at 7.12 over two passes. Patterns found are now averaged per pass. `tests/test_route_search.py` 6 passed (direct run).
 Batch 2 started at 16:46 (process 25864): route-5 and route-6 retest the two DeepSeek swaps; route-7 DeepSeek everywhere and route-8 Luna everywhere are the one-model firms.
+Batch 2 (16:46 to 18:10 EDT, OpenRouter spend $1.67; balance $5.24). Retests, averaged with the first pass: Mathematician DeepSeek 7.25 (second pass 7.06),
+3.0 found, 7 faults per pass (discard against 7.12); Engineer DeepSeek 7.28, 2.5 found, 2 faults (discard). One-model firms: DeepSeek everywhere 6.94, 2 found,
+10 faults, 51 minutes, about $0.37 (discard); Luna everywhere 7.56 (halves 8.38 and 6.75), 4 found, 0 faults, 83 minutes, about $0.80 (retest, under the half-spread 1.75).
+No false discovery. Per role: DeepSeek's Mathematician again wrote about 450,000 to 500,000 output tokens and gave 8 to 9 faults a pass; Luna was fault-free in every role
+but took 38 model minutes as Mathematician and 27 as Engineer, against GLM's 13 and 10. Incumbent: GLM everywhere, 7.12 over two passes.
+Batch 3 started at 18:10 (process 16748): route-9 retests Luna everywhere; route-10 Engineer Luna; route-11 Researcher DeepSeek; route-12 Researcher Luna.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
