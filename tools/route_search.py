@@ -4,6 +4,8 @@
     python tools/route_search.py --project . score RECORD   read a finished batch record, score every candidate, keep or discard, print the table
     python tools/route_search.py --project . status     print the log as a table
     python tools/route_search.py --project . roles      print each scored firm's model time, output tokens and faults by role
+    python tools/route_search.py --project . import RUN_ID --firm NAME[,NAME,NAME,NAME]
+                                                         add a finished bench run as one more pass of a firm (same model files, same bench)
 
 The search is a coordinate ascent, in the autoresearch form (edit, measure, keep or discard). It starts from the firm in
 config/route_search.toml, measures every pool model as a one-model firm (owner, 31 October 2026: one model for everything is preferred
@@ -11,8 +13,9 @@ when it is close, because its cost is upfront and measurable), then for one role
 file config/models-route-N.toml; one trip runs a batch of candidates together through tools\\practice.ps1 with FILE::ID entries.
 Each candidate is measured once on bench-4 at one cycle per market (16 cycles). It replaces the incumbent when its mean level is
 higher by at least the keep margin, or equal within the margin with more patterns found; a false discovery or an incomplete report
-discards it. A one-pass mean is noisy (the two halves of a run differed by up to 2.2 levels on 31 October 2026), so a win smaller than
-the incumbent's half-spread is retested once, and the two passes are averaged before the decision. Speed and cost are recorded and
+discards it. A one-pass mean is noisy (the two halves of a run differed by up to 2.2 levels, and two passes of the same firm by 0.75, on
+31 October 2026), so a win smaller than the incumbent's half-spread is retested once, and the two passes are averaged before the decision.
+The incumbent is always judged on the average of all its own passes, so a challenger's average never meets one lucky or unlucky pass. Speed and cost are recorded and
 break ties. The cost of a batch is the OpenRouter credits balance before and after (authoritative); the token estimate per firm sits
 beside it. The owner starts every trip; nothing here runs on its own. The log is state/engine/route-search/log.jsonl; every candidate
 stays in it, kept or not.
@@ -80,11 +83,24 @@ def halves(levels):
     return {'first':float(round(a,2)),'second':float(round(b,2)),'spread':float(round(abs(a-b),2))}
 
 
+def passes_of(log,key):
+    """Every measured single pass of one firm, once each (a retested entry carries both of its passes)."""
+    seen={};
+    for e in log:
+        if e.get('kind')!='scored' or e.get('key')!=key or not e.get('metrics'): continue
+        for single in e['metrics'].get('pass_list') or [e['metrics']]:
+            if single.get('run_id') and single['run_id'] not in seen: seen[single['run_id']]=single
+    return list(seen.values())
+
+
 def incumbent(log,start):
-    """The current best firm: the start firm, replaced by every kept candidate in order."""
+    """The current best firm: the start firm, replaced by every kept candidate in order; its score is the average of all its passes."""
     firm=dict(start);score=None
     for e in log:
         if e.get('kind')=='scored' and e.get('decision')=='keep': firm=e['firm'];score=e['metrics']
+    if score is not None:
+        passes=passes_of(log,firm_key(firm))
+        if len(passes)>1: score=averaged(passes)
     return firm,score
 
 
@@ -176,17 +192,28 @@ def metrics_of(root,run,pool):
             'faults':faults,'cost':cost_of(root,run['run_id'],pool),'halves':halves(levels),'roles':roles_of(root,run['run_id'])}
 
 
-def combined(first,second):
-    """The two passes of a retested firm as one measure: mean level and halves averaged, counts summed, the worse verdict kept."""
-    mean=(Decimal(first['mean_level'])+Decimal(second['mean_level']))/2
-    out={**second,'mean_level':format(mean.quantize(Decimal('0.01')),'f'),'found':first['found']+second['found'],'false':first['false']+second['false'],
-         'faults':first['faults']+second['faults'],'requests':first['requests']+second['requests'],'minutes':round(first['minutes']+second['minutes'],1),
-         'cost':None if first['cost'] is None or second['cost'] is None else round(first['cost']+second['cost'],4),
-         'verdict':second['verdict'] if first['verdict']=='MEASURED' else first['verdict'],'passes':2,'first_pass':first['run_id']}
-    if first.get('halves') and second.get('halves'):
-        out['halves']={'first':round((first['halves']['first']+second['halves']['first'])/2,2),'second':round((first['halves']['second']+second['halves']['second'])/2,2)}
-        out['halves']['spread']=round(abs(out['halves']['first']-out['halves']['second']),2)
+def averaged(passes):
+    """Several passes of one firm as one measure, per pass: mean level, patterns found, faults, minutes, cost and halves averaged;
+    false discoveries summed (one is enough to discard); the worst verdict kept. pass_list keeps every single pass."""
+    singles=[]
+    for m in passes: singles.extend(m.get('pass_list') or [m])
+    n=len(singles);last=singles[-1]
+    def avg(key,digits=2):
+        values=[s[key] for s in singles if s.get(key) is not None]
+        return round(sum(values)/len(values),digits) if values else None
+    mean=sum(Decimal(s['mean_level']) for s in singles)/n
+    out={**last,'mean_level':format(mean.quantize(Decimal('0.01')),'f'),'found':avg('found',1),'false':sum(s['false'] for s in singles),'faults':avg('faults',1),
+         'requests':avg('requests',0),'minutes':avg('minutes',1),'cost':avg('cost',4),
+         'verdict':next((s['verdict'] for s in singles if s['verdict']!='MEASURED'),'MEASURED'),'passes':n,
+         'pass_list':[{k:v for k,v in s.items() if k not in ('pass_list','roles')} for s in singles]}
+    halves_list=[s['halves'] for s in singles if s.get('halves')]
+    if halves_list:
+        a=round(sum(h['first'] for h in halves_list)/len(halves_list),2);b=round(sum(h['second'] for h in halves_list)/len(halves_list),2)
+        out['halves']={'first':a,'second':b,'spread':round(abs(a-b),2)}
     return out
+
+
+def combined(first,second): return averaged([first,second])
 
 
 def decide(metrics,best,margin,final=False):
@@ -269,6 +296,28 @@ def do_status(root,plan):
     return 0
 
 
+def do_import(root,plan,run_id,firm_names):
+    """One finished bench run as one more pass of a firm. The run must have used the same model files and the same bench set."""
+    import sqlite3
+    names=[x.strip() for x in firm_names.split(',')]
+    if len(names)==1: names=names*4
+    if len(names)!=4 or any(n not in plan['pool'] for n in names): raise SystemExit('--firm takes one pool name or four (director, researcher, mathematician, engineer)')
+    firm=dict(zip(ROLES,names))
+    db=sqlite3.connect(f"file:{(root/'state'/'research.sqlite').as_posix()}?mode=ro",uri=True)
+    rows={phase:json.loads(rec) for phase,rec in db.execute('SELECT phase,record FROM engine_bounded_runs WHERE run_id=?',(run_id,))}
+    if 'END' not in rows or 'report' not in rows['END']: raise SystemExit(f'{run_id}: no finished bench report')
+    models=rows['START'].get('models') or {}
+    for r in ROLES:
+        if models.get(r,{}).get('model')!=plan['pool'][firm[r]]['model']: raise SystemExit(f'{run_id}: the {r} ran {models.get(r,{}).get("model")}, not {firm[r]}')
+    end=rows['END'];roles=roles_of(root,run_id)
+    run={'run_id':run_id,'reason':end['reason'],'requests':end['requests'],'elapsed_seconds':end['elapsed_seconds'],'report':end['report'],
+         'cycles':[{'faults':[None]*sum(r['faults'] for r in (roles or {}).values())}]}
+    metrics=metrics_of(root,run,plan['pool'])
+    append_log(root,{'kind':'scored','name':f'import-{run_id}','key':firm_key(firm),'firm':firm,'metrics':metrics,'decision':'pass','why':'an earlier run of the same firm, imported'})
+    print(f"imported {run_id} as a pass of "+', '.join(f'{r} {firm[r]}' for r in ROLES)+f" (mean {metrics['mean_level']})")
+    return do_status(root,plan)
+
+
 def do_roles(root,plan):
     """Each scored firm by role: model, calls, model minutes, output tokens and faults, so the owner sees which model earns its place in which role."""
     print('name | role | model | calls | model min | output tokens | faults')
@@ -286,10 +335,12 @@ def main(argv=None):
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('next');commands.add_parser('status');commands.add_parser('roles')
     score=commands.add_parser('score');score.add_argument('record')
+    imported=commands.add_parser('import');imported.add_argument('run_id');imported.add_argument('--firm',required=True)
     args=parser.parse_args(argv);root=args.project.resolve();plan=load_plan(root)
     if args.command=='next': return do_next(root,plan)
     if args.command=='score': return do_score(root,plan,args.record)
     if args.command=='roles': return do_roles(root,plan)
+    if args.command=='import': return do_import(root,plan,args.run_id,args.firm)
     return do_status(root,plan)
 
 

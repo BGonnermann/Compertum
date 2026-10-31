@@ -120,10 +120,28 @@ def test_a_narrow_win_is_retested_and_the_two_passes_are_averaged(project,capsys
     record.write_text(json.dumps({'runs':{'route-3::':run('run-3','7.70',[8,7]*8,found=4),'route-4::':run('run-4','6.00',[6]*16)}}),encoding='utf-8')
     rs.do_score(project,plan,str(record))
     scored=[e for e in rs.read_log(project) if e['kind']=='scored']
-    assert scored[2]['decision']=='keep' and scored[2]['metrics']['mean_level']=='7.60' and scored[2]['metrics']['found']==7 and scored[2]['metrics']['passes']==2
+    assert scored[2]['decision']=='keep' and scored[2]['metrics']['mean_level']=='7.60' and scored[2]['metrics']['found']==3.5 and scored[2]['metrics']['passes']==2
+    assert [x['run_id'] for x in scored[2]['metrics']['pass_list']]==['run-2','run-3']
     firm,best=rs.incumbent(rs.read_log(project),plan['start']);assert firm==dict(director='b',researcher='b',mathematician='b',engineer='b') and best['mean_level']=='7.60'
     assert rs.decide({'verdict':'MEASURED','mean_level':'7.60','found':9,'false':0,'halves':None},{'mean_level':'7.50','found':3,'halves':{'spread':0.1}},rs.Decimal('0.3'))[0]=='keep'
 
 
 def test_the_command_line_reports_status(project,capsys):
     assert rs.main(['--project',str(project),'status'])==0 and 'not measured yet' in capsys.readouterr().out
+
+
+def test_the_incumbent_is_judged_on_the_average_of_all_its_passes(project):
+    """Two passes of the same firm differed by 0.75 on 31 October 2026: the incumbent's score is the mean of its passes, not its last one."""
+    def m(run_id,mean,found=3):
+        return {'run_id':run_id,'verdict':'MEASURED','mean_level':mean,'found':found,'false':0,'faults':0,'requests':400,'minutes':20.0,'cost':0.05,
+                'halves':{'first':8.0,'second':6.0,'spread':2.0}}
+    firm={r:'a' for r in rs.ROLES};key=rs.firm_key(firm)
+    log=[{'kind':'scored','key':key,'firm':firm,'metrics':m('run-1','6.75'),'decision':'keep'},
+         {'kind':'scored','key':key,'firm':firm,'metrics':m('run-0','7.50',5),'decision':'pass'}]
+    _,best=rs.incumbent(log,firm)
+    assert best['mean_level']=='7.12' and best['found']==4.0 and best['passes']==2 and {x['run_id'] for x in best['pass_list']}=={'run-0','run-1'}
+    # A challenger at 7.44 wins against the single pass 6.75 by 0.69 but against the average 7.12 by only 0.32.
+    assert rs.decide({'verdict':'MEASURED','mean_level':'7.44','found':4,'false':0},best,rs.Decimal('0.3'),final=True)==('keep','mean level up by 0.32')
+    assert rs.decide({'verdict':'MEASURED','mean_level':'7.40','found':4,'false':0},best,rs.Decimal('0.3'),final=True)[0]=='discard'
+    assert rs.passes_of(log+[{'kind':'scored','key':key,'firm':firm,'metrics':rs.averaged([m('run-1','6.75'),m('run-2','7.00')]),'decision':'keep'}],key).__len__()==3
+

@@ -263,6 +263,14 @@ one model todo everything so cost is more upfront and measurable." Built while t
 start firm (DeepSeek everywhere and Luna everywhere come in batch 2), and every scored firm's metrics hold a per-role table (model, calls, model seconds, output tokens,
 faults; `route_search.py roles` prints it). `tests/test_route_search.py` 5 passed in the product environment, run directly; the full lanes follow at the next free window
 (the retention tool refuses lanes while a run is open).
+Batch 1 (16:14 to 16:45 EDT, 4 firms in one trip, OpenRouter spend $0.88 against a token estimate of $0.72; balance $6.92):
+route-1 GLM everywhere 6.75 (halves 7.38 and 6.12), 3 found, 0 faults, 22 minutes, about $0.05; route-2 Mathematician DeepSeek 7.44, 4 found, 5 faults, 30 minutes,
+about $0.28 (retest); route-3 Mathematician Luna 6.81, 3 found, 0 faults, about $0.25 (discard); route-4 Engineer DeepSeek 7.25, 3 found, 1 fault, about $0.14 (retest).
+No false discovery. Per role: the DeepSeek Mathematician wrote 496,000 output tokens against GLM's 87,000 and took 35 model minutes against 14.
+GLM everywhere scored 7.50 this afternoon (`run-20261031-d2263d0d`, same file limits and engine code) and 6.75 in batch 1: two passes of one firm differ by 0.75.
+So the incumbent is now judged on the average of all its passes, and `route_search.py import RUN_ID --firm NAME` adds an earlier run as a pass (it checks each role's model).
+The afternoon run was imported; GLM everywhere stands at 7.12 over two passes. Patterns found are now averaged per pass. `tests/test_route_search.py` 6 passed (direct run).
+Batch 2 started at 16:46 (process 25864): route-5 and route-6 retest the two DeepSeek swaps; route-7 DeepSeek everywhere and route-8 Luna everywhere are the one-model firms.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
