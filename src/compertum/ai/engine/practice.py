@@ -51,14 +51,29 @@ MODEL_NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}')
 MAX_MODELS_TOGETHER=8  # owner direction, 31 October 2026: test several models at once; each gets its own run, transcript, summary and report
 
 
-def model_list(model):
-    """The model IDs of --model: None, or a comma-separated list without repeats. One ID keeps the single-run path."""
+FILE_SEPARATOR='::'
+
+
+def model_entry(entry,models):
+    """One --model entry: `ID` uses the --models file; `FILE::ID` names another model file (owner, 31 October 2026: models with different
+    files, for example one with a thinking cap, take one trip together); `FILE::` alone takes that file's own roles, one model per role,
+    which is how a mixed firm travels. Returns (file name, model ID or None)."""
+    if not isinstance(entry,str): raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
+    if FILE_SEPARATOR in entry:
+        name,_,ident=entry.partition(FILE_SEPARATOR)
+        if not MODEL_NAME.fullmatch(name): raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        return name,(None if ident=='' else model_id(ident))
+    return models,model_id(entry)
+
+
+def model_list(model,models='local'):
+    """The entries of --model: None, or a comma-separated list without repeats. One entry keeps the single-run path."""
     if model is None: return None
     if isinstance(model,(list,tuple)): ids=list(model)
     elif isinstance(model,str): ids=[x.strip() for x in model.split(',')]
     else: raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
-    ids=[model_id(x) for x in ids]
-    if not 1<=len(ids)<=MAX_MODELS_TOGETHER or len(set(ids))!=len(ids): raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
+    pairs=[model_entry(x,models) for x in ids]
+    if not 1<=len(ids)<=MAX_MODELS_TOGETHER or len(set(pairs))!=len(pairs): raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
     return ids
 
 
@@ -98,13 +113,15 @@ def list_models(spec,seconds=5):
 def models_report(project_root,models='local',model=None):
     """For every configured role: the address, the configured model, and whether the server lists it.
     With several models (a comma-separated --model), one report per model under `models`, and all_listed covers them all."""
-    ids=model_list(model)
+    ids=model_list(model,models)
     if ids is not None and len(ids)>1:
-        reports={m:models_report(project_root,models,m) for m in ids}
+        reports={m:models_report(project_root,*model_entry(m,models)) for m in ids}
         servers={}
         for r in reports.values(): servers.update(r['servers'])
         return {'servers':servers,'models':{m:{'roles':r['roles'],'listed':r['all_listed']} for m,r in reports.items()},'all_listed':all(r['all_listed'] for r in reports.values())}
-    root=Path(project_root).absolute();roles=chosen_roles(root,models,None if ids is None else ids[0])
+    root=Path(project_root).absolute()
+    if ids is None: roles=chosen_roles(root,models,None)
+    else: roles=chosen_roles(root,*model_entry(ids[0],models))
     servers={}
     for spec in roles.values():
         if spec.base_url in servers: continue
@@ -196,9 +213,9 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
     checked=preflight(root,markets+(validation_markets or []),prompts=prompts)
     held_back=sum(m.get('vault_sessions',0) for m in markets+(validation_markets or []))
-    ids=model_list(model);together=ids is not None and len(ids)>1
+    ids=model_list(model,models);together=ids is not None and len(ids)>1
     if together and (gepa or purpose=='holdout'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')  # GEPA improves prompts on one model; the holdout wears out per run
-    role_sets={m:chosen_roles(root,models,m) for m in (ids or [None])};roles=role_sets[None if ids is None else ids[0]]
+    role_sets={m:chosen_roles(root,*(model_entry(m,models) if m is not None else (models,None))) for m in (ids or [None])};roles=role_sets[None if ids is None else ids[0]]
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
         store=StorageManager(lease,load_config(config_path,root)).store
@@ -279,7 +296,9 @@ def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.practice',description='Owner practice run of the section 19 engine against loopback model servers.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     parser.add_argument('--models',default='local',help='the model file: local is config/models.toml; NAME is config/models-NAME.toml')
-    parser.add_argument('--model',help='one model ID for every role, for this run only; the server must list it. A comma-separated list starts one run per model at the same time (run and bench)')
+    parser.add_argument('--model',help='one model ID for every role, for this run only; the server must list it. A comma-separated list starts one run per model at the same time '
+                                       '(run and bench); an entry FILE::ID takes its roles and limits from config/models-FILE.toml instead of --models, and FILE:: alone takes '
+                                       'that file\'s own model for each role')
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('models')
     for name in ('run','gepa'):

@@ -39,6 +39,9 @@ Choosing the model at run time (owner direction, 26 October 2026: pick the model
              Without -Model, the model file's own IDs are used.
   -Model A,B,C  (remote files, run and bench; 31 October 2026) one run per model, all at the same time, in one process. Each run has
              its own run id, request limit, transcript, summary and report; the cycles are numbered from one shared counter.
+             An entry FILE::ID takes its roles and limits from config\models-FILE.toml, so models with different files (for example
+             one with a thinking cap) share the trip: -Models openrouter -Model "openrouter-think::z-ai/glm-5.3-flash,deepseek/deepseek-v4.1-flash".
+             FILE:: alone takes that file's own model for each role (a mixed firm): -Model "mixed::,route-1::".
   -Pick      a menu: first the model file (local, or each config\models-NAME.toml), then the models that provider lists now.
 The run's START row records the model of every role.
 #>
@@ -126,6 +129,18 @@ if (Test-Path (Join-Path $root 'state\engine\STOP')) { Fail 'state\engine\STOP e
 if ($modelChosen -and $Model -match ',') {
     if (-not $remote) { Fail 'several models at once need a remote model file; LM Studio loads one model' }
     if ($Mode -eq 'gepa' -or $Mode -eq 'holdout') { Fail 'several models at once apply to -Mode run and bench only' }
+}
+if ($modelChosen -and $Model -match '::') {
+    # An entry FILE::ID takes its roles from config\models-FILE.toml (31 October 2026). Every named file must exist and be remote.
+    foreach ($entry in ($Model -split ',')) {
+        if ($entry -notmatch '::') { continue }
+        $name=($entry -split '::',2)[0]
+        $named=Join-Path $root "config\models-$name.toml"
+        if (-not (Test-Path $named)) { Fail "model file not found for ${entry}: $named" }
+        $namedAddresses=@(Select-String -Path $named -Pattern '^\s*base_url\s*=\s*"([^"]+)"' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+        if (@($namedAddresses | Where-Object { $_ -match '^http://(127\.0\.0\.1|localhost):' }).Count -gt 0) { Fail "model file for $entry is local; FILE::ID needs a remote file" }
+    }
+    if (-not $remote) { Fail 'FILE::ID entries need a remote -Models file too' }
 }
 
 # 1. Memory before the load.

@@ -1,0 +1,37 @@
+# Model routing search plan (owner, 31 October 2026: find a better route through the models, at most one cycle per market per test).
+# tools/route_search.py reads this file. Prices are OpenRouter list prices (dollars per million tokens) read on 31 October 2026.
+# The pool: the three models with the best one-pass bench-4 results and clean builds. Thinking stays capped for GLM (its uncapped smoke test failed).
+# Order of roles to search: the Mathematician and Engineer take 75 to 85 percent of model time and almost all faults; the Director and Researcher follow.
+
+batch = 4
+keep_margin = 0.3
+bench_set = "bench-4"
+requests = 600
+roles = ["mathematician", "engineer", "researcher", "director"]
+
+[start]
+director = "glm"
+researcher = "glm"
+mathematician = "glm"
+engineer = "glm"
+
+[[pool]]
+name = "glm"
+file = "openrouter-think"
+model = "z-ai/glm-5.3-flash"
+input_per_million = 0.016
+output_per_million = 0.148
+
+[[pool]]
+name = "deepseek"
+file = "openrouter"
+model = "deepseek/deepseek-v4.1-flash"
+input_per_million = 0.045
+output_per_million = 0.5
+
+[[pool]]
+name = "luna"
+file = "openrouter"
+model = "openai/gpt-5.6-luna"
+input_per_million = 0.2
+output_per_million = 1.2

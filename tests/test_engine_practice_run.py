@@ -56,3 +56,25 @@ def test_two_models_run_together_as_one_process(tmp_path):
         assert {r['cycles'][0]['cycle_index'] for r in runs.values()}=={1,2} and sum(r['requests'] for r in runs.values())==len(state['posts'])<=160
         assert all(Path(r['summary_path']).exists() and (tmp_path/'state'/'engine'/'transcripts'/f"{r['run_id']}.jsonl").exists() for r in runs.values())
         assert result['research_state_after']=='PAUSED' and result['preflight']['markets']==1
+
+
+def test_two_models_from_two_files_run_together(tmp_path):
+    """31 October 2026: FILE::ID entries take their roles from other model files, so models with different limits share one trip."""
+    shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+    shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    (tmp_path/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 450\n',encoding='utf-8')
+    with role_server(listed=('second-model',)) as (port,state):
+        write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+        text=(tmp_path/'config'/'models.toml').read_text(encoding='utf-8').replace('model = "synthetic-model"\n','model = "synthetic-model"\nmax_tokens = 4096\n')
+        (tmp_path/'config'/'models-alt.toml').write_text(text,encoding='utf-8')
+        text=text.replace('model = "synthetic-model"\nmax_tokens = 4096\n','model = "second-model"\nmax_tokens = 4096\n',1)  # a mixed firm: one role on the second model
+        (tmp_path/'config'/'models-mixed-fixture.toml').write_text(text,encoding='utf-8')
+        done=subprocess.run([sys.executable,'-m','compertum.ai.engine.practice','--project',str(tmp_path),'--config','config.toml','--model','synthetic-model,alt::second-model,mixed-fixture::',
+                             'run','--cycles','1','--requests','80','--note','Owner practice run, two files (fixture)'],capture_output=True,text=True,timeout=900,cwd=str(tmp_path))
+        assert done.returncode==0,done.stderr[-2000:]
+        result=json.loads(done.stdout.strip().splitlines()[-1])
+        runs=result['runs'];assert set(runs)=={'synthetic-model','alt::second-model','mixed-fixture::'} and result['models_tested']==['synthetic-model','alt::second-model','mixed-fixture::']
+        assert all(r['reason']=='CYCLE_LIMIT' and len(r['cycles'])==1 for r in runs.values()) and runs['alt::second-model']['models']['director']['model']=='second-model'
+        mixed=runs['mixed-fixture::']['models'];assert mixed['director']['model']=='second-model' and mixed['engineer']['model']=='synthetic-model'
+        lines=[json.loads(l) for l in (tmp_path/'state'/'engine'/'transcripts'/f"{runs['alt::second-model']['run_id']}.jsonl").read_text(encoding='utf-8').splitlines()]
+        assert all(x['settings']['max_tokens']==4096 for x in lines) and sum(r['requests'] for r in runs.values())==len(state['posts'])

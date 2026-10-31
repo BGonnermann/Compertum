@@ -178,3 +178,28 @@ def test_run_together_keeps_every_outcome(monkeypatch):
     out=practice.run_together(['a','refused','b'],start)
     assert out=={'a':{'result':{'run_id':'run-a'}},'refused':{'refused':'ENGINE_STOPPED'},'b':{'result':{'run_id':'run-b'}}}
     with pytest.raises(ValueError): practice.run_together(['a','broken'],start)
+
+
+def test_a_model_entry_may_name_its_own_file(tmp_path,capsys):
+    """31 October 2026: FILE::ID takes its roles from config/models-FILE.toml, so models with different files share one trip."""
+    assert practice.model_entry('a','local')==('local','a') and practice.model_entry('alt::a','local')==('alt','a') and practice.model_entry('x/y:free','local')==('local','x/y:free')
+    assert practice.model_list('alt::a,a','local')==['alt::a','a'] and practice.model_list('alt::a,local::a')==['alt::a','local::a']
+    with pytest.raises(RuntimeRefused,match='^MODEL_IDENTITY_UNVERIFIED$'): practice.model_list('a,local::a','local')  # the same file and ID twice
+    for bad in ('Alt::a','../x::a','::a'):
+        with pytest.raises(RuntimeRefused,match='^UNKNOWN_CONFIG_FIELD$'): practice.model_entry(bad,'local')
+    assert practice.model_entry('alt::','local')==('alt',None) and practice.model_list('alt::,alt::a')==['alt::','alt::a']
+    with pytest.raises(RuntimeRefused,match='^MODEL_IDENTITY_UNVERIFIED$'): practice.model_list('alt::,alt::')
+    with server() as (port,state):
+        write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','file-model') for role in ('director','researcher','mathematician','engineer')])
+        alt=tmp_path/'config'/'models-alt.toml'
+        alt.write_text((tmp_path/'config'/'models.toml').read_text(encoding='utf-8').replace('model = "file-model"\n','model = "file-model"\nmax_tokens = 4096\n'),encoding='utf-8')
+        report=practice.models_report(tmp_path,'local','alt::synthetic-model,synthetic-model')
+        assert report['all_listed'] is True and set(report['models'])=={'alt::synthetic-model','synthetic-model'} and state['posts']==[]
+        one=practice.models_report(tmp_path,'local','alt::synthetic-model');assert 'models' not in one and one['all_listed'] is True
+        own=practice.models_report(tmp_path,'local','alt::,synthetic-model')  # FILE:: keeps the file's own model (file-model, which the server does not list)
+        assert own['all_listed'] is False and own['models']['alt::']['listed'] is False and own['models']['alt::']['roles']['engineer']['model']=='file-model'
+        roles=practice.chosen_roles(tmp_path,*practice.model_entry('alt::synthetic-model','local'))
+        assert {spec.max_tokens for spec in roles.values()}=={4096} and {spec.model for spec in roles.values()}=={'synthetic-model'}
+        shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+        assert practice.main(['--project',str(tmp_path),'--config','config.toml','--model','alt::synthetic-model,ghost::synthetic-model','models'])==2
+        assert json.loads(capsys.readouterr().out)=={'refused':'CONFIG_UNAVAILABLE'} and state['posts']==[]  # a missing file refuses before any request

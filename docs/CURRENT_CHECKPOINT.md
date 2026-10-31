@@ -239,6 +239,25 @@ Ranking on one cycle per market, bench-4 (mean level; found): GLM 5.3 flash 7.50
 DeepSeek flash direct 6.56 (4 over 4 cycles), Qwen 3.8 flash 6.50 (3), Ornith 6.25 (1), Haiku 5.5 6.00 (0), Flint 5.88 (2). Every OpenRouter model tested now has a
 one-cycle bench-4 measure; none has a 4-cycle baseline. No false discovery on any run. The capped thinking file was decisive for GLM, Qwen and MiniMax.
 Proposed next, for the owner: a 4-cycle bench-4 baseline of GLM 5.3 flash and DeepSeek v4.1 flash together (about 3,400 requests, about $4, under 2 hours at these speeds).
+Owner, 15:47 EDT: "start the runs when the tests pass." The GLM baseline started at 15:48 (`run-20261031-6fbe95d8`, capped file, 4 cycles per market, 2,400 requests)
+with the DeepSeek v4.1 flash baseline chained after it. Owner, 15:58: "3 to 5 hours????" then "stop everything for now and figure out a better way to route through
+everyone. Lets use GEPA or autoresearch to find a more optimized route, with max 1 cycle per test." Stop file at 16:00; the GLM run closed `KILL_SWITCH` at 16:01
+after 11 cycles and 276 requests (mean level 6.82 over the 11, 3 found, 0 false; `INCOMPLETE`, not a measure); DeepSeek never started; the stop file was removed.
+Why the time: a 4-cycle baseline is 64 cycles per model, and DeepSeek v4.1 flash takes about 2.5 to 3 minutes a cycle against GLM's 1.2.
+Built for the route search (lanes: engine 331 passed, 0 failed, `engine-lane-route-20261031-160851`; product 267 passed, 0 failed, 7 skipped, `product-lane-route-20261031-161253`;
+the per-file entry alone passed first at 326 and 262):
+- A `--model` entry `FILE::ID` takes its roles and limits from `config/models-FILE.toml`, and `FILE::` alone takes that file's own model for each role, so firms with
+  different files, and mixed firms, share one trip. `tools\practice.ps1` checks that every named file exists and is remote.
+- `tools/route_search.py` with `config/route_search.toml`: a coordinate ascent over role-to-model assignments, in the autoresearch form (edit one role, measure, keep or discard).
+  Pool: GLM 5.3 flash capped, DeepSeek v4.1 flash, Luna. Start: GLM in every role. Role order: Mathematician, Engineer, Researcher, Director, because the first two take
+  75 to 85 percent of model time and nearly all faults in every one-pass bench run of 31 October. A candidate is a generated `config/models-route-N.toml`; `next` writes a batch
+  of 4 and prints the one-trip command; `score RECORD` reads the batch record, computes mean level, found, false discoveries, faults, minutes, a token-price estimate
+  and the halves of the run, and keeps a firm when its mean level is up by 0.3 or within 0.3 with more patterns found; a false discovery or an incomplete report discards;
+  a win under the incumbent's half-spread is retested once and decided on the average of both passes. The OpenRouter credits balance is logged before and after every batch
+  as the authoritative cost. Log: `state/engine/route-search/log.jsonl`. GEPA is not in the loop: with 3 models and 4 roles a firm has 8 one-step neighbours, and a reflection
+  model adds little over trying them; it becomes worth it when the pool or the search space (caps, prompts per role) grows.
+Cost estimates from the transcripts at list prices: a 16-cycle run on GLM about $0.05, DeepSeek v4.1 flash $0.46, Luna $0.79; round one (7 firms, 2 trips) about $2.
+Owner, 16:11: "Ok sounds like a plan." Round one starts now.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
