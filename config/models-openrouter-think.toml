@@ -1,0 +1,32 @@
+# OpenRouter model file with a thinking budget (31 October 2026). The key stays in the user environment variable OPENROUTER_API_KEY.
+# For thinking models that spent the whole output limit on thinking in the smoke tests (GLM 5.3 flash, Qwen 3.8 flash, MiniMax M3.1 flash):
+# reasoning_tokens caps the thinking through OpenRouter's reasoning.max_tokens; the output limits match config/models-openrouter.toml.
+# Pick the model for one run with tools\practice.ps1 -Models openrouter-think -Model ID (or a comma-separated list).
+
+[roles.director]
+base_url = "https://openrouter.ai/api/v1"
+model = "z-ai/glm-5.3-flash"
+max_tokens = 8192
+reasoning_tokens = 2048
+seconds = 300
+
+[roles.researcher]
+base_url = "https://openrouter.ai/api/v1"
+model = "z-ai/glm-5.3-flash"
+max_tokens = 8192
+reasoning_tokens = 2048
+seconds = 300
+
+[roles.mathematician]
+base_url = "https://openrouter.ai/api/v1"
+model = "z-ai/glm-5.3-flash"
+max_tokens = 16384
+reasoning_tokens = 4096
+seconds = 600
+
+[roles.engineer]
+base_url = "https://openrouter.ai/api/v1"
+model = "z-ai/glm-5.3-flash"
+max_tokens = 8192
+reasoning_tokens = 2048
+seconds = 300

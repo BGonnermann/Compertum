@@ -207,6 +207,13 @@ GEPA and holdout refuse a model list. The sandbox still runs one job at a time (
 `run_ids` and `run_group`; a model whose run refused is recorded next to the others. At most 8 models.
 Engine lane 322 passed, 0 failed (`.cache/test-runs/engine-lane-together2-20261031-121340`); product lane 260 passed, 0 failed, 7 skipped
 (`product-lane-together-20261031-121640`). A first lane had 6 failures from an import that the bench tests' stub of the run module could not serve; fixed.
+Committed as `fb06eff`. Then a thinking budget for the three models that failed the smoke test: a model file may set `reasoning_tokens` per role
+(1 to 16,384); the request then carries OpenRouter's `reasoning.max_tokens`, and the call record keeps it. Files without it send nothing new.
+`config/models-openrouter-think.toml` caps thinking at 2,048 tokens (Mathematician 4,096) with the output limits of the plain OpenRouter file.
+Engine lane 323 passed, 0 failed (`engine-lane-think-20261031-122044`); product lane 261 passed, 0 failed, 7 skipped (`product-lane-think-20261031-122345`).
+The project map was refreshed: the AI node says several models run at once, one run each, with capped thinking; 9 pages, page 1 inspected.
+Next: the three thinking models' smoke tests together with the capped file, then the bench-4 small test of DeepSeek v4.1 flash and Haiku 5.5 together
+(plain file, comparable with Luna), then the same for the thinking models that pass.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

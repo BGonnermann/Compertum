@@ -8,8 +8,8 @@ import threading
 import time
 import pytest
 from test_ai_manual import bridge
-from compertum.ai.models import (ENGINE_ROLES,ModelClient,RoleModel,StoreLedger,auth_headers,load_models,load_providers,loopback_base_url,model_base_url,
-                                   remote_base_url)
+from compertum.ai.models import (ENGINE_ROLES,ModelClient,RoleModel,StoreLedger,auth_headers,checked_spec,load_models,load_providers,loopback_base_url,
+                                   model_base_url,remote_base_url)
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 
@@ -584,6 +584,30 @@ def test_a_model_file_may_set_its_models_temperature_and_the_settings_slot_may_s
         c.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64,temperature=0.3,override_temperature=True)
         plain=client(port,ListLedger(),limit=2);plain.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
         assert [p['temperature'] for p in state['posts']]==[0.6,0.3,0]
+
+
+def test_a_model_file_may_set_a_thinking_budget_that_the_request_carries(tmp_path):
+    """31 October 2026: reasoning_tokens caps a thinking model's thinking (OpenRouter's reasoning.max_tokens). Files without it send no such field."""
+    entries=[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)]
+    path=write_models(tmp_path,entries)
+    path.write_text(path.read_text(encoding='utf-8').replace('model = "m"\n','model = "m"\nreasoning_tokens = 2048\n'),encoding='utf-8')
+    loaded=load_models(path,tmp_path);assert {spec.reasoning_tokens for spec in loaded.values()}=={2048} and all(checked_spec(spec) for spec in loaded.values())
+    for bad in ('0','20000','"2048"','1.5'):
+        path.write_text(path.read_text(encoding='utf-8').replace('reasoning_tokens = 2048',f'reasoning_tokens = {bad}',1),encoding='utf-8')
+        with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'): load_models(path,tmp_path)
+        path.write_text(path.read_text(encoding='utf-8').replace(f'reasoning_tokens = {bad}','reasoning_tokens = 2048',1),encoding='utf-8')
+    assert not checked_spec(RoleModel('director','http://127.0.0.1:1234/v1','m',reasoning_tokens=0))
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'think'}]
+    with server() as (port,state):
+        budget={role:RoleModel(role,f'http://127.0.0.1:{port}/v1','synthetic-model',reasoning_tokens=2048) for role in ENGINE_ROLES}
+        ledger=ListLedger();c=ModelClient(budget,ledger,memory_floor_bytes=FLOOR,request_limit=4,available_memory=lambda:FLOOR+1,native_limits=False)
+        c.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
+        plain=client(port,ListLedger(),limit=2);plain.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
+        assert state['posts'][0]['reasoning']=={'max_tokens':2048} and 'reasoning' not in state['posts'][1]
+        assert ledger.entries[0]['settings']['reasoning_tokens']==2048 and 'reasoning_tokens' not in plain.ledger.entries[0]['settings']
+        assert ledger.entries[0]['settings']['max_tokens']==64
+    root=Path(__file__).resolve().parents[1];think=load_models(root/'config/models-openrouter-think.toml',root)
+    assert {spec.reasoning_tokens for spec in think.values()}=={2048,4096} and all(spec.max_tokens>spec.reasoning_tokens for spec in think.values())
 
 
 def test_a_large_model_list_is_read_for_its_ids_and_a_confirmed_model_is_not_listed_again():
