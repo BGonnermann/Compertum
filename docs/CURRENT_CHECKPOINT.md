@@ -212,8 +212,12 @@ Committed as `fb06eff`. Then a thinking budget for the three models that failed 
 `config/models-openrouter-think.toml` caps thinking at 2,048 tokens (Mathematician 4,096) with the output limits of the plain OpenRouter file.
 Engine lane 323 passed, 0 failed (`engine-lane-think-20261031-122044`); product lane 261 passed, 0 failed, 7 skipped (`product-lane-think-20261031-122345`).
 The project map was refreshed: the AI node says several models run at once, one run each, with capped thinking; 9 pages, page 1 inspected.
-Next: the three thinking models' smoke tests together with the capped file, then the bench-4 small test of DeepSeek v4.1 flash and Haiku 5.5 together
-(plain file, comparable with Luna), then the same for the thinking models that pass.
+The three capped smoke tests ran together at 12:25 EDT (one process, group `c5252b17...`, seed 12, 40 requests each); all three built and scored ideas:
+`run-20261031-b4a1f185` z-ai/glm-5.3-flash: 27 requests, 1.6 minutes, 3 of 3 built and scored, 0 faults; thinking peaked at 673 tokens, replies at 2,148.
+`run-20261031-baaa259d` qwen/qwen3.8-flash: 26 requests, 5.9 minutes, 3 of 3 built and scored, 0 faults; thinking peaked at 2,271 tokens.
+`run-20261031-841904f9` minimax/minimax-m3.1-flash: 16 requests, 2.1 minutes, 2 of 3 built, 1 build refused (`AI_TOOL_EXECUTION_DENIED`); one reply still
+reached 8,192 tokens with 3,333 of thinking, so MiniMax's provider does not hold the cap exactly. The three runs' cycle indexes were 840, 841 and 842, no collision.
+Next: the bench-4 small test of DeepSeek v4.1 flash and Haiku 5.5 together (plain file, comparable with Luna), then the three thinking models together (capped file).
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
