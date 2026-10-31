@@ -217,7 +217,15 @@ The three capped smoke tests ran together at 12:25 EDT (one process, group `c525
 `run-20261031-baaa259d` qwen/qwen3.8-flash: 26 requests, 5.9 minutes, 3 of 3 built and scored, 0 faults; thinking peaked at 2,271 tokens.
 `run-20261031-841904f9` minimax/minimax-m3.1-flash: 16 requests, 2.1 minutes, 2 of 3 built, 1 build refused (`AI_TOOL_EXECUTION_DENIED`); one reply still
 reached 8,192 tokens with 3,333 of thinking, so MiniMax's provider does not hold the cap exactly. The three runs' cycle indexes were 840, 841 and 842, no collision.
-Next: the bench-4 small test of DeepSeek v4.1 flash and Haiku 5.5 together (plain file, comparable with Luna), then the three thinking models together (capped file).
+Bench-4 small test together, 12:32 to 13:48 EDT, group `af3ad293...`, plain OpenRouter file, 1 cycle per market, 600 requests each, about $1.08 (balance $9.50 to $8.42):
+`run-20261031-b98b7e7d` deepseek/deepseek-v4.1-flash: `MEASURED`, 398 requests, 76.6 minutes, 44 candidates; patterns found 1 of 10 (seed 127, capture 0.624);
+false discoveries 0 of 6; mean level 7.38 (halves 8.25 and 6.50); level 10 on seeds 127, 128 and 130. Faults: {'AI_RESPONSE_TRUNCATED': 9, 'AI_RESPONSE_REJECTED': 3}.
+`run-20261031-45082e78` anthropic/claude-haiku-5.5: `MEASURED`, 431 requests, 55.2 minutes, 47 candidates; patterns found 0 of 10; false discoveries 0 of 6;
+mean level 6.00 (halves 6.38 and 5.62); level 10 on seed 128 only. Faults: {'AI_RESPONSE_TRUNCATED': 2}.
+Ranking on one cycle per market, bench-4: DeepSeek v4.1 flash 7.38, Luna 7.00, DeepSeek flash (direct) 6.56, Ornith 6.25, Haiku 5.5 6.00, Flint 5.88.
+A one-cycle score is known to about 0.27 of a level, so the top two are not separated; Haiku is clearly below them. The two runs together took 77 minutes,
+against 120 for Luna alone: the model calls of the two runs overlapped, and the sandbox served both one job at a time.
+Next: the three thinking models together on the capped file, after the other session's engine lane and commit (it holds uncommitted cycle.py edits).
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
