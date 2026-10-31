@@ -190,6 +190,14 @@ Spend per run from the credit balance (read by the other session about 15 second
 Balance $10.33 before the first test, $10.14 after the Luna rerun: about $0.19 for all seven runs. The two rejections hold no provider reply in the transcript, so their cause is unknown.
 Reading: DeepSeek v4.1 flash and Haiku 5.5 complete the cycle; the thinking models (GLM, Qwen, Minimax) spend the whole output budget on thinking at these limits and build nothing.
 A fair test of those needs a thinking budget or a larger output limit in the model file. No OpenRouter model has a bench baseline yet; Luna, DeepSeek v4.1 flash and Haiku 5.5 passed the smoke test and qualify for a bench-4 small test.
+Owner, 08:08 EDT: "run the bench-4 small test on luna." `run-20261031-04b8988c`, 08:09 to 10:09 EDT, 1 cycle per market, 600-request limit: `MEASURED`, 16 cycles,
+474 requests, 120.4 minutes, 48 candidates, 0 AI faults (474 of 474 replies completed, none cut off), about $0.61 (balance $10.14 to $9.53).
+Patterns found 2 of 10 (seeds 131 and 132, the weak momentum pair, captures 0.862 and 0.764); false discoveries 0 of 6; mean level 7.00.
+Level 10 also on seeds 127 and 128 (gate passed, captures 0.381 and 0.486, under the 0.5 found rule). Reversal and regime markets stayed at 5 to 8.
+Sandbox side: 12 jobs failed and 9 timed out across the 48 candidates; 2 candidates failed the Auditor. These are the model's programs, not client faults.
+Same test, first cycle per market: Ornith 6.25 (1 found), Flint 5.88 (2 found), DeepSeek flash 6.56 (its 4-cycle baseline found 4). Luna is 0.44 above flash
+and 0.75 above Ornith on one cycle per market, where a score is known to about 0.27 of a level; Luna's halves were 8.0 and 6.0. Luna is the slowest per cycle here
+(7.5 minutes against Ornith's 3.9 and Flint's 3.0), because its Engineer uses more tool calls (218 of 474 replies) and the sandbox jobs run longer.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
