@@ -51,16 +51,19 @@ def test_the_plan_loads_and_the_committed_plan_names_real_files():
 
 def test_next_batches_swap_one_role_at_a_time_from_the_incumbent(project,capsys):
     plan=rs.load_plan(project)
-    assert rs.next_batch(plan,[])==[dict(director='a',researcher='a',mathematician='a',engineer='a'),dict(director='a',researcher='a',mathematician='b',engineer='a')]
+    assert rs.next_batch(plan,[])==[dict(director='a',researcher='a',mathematician='a',engineer='a'),dict(director='b',researcher='b',mathematician='b',engineer='b')]
     assert rs.do_next(project,plan)==0
     out=capsys.readouterr().out
     assert 'route-1' in out and 'route-2' in out and '-Model "route-1::,route-2::"' in out and '-CyclesPerMarket 1' in out
     one=(project/'config'/'models-route-1.toml').read_text(encoding='utf-8');two=(project/'config'/'models-route-2.toml').read_text(encoding='utf-8')
     assert one.count('model = "vendor/alpha"')==4 and 'reasoning_tokens = 2048' in one
-    assert two.count('model = "vendor/beta"')==1 and two.count('model = "vendor/alpha"')==3 and two.index('[roles.mathematician]')<two.index('model = "vendor/beta"')
+    assert two.count('model = "vendor/beta"')==4 and 'reasoning_tokens' not in two  # the one-model firm on b, with b's file limits
     log=rs.read_log(project);assert [e['kind'] for e in log]==['planned','planned','batch'] and log[1]['firm']['mathematician']=='b' and 'balance_before' in log[2]
-    # The next batch skips tried firms and moves to the next role.
-    assert rs.next_batch(plan,log)==[dict(director='a',researcher='a',mathematician='a',engineer='b')]
+    # The next batch skips tried firms and swaps one role at a time, in role order.
+    assert rs.next_batch(plan,log)==[dict(director='a',researcher='a',mathematician='b',engineer='a'),dict(director='a',researcher='a',mathematician='a',engineer='b')]
+    three=rs.next_batch(plan,log)[0];rs.write_candidate(project,3,three,plan['pool'])
+    text=(project/'config'/'models-route-3.toml').read_text(encoding='utf-8')
+    assert text.count('model = "vendor/beta"')==1 and text.count('model = "vendor/alpha"')==3 and text.index('[roles.mathematician]')<text.index('model = "vendor/beta"')
 
 
 def test_scoring_keeps_better_firms_and_discards_false_discoveries(project,capsys):
@@ -72,20 +75,24 @@ def test_scoring_keeps_better_firms_and_discards_false_discoveries(project,capsy
                 'report':{'verdict':verdict,'mean_level':mean,'patterns_found':found,'false_discoveries':false,'candidates_total':40,'markets':markets}}
     transcripts=project/'state'/'engine'/'transcripts';transcripts.mkdir(parents=True)
     for run_id,model in (('run-1','vendor/alpha'),('run-2','vendor/beta')):
-        (transcripts/f'{run_id}.jsonl').write_text(json.dumps({'model_requested':model,'usage':{'prompt_tokens':1000000,'completion_tokens':1000000}})+'\n',encoding='utf-8')
+        (transcripts/f'{run_id}.jsonl').write_text(json.dumps({'model_requested':model,'role':'mathematician','elapsed_seconds':30.0,'status':'COMPLETED',
+                                                                 'usage':{'prompt_tokens':1000000,'completion_tokens':1000000}})+'\n'
+                                                      +json.dumps({'model_requested':model,'role':'engineer','elapsed_seconds':6.0,'status':'REFUSED_AI_RESPONSE_TRUNCATED','usage':None})+'\n',encoding='utf-8')
     record=project/'record.json'
     record.write_text('﻿noise\n'+json.dumps({'runs':{'route-1::':run('run-1','7.00',2,0),'route-2::':run('run-2','7.20',3,0,faults=2)}}),encoding='utf-8')
     assert rs.do_score(project,plan,str(record))==0
     log=[e for e in rs.read_log(project) if e['kind']=='scored']
     assert [e['decision'] for e in log]==['keep','keep'] and log[0]['metrics']['cost']==0.11 and log[1]['metrics']['cost']==3.0 and log[1]['metrics']['faults']==2
     firm,best=rs.incumbent(rs.read_log(project),plan['start']);assert firm['mathematician']=='b' and best['mean_level']=='7.20'
-    # A later batch (one candidate is left: the Engineer on b): a refusal is logged as a discard, and a UTF-16 record reads too.
+    roles=log[0]['metrics']['roles'];assert roles['mathematician']=={'calls':1,'seconds':30.0,'output_tokens':1000000,'faults':0,'model':'vendor/alpha'} and roles['engineer']['faults']==1
+    assert rs.main(['--project',str(project),'roles'])==0 and 'route-2 | engineer | vendor/beta | 1 | 0.1 | 0 | 1' in capsys.readouterr().out
+    # A later batch (the one-model firm on b is the incumbent; its swaps back to a come next): a refusal is logged as a discard, and a UTF-16 record reads too.
     rs.do_next(project,plan);capsys.readouterr()
-    names=[e['name'] for e in rs.read_log(project) if e['kind']=='planned'][2:];assert len(names)==1
-    record.write_text(json.dumps({'runs':{f'{names[0]}::':{'refused':'ENGINE_STOPPED'},'route-99::':run('run-9','9.00',9,0)}}),encoding='utf-16')
+    names=[e['name'] for e in rs.read_log(project) if e['kind']=='planned'][2:];assert len(names)==2
+    record.write_text(json.dumps({'runs':{f'{names[0]}::':{'refused':'ENGINE_STOPPED'},f'{names[1]}::':run('run-4','6.00',1,0),'route-99::':run('run-9','9.00',9,0)}}),encoding='utf-16')
     rs.do_score(project,plan,str(record));out=capsys.readouterr().out
     scored=[e for e in rs.read_log(project) if e['kind']=='scored']
-    assert [e['decision'] for e in scored[2:]]==['discard'] and 'refused: ENGINE_STOPPED' in scored[2]['why'] and 'incumbent: ' in out and 'route-99::: not a planned candidate' in out
+    assert [e['decision'] for e in scored[2:]]==['discard','discard'] and 'refused: ENGINE_STOPPED' in scored[2]['why'] and 'incumbent: ' in out and 'route-99::: not a planned candidate' in out
     assert rs.decide({'verdict':'MEASURED','mean_level':'8.00','found':6,'false':1},{'mean_level':'7.20','found':3},rs.Decimal('0.3'))==('discard','false discovery or incomplete')
     assert rs.decide({'verdict':'MEASURED','mean_level':'7.70','found':1,'false':0},{'mean_level':'7.50','found':3},rs.Decimal('0.3'))[0]=='discard'
     assert rs.decide({'verdict':'INCOMPLETE: a market has no finished cycle','mean_level':'9.00','found':9,'false':0},None,rs.Decimal('0.3'))[0]=='discard'
@@ -102,18 +109,19 @@ def test_a_narrow_win_is_retested_and_the_two_passes_are_averaged(project,capsys
     record=project/'record.json'
     # The incumbent's halves are 8.0 and 6.0 (spread 2.0); the challenger wins by 0.5, under that spread: retest.
     record.write_text(json.dumps({'runs':{'route-1::':run('run-1','7.00',[8]*8+[6]*8),'route-2::':run('run-2','7.50',[7,8]*8,found=3)}}),encoding='utf-8')
+    # route-2 is the one-model firm on b here; its narrow win over the start firm is retested.
     rs.do_score(project,plan,str(record))
     scored=[e for e in rs.read_log(project) if e['kind']=='scored']
     assert scored[0]['metrics']['halves']=={'first':8.0,'second':6.0,'spread':2.0} and scored[1]['decision']=='retest' and 'half-spread 2.0' in scored[1]['why']
     firm,_=rs.incumbent(rs.read_log(project),plan['start']);assert firm['mathematician']=='a'  # not kept yet
-    assert rs.next_batch(plan,rs.read_log(project))[0]==dict(director='a',researcher='a',mathematician='b',engineer='a')
+    assert rs.next_batch(plan,rs.read_log(project))[0]==dict(director='b',researcher='b',mathematician='b',engineer='b')
     rs.do_next(project,plan);out=capsys.readouterr().out;assert 'route-3' in out
     planned=[e for e in rs.read_log(project) if e['kind']=='planned'];assert planned[2]['pass']==2 and planned[2]['key']==scored[1]['key']
     record.write_text(json.dumps({'runs':{'route-3::':run('run-3','7.70',[8,7]*8,found=4),'route-4::':run('run-4','6.00',[6]*16)}}),encoding='utf-8')
     rs.do_score(project,plan,str(record))
     scored=[e for e in rs.read_log(project) if e['kind']=='scored']
     assert scored[2]['decision']=='keep' and scored[2]['metrics']['mean_level']=='7.60' and scored[2]['metrics']['found']==7 and scored[2]['metrics']['passes']==2
-    firm,best=rs.incumbent(rs.read_log(project),plan['start']);assert firm['mathematician']=='b' and best['mean_level']=='7.60'
+    firm,best=rs.incumbent(rs.read_log(project),plan['start']);assert firm==dict(director='b',researcher='b',mathematician='b',engineer='b') and best['mean_level']=='7.60'
     assert rs.decide({'verdict':'MEASURED','mean_level':'7.60','found':9,'false':0,'halves':None},{'mean_level':'7.50','found':3,'halves':{'spread':0.1}},rs.Decimal('0.3'))[0]=='keep'
 
 

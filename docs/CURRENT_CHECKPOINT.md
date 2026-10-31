@@ -257,7 +257,12 @@ the per-file entry alone passed first at 326 and 262):
   as the authoritative cost. Log: `state/engine/route-search/log.jsonl`. GEPA is not in the loop: with 3 models and 4 roles a firm has 8 one-step neighbours, and a reflection
   model adds little over trying them; it becomes worth it when the pool or the search space (caps, prompts per role) grows.
 Cost estimates from the transcripts at list prices: a 16-cycle run on GLM about $0.05, DeepSeek v4.1 flash $0.46, Luna $0.79; round one (7 firms, 2 trips) about $2.
-Owner, 16:11: "Ok sounds like a plan." Round one starts now.
+Owner, 16:11: "Ok sounds like a plan." Round one started at 16:14 EDT (process 20776): route-1 GLM everywhere, route-2 Mathematician DeepSeek, route-3 Mathematician Luna,
+route-4 Engineer DeepSeek, one trip. Owner, 16:16: "I approve to start. We can also figure out which model performs better and faster in each role ... Overall id like
+one model todo everything so cost is more upfront and measurable." Built while the batch ran: the search measures every pool model as a one-model firm right after the
+start firm (DeepSeek everywhere and Luna everywhere come in batch 2), and every scored firm's metrics hold a per-role table (model, calls, model seconds, output tokens,
+faults; `route_search.py roles` prints it). `tests/test_route_search.py` 5 passed in the product environment, run directly; the full lanes follow at the next free window
+(the retention tool refuses lanes while a run is open).
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

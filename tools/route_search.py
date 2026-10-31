@@ -3,9 +3,11 @@
     python tools/route_search.py --project . next       write the next batch of candidate firms and print the command that runs them together
     python tools/route_search.py --project . score RECORD   read a finished batch record, score every candidate, keep or discard, print the table
     python tools/route_search.py --project . status     print the log as a table
+    python tools/route_search.py --project . roles      print each scored firm's model time, output tokens and faults by role
 
 The search is a coordinate ascent, in the autoresearch form (edit, measure, keep or discard). It starts from the firm in
-config/route_search.toml, then for one role at a time tries every other model of the pool in that role. A candidate is a model
+config/route_search.toml, measures every pool model as a one-model firm (owner, 31 October 2026: one model for everything is preferred
+when it is close, because its cost is upfront and measurable), then for one role at a time tries every other model of the pool in that role. A candidate is a model
 file config/models-route-N.toml; one trip runs a batch of candidates together through tools\\practice.ps1 with FILE::ID entries.
 Each candidate is measured once on bench-4 at one cycle per market (16 cycles). It replaces the incumbent when its mean level is
 higher by at least the keep margin, or equal within the margin with more patterns found; a false discovery or an incomplete report
@@ -123,6 +125,11 @@ def next_batch(plan,log):
     done=tried(log);batch=[dict(f) for f in retests(log)][:plan['batch']]
     if len(batch)>=plan['batch']: return batch
     if firm_key(firm) not in done: batch.append(dict(firm))  # the start firm is measured first, so every keep is against a measured incumbent
+    for name in plan['pool']:  # every pool model as a one-model firm, measured under the same conditions as the start
+        single={r:name for r in ROLES}
+        if firm_key(single) in done or single in batch: continue
+        batch.append(single)
+        if len(batch)>=plan['batch']: return batch
     for role in plan['roles']:
         for name in plan['pool']:
             if name==firm[role]: continue
@@ -146,12 +153,27 @@ def cost_of(root,run_id,pool):
     return float(round(total,4))
 
 
+def roles_of(root,run_id):
+    """Per role, from the transcript: calls, model seconds, output tokens and refused calls. Shows where a firm spends its time."""
+    path=root/'state'/'engine'/'transcripts'/f'{run_id}.jsonl'
+    if not path.exists(): return None
+    out={r:{'calls':0,'seconds':0.0,'output_tokens':0,'faults':0,'model':None} for r in ROLES}
+    for line in path.read_text(encoding='utf-8').splitlines():
+        d=json.loads(line);r=d.get('role')
+        if r not in out: continue
+        row=out[r];row['calls']+=1;row['seconds']+=float(d.get('elapsed_seconds') or 0);row['output_tokens']+=(d.get('usage') or {}).get('completion_tokens',0)
+        row['model']=row['model'] or d.get('model_requested')
+        if d.get('status')!='COMPLETED': row['faults']+=1
+    for row in out.values(): row['seconds']=round(row['seconds'],1)
+    return out
+
+
 def metrics_of(root,run,pool):
     rep=run['report'];faults=sum(len(c.get('faults') or []) for c in run['cycles'])
     levels=[m['levels'][0] for m in rep.get('markets') or [] if m.get('levels')]
     return {'run_id':run['run_id'],'reason':run['reason'],'verdict':rep['verdict'],'mean_level':rep['mean_level'],'found':rep['patterns_found'],
             'false':rep['false_discoveries'],'candidates':rep['candidates_total'],'requests':run['requests'],'minutes':round(run['elapsed_seconds']/60,1),
-            'faults':faults,'cost':cost_of(root,run['run_id'],pool),'halves':halves(levels)}
+            'faults':faults,'cost':cost_of(root,run['run_id'],pool),'halves':halves(levels),'roles':roles_of(root,run['run_id'])}
 
 
 def combined(first,second):
@@ -247,15 +269,27 @@ def do_status(root,plan):
     return 0
 
 
+def do_roles(root,plan):
+    """Each scored firm by role: model, calls, model minutes, output tokens and faults, so the owner sees which model earns its place in which role."""
+    print('name | role | model | calls | model min | output tokens | faults')
+    for e in read_log(root):
+        if e.get('kind')!='scored' or not e.get('metrics') or not e['metrics'].get('roles'): continue
+        for r in ROLES:
+            row=e['metrics']['roles'][r]
+            print(f"{e['name']} | {r} | {row['model']} | {row['calls']} | {round(row['seconds']/60,1)} | {row['output_tokens']} | {row['faults']}")
+    return 0
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='tools/route_search.py')
     parser.add_argument('--project',type=Path,default=Path('.'))
     commands=parser.add_subparsers(dest='command',required=True)
-    commands.add_parser('next');commands.add_parser('status')
+    commands.add_parser('next');commands.add_parser('status');commands.add_parser('roles')
     score=commands.add_parser('score');score.add_argument('record')
     args=parser.parse_args(argv);root=args.project.resolve();plan=load_plan(root)
     if args.command=='next': return do_next(root,plan)
     if args.command=='score': return do_score(root,plan,args.record)
+    if args.command=='roles': return do_roles(root,plan)
     return do_status(root,plan)
 
 
