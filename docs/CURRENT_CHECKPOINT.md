@@ -183,9 +183,13 @@ Smoke tests ran 00:26 to 00:55 EDT, one practice cycle each, bench market seed 1
 `run-20261031-a130e736` qwen/qwen3.8-flash: 1 request, 2.7 minutes; the Director's pick was cut off (8,192 tokens, all thinking), so the cycle had no ideas.
 `run-20261031-ffd3d93c` minimax/minimax-m3.1-flash: 15 requests, 8.1 minutes, 3 ideas, 0 built; 2 cut-off engineer replies (all thinking) and 1 mathematician `AI_RESPONSE_REJECTED`.
 `run-20261031-8b50cf3a` openai/gpt-5.6-luna: 8 requests completed (Director, Researcher, one Mathematician specification, all short and clean), then the PC restarted; no summary, no record file.
-Credit balance $10.33 before the first test and $10.18 after the restart: about $0.15 for all six. The two rejections hold no provider reply in the transcript, so their cause is unknown.
+It stayed open (a START row without an END row) and refused the rerun with `ENGINE_RUN_ACTIVE`; closed at 07:53 EDT through `engine.control close-run` with a note (`OWNER_CLOSED`, the original row kept).
+Rerun `run-20261031-8a981478`, 07:54 to 08:07 EDT: 28 requests, 13.0 minutes, 3 ideas, 3 built and scored, all 3 beat the baseline and failed the deflation gate (DSR 0 over 1,669 trials), 0 faults.
+The only model of the six with no fault: thinking stayed short (about 23,000 output tokens in all, specifications about 3,300 each), builds took one tool call each.
+Spend per run from the credit balance (read by the other session about 15 seconds after each run closed, so approximate): GLM $0.019, DeepSeek $0.023, Haiku $0.032, Qwen $0.004, Minimax $0.031, Luna rerun $0.029.
+Balance $10.33 before the first test, $10.14 after the Luna rerun: about $0.19 for all seven runs. The two rejections hold no provider reply in the transcript, so their cause is unknown.
 Reading: DeepSeek v4.1 flash and Haiku 5.5 complete the cycle; the thinking models (GLM, Qwen, Minimax) spend the whole output budget on thinking at these limits and build nothing.
-A fair test of those needs a thinking budget or a larger output limit in the model file. GPT-5.6 Luna needs a rerun. No OpenRouter model has a bench baseline yet.
+A fair test of those needs a thinking budget or a larger output limit in the model file. No OpenRouter model has a bench baseline yet; Luna, DeepSeek v4.1 flash and Haiku 5.5 passed the smoke test and qualify for a bench-4 small test.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
