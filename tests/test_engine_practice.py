@@ -41,7 +41,7 @@ def test_models_report_says_whether_each_role_model_is_listed(tmp_path):
     with server() as (port,state):
         write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','synthetic-model' if role!='engineer' else 'SET_FROM_SERVER_MODEL_LIST') for role in ('director','researcher','mathematician','engineer')])
         report=practice.models_report(tmp_path)
-        assert report['servers']=={f'http://127.0.0.1:{port}/v1':{'models':['synthetic-model'],'error':None}}
+        assert report['servers']=={f'http://127.0.0.1:{port}/v1':{'models':['synthetic-model'],'error':None,'count':1}}
         assert report['roles']['director']['listed'] is True and report['roles']['engineer']['listed'] is False and report['all_listed'] is False
         assert state['posts']==[]  # no completion was sent
     # The committed models file points at LM Studio's default port. The owner's server may or may not be running there (it was,

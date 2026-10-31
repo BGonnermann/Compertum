@@ -77,6 +77,7 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 - Owner standard, 26 October 2026: the engine must run on any local model, API key, or sign-in, so research can continue when the PC is busy.
   Use loopback model addresses, or remote providers the owner lists in `config/providers.toml`. A listed provider is authorized. Add an entry only on the owner's instruction.
   The first listed provider is DeepSeek at `https://api.deepseek.com`, authorized on 26 October 2026 with no spending limit.
+  OpenRouter at `https://openrouter.ai/api/v1` was listed on the owner's instruction on 30 October 2026, to test other models. No spending limit was stated.
   Keys stay in user environment variables that the provider file names. Never record, print, copy, or commit a key.
   Check host memory before every job. The start floor is 8 GiB free (the owner lowered it from 16 GiB on 26 October 2026).
 - Engine work starts after M3 acceptance and finishes before M5.

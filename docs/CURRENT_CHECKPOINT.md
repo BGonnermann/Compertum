@@ -167,7 +167,16 @@ One cycle, `run-20261030-aa5bddfd`: the Director's call hit the 300-second limit
 model has no saved LM Studio settings, so thinking was unlimited at 13 tokens a second. A settings file like Flint's was written for the Q8_0 file
 (all layers on the card, flash attention, Q8 KV cache, 4 context checkpoints, thinking budget 1,024 tokens). Speed stayed 14 to 18 tokens a second, and the card
 showed 14.7 GB in use with no model loaded: the owner's own Boulder loop (`python -m boulder.cli -c configs/long.yaml loop`, started 07:16) holds most of the card.
-Ornith cannot be judged until that loop ends or the owner pauses it. Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
+Ornith cannot be judged until that loop ends or the owner pauses it. Owner, 23:35 EDT: cloud only for now ("stick to cloud based deepseek"), and an OpenRouter key "so we can test other models". OpenRouter is listed in
+`config/providers.toml` and AGENTS.md (no spending limit stated); `config/models-openrouter.toml` covers any listed model through `-Model ID`. Fix needed first:
+OpenRouter's model list is about 0.8 MB, above the 256 KB reply bound and the secret scan's input bound, and the client fetched it before every request.
+Model lists now have their own bound (`MODEL_LIST_BYTES`, 8 MiB), only the IDs are kept (the list is never recorded), and a confirmed model is not listed
+again for 10 minutes. Key check (no completion): 420 models listed, credit balance $10.33. Engine lane 323 passed, 0 failed; product lane 258 passed, 7 skipped.
+Ornith's rerun at temperature 0.6 (`run-20261031-623a8256`): 0 cut-off replies, but from the fifth cycle on every call failed with `LOCAL_COMPLETION_UNVERIFIED`
+(the local server stopped answering); 1 of 10 found, mean 2.69, not a measure of the model. The owner chose to skip Ornith (00:35 EDT) and test cloud models.
+Owner's rule for model tests: "a small cycle not a large money hungry run." Protocol: a smoke test of one practice cycle with at most 40 requests; a bench-4
+small test only for cheap models that pass it. Spend is read from OpenRouter's credit balance before and after.
+Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
 default ("0") now defers to it, and any other settings value still overrides it. Files without it behave as before (DeepSeek, Flint: 0).

@@ -6,6 +6,7 @@ import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
+import json
 import math
 import os
 from pathlib import Path
@@ -29,6 +30,8 @@ CYCLE:contextvars.ContextVar[str|None]=contextvars.ContextVar('engine_cycle',def
 MAX_BYTES=65536
 MAX_OUTPUT_TOKENS,MAX_SECONDS=16384,600
 RESPONSE_BYTES=262144  # a reply, thinking text included; raised from 65536 with the per-model caps (26 October 2026)
+MODEL_LIST_BYTES=8*1024*1024  # a server's model list (OpenRouter's is about 0.8 MB); only the IDs are kept, never recorded
+MODEL_LIST_SECONDS=600  # a confirmed model stays confirmed this long within one client
 MAX_TOOLS,MAX_TOOL_CALLS,MAX_ARGUMENT_BYTES=16,8,16384
 _TOOL_NAME=re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 _MESSAGE_KEYS={'system':{'role','content'},'user':{'role','content'},'assistant':{'role','content','tool_calls'},'tool':{'role','content','tool_call_id'}}
@@ -275,6 +278,15 @@ PROVIDER_DENIED_STATUSES=frozenset({401,402,403})
 FINISH_CHARS=32
 
 
+def model_ids(raw):
+    """The model IDs in a GET /models reply. The list itself is never recorded or passed on, so it needs no secret scan; each ID is checked."""
+    if not isinstance(raw,(bytes,bytearray)) or len(raw)>MODEL_LIST_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
+    try: value=json.loads(bytes(raw).decode('utf-8'))
+    except (UnicodeError,ValueError,RecursionError): raise RuntimeRefused('AI_RESPONSE_INVALID') from None
+    data=value.get('data') if isinstance(value,dict) else None
+    return frozenset(m['id'] for m in data if isinstance(m,dict) and isinstance(m.get('id'),str) and 1<=len(m['id'])<=256) if isinstance(data,list) else frozenset()
+
+
 def usage_counts(usage):
     """The token counts of a reply, bounded: prompt, completion and total, plus reasoning tokens when the server reports them. None when absent."""
     if usage is None: return None
@@ -310,7 +322,7 @@ class ModelClient:
         self.available_memory=available_memory;self.requests=0;self.native_limits=None;self.gate=gate
         # transcript: a callable that receives the full text of every sent request and its reply (step S3, owner request 26 October 2026:
         # a dataset for later fine-tuning). The ledger row keeps hashes only; the transcript keeps the words. Never headers, so never a key.
-        self.transcript=transcript;self.transcript_failures=0
+        self.transcript=transcript;self.transcript_failures=0;self._confirmed={}
         if native_limits:
             # The same one-thread, 256 MiB, no-child Job as the Strata adapter. The supervisor never uses this client.
             from compertum.runtime.managed import constrain_ai_adapter
@@ -329,10 +341,15 @@ class ModelClient:
         sanitized(bytes(raw));return read_json(bytes(raw)),bytes(raw)
 
     async def _reported_model(self,client,spec):
-        models,_=await self._json(client,'GET',spec.base_url+'/models')
-        data=models.get('data') if isinstance(models,dict) else None
-        ids=[m.get('id') for m in data if isinstance(m,dict)] if isinstance(data,list) else []
-        if spec.model not in ids: raise RuntimeRefused('MODEL_IDENTITY_MISMATCH')
+        key=(spec.base_url,spec.model);seen=self._confirmed.get(key)
+        if seen is not None and time.monotonic()-seen<MODEL_LIST_SECONDS: return spec.model
+        async with client.stream('GET',spec.base_url+'/models') as response:
+            response.raise_for_status();raw=bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(raw)+len(chunk)>MODEL_LIST_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
+                raw.extend(chunk)
+        if spec.model not in model_ids(bytes(raw)): raise RuntimeRefused('MODEL_IDENTITY_MISMATCH')
+        self._confirmed[key]=time.monotonic()
         return spec.model
 
     def probe(self,role):

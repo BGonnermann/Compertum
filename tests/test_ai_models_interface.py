@@ -28,7 +28,9 @@ def server(mode='ok',model='synthetic-model'):
             except (BrokenPipeError,ConnectionResetError): pass
         def do_GET(self):
             state['gets']+=1
-            if self.path=='/v1/models': self.send({'data':[{'id':model}]})
+            if self.path=='/v1/models':
+                if state['mode']=='biglist': return self.send({'data':[{'id':f'other/model-{i}','description':'x'*1800} for i in range(450)]+[{'id':model}]})
+                self.send({'data':[{'id':model}]})
             else: self.send({},404)
         def do_POST(self):
             raw=self.rfile.read(int(self.headers['Content-Length']));p=json.loads(raw);state['posts'].append(p)
@@ -216,6 +218,9 @@ def test_the_committed_provider_and_deepseek_files_load_and_hold_no_key():
     assert {spec.model for spec in loaded.values()}=={'deepseek-v4-pro'}
     assert {role:(spec.max_tokens,spec.seconds) for role,spec in loaded.items()}=={'director':(8192,300),'researcher':(8192,300),'engineer':(8192,300),'mathematician':(16384,600)}
     for name in ('config/models-deepseek.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
+    routed=load_models(root/'config/models-openrouter.toml',root)
+    assert {(spec.base_url,spec.provider,spec.key_env) for spec in routed.values()}=={('https://openrouter.ai/api/v1','openrouter','OPENROUTER_API_KEY')}
+    assert 'sk-' not in (root/'config/models-openrouter.toml').read_text(encoding='utf-8')
 
 
 def test_the_committed_kimi_file_loads_and_holds_no_key():
@@ -579,3 +584,19 @@ def test_a_model_file_may_set_its_models_temperature_and_the_settings_slot_may_s
         c.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64,temperature=0.3,override_temperature=True)
         plain=client(port,ListLedger(),limit=2);plain.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
         assert [p['temperature'] for p in state['posts']]==[0.6,0.3,0]
+
+
+def test_a_large_model_list_is_read_for_its_ids_and_a_confirmed_model_is_not_listed_again():
+    from compertum.ai.models import MODEL_LIST_BYTES,model_ids
+    assert model_ids(b'{"data":[{"id":"a/b"},{"id":""},{"name":"x"},{"id":7}]}')==frozenset({'a/b'}) and model_ids(b'{"x":1}')==frozenset()
+    with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_BOUND$'): model_ids(b'x'*(MODEL_LIST_BYTES+1))
+    with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_INVALID$'): model_ids(b'{no')
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'list'}]
+    with server(mode='biglist') as (port,state):
+        c=client(port,ListLedger(),limit=3)
+        c.complete('director',messages,purpose='e1-fixture',max_tokens=64);c.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)
+        assert len(state['posts'])==2 and state['gets']==1
+    from compertum.ai.engine.practice import list_models
+    with server(mode='biglist') as (port,state):
+        listed=list_models(RoleModel('director',f'http://127.0.0.1:{port}/v1','synthetic-model'))
+        assert 'synthetic-model' in listed and len(listed)==451

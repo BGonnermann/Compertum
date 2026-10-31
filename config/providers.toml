@@ -18,3 +18,9 @@ key_variable = "DEEPSEEK_API_KEY"
 [providers.kimi]
 base_url = "https://api.kimi.ai/coding/v1"
 key_variable = "KIMI_API_KEY"
+
+# OpenRouter: authorized by the owner on 30 October 2026 ("I got an openrouter API key so we can test other models").
+# One key reaches many providers' models. No spending limit was stated; the per-run request limit bounds each run.
+[providers.openrouter]
+base_url = "https://openrouter.ai/api/v1"
+key_variable = "OPENROUTER_API_KEY"

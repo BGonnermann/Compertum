@@ -1,0 +1,29 @@
+# OpenRouter model file: the provider the owner authorized on 30 October 2026 (config/providers.toml), to test other models.
+# The key is never in this file; it is in the user environment variable OPENROUTER_API_KEY.
+# model is a default; pick any model OpenRouter lists for one run with tools\practice.ps1 -Models openrouter -Model ID
+# (for example anthropic/claude-sonnet-5.5, openai/gpt-5.6-luna, qwen/qwen3.8-flash, moonshotai/kimi-k3, z-ai/glm-5.3-flash).
+# Every model needs its own bench baseline. Thinking models need room: the limits below match the DeepSeek file.
+
+[roles.director]
+base_url = "https://openrouter.ai/api/v1"
+model = "deepseek/deepseek-v4.1-flash"
+max_tokens = 8192
+seconds = 300
+
+[roles.researcher]
+base_url = "https://openrouter.ai/api/v1"
+model = "deepseek/deepseek-v4.1-flash"
+max_tokens = 8192
+seconds = 300
+
+[roles.mathematician]
+base_url = "https://openrouter.ai/api/v1"
+model = "deepseek/deepseek-v4.1-flash"
+max_tokens = 16384
+seconds = 600
+
+[roles.engineer]
+base_url = "https://openrouter.ai/api/v1"
+model = "deepseek/deepseek-v4.1-flash"
+max_tokens = 8192
+seconds = 300

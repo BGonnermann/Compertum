@@ -32,7 +32,7 @@ from compertum.runtime.jobs import available_physical_memory
 from compertum.runtime.owners import acquire_owner,release_owner
 from compertum.runtime.sandbox import verify_sandbox
 from compertum.storage import StorageManager
-from compertum.ai.models import auth_headers,checked_spec,load_models,model_id
+from compertum.ai.models import MODEL_LIST_BYTES,auth_headers,checked_spec,load_models,model_id,model_ids
 from .audit import engine_fixed_targets
 from . import bench
 from .limits import RunLimits
@@ -73,16 +73,12 @@ def list_models(spec,seconds=5):
                 async with client.stream('GET',url+'/models') as response:
                     response.raise_for_status();raw=bytearray()
                     async for chunk in response.aiter_bytes():
-                        if len(raw)+len(chunk)>MODELS_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
+                        if len(raw)+len(chunk)>MODEL_LIST_BYTES: raise RuntimeRefused('AI_RESPONSE_BOUND')
                         raw.extend(chunk)
                     return bytes(raw)
     try: raw=asyncio.run(fetch())
     except (TimeoutError,httpx.HTTPError): raise RuntimeRefused('LOCAL_COMPLETION_UNVERIFIED') from None
-    try: value=json.loads(raw.decode('utf-8'))
-    except (UnicodeError,ValueError): raise RuntimeRefused('AI_RESPONSE_INVALID') from None
-    data=value.get('data') if isinstance(value,dict) else None
-    ids=[m['id'] for m in data if isinstance(m,dict) and isinstance(m.get('id'),str) and 1<=len(m['id'])<=256] if isinstance(data,list) else []
-    return sorted(set(ids))[:MAX_MODEL_IDS]
+    return sorted(model_ids(raw))
 
 
 def models_report(project_root,models='local',model=None):
@@ -94,6 +90,8 @@ def models_report(project_root,models='local',model=None):
         try: servers[spec.base_url]={'models':list_models(spec),'error':None}
         except RuntimeRefused as error: servers[spec.base_url]={'models':[],'error':error.code}
     report={role:{'address':spec.base_url,'model':spec.model,'listed':spec.model in servers[spec.base_url]['models']} for role,spec in sorted(roles.items())}
+    for server in servers.values():
+        server['count']=len(server['models']);server['models']=server['models'][:MAX_MODEL_IDS]
     return {'servers':servers,'roles':report,'all_listed':all(r['listed'] for r in report.values())}
 
 
