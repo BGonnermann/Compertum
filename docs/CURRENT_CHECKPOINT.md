@@ -225,7 +225,20 @@ mean level 6.00 (halves 6.38 and 5.62); level 10 on seed 128 only. Faults: {'AI_
 Ranking on one cycle per market, bench-4: DeepSeek v4.1 flash 7.38, Luna 7.00, DeepSeek flash (direct) 6.56, Ornith 6.25, Haiku 5.5 6.00, Flint 5.88.
 A one-cycle score is known to about 0.27 of a level, so the top two are not separated; Haiku is clearly below them. The two runs together took 77 minutes,
 against 120 for Luna alone: the model calls of the two runs overlapped, and the sandbox served both one job at a time.
-Next: the three thinking models together on the capped file, after the other session's engine lane and commit (it holds uncommitted cycle.py edits).
+The other session's commit `bda37ad`, 31 October 2026 (its own report, lane records checked): ideas of a cycle run side by side (`Engine.parallel_ideas`), GEPA ranks on
+16 exam markets with 8 cycles at once, `config/models-mixed.toml` added, DeepSeek Engineer limit 16,384; engine lane 329 passed, product lane 261 passed, 7 skipped,
+after two earlier engine lanes with 1 and 2 failures; details in `docs/ENGINE_PLAN.md`. It refreshed the project map for these changes.
+Bench-4 small test together, capped file, 14:03 to 14:37 EDT, group `08c6788d...`, 1 cycle per market, 600 requests each, about $0.56 for all three (balance $8.42 to $7.86).
+This was the first bench on `bda37ad`, so each cycle's three ideas ran side by side; the scoring order is unchanged, the timing is not comparable with earlier runs.
+`run-20261031-d2263d0d` z-ai/glm-5.3-flash: `MEASURED`, 428 requests, 13.0 minutes, 48 candidates; found 5 of 10 (seeds 127, 129, 132, 133, 134; captures 0.605 to 1.000);
+false discoveries 0 of 6; mean level 7.50 (halves 8.62 and 6.38); 0 AI faults. The only model so far to find reversal markets (129, 133, 134).
+`run-20261031-fe02dfcc` minimax/minimax-m3.1-flash: `MEASURED`, 415 requests, 19.8 minutes, 43 candidates; found 2 of 10 (127, 132); false 0 of 6; mean 6.75; 3 AI faults.
+`run-20261031-3605c9bc` qwen/qwen3.8-flash: `MEASURED`, 360 requests, 32.8 minutes, 43 candidates; found 3 of 10 (131, 132, 134); false 0 of 6; mean 6.50 (levels 2 and 1
+on the strong-momentum pair 127 and 128, its only weak spot); 7 rejected replies.
+Ranking on one cycle per market, bench-4 (mean level; found): GLM 5.3 flash 7.50 (5), DeepSeek v4.1 flash 7.38 (1), Luna 7.00 (2), MiniMax M3.1 flash 6.75 (2),
+DeepSeek flash direct 6.56 (4 over 4 cycles), Qwen 3.8 flash 6.50 (3), Ornith 6.25 (1), Haiku 5.5 6.00 (0), Flint 5.88 (2). Every OpenRouter model tested now has a
+one-cycle bench-4 measure; none has a 4-cycle baseline. No false discovery on any run. The capped thinking file was decisive for GLM, Qwen and MiniMax.
+Proposed next, for the owner: a 4-cycle bench-4 baseline of GLM 5.3 flash and DeepSeek v4.1 flash together (about 3,400 requests, about $4, under 2 hours at these speeds).
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
