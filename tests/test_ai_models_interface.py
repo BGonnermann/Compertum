@@ -216,11 +216,14 @@ def test_the_committed_provider_and_deepseek_files_load_and_hold_no_key():
     root=Path(__file__).resolve().parents[1];loaded=load_models(root/'config/models-deepseek.toml',root)
     assert {(spec.base_url,spec.provider,spec.key_env) for spec in loaded.values()}=={('https://api.deepseek.com','deepseek','DEEPSEEK_API_KEY')}
     assert {spec.model for spec in loaded.values()}=={'deepseek-v4-pro'}
-    assert {role:(spec.max_tokens,spec.seconds) for role,spec in loaded.items()}=={'director':(8192,300),'researcher':(8192,300),'engineer':(8192,300),'mathematician':(16384,600)}
+    assert {role:(spec.max_tokens,spec.seconds) for role,spec in loaded.items()}=={'director':(8192,300),'researcher':(8192,300),'engineer':(16384,300),'mathematician':(16384,600)}
     for name in ('config/models-deepseek.toml','config/providers.toml'): assert 'sk-' not in (root/name).read_text(encoding='utf-8')
     routed=load_models(root/'config/models-openrouter.toml',root)
     assert {(spec.base_url,spec.provider,spec.key_env) for spec in routed.values()}=={('https://openrouter.ai/api/v1','openrouter','OPENROUTER_API_KEY')}
     assert 'sk-' not in (root/'config/models-openrouter.toml').read_text(encoding='utf-8')
+    mixed=load_models(root/'config/models-mixed.toml',root)
+    assert {role:spec.model for role,spec in mixed.items()}=={'director':'deepseek/deepseek-v4.1-flash','researcher':'deepseek/deepseek-v4.1-flash','mathematician':'openai/gpt-5.6-luna','engineer':'openai/gpt-5.6-luna'}
+    assert {spec.provider for spec in mixed.values()}=={'openrouter'} and 'sk-' not in (root/'config/models-mixed.toml').read_text(encoding='utf-8')
 
 
 def test_the_committed_kimi_file_loads_and_holds_no_key():

@@ -7,10 +7,13 @@ Steps: 1 Director picks at most 3 hypotheses. 2 Researcher writes one memo each;
 7 Every tenth cycle the Director reviews repeated failures and updates the agenda.
 A refusal from the model path (request limit, memory floor, frozen engine) stops the cycle and is recorded with its code.
 """
+from concurrent.futures import ThreadPoolExecutor
+import contextvars
 from dataclasses import dataclass
 import hashlib
 import json
 import re
+import threading
 from typing import Any
 from uuid import uuid4
 from compertum.events import canonical
@@ -94,6 +97,7 @@ class Engine:
     run_id:Any=None  # E5: the bounded run this cycle belongs to
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate), and optionally its 'routing' text; None reads config/engine_prompts
     purpose:str='practice'  # 'gepa', 'bench' or 'holdout': no history in, no lessons out, no agenda step; bench and holdout also never promote
+    parallel_ideas:bool=True
 
 
 def market_sha256(engine):
@@ -135,13 +139,17 @@ def _run_cycle(engine,cycle_index):
     def routed(key,value): return value if routing[key]=='yes' else None
     max_hypotheses=min(engine.max_hypotheses,int(settings['hypotheses']));retries=int(settings['retries'])
     queue=CandidateQueue(ledger)
-    sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
-                            train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes,
-                            max_runs=int(settings['engineer_runs']))
+    sandboxes=[]
     def cap(role): return None if settings[f'{role}_max_tokens']=='model' else int(settings[f'{role}_max_tokens'])
-    agents={role:build_role_agent(role,engine.client,system_prompt=prompts[role],tools=[run_job_tool(sandbox)] if role=='engineer' else (),
-                                  recursion_limit=engine.recursion_limit,max_tokens=cap(role),
-                                  temperature=None if settings[f'{role}_temperature']==SETTINGS_DEFAULT[f'{role}_temperature'] else float(settings[f'{role}_temperature'])) for role in ROLES}
+    def role_agent(role,sandbox=None):
+        return build_role_agent(role,engine.client,system_prompt=prompts[role],tools=[run_job_tool(sandbox)] if role=='engineer' else (),
+                                recursion_limit=engine.recursion_limit,max_tokens=cap(role),
+                                temperature=None if settings[f'{role}_temperature']==SETTINGS_DEFAULT[f'{role}_temperature'] else float(settings[f'{role}_temperature']))
+    agents={'director':role_agent('director')}
+    lock=threading.Lock()
+
+    def next_step():
+        with lock: state['steps']+=1;return state['steps']
 
     def run_tool():
         """The analysis tool slot: one sandbox job on train.csv only. Its run is filed under '<cycle id>-tool', apart from the candidates' runs,
@@ -152,43 +160,113 @@ def _run_cycle(engine,cycle_index):
         record=toolbox.run_tool(tool_code)
         output=record['stdout'] if record['status']=='COMPLETED' and record['stdout'].strip() else None
         state['tool']={'run_id':record['run_id'],'status':record['status'],'output_bytes':len(output.encode('utf-8')) if output else 0}
-        state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'tool','run',{'phase':record['status'],'run_id':record['run_id']})
+        ledger.record_step(cycle_id,next_step(),'tool','run',{'phase':record['status'],'run_id':record['run_id']})
         # GEPA reads what the tool printed, or why it failed, when it rewrites the tool.
         state['transcript'].append({'role':'tool','kind':'run','task':'tool.py on train.csv','reply':clip_bytes(output if output else f"status {record['status']}; stderr {record['stderr']}")})
         return output
 
-    def step(role,kind,task,record,files=None):
+    def step(role,kind,task,record,files=None,own=None):
         if engine.gate is not None: engine.gate()  # E5: a paused or stopped run starts no new step
-        state['steps']+=1;index=state['steps']
+        index=next_step()
         ledger.record_step(cycle_id,index,role,kind,{'phase':'REQUEST','task_sha256':sha(task),**record})
-        try: reply=agents[role].run(task,files)
+        try: reply=(own or agents)[role].run(task,files)
         except RuntimeRefused as error:
             ledger.record_step(cycle_id,index,role,kind,{'phase':'FAILED','code':error.code,**record});raise
         ledger.record_step(cycle_id,index,role,kind,{'phase':'REPLY','reply_sha256':sha(reply['text']),'reply_bytes':len(reply['text'].encode('utf-8')),
                                                      'messages':reply['messages'],'tool_calls':reply['tool_calls'],'files':sorted(reply['files']),**record})
         # E7: the in-memory transcript lets GEPA reflect on inputs and outputs. It never enters the ledger; the hashes above do.
-        state['transcript'].append({'role':role,'kind':kind,'task':clip_bytes(task),'reply':clip_bytes(reply['text'])})
-        return reply
+        with lock: state['transcript'].append({'role':role,'kind':kind,'task':clip_bytes(task),'reply':clip_bytes(reply['text'])})
+        return {**reply,'step_index':index}
 
-    def attempt(role,kind,task,record,files=None):
+    def attempt(role,kind,task,record,files=None,own=None,faults=None):
         """A step whose fault is recorded and tolerated. Returns the reply, or None after a fault in STEP_FAULTS (the FAILED step row is already written)."""
-        try: return step(role,kind,task,record,files)
+        try: return step(role,kind,task,record,files,own)
         except RuntimeRefused as error:
             if error.code not in STEP_FAULTS: raise
-            state['faults'].append({'role':role,'kind':kind,'code':error.code,**record});return None
+            fault={'role':role,'kind':kind,'code':error.code,**record}
+            with lock: state['faults'].append(fault)
+            if faults is not None: faults.append(fault)
+            return None
 
-    def parsed(role,kind,task,record,parse):
+    def parsed(role,kind,task,record,parse,own=None,faults=None):
         """A JSON-answer step with one bounded retry. Practice run 3 (24 October 2026): a real model's pick had a one-token glitch
         inside otherwise valid JSON; one retry that shows the parse failure recovers that without any repair of the model's text.
         Returns the parsed value, or None when both replies were unusable (each INVALID row is recorded)."""
-        reply=attempt(role,kind,task,record)
+        reply=attempt(role,kind,task,record,own=own,faults=faults)
         for retry in range(retries+1):
             if reply is None: return None
             try: return parse(reply['text'])
             except RuntimeRefused as error:
-                ledger.record_step(cycle_id,state['steps'],role,kind,{'phase':'INVALID','code':error.code,'retry':retry,**record})
+                ledger.record_step(cycle_id,reply['step_index'],role,kind,{'phase':'INVALID','code':error.code,'retry':retry,**record})
                 if retry==retries: return None
-                reply=attempt(role,kind,retry_task(task,error.code,reply['text']),{**record,'retry':retry+1})
+                reply=attempt(role,kind,retry_task(task,error.code,reply['text']),{**record,'retry':retry+1},own=own,faults=faults)
+
+    def in_parallel(items,work):
+        if len(items)<=1 or not engine.parallel_ideas: return [contextvars.copy_context().run(work,item) for item in items]
+        with ThreadPoolExecutor(max_workers=len(items)) as pool:
+            return [f.result() for f in [pool.submit(contextvars.copy_context().run,work,item) for item in items]]
+
+    def research(hypothesis):
+        """Memo, decision and specification for one idea. Each idea has its own role agents, so ideas can run side by side."""
+        hid=hypothesis['id'];faults=[];own={role:role_agent(role) for role in ('researcher','director','mathematician')}
+        out={'id':hid,'memo':None,'decision':None,'specification':None}
+        memo=attempt('researcher','memo',memo_task(brief,hypothesis,routed('researcher_sees_lessons',summary),routed('researcher_sees_tool',tool_output)),{'hypothesis_id':hid},own=own,faults=faults)
+        if memo is None:
+            out['decision']={'decision':'reject','reason':f'memo step failed ({faults[-1]["code"]})','source':'code'};return out
+        out['memo']=memo['text']
+        decision=parsed('director','approve',approve_task(hid,memo['text']),{'hypothesis_id':hid},parse_decision,own=own,faults=faults)
+        if decision is None:
+            last=faults[-1]['code'] if faults and faults[-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
+            decision={'decision':'reject','reason':f'approval step unusable ({last})','source':'code'}  # a fault, not the Director's verdict (levels.lessons)
+        out['decision']=decision
+        if decision['decision']!='approve': return out
+        spec=attempt('mathematician','specify',specify_task(brief,memo['text'],routed('specify_sees_hypothesis',hypothesis),routed('specify_sees_tool',tool_output)),{'hypothesis_id':hid},own=own,faults=faults)
+        if spec is not None: out['specification']=spec['text']
+        return out
+
+    def build(candidate):
+        """The Engineer builds one candidate in its own sandbox, with its own run limit; the Mathematician reviews. Candidates run side by side.
+        Nothing here scores, deflates, audits or promotes: that happens afterwards, in candidate order."""
+        hid=candidate['hypothesis_id'];faults=[]
+        sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
+                                train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes,
+                                max_runs=int(settings['engineer_runs']))
+        with lock: sandboxes.append(sandbox)
+        own={'engineer':role_agent('engineer',sandbox),'mathematician':role_agent('mathematician')}
+        memo=routed('engineer_sees_memo',state['memos'][hid]);specification=state['specifications'][hid];cid=candidate['candidate_id']
+        task,start_files=engineer_task(engine,specification,memo=memo,starter=starter)
+        built=attempt('engineer','build',task,{'candidate_id':cid},files=start_files,own=own,faults=faults)
+        if built is not None and not sandbox.runs:
+            # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
+            # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
+            ledger.record_step(cycle_id,built['step_index'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':cid})
+            task,start_files=engineer_task(engine,specification,previous_reply=built['text'],memo=memo,starter=starter)
+            built=attempt('engineer','build',task,{'candidate_id':cid,'retry':1},files=start_files,own=own,faults=faults)
+        def latest():
+            runs=list(sandbox.runs);candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
+            return next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
+        signals=latest()
+        if built is None and signals is None:
+            # The Engineer step faulted (loop, timeout, unusable reply) with no completed run. The candidate stays a counted trial with no score.
+            return {'candidate':candidate,'sandbox':sandbox,'signals':None,'build_failed':faults[-1]['code']}
+        # A build fault after a completed run (practice run 5: the model hunted for signals.csv after writing it) keeps the signals: they are scored.
+        code={p:c for p,c in built['files'].items() if p.endswith('.py')} if built is not None else {}
+        review_text=review_task(specification,code)
+        if routing['review']!='off' and code and len(review_text.encode('utf-8'))<=REVIEW_TASK_BYTES:
+            review=attempt('mathematician','review',review_text,{'candidate_id':cid},own=own,faults=faults)
+            if review is not None: state['reviews'][hid]=review['text']  # with review 'advice' the review is recorded only; a faulty review is recorded and skipped
+        else:
+            # Routing review 'off', code too large for one task, no code, or a build fault after a completed run skips the review and records why.
+            reason=('routing: review off' if routing['review']=='off' else 'build step faulted after a completed run; the signals are scored' if built is None
+                    else 'no code' if not code else 'code too large for one review task')
+            ledger.record_step(cycle_id,next_step(),'mathematician','review',{'phase':'REVIEW_SKIPPED','candidate_id':cid,'reason':reason})
+        if routing['review']=='rebuild' and hid in state['reviews']:
+            # Routing review 'rebuild': one more Engineer build from its own code and the review. The review never sees a score, so the rebuild
+            # cannot select on VALIDATION results. The last completed run is scored and audited, as for any build.
+            task,start_files=engineer_task(engine,specification,memo=memo,review=state['reviews'][hid],code=code,starter=starter)
+            attempt('engineer','rebuild',task,{'candidate_id':cid},files=start_files,own=own,faults=faults)
+            signals=latest()
+        return {'candidate':candidate,'sandbox':sandbox,'signals':signals,'build_failed':None}
 
     try:
         # 1. Director picks hypotheses from the ledger summary and its lessons table.
@@ -197,103 +275,55 @@ def _run_cycle(engine,cycle_index):
         tool_output=run_tool() if any(routing[key]=='yes' for key in TOOL_ROUTES) else None
         picked=parsed('director','pick',pick_task(max_hypotheses,cycle_index,brief,summary,routed('director_sees_tool',tool_output)),{},parse_hypotheses)
         state['hypotheses']=picked[:max_hypotheses] if picked is not None else []
-        # 2. Researcher memos, Director decisions. A faulty memo or verdict rejects that hypothesis and the cycle goes on.
-        for hypothesis in state['hypotheses']:
-            memo=attempt('researcher','memo',memo_task(brief,hypothesis,routed('researcher_sees_lessons',summary),routed('researcher_sees_tool',tool_output)),{'hypothesis_id':hypothesis['id']})
-            if memo is None:
-                state['decisions'][hypothesis['id']]={'decision':'reject','reason':f'memo step failed ({state["faults"][-1]["code"]})','source':'code'};continue
-            state['memos'][hypothesis['id']]=memo['text']
-            decision=parsed('director','approve',approve_task(hypothesis['id'],memo['text']),{'hypothesis_id':hypothesis['id']},parse_decision)
-            if decision is None:
-                last=state['faults'][-1]['code'] if state['faults'] and state['faults'][-1].get('hypothesis_id')==hypothesis['id'] and state['faults'][-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
-                decision={'decision':'reject','reason':f'approval step unusable ({last})','source':'code'}  # a fault, not the Director's verdict (levels.lessons)
-            state['decisions'][hypothesis['id']]=decision
-        # 3. Mathematician specifications for approved memos. The candidate list is recorded before any run. A faulty specification yields no candidate.
-        for hypothesis in state['hypotheses']:
-            if state['decisions'][hypothesis['id']]['decision']!='approve': continue
-            spec=attempt('mathematician','specify',specify_task(brief,state['memos'][hypothesis['id']],routed('specify_sees_hypothesis',hypothesis),routed('specify_sees_tool',tool_output)),{'hypothesis_id':hypothesis['id']})
-            if spec is None: continue
-            state['specifications'][hypothesis['id']]=spec['text']
-            state['candidates'].append({'candidate_id':f'{cycle_id}:{hypothesis["id"]}','hypothesis_id':hypothesis['id'],'specification_sha256':sha(spec['text']),'trial':True})
-        state['steps']+=1
-        ledger.record_step(cycle_id,state['steps'],'archivist','candidates',{'phase':'RECORDED','candidates':state['candidates'],'count':len(state['candidates'])})
+        # 2 and 3. Researcher memo, Director decision and Mathematician specification, one idea beside another. A faulty memo or verdict rejects
+        # that hypothesis and the cycle goes on; a faulty specification yields no candidate. The candidate list is recorded before any run.
+        for out in in_parallel(state['hypotheses'],research):
+            hid=out['id'];state['decisions'][hid]=out['decision']
+            if out['memo'] is not None: state['memos'][hid]=out['memo']
+            if out['specification'] is not None:
+                state['specifications'][hid]=out['specification']
+                state['candidates'].append({'candidate_id':f'{cycle_id}:{hid}','hypothesis_id':hid,'specification_sha256':sha(out['specification']),'trial':True})
+        ledger.record_step(cycle_id,next_step(),'archivist','candidates',{'phase':'RECORDED','candidates':state['candidates'],'count':len(state['candidates'])})
         # Every candidate is one trial from this moment, whatever happens to it later (E4).
         for candidate in state['candidates']:
             ledger.record_trial(cycle_id,candidate['candidate_id'],{'hypothesis_id':candidate['hypothesis_id'],'specification_sha256':candidate['specification_sha256']})
         state['total_trials']=ledger.total_trials()
-        # 4 and 5. Engineer builds and runs; Mathematician reviews; Validator scores.
-        for candidate in state['candidates']:
-            hid=candidate['hypothesis_id'];runs_before=len(sandbox.runs)
-            sandbox.begin_candidate()  # each candidate has its own Engineer runs
-            # The Engineer starts from a starter program and the specification in its file store, and sees a TRAIN sample in the task (practice runs 5 to 10).
-            memo=routed('engineer_sees_memo',state['memos'][hid])
-            task,start_files=engineer_task(engine,state['specifications'][hid],memo=memo,starter=starter)
-            build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id']},files=start_files)
-            runs=sandbox.runs[runs_before:]
-            if build is not None and not runs:
-                # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
-                # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
-                ledger.record_step(cycle_id,state['steps'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':candidate['candidate_id']})
-                task,start_files=engineer_task(engine,state['specifications'][hid],previous_reply=build['text'],memo=memo,starter=starter)
-                build=attempt('engineer','build',task,{'candidate_id':candidate['candidate_id'],'retry':1},files=start_files)
-                runs=sandbox.runs[runs_before:]
-            candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
-            signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
-            if build is None and signals is None:
-                # The Engineer step faulted (loop, timeout, unusable reply) with no completed run. The candidate stays a counted trial with no score.
-                code=state['faults'][-1]['code'];candidate['status']='BUILD_FAILED';state['scores'][hid]=None
-                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code})
-                state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':candidate['candidate_id']});continue
-            # A build fault after a completed run (practice run 5: the model hunted for signals.csv after writing it) keeps the signals: they are scored.
-            code={p:c for p,c in build['files'].items() if p.endswith('.py')} if build is not None else {}
-            review_text=review_task(state['specifications'][hid],code)
-            if routing['review']!='off' and code and len(review_text.encode('utf-8'))<=REVIEW_TASK_BYTES:
-                review=attempt('mathematician','review',review_text,{'candidate_id':candidate['candidate_id']})
-                if review is not None: state['reviews'][hid]=review['text']  # with review 'advice' the review is recorded only; a faulty review is recorded and skipped
-            else:
-                # Routing review 'off', code too large for one task, no code, or a build fault after a completed run skips the review and records why.
-                state['steps']+=1
-                reason=('routing: review off' if routing['review']=='off' else 'build step faulted after a completed run; the signals are scored' if build is None
-                        else 'no code' if not code else 'code too large for one review task')
-                ledger.record_step(cycle_id,state['steps'],'mathematician','review',{'phase':'REVIEW_SKIPPED','candidate_id':candidate['candidate_id'],'reason':reason})
-            if routing['review']=='rebuild' and hid in state['reviews']:
-                # Routing review 'rebuild': one more Engineer build from its own code and the review. The review never sees a score, so the rebuild
-                # cannot select on VALIDATION results. The last completed run is scored and audited, as for any build.
-                task,start_files=engineer_task(engine,state['specifications'][hid],memo=memo,review=state['reviews'][hid],code=code,starter=starter)
-                attempt('engineer','rebuild',task,{'candidate_id':candidate['candidate_id']},files=start_files)
-                runs=sandbox.runs[runs_before:]
-                candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
-                signals=next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
+        # 4. Engineer builds and runs, Mathematician reviews: candidates side by side. 5. Validator, gate and Auditor: in candidate order.
+        for result in in_parallel(state['candidates'],build):
+            candidate=result['candidate'];hid=candidate['hypothesis_id'];sandbox=result['sandbox'];signals=result['signals'];cid=candidate['candidate_id']
+            if result['build_failed'] is not None:
+                code=result['build_failed'];candidate['status']='BUILD_FAILED';state['scores'][hid]=None
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code})
+                ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':cid});continue
             if signals is None:
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
-                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'NO_SIGNALS'})
-                state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'NO_SIGNALS','candidate_id':candidate['candidate_id']});continue
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'NO_SIGNALS'})
+                ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'NO_SIGNALS','candidate_id':cid});continue
             try: score=score_signals(signals,engine.validation_rows)
             except RuntimeRefused as error:
                 candidate['status']='INVALID_SIGNALS';state['scores'][hid]=None
-                ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
-                state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'INVALID','code':error.code,'candidate_id':candidate['candidate_id']});continue
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
+                ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'INVALID','code':error.code,'candidate_id':cid});continue
             # Deflation (E4): the bar uses the total trial count across all campaigns and the variance of every scored trial, this one included.
             inputs=score['deflation_inputs'];trials=ledger.total_trials()
             variance=trial_variance(ledger.trial_sharpes()+[inputs['sharpe_per_period']],inputs)
             deflation=deflated_sharpe(inputs,trials,variance['trial_variance'])
-            ledger.record_trial_score(candidate['candidate_id'],{'sharpe_per_period':inputs['sharpe_per_period'],'observations':inputs['observations'],'status':'SCORED',
-                                                                 'beats_baseline':score['beats_baseline'],'deflation_status':deflation['status']})
+            ledger.record_trial_score(cid,{'sharpe_per_period':inputs['sharpe_per_period'],'observations':inputs['observations'],'status':'SCORED',
+                                           'beats_baseline':score['beats_baseline'],'deflation_status':deflation['status']})
             state['scores'][hid]=score
             candidate['status']=('BEATS_BASELINE_PENDING_AUDIT' if deflation['status']=='PASS' else 'REJECTED_DEFLATED') if score['beats_baseline'] else 'REJECTED'
             candidate['deflation']={'trials':trials,'deflated_sharpe':deflation['deflated_sharpe'],'status':deflation['status']}
-            state['steps']+=1
-            ledger.record_step(cycle_id,state['steps'],'validator','score',{'phase':'SCORED','candidate_id':candidate['candidate_id'],'score':score,'status':candidate['status'],
-                                                                           'deflation':deflation,'trial_variance':variance})
+            ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'SCORED','candidate_id':cid,'score':score,'status':candidate['status'],
+                                                                        'deflation':deflation,'trial_variance':variance})
             if not score['beats_baseline']: continue
             # 5b (E6). The Auditor is the binding gate. Integrity failure freezes the engine; a candidate defect rejects the candidate.
             # Since 25 October 2026 (owner decision) it checks every candidate that beat buy-and-hold, at the gate or below it, so a strategy
             # that read future data is caught at any deflated Sharpe. Only a candidate at the gate can be promoted and queued.
             audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows)
-            state['steps']+=1;ledger.record_step(cycle_id,state['steps'],'auditor','audit',{'phase':audit['label'],'candidate_id':candidate['candidate_id'],'audit':audit})
+            ledger.record_step(cycle_id,next_step(),'auditor','audit',{'phase':audit['label'],'candidate_id':cid,'audit':audit})
             candidate['audit']={'label':audit['label'],'integrity':audit['integrity'],'reasons':audit['reasons']}
             if not audit['integrity']:
-                ledger.freeze('AUDITOR_FAILED',{'cycle_id':cycle_id,'candidate_id':candidate['candidate_id'],'checks':audit['checks'],'reasons':audit['reasons']})
+                ledger.freeze('AUDITOR_FAILED',{'cycle_id':cycle_id,'candidate_id':cid,'checks':audit['checks'],'reasons':audit['reasons']})
                 candidate['status']='FROZEN';raise RuntimeRefused('ENGINE_FROZEN')
             if audit['label']!='VERIFIED_PASS': candidate['status']='REJECTED_AUDIT';continue
             if deflation['status']!='PASS': continue  # audited and honest, below the gate: stays REJECTED_DEFLATED with its audit record; never promoted
@@ -302,12 +332,11 @@ def _run_cycle(engine,cycle_index):
                 candidate['status']='EVALUATION_GATE_PASS';continue
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate enters the queue.
             source=sandbox.record_for(audit['source_run_id'])
-            promoted=promote(engine.project_root,candidate['candidate_id'],source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
-            queued=queue.admit(candidate['candidate_id'],score,deflation,tests_passed=True,auditor_passed=True)
+            promoted=promote(engine.project_root,cid,source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
+            queued=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True)
             candidate['status']='QUEUED';candidate['promoted_folder']=promoted['folder']
-            state['steps']+=1
-            ledger.record_step(cycle_id,state['steps'],'archivist','promotion',{'phase':'PROMOTED','candidate_id':candidate['candidate_id'],'queue_event_id':queued['event_id'],
-                                                                              'folder':promoted['folder'],'files':promoted['manifest']['files']})
+            ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'PROMOTED','candidate_id':cid,'queue_event_id':queued['event_id'],
+                                                                           'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0 and engine.purpose not in HISTORY_FREE_PURPOSES:
             agenda=attempt('director','agenda',agenda_task(brief,summary),{})
@@ -321,7 +350,7 @@ def _run_cycle(engine,cycle_index):
     finally:
         # 6. The Archivist closes the cycle. Memos, specifications and reviews are kept by hash and size; the texts stay in the step records' hashes.
         end={'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'status':state['status'],'stop_code':state['stop_code'],'hypotheses':state['hypotheses'],'decisions':state['decisions'],
-             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':len(sandbox.runs),'total_trials':state.get('total_trials'),'faults':state['faults'],
+             'candidates':state['candidates'],'scores':state['scores'],'steps':state['steps'],'runs':sum(len(s.runs) for s in sandboxes),'total_trials':state.get('total_trials'),'faults':state['faults'],
              'requests_after':engine.client.requests,'request_limit':engine.client.request_limit,'agenda_sha256':sha(state['agenda']) if 'agenda' in state else None,
              'texts':{k:{h:{'sha256':sha(t),'bytes':len(t.encode('utf-8'))} for h,t in state[k].items()} for k in ('memos','specifications','reviews')},'routing':routing,'settings':settings,'tool':state['tool']}
         canonical(end);ledger.record_cycle(cycle_id,cycle_index,'END',end)

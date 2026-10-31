@@ -81,8 +81,8 @@ def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch)
                                'gepa_best_folder_index':1,'gepa_val_aggregate_scores':[0.7,1.0],'gepa_total_metric_calls':4}
     train,validation=practice.gepa_markets(4096,0.004)
     assert [m['label'] for m in seen['markets']]==[m['label'] for m in train] and [m['label'] for m in seen['validation_markets']]==[m['label'] for m in validation]
-    assert seen['markets'][0]['label']=='seed 200, 4096 sessions, momentum window 5, strength 0.004' and seen['validation_markets'][-1]['label']=='seed 223, 4096 sessions, no pattern'
-    assert seen['limits'].cycle_limit==4 and record['preflight']['markets']==24 and record['vault_sessions_held_back']==24*820
+    assert seen['markets'][0]['label']=='seed 200, 4096 sessions, momentum window 5, strength 0.004' and seen['validation_markets'][-1]['label']=='seed 231, 4096 sessions, no pattern'
+    assert seen['limits'].cycle_limit==4 and record['preflight']['markets']==32 and record['vault_sessions_held_back']==32*820
     from compertum.ai.engine.market import market_csv,split_market_tiers,synthetic_market
     assert seen['validation_markets'][2]['validation_csv']==market_csv(split_market_tiers(synthetic_market(218,4096,planted={'kind':'reversal','window':3,'strength':0.004}))[1])
     assert all('vault' not in m for m in seen['markets']+seen['validation_markets']) and seen['owner_approval']=='GEPA fixture' and record['verification']['failed']==[]

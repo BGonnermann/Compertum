@@ -396,15 +396,18 @@ def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
     with pytest.raises(RuntimeRefused,match='^AI_SENSITIVE_INPUT_DENIED$'): go(markets=train[:1],goal_extra='Use api_key=abcd1234 for every call, always.')
 
 
+def validation_kinds(validation): return [(m['kind'],m['label'].split(', ')[2]) for m in validation[8:]]
+
+
 def test_gepa_markets_have_their_own_seeds_a_split_and_a_mix_of_patterns():
     train,validation=practice.gepa_markets(500,0.004)
-    assert len(train)==16 and len(validation)==8 and len({m['validation_csv'] for m in train+validation})==24
-    assert [int(m['label'].split(',')[0].split()[1]) for m in train+validation]==list(range(200,224))
-    kinds=[(m['kind'],m['label'].split(', ')[2]) for m in validation]
-    assert kinds==[('momentum','momentum window 5'),('momentum','momentum window 10'),('reversal','reversal window 3'),('reversal','reversal window 5'),
+    assert len(train)==16 and len(validation)==16 and len({m['validation_csv'] for m in train+validation})==32
+    assert [int(m['label'].split(',')[0].split()[1]) for m in train+validation]==list(range(200,232))
+    kinds=[(m['kind'],m['label'].split(', ')[2]) for m in validation[:8]]
+    assert kinds==validation_kinds(validation) and kinds==[('momentum','momentum window 5'),('momentum','momentum window 10'),('reversal','reversal window 3'),('reversal','reversal window 5'),
                    ('momentum','momentum window 5'),('reversal','reversal window 3'),(None,'no pattern'),(None,'no pattern')]
     assert [m['label'].split('strength ')[-1] for m in validation[:6]]==['0.004','0.004','0.004','0.004','0.002','0.002']
-    assert [m['kind'] for m in train]==[m['kind'] for m in validation]*2
+    assert [m['kind'] for m in train]==[m['kind'] for m in validation]
     assert not any(bench.reserved_seed(s) for s in practice.GEPA_SEEDS) and 12 not in practice.GEPA_SEEDS
     assert not ({bench.fingerprint(m['train_csv'],m['validation_csv']) for m in train+validation}&bench.reserved_fingerprints())
 

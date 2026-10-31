@@ -107,9 +107,11 @@ def test_kill_switch_stops_dispatch_at_the_next_request(bridge,project,root,veri
     assert result['reason']=='KILL_SWITCH' and len(state['posts'])==4 and result['requests']==4 and len(result['cycles'])==1
     assert result['cycles'][0]['status']=='STOPPED_ENGINE_STOPPED'
     rows=EngineLedger(store).run_rows(result['run_id']);assert rows[1]['reason']=='KILL_SWITCH' and rows[1]['gate_checks']>=5 and rows[1]['stop_trigger']=='RESEARCH_STATE'
-    # The stop landed at the step boundary: four completed model calls, no fifth attempt, no refusal row (the request-level
-    # gate is pinned in tests/test_ai_models_interface.py).
-    assert [r['status'] for r in StoreLedger(store).rows()]==['COMPLETED']*4
+    # The stop landed at the step boundary: four completed model calls and no fifth request sent. Since ideas run side by side
+    # (31 October 2026) a second thread may pass its step boundary before the pause lands; the request-level gate then refuses it
+    # and records that refusal without sending anything (the gate is pinned in tests/test_ai_models_interface.py).
+    statuses=[r['status'] for r in StoreLedger(store).rows()]
+    assert statuses.count('COMPLETED')==4 and len(statuses)<=5 and set(statuses)<={'COMPLETED','REFUSED_ENGINE_STOPPED'}
     assert 'ended, reason KILL_SWITCH' in Path(result['summary_path']).read_text(encoding='utf-8')
 
 

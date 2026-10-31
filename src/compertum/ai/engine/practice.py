@@ -127,7 +127,7 @@ def research_state(store):
 GEPA_SEEDS=range(200,300)
 GEPA_PATTERNS=(('momentum',5,1),('momentum',10,1),('reversal',3,1),('reversal',5,1),('momentum',5,0.5),('reversal',3,0.5),(None,0,0),(None,0,0))
 GEPA_TRAIN_MARKETS=16
-GEPA_VALIDATION_MARKETS=8
+GEPA_VALIDATION_MARKETS=16
 
 
 def practice_market(seed,sessions,strength,kind='momentum',window=5):

@@ -54,11 +54,11 @@ GEPA_TRIALS=bench.BENCH_TRIALS
 FALSE_DISCOVERY_LEVEL=0
 FALSE_DISCOVERY_TEXT='A false discovery: a strategy passed the gate on a market with no pattern.'
 MINIBATCH=4
-PARALLEL_CYCLES=4
+PARALLEL_CYCLES=8
 RECORDS_BYTES=24000
 TEXT_BYTES=4000
 MAX_RECORDS=6
-MAX_MARKETS=24
+MAX_MARKETS=32
 MAX_CANDIDATES=1000  # every prompt set a long run evaluates is kept (owner, 26 October 2026: no GEPA limits)
 PROPOSAL_INSTRUCTION=('Improve the system prompt below for the {role} role of a research engine. The records show the role\'s inputs, outputs and the '
                       'outcome of each attempt. Write the complete improved prompt. Keep the first line exactly "ROLE: {role}". Keep every output format '
@@ -133,7 +133,7 @@ def sha(text): return hashlib.sha256(text.encode('utf-8')).hexdigest()
 # extra short calls, which make a cycle slower. A total cannot fall by adding calls, and a call without token counts counts as UNCOUNTED_CALL_TOKENS,
 # so failed calls never look fast. Dividing by the candidates built keeps GEPA from learning to build less. SPEED_WEIGHT is below the smallest gap
 # between two mean level scores over equal markets (0.1 divided by at most MAX_MARKETS markets). write_candidates ranks by mean level first in any case.
-SPEED_WEIGHT=0.004
+SPEED_WEIGHT=0.003
 SPEED_TOKEN_CAP=16384  # output tokens per candidate built at which speed reaches 0
 UNCOUNTED_CALL_TOKENS=2048
 

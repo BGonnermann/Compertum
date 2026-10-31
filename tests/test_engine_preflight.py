@@ -21,7 +21,7 @@ def markets():
 
 
 def test_every_task_of_every_practice_market_and_the_committed_prompts_pass():
-    assert preflight.preflight(PROJECT,markets())=={'markets':25,'tasks_per_market':16,'prompts':4}
+    assert preflight.preflight(PROJECT,markets())=={'markets':33,'tasks_per_market':16,'prompts':4}
     assert preflight.check_prompts(PROJECT)==[]
 
 

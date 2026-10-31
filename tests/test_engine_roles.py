@@ -15,6 +15,7 @@ import re
 import shutil
 import socket
 import threading
+import time
 from uuid import uuid4
 import pytest
 deepagents=pytest.importorskip('deepagents')
@@ -64,6 +65,7 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model',
         tool_results=[m for m in messages if m['role']=='tool'];last_user=[m for m in messages if m['role']=='user'][-1]['content']
         def text(value): return {'role':'assistant','content':value},'stop'
         def call(name,arguments): return {'role':'assistant','content':None,'tool_calls':[{'id':f'call_{len(messages)}','type':'function','function':{'name':name,'arguments':json.dumps(arguments)}}]},'tool_calls'
+        if state['mode']=='three-slow': time.sleep(0.5)  # three approved ideas, every reply slow: shows that ideas run side by side
         if state['mode']=='loop': return call('read_file',{'file_path':'/main.py'})  # the same call every round
         if state['mode']=='loopvary': return call('read_file',{'file_path':f'/{len(messages)}.py'})  # a different call every round
         if state['mode']=='memofault' and role=='researcher' and '"id": "h2"' in last_user: return None,None  # an unusable reply body for one memo
@@ -84,9 +86,11 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model',
                 # and answers the retry (the task then carries PREVIOUS REPLY); mode 'badjson2' glitches every pick reply.
                 if (state['mode']=='badjson' and 'PREVIOUS REPLY' not in last_user) or state['mode']=='badjson2':
                     return text('{"hypotheses": [{"id": "h1", "title":": "Glitched", "idea": "x"}]}')
+                if state['mode']=='three-slow':
+                    return text(json.dumps({'hypotheses':[{'id':h,'title':f'Idea {h}','idea':'Hold after five rising sessions.'} for h in ('h1','h2','h3')]}))
                 return text(json.dumps({'hypotheses':[{'id':'h1','title':'Five-session momentum','idea':'Hold after five rising sessions.'},
                                                       {'id':'h2','title':'Mean reversion','idea':'Buy after five falling sessions.'}]}))
-            if last_user.startswith('Approve'): return text(json.dumps({'decision':'approve' if 'hypothesis h1' in last_user else 'reject','reason':'fixture decision'}))
+            if last_user.startswith('Approve'): return text(json.dumps({'decision':'approve' if 'hypothesis h1' in last_user or state['mode']=='three-slow' else 'reject','reason':'fixture decision'}))
             return text(json.dumps({'agenda':'fixture agenda'}))
         if role=='researcher': return text(MEMO)
         if role=='mathematician': return text(SPEC if last_user.startswith('Write') else 'Review: the code follows the specification. Test the first five sessions.')
@@ -617,3 +621,27 @@ def test_the_market_fingerprint_keeps_its_value_for_small_markets_and_accepts_ca
     train,validation,_=split_market_tiers(synthetic_market(12,4096))
     large=SimpleNamespace(train_csv=market_csv(train),validation_csv=market_csv(validation))
     assert len(large.train_csv)+len(large.validation_csv)>65536 and len(market_sha256(large))==64
+
+
+def test_the_ideas_of_a_cycle_run_side_by_side_with_the_same_outcome_as_in_order(bridge,root,verification,market,project):
+    """31 October 2026: memo, decision and specification per idea, then each candidate's build and review, run in parallel threads;
+    scoring, the gate and the Auditor follow in candidate order. Three approved ideas on a slow server take far less than three times one idea."""
+    from dataclasses import replace
+    timings={}
+    results={}
+    for parallel in (True,False):
+        with role_server(mode='three-slow') as (port,state):
+            ledger=ListLedger();c=client(port,ledger,limit=120);engine=replace(make_engine(bridge,root,verification,market,c,project),parallel_ideas=parallel)
+            started=time.monotonic();result=run_cycle(engine,1 if parallel else 2);timings[parallel]=time.monotonic()-started
+            results[parallel]=result
+            assert result['status']=='COMPLETED' and [h['id'] for h in result['hypotheses']]==['h1','h2','h3']
+            assert all(d['decision']=='approve' for d in result['decisions'].values()) and len(result['candidates'])==3
+            assert all(cand['run_statuses'] and cand['run_statuses'][0]=='COMPLETED' for cand in result['candidates'])
+            assert all(r['status']!='REFUSED_ENGINE_RUN_LIMIT' for r in engine.ledger.runs(result['cycle_id']))
+            steps=engine.ledger.steps(result['cycle_id'])
+            assert sorted({s['step_index'] for s in steps})==list(range(1,result['steps']+1))  # one index per step, none shared between threads
+            assert result['runs']==len(engine.ledger.runs(result['cycle_id'])) and result['total_trials']==(3 if parallel else 6)
+            assert all(r.get('cycle_id')==result['cycle_id'] for r in ledger.entries if str(r.get('purpose','')).startswith('engine:'))
+    assert [cand['status'] for cand in results[True]['candidates']]==[cand['status'] for cand in results[False]['candidates']]
+    assert results[True]['specifications'].keys()==results[False]['specifications'].keys()=={'h1','h2','h3'}
+    assert timings[True]<timings[False]*0.75,timings

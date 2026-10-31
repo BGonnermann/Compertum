@@ -453,6 +453,21 @@ snapshots may now be cut at up to 4,096 sessions instead of 500. Minimum history
 A history market is a practice or GEPA market (`-MarketManifest data/history/SPY/manifest.json`); bench and holdout stay synthetic, because only
 a planted pattern has an answer key, and a generated series cannot be remembered by the model. Transcripts of real-market runs stay out of training.
 
+Ideas run side by side (31 October 2026; owner: "let's do that" on the three levers). Inside one cycle, the Researcher memo, the Director's decision and the
+Mathematician's specification of each idea run in parallel threads, and then each candidate's Engineer build and review run in parallel, each candidate in
+its own sandbox with its own run limit. Every idea gets its own role agents, so the repeat guard and the Engineer's file store are never shared. The steps
+counter, the faults list and the transcript are written under one lock; the ledger serializes its own writes; the sandbox lock runs one job at a time.
+Scoring, deflation, the Auditor and promotion run afterwards in candidate order, exactly as before, so the trial count and the measurement are unchanged.
+`Engine.parallel_ideas` (default true) turns it off for tests. Expected effect: a cycle in about a third of its model time, on any provider.
+
+GEPA exam markets 16 (31 October 2026): `GEPA_VALIDATION_MARKETS` is 16 (seeds 216 to 231, the eight patterns twice), `MAX_MARKETS` 32, so a candidate is
+scored on 16 cycles (about 0.19 of a level) instead of 8 (0.27). `PARALLEL_CYCLES` is 8, because remote providers take many requests at once; a local
+server with one slot simply queues them. `SPEED_WEIGHT` is 0.003 so the speed bonus still cannot outweigh one level step over 32 markets.
+
+Mixed firm (31 October 2026): `config/models-mixed.toml` puts the Director and Researcher on `deepseek/deepseek-v4.1-flash` and the Mathematician and
+Engineer on `openai/gpt-5.6-luna`, both through OpenRouter, from the per-role fault and token figures of the bench-4 runs. The DeepSeek file's Engineer
+limit is 16,384 output tokens (13 of 900 Engineer replies were cut off at 8,192 in the bench-4 baseline).
+
 Finding local models (29 October 2026, owner: "I know there's more models out there I just don't know how to find them").
 `tools/find_models.py` asks the Hugging Face Hub's public API for every repository with GGUF files, groups the uploads of one base model,
 and prints the groups that fit a card, most downloaded first. It needs no key and costs nothing. The first run found the most downloaded local
