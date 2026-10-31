@@ -277,6 +277,12 @@ Batch 2 (16:46 to 18:10 EDT, OpenRouter spend $1.67; balance $5.24). Retests, av
 No false discovery. Per role: DeepSeek's Mathematician again wrote about 450,000 to 500,000 output tokens and gave 8 to 9 faults a pass; Luna was fault-free in every role
 but took 38 model minutes as Mathematician and 27 as Engineer, against GLM's 13 and 10. Incumbent: GLM everywhere, 7.12 over two passes.
 Batch 3 started at 18:10 (process 16748): route-9 retests Luna everywhere; route-10 Engineer Luna; route-11 Researcher DeepSeek; route-12 Researcher Luna.
+Batch 3 (18:10 to 19:24 EDT, OpenRouter spend $0.96; balance $4.28). Luna everywhere, second pass 7.19, averaged 7.38 (halves 8.25 and 6.50), 4.5 found per pass,
+0.5 faults, 78 minutes, about $0.77 a run: kept by the rule (within 0.3 of GLM everywhere's 7.12, with 4.5 found against 4.0). Engineer Luna 7.50, 3 found, 1 fault,
+about $0.26 (retest); Researcher DeepSeek 6.56, 1 found (discard); Researcher Luna 6.88, 3 found (discard). No false discovery.
+Reading: Luna everywhere and GLM everywhere differ by 0.26 levels and half a pattern per pass, inside the noise of one pass (0.75 between two passes of one firm).
+Luna costs about 16 times as much a run ($0.77 against $0.05) and takes about 4.5 times as long (78 against 18 model minutes). The keep rule does not weigh cost.
+The next batch from the new incumbent would be four Luna-heavy firms, about $3 of the $4.28 balance. Paused for the owner's choice before batch 4.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
