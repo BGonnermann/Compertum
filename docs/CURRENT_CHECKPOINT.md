@@ -167,7 +167,12 @@ One cycle, `run-20261030-aa5bddfd`: the Director's call hit the 300-second limit
 model has no saved LM Studio settings, so thinking was unlimited at 13 tokens a second. A settings file like Flint's was written for the Q8_0 file
 (all layers on the card, flash attention, Q8 KV cache, 4 context checkpoints, thinking budget 1,024 tokens). Speed stayed 14 to 18 tokens a second, and the card
 showed 14.7 GB in use with no model loaded: the owner's own Boulder loop (`python -m boulder.cli -c configs/long.yaml loop`, started 07:16) holds most of the card.
-Ornith cannot be judged until that loop ends or the owner pauses it. Owner, 19:20 EDT: "Ok run it." A second Boulder job (`speed-one --steps 15`) held the card,
+Ornith cannot be judged until that loop ends or the owner pauses it. Owner, 21:48 EDT: "ok I stopped boulder, run it now." Bench-4 small test on Ornith-1.5-9B Q8_0, `run-20261031-2f3080ec` (1 cycle per market, $0): `MEASURED`,
+16 cycles, 469 requests, 62.6 minutes, 38 candidates, 14 step faults (10 cut-off replies, 4 repeated tool calls). Patterns found 1 of 10; false discoveries 0 of 6;
+mean level 6.25. Level 10 on seeds 127 (found, capture 1.003) and 128 (gate pass, capture 0.200). Host memory free fell from 42.6 to about 32 GiB and held.
+Same test on Flint (29 October): 2 of 10, 0 false, mean 5.88, 48.3 minutes, 7 faults. DeepSeek flash's first cycle per market in its baseline: mean 6.56.
+One cycle per market is too noisy to rank the three; Ornith is about as good as Flint here, faster per token, and wastes more replies at the reply limit: all 10 cut-off replies were Mathematician specifications at the 16,384-token engine maximum.
+Owner, 19:20 EDT: "Ok run it." A second Boulder job (`speed-one --steps 15`) held the card,
 so a one-time watcher started the run when the card was free: `run-20261030-245c0299` at 19:48 EDT, Ornith fully on the card (10.9 GB), 42 GiB host memory free.
 Result: the cycle completed. 3 ideas (lag-1 autocorrelation momentum, short-horizon mean reversion, session-index seasonality), 22 requests, 3.9 minutes, $0,
 median 130 tokens a second (Flint 63). Two strategies were built and scored; neither beat buy-and-hold. One Mathematician specification was cut off at its
