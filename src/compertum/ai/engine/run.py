@@ -7,6 +7,7 @@ refusal stops it, then writes an END row with the reason. The daily summary is r
 from datetime import datetime,timezone
 import hashlib
 import os
+import threading
 import time
 from uuid import uuid4
 from compertum.runtime.errors import RuntimeRefused
@@ -23,12 +24,28 @@ from .transcripts import TranscriptWriter
 CYCLE_KEYS=('cycle_id','status','stop_code','hypotheses','candidates','runs','requests_after','total_trials','faults')
 
 
+class CycleCounter:
+    """Hands out cycle indexes, one at a time, to the runs of one process. Runs of a group share one, so their cycles never collide."""
+    def __init__(self,first):
+        if type(first) is not int or first<1: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+        self.value=first;self.lock=threading.Lock()
+
+    def peek(self):
+        with self.lock: return self.value
+
+    def next(self):
+        with self.lock: value=self.value;self.value+=1
+        return value
+
+
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market=None,memory_floor_bytes,limits,owner_approval,
                 available_memory=None,clock=time.monotonic,recursion_limit=40,summary=True,schedule=None,purpose='practice',prompts=None,holdout_set=None,
-                transcript_training_allowed=None):
+                transcript_training_allowed=None,run_group=None,cycle_counter=None):
     """Run cycles until a limit. Returns the run state. Refusals before the START row leave no run record.
     schedule: for a bench or holdout run (bench.py), the market of each cycle in order; the cycle limit must not exceed its length.
-    prompts: role prompts to measure (a GEPA candidate); None uses config/engine_prompts."""
+    prompts: role prompts to measure (a GEPA candidate); None uses config/engine_prompts.
+    run_group and cycle_counter: runs that one process starts together (31 October 2026, several models tested at once) share a group
+    token and a CycleCounter. An open run of the same group does not block; an open run of any other group or of none still does."""
     if not isinstance(owner_approval,str) or not 1<=len(owner_approval)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RUN_APPROVAL_DENIED')
     sanitized(owner_approval.encode('utf-8'))  # the note enters the ledger and the summary; no secret may ride along
     settings=load_run_settings(project_root);bounds=check_limits(limits,settings['request_hard_maximum'])
@@ -58,7 +75,9 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     gate=RunGate(store,ledger,project_root=project_root,hour_limit=bounds['hour_limit'],clock=clock)
     if gate.stop_requested(): raise RuntimeRefused('ENGINE_STOP_FILE_PRESENT')
     if gate.research_state()!='RUNNING': raise RuntimeRefused('RESEARCH_PAUSED')
-    if ledger.open_runs(): raise RuntimeRefused('ENGINE_RUN_ACTIVE')
+    if run_group is not None and (not isinstance(run_group,str) or not 8<=len(run_group)<=64 or not run_group.isalnum()): raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+    if cycle_counter is not None and not isinstance(cycle_counter,CycleCounter): raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
+    if any(r.get('run_group') is None or r.get('run_group')!=run_group for r in ledger.open_runs()): raise RuntimeRefused('ENGINE_RUN_ACTIVE')
     # The holdout wears out with use. Every use counts from its START row, written before the first holdout cycle, finished or not.
     holdout_use=None
     if purpose=='holdout':
@@ -70,7 +89,8 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     transcript=TranscriptWriter(project_root,run_id,purpose,training_allowed=transcript_training_allowed)  # evaluation and real-provider defaults are set by the caller
     client=ModelClient(roles,StoreLedger(store),transcript=transcript,**options)
     models={role:{'address':spec.base_url,'model':spec.model} for role,spec in roles.items()}
-    first=len([c for c in ledger.cycles() if c['phase']=='END'])+1
+    counter=cycle_counter if cycle_counter is not None else CycleCounter(len([c for c in ledger.cycles() if c['phase']=='END'])+1)
+    first=counter.peek()
     started=utc_now()
     # Everything that can refuse is built before the START row, so a refusal leaves no open run.
     engines={}
@@ -82,7 +102,7 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     state={'run_id':run_id,'purpose':purpose,'started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':[],'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None}
     start={'limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
-           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file)}
+           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file),**({'run_group':run_group} if run_group is not None else {})}
     if purpose!='practice':
         # The committed prompts are hashed too (26 October 2026), so every evaluation run records the exact prompts it measured.
         measured=prompts if prompts is not None else {name:load_component(project_root,name) for name in COMPONENTS}
@@ -91,17 +111,16 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     if holdout_set is not None: start.update(holdout_set=holdout_set,holdout_use=holdout_use,holdout_uses_allowed=HOLDOUT_USES)
     if any(m.get('provenance') for m in schedule): start['market_provenance']=[m['provenance'] for m in schedule if m.get('provenance')]
     ledger.record_run_phase(run_id,'START',start)
-    index=first
     try:
         while True:
             if bounds['cycle_limit'] is not None and len(state['cycles'])>=bounds['cycle_limit']: state['reason']='CYCLE_LIMIT';break
             try: gate()
             except RuntimeRefused as error: state['reason']=stop_reason(error.code);break
-            item=schedule[len(state['cycles'])%len(schedule)]
+            item=schedule[len(state['cycles'])%len(schedule)];index=counter.next()
             result=run_cycle(engines[item.get('label')],index)
             entry={'cycle_index':index,**{k:result.get(k) for k in CYCLE_KEYS}}
             if purpose!='practice': entry.update(market=item.get('label'),scores=result.get('scores'))  # the bench report needs the scores
-            state['cycles'].append(entry);index+=1
+            state['cycles'].append(entry)
             state['requests']=client.requests
             if summary: state['summary_path']=str(write_summary(project_root,state,ledger))
             if result.get('stop_code') is not None: state['reason']=stop_reason(result['stop_code']);break

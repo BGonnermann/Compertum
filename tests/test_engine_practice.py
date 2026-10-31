@@ -144,3 +144,37 @@ def test_a_gepa_run_may_weight_speed_and_carry_an_instruction_for_this_run(tmp_p
     assert 'speed_weight' not in seen and 'goal_extra' not in seen
     with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
         practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,goal=goal)
+
+
+def test_several_models_are_listed_and_checked_together(tmp_path,capsys):
+    """31 October 2026: --model A,B,C names several models. The listing checks each; the run refuses the forms that cannot share a process."""
+    assert practice.model_list(None) is None and practice.model_list('a')==['a'] and practice.model_list(' a, b ')==['a','b'] and practice.model_list(['a','b'])==['a','b']
+    for bad in ('a,a','a,','',',b',','.join(f'm{i}' for i in range(practice.MAX_MODELS_TOGETHER+1)),12):
+        with pytest.raises(RuntimeRefused,match='^MODEL_IDENTITY_UNVERIFIED$'): practice.model_list(bad)
+    assert practice.MAX_MODELS_TOGETHER==8
+    with server() as (port,state):
+        write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','file-model') for role in ('director','researcher','mathematician','engineer')])
+        report=practice.models_report(tmp_path,'local','synthetic-model,ghost-model')
+        assert report['all_listed'] is False and report['models']['synthetic-model']['listed'] is True and report['models']['ghost-model']['listed'] is False
+        assert report['models']['ghost-model']['roles']['engineer']['model']=='ghost-model' and set(report['servers'])=={f'http://127.0.0.1:{port}/v1'} and state['posts']==[]
+        one=practice.models_report(tmp_path,'local','synthetic-model')
+        assert 'models' not in one and one['all_listed'] is True  # one model keeps the single report
+        shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+        assert practice.main(['--project',str(tmp_path),'--config','config.toml','--model','synthetic-model,ghost-model','models'])==0
+        assert json.loads(capsys.readouterr().out)['all_listed'] is False
+    shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    for extra in ({'gepa':True},{'purpose':'holdout'}):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
+            practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=10,note='x',model='synthetic-model,ghost-model',available_memory=lambda:practice.START_FLOOR+1,**extra)
+    assert not (tmp_path/'state'/'locks').exists()  # refused before the lease
+
+
+def test_run_together_keeps_every_outcome(monkeypatch):
+    """One thread per model: a refusal is recorded next to the results; any other error is raised after every run ended."""
+    def start(m):
+        if m=='refused': raise RuntimeRefused('ENGINE_STOPPED')
+        if m=='broken': raise ValueError('x')
+        return {'run_id':'run-'+m}
+    out=practice.run_together(['a','refused','b'],start)
+    assert out=={'a':{'result':{'run_id':'run-a'}},'refused':{'refused':'ENGINE_STOPPED'},'b':{'result':{'run_id':'run-b'}}}
+    with pytest.raises(ValueError): practice.run_together(['a','broken'],start)

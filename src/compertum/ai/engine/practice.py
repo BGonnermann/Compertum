@@ -13,6 +13,7 @@ The owner stops a run by creating state/engine/STOP inside the project. Exit 0 o
 """
 import argparse
 import asyncio
+import contextvars
 from dataclasses import replace
 from datetime import date
 import json
@@ -20,6 +21,7 @@ from multiprocessing.connection import Listener
 from pathlib import Path
 import re
 import sys
+import threading
 from types import MappingProxyType
 from uuid import uuid4
 import httpx
@@ -46,6 +48,18 @@ MAX_MODEL_IDS=64
 # in it must belong to a provider in config/providers.toml. Results on different models are not comparable; each model needs its own
 # bench measurements.
 MODEL_NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}')
+MAX_MODELS_TOGETHER=8  # owner direction, 31 October 2026: test several models at once; each gets its own run, transcript, summary and report
+
+
+def model_list(model):
+    """The model IDs of --model: None, or a comma-separated list without repeats. One ID keeps the single-run path."""
+    if model is None: return None
+    if isinstance(model,(list,tuple)): ids=list(model)
+    elif isinstance(model,str): ids=[x.strip() for x in model.split(',')]
+    else: raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
+    ids=[model_id(x) for x in ids]
+    if not 1<=len(ids)<=MAX_MODELS_TOGETHER or len(set(ids))!=len(ids): raise RuntimeRefused('MODEL_IDENTITY_UNVERIFIED')
+    return ids
 
 
 def model_file(root,models):
@@ -82,8 +96,15 @@ def list_models(spec,seconds=5):
 
 
 def models_report(project_root,models='local',model=None):
-    """For every configured role: the address, the configured model, and whether the server lists it."""
-    root=Path(project_root).absolute();roles=chosen_roles(root,models,model)
+    """For every configured role: the address, the configured model, and whether the server lists it.
+    With several models (a comma-separated --model), one report per model under `models`, and all_listed covers them all."""
+    ids=model_list(model)
+    if ids is not None and len(ids)>1:
+        reports={m:models_report(project_root,models,m) for m in ids}
+        servers={}
+        for r in reports.values(): servers.update(r['servers'])
+        return {'servers':servers,'models':{m:{'roles':r['roles'],'listed':r['all_listed']} for m,r in reports.items()},'all_listed':all(r['all_listed'] for r in reports.values())}
+    root=Path(project_root).absolute();roles=chosen_roles(root,models,None if ids is None else ids[0])
     servers={}
     for spec in roles.values():
         if spec.base_url in servers: continue
@@ -175,7 +196,9 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
     checked=preflight(root,markets+(validation_markets or []),prompts=prompts)
     held_back=sum(m.get('vault_sessions',0) for m in markets+(validation_markets or []))
-    roles=chosen_roles(root,models,model)
+    ids=model_list(model);together=ids is not None and len(ids)>1
+    if together and (gepa or purpose=='holdout'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')  # GEPA improves prompts on one model; the holdout wears out per run
+    role_sets={m:chosen_roles(root,models,m) for m in (ids or [None])};roles=role_sets[None if ids is None else ids[0]]
     lease=acquire_owner(resolve_project(root),'coordinator')
     try:
         store=StorageManager(lease,load_config(config_path,root)).store
@@ -193,24 +216,28 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                                 transcript_training_allowed=False if market_manifests is not None else None,reflector_roles=reflector_roles,**gepa_options)
             else:
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none
-                result=run_bounded(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,market=market,
-                                   memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set,
-                                   transcript_training_allowed=False if market_manifests is not None else None)
+                options=dict(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,market=market,memory_floor_bytes=START_FLOOR,
+                             limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set,
+                             transcript_training_allowed=False if market_manifests is not None else None)
+                if together:
+                    from .ledger import EngineLedger
+                    from .run import CycleCounter
+                    group=uuid4().hex;counter=CycleCounter(len([c for c in EngineLedger(store).cycles() if c['phase']=='END'])+1)
+                    outcomes=run_together(ids,lambda m:run_bounded(roles=role_sets[m],run_group=group,cycle_counter=counter,**options))
+                else: result=run_bounded(roles=roles,**options)
         finally:
             set_research_state(store,previous);after=research_state(store)
-        candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'faults':c.get('faults') or [],
-                     'hypotheses':[{'id':h.get('id'),'title':h.get('title')} for h in c.get('hypotheses') or [] if isinstance(h,dict)],
-                     'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
-                     'deflation':x.get('deflation'),'audit':(x.get('audit') or {}).get('label')} for x in c.get('candidates') or []]} for c in result['cycles']]
-        record={'run_id':result['run_id'],'kind':'gepa' if gepa else 'cycles' if purpose=='practice' else purpose,'reason':result['reason'],'cycles':candidates,'requests':result['requests'],
-                'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'sandbox_root':str(sandbox_root),'models':result['models'],
-                'vault_sessions_held_back':held_back,'verification':{'failed':verification['failed'],'observations':verification['observations']},
+        common={'sandbox_root':str(sandbox_root),'vault_sessions_held_back':held_back,'verification':{'failed':verification['failed'],'observations':verification['observations']},
                 'research_state_after':after,'free_memory_bytes_at_start':available,'preflight':checked}
-        if market_manifests is not None: record['market_provenance']=[m['provenance'] for m in markets]
+        if market_manifests is not None: common['market_provenance']=[m['provenance'] for m in markets]
+        if purpose!='practice': common.update(cycles_per_market=cycles_per_market,prompts_source='config/engine_prompts' if prompts is None else f'{prompts_run} candidate {prompts_candidate}')
+        kind='gepa' if gepa else 'cycles' if purpose=='practice' else purpose
+        if together:
+            runs={m:(run_record(o['result'],kind,purpose) if 'result' in o else o) for m,o in outcomes.items()}
+            if all('result' not in o for o in outcomes.values()): raise RuntimeRefused(next(iter(outcomes.values()))['refused'])
+            return {'kind':kind,'run_group':group,'models_tested':ids,'run_ids':[r['run_id'] for r in runs.values() if 'run_id' in r],'runs':runs,**common}
+        record={**run_record(result,kind,purpose),**common}
         if reflector_roles is not None: record['reflector_models']={role:{'address':spec.base_url,'model':spec.model} for role,spec in reflector_roles.items()}
-        if purpose!='practice':
-            record['report']=result['report'];record['cycles_per_market']=cycles_per_market
-            record['prompts_source']='config/engine_prompts' if prompts is None else f'{prompts_run} candidate {prompts_candidate}'
         if gepa and result.get('prompts'):
             p=result['prompts'];g=p.get('gepa') or {}
             record['prompts']={'folder':p['folder'],'best_index':p['best_index'],'mean_scores':p['mean_scores'],'candidate_count':p['candidate_count'],
@@ -219,11 +246,40 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     finally: release_owner(lease)
 
 
+def run_record(result,kind,purpose):
+    """The printed record of one bounded run: its cycles in brief, its counts, and the bench report when it has one."""
+    candidates=[{'cycle_index':c['cycle_index'],'status':c['status'],'market':c.get('market'),'faults':c.get('faults') or [],
+                 'hypotheses':[{'id':h.get('id'),'title':h.get('title')} for h in c.get('hypotheses') or [] if isinstance(h,dict)],
+                 'candidates':[{'hypothesis_id':x.get('hypothesis_id'),'status':x.get('status'),
+                 'deflation':x.get('deflation'),'audit':(x.get('audit') or {}).get('label')} for x in c.get('candidates') or []]} for c in result['cycles']]
+    record={'run_id':result['run_id'],'kind':kind,'reason':result['reason'],'cycles':candidates,'requests':result['requests'],
+            'elapsed_seconds':result['elapsed_seconds'],'summary_path':result['summary_path'],'models':result['models']}
+    if purpose!='practice': record['report']=result['report']
+    return record
+
+
+def run_together(ids,start):
+    """One thread per model, each its own bounded run (31 October 2026). A refusal in one run is recorded; the other runs go on.
+    Any other error in a run is recorded as a failure and raised again after every run has ended."""
+    outcomes={};errors=[]
+    def one(m):
+        try: outcomes[m]={'result':start(m)}
+        except RuntimeRefused as error:
+            outcomes[m]={'refused':error.code,**({'problems':error.problems} if getattr(error,'problems',None) else {})}
+        except BaseException as error:
+            outcomes[m]={'failure':type(error).__name__[:64]};errors.append(error)
+    threads=[threading.Thread(target=contextvars.copy_context().run,args=(one,m),name=f'model-run-{i}',daemon=True) for i,m in enumerate(ids)]
+    for thread in threads: thread.start()
+    for thread in threads: thread.join()
+    if errors: raise errors[0]
+    return outcomes
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.practice',description='Owner practice run of the section 19 engine against loopback model servers.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     parser.add_argument('--models',default='local',help='the model file: local is config/models.toml; NAME is config/models-NAME.toml')
-    parser.add_argument('--model',help='one model ID for every role, for this run only; the server must list it')
+    parser.add_argument('--model',help='one model ID for every role, for this run only; the server must list it. A comma-separated list starts one run per model at the same time (run and bench)')
     commands=parser.add_subparsers(dest='command',required=True)
     commands.add_parser('models')
     for name in ('run','gepa'):

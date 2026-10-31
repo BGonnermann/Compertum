@@ -56,7 +56,7 @@ SPEC='1. Features\nFive-session close change.\n2. Model\nPosition 1 when the cha
 
 
 @contextmanager
-def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model'):
+def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model',listed=()):
     """A scripted Chat Completions server. It answers by role (first system line) and by how many tool results it has seen."""
     state={'posts':[],'mode':mode,'engineer_code':engineer_code}
     def reply(payload):
@@ -108,7 +108,7 @@ def role_server(*,mode='ok',engineer_code=ENGINEER_CODE,model='synthetic-model')
         def log_message(self,*args): pass
         def send(self,obj):
             raw=json.dumps(obj).encode();self.send_response(200);self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
-        def do_GET(self): self.send({'data':[{'id':model}]})
+        def do_GET(self): self.send({'data':[{'id':m} for m in (model,*listed)]})
         def do_POST(self):
             payload=json.loads(self.rfile.read(int(self.headers['Content-Length'])));state['posts'].append(payload)
             message,finish=reply(payload)

@@ -31,11 +31,14 @@ tools\practice.ps1 -Mode holdout -Requests 450 -PromptsRun run-20261026-0123abcd
 tools\practice.ps1 -Models deepseek -Model deepseek-v4-pro -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "DeepSeek bench baseline 1"
 tools\practice.ps1 -Pick -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "bench run"
 tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-3 -CyclesPerMarket 4 -Requests 2000 -Note "bench-3 flash baseline"
+tools\practice.ps1 -Models openrouter -Model "deepseek/deepseek-v4.1-flash,anthropic/claude-haiku-5.5" -Mode bench -BenchSet bench-4 -CyclesPerMarket 1 -Requests 600 -Note "two models at once"
 
 .NOTES
 Choosing the model at run time (owner direction, 26 October 2026: pick the model, then run, with no file edits):
   -Model ID  one model for every role, for this run only. For local runs it is also the LM Studio model that is loaded.
              Without -Model, the model file's own IDs are used.
+  -Model A,B,C  (remote files, run and bench; 31 October 2026) one run per model, all at the same time, in one process. Each run has
+             its own run id, request limit, transcript, summary and report; the cycles are numbered from one shared counter.
   -Pick      a menu: first the model file (local, or each config\models-NAME.toml), then the models that provider lists now.
 The run's START row records the model of every role.
 #>
@@ -120,6 +123,10 @@ if ($remote) {
 } elseif (-not (Get-Command lms -ErrorAction SilentlyContinue)) { Fail 'the lms command is not on PATH (LM Studio / Bionic CLI)' }
 if (-not (Test-Path $python)) { Fail "engine environment missing: $python" }
 if (Test-Path (Join-Path $root 'state\engine\STOP')) { Fail 'state\engine\STOP exists; remove it before a new run' }
+if ($modelChosen -and $Model -match ',') {
+    if (-not $remote) { Fail 'several models at once need a remote model file; LM Studio loads one model' }
+    if ($Mode -eq 'gepa' -or $Mode -eq 'holdout') { Fail 'several models at once apply to -Mode run and bench only' }
+}
 
 # 1. Memory before the load.
 $free=Free-GiB

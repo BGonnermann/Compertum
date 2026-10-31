@@ -198,6 +198,15 @@ Sandbox side: 12 jobs failed and 9 timed out across the 48 candidates; 2 candida
 Same test, first cycle per market: Ornith 6.25 (1 found), Flint 5.88 (2 found), DeepSeek flash 6.56 (its 4-cycle baseline found 4). Luna is 0.44 above flash
 and 0.75 above Ornith on one cycle per market, where a score is known to about 0.27 of a level; Luna's halves were 8.0 and 6.0. Luna is the slowest per cycle here
 (7.5 minutes against Ornith's 3.9 and Flint's 3.0), because its Engineer uses more tool calls (218 of 474 replies) and the sandbox jobs run longer.
+Owner, 10:15 EDT: "Let's test the others. Make a engine change that will let us test multiple models simultaneously." Built: several models at once, one run each.
+`practice.py --model A,B,C` (and `tools\practice.ps1 -Model "A,B,C"`, remote files, run and bench only) starts one bounded run per model in one process, in threads,
+the way GEPA runs its cycles. Each run keeps its own run id, request limit, transcript, summary, START and END rows and bench report, so `compare` and the
+checkpoint tables work unchanged. The runs share a group token (recorded in START as `run_group`) and one `CycleCounter`, so cycle indexes never collide.
+The single-run rule is kept for everything else: an open run of another group, or of none (a crashed run), still refuses with `ENGINE_RUN_ACTIVE`;
+GEPA and holdout refuse a model list. The sandbox still runs one job at a time (`SANDBOX_LOCK`). The record of a run-together has `runs` keyed by model,
+`run_ids` and `run_group`; a model whose run refused is recorded next to the others. At most 8 models.
+Engine lane 322 passed, 0 failed (`.cache/test-runs/engine-lane-together2-20261031-121340`); product lane 260 passed, 0 failed, 7 skipped
+(`product-lane-together-20261031-121640`). A first lane had 6 failures from an import that the bench tests' stub of the run module could not serve; fixed.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

@@ -160,3 +160,48 @@ def test_provider_provenance_is_recorded_at_run_start(bridge,project,root,verifi
         result=start(bridge,project,root,verification,dict(market,provenance=provenance),port,RunLimits(request_limit=100,cycle_limit=1))
     start_row=EngineLedger(b.store).run_rows(result['run_id'])[0]
     assert start_row['market_provenance']==[provenance] and start_row['market_provenance'][0]['financial_accepted'] is False
+
+
+def test_runs_of_one_group_run_together_and_share_the_cycle_counter(bridge,project,root,verification,market):
+    """31 October 2026: several models tested at once. The runs of one process share a group token and one cycle counter; each keeps its
+    own run id, START and END rows, transcript and summary. An open run of the same group does not block; any other open run still does."""
+    import contextvars
+    import threading
+    from compertum.ai.engine.run import CycleCounter
+    b,_=bridge;set_research_state(b.store,'RUNNING')
+    ledger=EngineLedger(b.store);counter=CycleCounter(5);group='a'*16;results={}
+    with role_server() as (port,state):
+        def one(name):
+            results[name]=start(bridge,project,root,verification,market,port,RunLimits(request_limit=100,cycle_limit=1),run_group=group,cycle_counter=counter)
+        threads=[threading.Thread(target=contextvars.copy_context().run,args=(one,name)) for name in ('a','b')]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        assert set(results)=={'a','b'} and all(r['reason']=='CYCLE_LIMIT' and len(r['cycles'])==1 for r in results.values())
+        assert {r['cycles'][0]['cycle_index'] for r in results.values()}=={5,6} and counter.peek()==7 and results['a']['run_id']!=results['b']['run_id']
+        assert sum(r['requests'] for r in results.values())==len(state['posts'])
+        for r in results.values():
+            rows=ledger.run_rows(r['run_id'])
+            assert [x['phase'] for x in rows]==['START','END'] and rows[0]['run_group']==group and rows[1]['requests']==r['requests']
+            assert (project/'state'/'engine'/'transcripts'/f"{r['run_id']}.jsonl").exists() and r['run_id'] in Path(r['summary_path']).name
+        assert ledger.open_runs()==[] and sorted(c['cycle_index'] for c in ledger.cycles() if c['phase']=='END')==[5,6]
+        # While a run of the group is open: a run of no group and a run of another group refuse; a run of the same group goes on.
+        ledger.record_run_phase('run-20261031-0000bbbb','START',{'run_group':group})
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_ACTIVE$'): start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1))
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_ACTIVE$'):
+            start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1),run_group='b'*16,cycle_counter=CycleCounter(1))
+        same=start(bridge,project,root,verification,market,port,RunLimits(request_limit=100,cycle_limit=1),run_group=group,cycle_counter=counter)
+        assert same['cycles'][0]['cycle_index']==7
+        control.close_abandoned_run(b.store,'run-20261031-0000bbbb','closed (fixture)')
+        # A group run never passes an open run of no group (a crashed run, for example).
+        ledger.record_run_phase('run-20261031-0000cccc','START',{})
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_ACTIVE$'):
+            start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1),run_group=group,cycle_counter=counter)
+        control.close_abandoned_run(b.store,'run-20261031-0000cccc','closed (fixture)')
+        for bad in ('short','x'*65,'has-dash-in-it',12):
+            with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_LIMITS_DENIED$'):
+                start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1),run_group=bad,cycle_counter=counter)
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_LIMITS_DENIED$'):
+            start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1),run_group=group,cycle_counter=7)
+    for bad in (0,-1,'1',1.5):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_LIMITS_DENIED$'): CycleCounter(bad)
+    assert len(state['posts'])==sum(r['requests'] for r in results.values())+same['requests']

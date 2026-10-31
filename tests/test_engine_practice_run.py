@@ -37,3 +37,22 @@ def test_practice_run_as_a_separate_process(tmp_path):
                               '--note','x'],capture_output=True,text=True,timeout=600,cwd=str(tmp_path))
         assert again.returncode==2 and json.loads(again.stdout.strip().splitlines()[-1])=={'refused':'ENGINE_STOP_FILE_PRESENT'}
     shutil.rmtree(result['sandbox_root'],ignore_errors=True)
+
+
+def test_two_models_run_together_as_one_process(tmp_path):
+    """31 October 2026: --model A,B starts one run per model at the same time. The record holds one run record per model."""
+    shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
+    shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    (tmp_path/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 450\n',encoding='utf-8')
+    with role_server(listed=('second-model',)) as (port,state):
+        write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
+        done=subprocess.run([sys.executable,'-m','compertum.ai.engine.practice','--project',str(tmp_path),'--config','config.toml','--model','synthetic-model,second-model',
+                             'run','--cycles','1','--requests','80','--note','Owner practice run, two models (fixture)'],capture_output=True,text=True,timeout=900,cwd=str(tmp_path))
+        assert done.returncode==0,done.stderr[-2000:]
+        result=json.loads(done.stdout.strip().splitlines()[-1])
+        assert result['kind']=='cycles' and result['models_tested']==['synthetic-model','second-model'] and len(result['run_ids'])==2 and len(result['run_group'])==32
+        runs=result['runs'];assert set(runs)=={'synthetic-model','second-model'}
+        assert all(r['reason']=='CYCLE_LIMIT' and len(r['cycles'])==1 and r['models']['director']['model']==m for m,r in runs.items())
+        assert {r['cycles'][0]['cycle_index'] for r in runs.values()}=={1,2} and sum(r['requests'] for r in runs.values())==len(state['posts'])<=160
+        assert all(Path(r['summary_path']).exists() and (tmp_path/'state'/'engine'/'transcripts'/f"{r['run_id']}.jsonl").exists() for r in runs.values())
+        assert result['research_state_after']=='PAUSED' and result['preflight']['markets']==1
