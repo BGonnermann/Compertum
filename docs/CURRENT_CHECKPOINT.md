@@ -176,6 +176,16 @@ Ornith's rerun at temperature 0.6 (`run-20261031-623a8256`): 0 cut-off replies, 
 (the local server stopped answering); 1 of 10 found, mean 2.69, not a measure of the model. The owner chose to skip Ornith (00:35 EDT) and test cloud models.
 Owner's rule for model tests: "a small cycle not a large money hungry run." Protocol: a smoke test of one practice cycle with at most 40 requests; a bench-4
 small test only for cheap models that pass it. Spend is read from OpenRouter's credit balance before and after.
+Smoke tests ran 00:26 to 00:55 EDT, one practice cycle each, bench market seed 12, 40-request limit, all four roles on the same model, temperature 0:
+`run-20261031-64910771` z-ai/glm-5.3-flash: 14 requests, 6.5 minutes, 3 ideas, 0 built; 3 cut-off replies (all tokens went to thinking: 16,384 of 16,384 and 8,192 of 8,192).
+`run-20261031-77203cd8` deepseek/deepseek-v4.1-flash: 25 requests, 3.2 minutes, 3 ideas, 3 built and scored (1 beat the baseline, failed the gate); 1 mathematician review `AI_RESPONSE_REJECTED` (no reply recorded).
+`run-20261031-34d416f1` anthropic/claude-haiku-5.5: 23 requests, 4.3 minutes, 3 ideas, 2 built (1 beat the baseline, failed the gate; 1 no signals); 1 cut-off engineer reply (6,383 of 8,192 tokens thinking).
+`run-20261031-a130e736` qwen/qwen3.8-flash: 1 request, 2.7 minutes; the Director's pick was cut off (8,192 tokens, all thinking), so the cycle had no ideas.
+`run-20261031-ffd3d93c` minimax/minimax-m3.1-flash: 15 requests, 8.1 minutes, 3 ideas, 0 built; 2 cut-off engineer replies (all thinking) and 1 mathematician `AI_RESPONSE_REJECTED`.
+`run-20261031-8b50cf3a` openai/gpt-5.6-luna: 8 requests completed (Director, Researcher, one Mathematician specification, all short and clean), then the PC restarted; no summary, no record file.
+Credit balance $10.33 before the first test and $10.18 after the restart: about $0.15 for all six. The two rejections hold no provider reply in the transcript, so their cause is unknown.
+Reading: DeepSeek v4.1 flash and Haiku 5.5 complete the cycle; the thinking models (GLM, Qwen, Minimax) spend the whole output budget on thinking at these limits and build nothing.
+A fair test of those needs a thinking budget or a larger output limit in the model file. GPT-5.6 Luna needs a rerun. No OpenRouter model has a bench baseline yet.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
