@@ -23,7 +23,7 @@ from .ledger import EVALUATION_PURPOSES,HISTORY_FREE_PURPOSES,PURPOSES
 from .limits import STEP_FAULTS
 from .market import score_signals
 from .promotion import promote
-from .prompts import COMPONENTS,check_component,load_component,parse_routing,parse_settings
+from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,parse_routing,parse_settings
 from .roles import ROLES,build_role_agent,load_prompt
 from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
                     market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
@@ -140,7 +140,8 @@ def _run_cycle(engine,cycle_index):
                             max_runs=int(settings['engineer_runs']))
     def cap(role): return None if settings[f'{role}_max_tokens']=='model' else int(settings[f'{role}_max_tokens'])
     agents={role:build_role_agent(role,engine.client,system_prompt=prompts[role],tools=[run_job_tool(sandbox)] if role=='engineer' else (),
-                                  recursion_limit=engine.recursion_limit,max_tokens=cap(role),temperature=float(settings[f'{role}_temperature'])) for role in ROLES}
+                                  recursion_limit=engine.recursion_limit,max_tokens=cap(role),
+                                  temperature=None if settings[f'{role}_temperature']==SETTINGS_DEFAULT[f'{role}_temperature'] else float(settings[f'{role}_temperature'])) for role in ROLES}
 
     def run_tool():
         """The analysis tool slot: one sandbox job on train.csv only. Its run is filed under '<cycle id>-tool', apart from the candidates' runs,

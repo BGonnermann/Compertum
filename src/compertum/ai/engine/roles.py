@@ -88,6 +88,7 @@ class LedgerChatModel(BaseChatModel):
     seconds:int=120
     temperature:float=0.0
     override_tokens:bool=False  # True when the settings slot chose max_tokens for this role; it then replaces the model file's cap
+    override_temperature:bool=False  # True when the settings slot chose a temperature other than its default; it then replaces the model file's
     _recent:list=PrivateAttr(default_factory=list)  # signatures of the last tool-call rounds of the current conversation
     _reads:int=PrivateAttr(default=0)  # consecutive rounds of only read_file
 
@@ -115,7 +116,8 @@ class LedgerChatModel(BaseChatModel):
     def _generate(self,messages,stop=None,run_manager=None,**kwargs):
         if stop: raise RuntimeRefused('AI_SETTINGS_DENIED')
         tools=kwargs.get('tools');chat=to_chat_messages(messages)
-        settings=dict(purpose=self.purpose,max_tokens=self.max_tokens,temperature=self.temperature,seconds=self.seconds,override_tokens=self.override_tokens)
+        settings=dict(purpose=self.purpose,max_tokens=self.max_tokens,temperature=self.temperature,seconds=self.seconds,override_tokens=self.override_tokens,
+                      override_temperature=self.override_temperature)
         if tools: content,calls,entry=self.client.complete_tools(self.role,chat,tools,**settings)
         else: content,entry=self.client.complete(self.role,chat,**settings);calls=[]
         self._guard_repeats(calls)  # the call is already in the ledger; the guard only stops the next round
@@ -184,16 +186,18 @@ class RoleAgent:
                 'tool_calls':sum(len(m.tool_calls) for m in messages if isinstance(m,AIMessage))}
 
 
-def build_role_agent(role,client,*,system_prompt,tools=(),recursion_limit=RECURSION_LIMIT,max_tokens=None,temperature=0.0):
+def build_role_agent(role,client,*,system_prompt,tools=(),recursion_limit=RECURSION_LIMIT,max_tokens=None,temperature=None):
     """One role over the ledgered model: a `TextRole` for the text roles, a Deep Agent for the Engineer.
-    tools: extra LangChain tools, for the Engineer only. max_tokens and temperature come from the settings slot; None keeps the model file's cap."""
+    tools: extra LangChain tools, for the Engineer only. max_tokens and temperature come from the settings slot; None keeps the model file's
+    value (a thinking model may need a temperature above 0: at 0 it can repeat itself until the reply limit), or 0 without one."""
     if role not in ROLES or role not in client.roles: raise RuntimeRefused('AI_ROLE_DENIED')
     if type(recursion_limit) is not int or not 2<=recursion_limit<=200: raise RuntimeRefused('ENGINE_STEP_LIMIT')
     if not isinstance(system_prompt,str) or not system_prompt.startswith(f'ROLE: {role}\n'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
     harden_environment()
-    if not (max_tokens is None or (type(max_tokens) is int and 1<=max_tokens<=16384)) or type(temperature) not in (int,float) or not 0<=temperature<=2:
+    if not (max_tokens is None or (type(max_tokens) is int and 1<=max_tokens<=16384)) or not (temperature is None or (type(temperature) in (int,float) and 0<=temperature<=2)):
         raise RuntimeRefused('AI_SETTINGS_DENIED')
-    model=LedgerChatModel(client=client,role=role,purpose=f'engine:{role}',model_name=client.roles[role].model,temperature=float(temperature),
+    model=LedgerChatModel(client=client,role=role,purpose=f'engine:{role}',model_name=client.roles[role].model,temperature=float(temperature or 0),
+                          override_temperature=temperature is not None,
                           **({'max_tokens':max_tokens,'override_tokens':True} if max_tokens is not None else {}))
     if role in TEXT_ROLES:
         if tools: raise RuntimeRefused('AI_TOOLS_DENIED')

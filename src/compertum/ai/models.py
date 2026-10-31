@@ -45,6 +45,7 @@ class RoleModel:
     # all 2048 output tokens on thinking. When set, they replace the caller's output-token cap and time limit for this model's calls.
     max_tokens:int|None=None
     seconds:int|None=None
+    temperature:float|None=None
 
 
 # Remote providers (owner standard, 26 October 2026: the engine runs on any local model, API key or sign-in). The owner lists each
@@ -115,6 +116,7 @@ def checked_spec(spec):
     if not isinstance(spec,RoleModel) or model_id(spec.model)!=spec.model: return False
     if not (spec.max_tokens is None or (type(spec.max_tokens) is int and 1<=spec.max_tokens<=MAX_OUTPUT_TOKENS)): return False
     if not (spec.seconds is None or (type(spec.seconds) is int and 1<=spec.seconds<=MAX_SECONDS)): return False
+    if not (spec.temperature is None or (type(spec.temperature) in (int,float) and 0<=spec.temperature<=2)): return False
     if spec.provider==PROVIDER: return loopback_base_url(spec.base_url)==spec.base_url and spec.key_env is None
     return (isinstance(spec.provider,str) and bool(_PROVIDER_NAME.fullmatch(spec.provider)) and remote_base_url(spec.base_url)==spec.base_url
             and (spec.key_env is None or (isinstance(spec.key_env,str) and bool(_KEY_ENV.fullmatch(spec.key_env)))))
@@ -237,12 +239,14 @@ def load_models(path,project_root):
     result={}
     for role in sorted(ENGINE_ROLES):
         entry=roles[role]
-        if not isinstance(entry,dict) or not {'base_url','model'}<=entry.keys()<={'base_url','model','max_tokens','seconds'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        if not isinstance(entry,dict) or not {'base_url','model'}<=entry.keys()<={'base_url','model','max_tokens','seconds','temperature'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         limits={k:entry.get(k) for k in ('max_tokens','seconds')}
         if not (limits['max_tokens'] is None or (type(limits['max_tokens']) is int and 1<=limits['max_tokens']<=MAX_OUTPUT_TOKENS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         if not (limits['seconds'] is None or (type(limits['seconds']) is int and 1<=limits['seconds']<=MAX_SECONDS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
+        temperature=entry.get('temperature')
+        if not (temperature is None or (type(temperature) in (int,float) and 0<=temperature<=2)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         base=model_base_url(entry['base_url'],providers);provider,key_env=providers.get(base,(PROVIDER,None))
-        result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env,limits['max_tokens'],limits['seconds'])
+        result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env,limits['max_tokens'],limits['seconds'],None if temperature is None else float(temperature))
     return MappingProxyType(result)
 
 
@@ -347,17 +351,19 @@ class ModelClient:
                 response,raw=await self._json(client,'POST',spec.base_url+'/chat/completions',payload=payload)
                 return reported,response,raw
 
-    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False,reflector=False):
+    def complete(self,role,messages,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False,reflector=False,override_temperature=False):
         """One text completion. No tools are offered, so any tool call in the reply is refused.
         reflector=True sends the call to the role's reflection model when the client has one; the request counts the same."""
-        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds,override_tokens=override_tokens,reflector=reflector)
+        content,_,entry=self._complete(role,messages,None,purpose,max_tokens,temperature,seconds,override_tokens=override_tokens,reflector=reflector,
+                                       override_temperature=override_temperature)
         return content,entry
 
-    def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False):
+    def complete_tools(self,role,messages,tools,*,purpose,max_tokens=2048,temperature=0,seconds=120,override_tokens=False,override_temperature=False):
         """One completion with an allowlist of tools. Returns (content, tool_calls, entry). The engine executes the calls, never the model."""
-        return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True,override_tokens=override_tokens)
+        return self._complete(role,messages,tools,purpose,max_tokens,temperature,seconds,tools_required=True,override_tokens=override_tokens,
+                              override_temperature=override_temperature)
 
-    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False,override_tokens=False,reflector=False):
+    def _complete(self,role,messages,tools,purpose,max_tokens,temperature,seconds,*,tools_required=False,override_tokens=False,reflector=False,override_temperature=False):
         # Build the ledger entry first, so that an unknown role or an unexpected failure is still recorded.
         specs=self.reflectors if reflector and self.reflectors is not None else self.roles
         spec=specs.get(role) if isinstance(role,str) else None;started=time.monotonic()
@@ -365,6 +371,7 @@ class ModelClient:
         # The override stays inside the same bound of 1 to 16384 tokens.
         if spec is not None and spec.max_tokens is not None and not override_tokens: max_tokens=spec.max_tokens
         if spec is not None and spec.seconds is not None: seconds=spec.seconds
+        if spec is not None and spec.temperature is not None and not override_temperature: temperature=spec.temperature
         entry={'call_id':str(uuid4()),'role':role if isinstance(role,str) and len(role)<=64 else 'INVALID_ROLE',
                'purpose':purpose if isinstance(purpose,str) and len(purpose)<=256 else None,'provider':spec.provider if spec else PROVIDER,
                'address':spec.base_url if spec else None,'model_requested':spec.model if spec else None,'model_reported':None,

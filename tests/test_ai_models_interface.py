@@ -204,7 +204,7 @@ def test_a_model_file_can_raise_the_output_cap_and_time_limit_for_its_model(tmp_
         c.complete(other,[{'role':'user','content':'x'}],purpose='e1-fixture',max_tokens=2048)
         assert [p['max_tokens'] for p in state['posts']]==[8192,2048] and ledger.entries[0]['settings']['max_tokens']==8192
         assert ledger.entries[0]['settings']['request_seconds']==300 and ledger.entries[1]['settings']['request_seconds']==120
-    for bad in ('max_tokens = 0\n','max_tokens = 20000\n','max_tokens = "8192"\n','seconds = 601\n','seconds = 1.5\n','temperature = 1\n'):
+    for bad in ('max_tokens = 0\n','max_tokens = 20000\n','max_tokens = "8192"\n','seconds = 601\n','seconds = 1.5\n','temperature = 2.5\n','top_p = 1\n'):
         path=write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)])
         path.write_text(path.read_text(encoding='utf-8').replace('model = "m"\n','model = "m"\n'+bad,1),encoding='utf-8')
         with pytest.raises(RuntimeRefused,match='AI_SETTINGS_DENIED|UNKNOWN_CONFIG_FIELD'): load_models(path,tmp_path)
@@ -560,3 +560,22 @@ def test_a_provider_payment_or_auth_refusal_stops_the_run_instead_of_counting_as
         with pytest.raises(RuntimeRefused,match='^AI_RESPONSE_REJECTED$'): c.complete('director',messages,purpose='e1-fixture',max_tokens=64)
         assert ledger.entries[-1]['refusal_detail']=='HTTP_503'
     assert 'AI_PROVIDER_DENIED' not in STEP_FAULTS and STOP_REASONS['AI_PROVIDER_DENIED']=='PROVIDER_DENIED' and stop_reason('AI_PROVIDER_DENIED')=='PROVIDER_DENIED'
+
+
+def test_a_model_file_may_set_its_models_temperature_and_the_settings_slot_may_still_override_it(tmp_path):
+    entries=[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)]
+    path=write_models(tmp_path,entries)
+    path.write_text(path.read_text(encoding='utf-8').replace('model = "m"\n','model = "m"\ntemperature = 0.6\n'),encoding='utf-8')
+    loaded=load_models(path,tmp_path);assert {spec.temperature for spec in loaded.values()}=={0.6}
+    for bad in ('3','-0.1','"warm"'):
+        path.write_text(path.read_text(encoding='utf-8').replace('temperature = 0.6',f'temperature = {bad}',1),encoding='utf-8')
+        with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'): load_models(path,tmp_path)
+        path.write_text(path.read_text(encoding='utf-8').replace(f'temperature = {bad}','temperature = 0.6',1),encoding='utf-8')
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'warm'}]
+    with server() as (port,state):
+        warm={role:RoleModel(role,f'http://127.0.0.1:{port}/v1','synthetic-model',temperature=0.6) for role in ENGINE_ROLES}
+        c=ModelClient(warm,ListLedger(),memory_floor_bytes=FLOOR,request_limit=4,available_memory=lambda:FLOOR+1,native_limits=False)
+        c.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
+        c.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64,temperature=0.3,override_temperature=True)
+        plain=client(port,ListLedger(),limit=2);plain.complete('mathematician',messages,purpose='e1-fixture',max_tokens=64)
+        assert [p['temperature'] for p in state['posts']]==[0.6,0.3,0]
