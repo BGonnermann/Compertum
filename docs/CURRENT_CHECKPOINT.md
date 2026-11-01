@@ -336,7 +336,7 @@ Found: seeds 906, 907 (strong momentum), 908, 909 (strong reversal), 911 (weak m
 First real gate passes in the project, under option C: 10 candidates passed the real gate and the Auditor (`EVALUATION_GATE_PASS`): 5 on seed 906, 4 on 907, 1 on 908,
 all strong-pattern markets; 0 on empty markets. They are queued, not promoted; the vault stays closed.
 Against the bench-4 baseline (`run-20261101-41ee2338`, same firm and prompts): mean 7.00 against 7.33, found 6 against 8, 0 false in both.
-The 0.33 drop is above the noise of a 64-cycle run (about 0.19). It may be a small fit of the hand-edited prompts to bench-4 or a harder seed draw; one run cannot separate the two.
+The 0.33 drop is larger than each run's own noise (the halves of each run agree within 0.03). It may be a small fit of the hand-edited prompts to bench-4 or a harder seed draw; one run cannot separate the two.
 Model time: Mathematician 48 minutes, Engineer 40, Researcher 15, Director 7. Record: `.cache/test-runs/practice-holdout-20261101-093721-record.json`.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
