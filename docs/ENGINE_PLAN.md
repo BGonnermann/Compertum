@@ -434,6 +434,11 @@ The planted rule passes the bench gate (192 trials) on 8 of 10 patterned markets
 `holdout-1` stays reserved and unchanged; its counted uses stay in the ledger. Its 500-session markets cannot confirm a pattern.
 The owner's trial-counting options are in `docs/TRIAL_COUNTING_DECISION.md`.
 
+Trial counting, option C (owner, 1 November 2026: "go with option C"). The real gate keeps N, the total trial count of all campaigns.
+Its trial variance V is now the null sampling variance of the candidate's own estimate, as in the bench gate, not the spread of all recorded trials.
+Reason: the recorded spread mixed 149- and 1,227-return trials and grew with every real success, so no candidate could pass (0 of 277 patterned
+bench candidates); with option C, 74 of 277 pass and 0 of 139 on empty markets. The ledger still records every trial score. Earlier records keep their old V.
+
 Reflection on another model (30 October 2026). A GEPA run may send its reflection calls to a second model file: `run_gepa(..., reflector_roles=...)`,
 `practice ... gepa --reflect-models NAME [--reflect-model ID]`, `tools\practice.ps1 -Mode gepa -ReflectModels deepseek -ReflectModel deepseek-flash`.
 The client keeps one request counter and one gate for both sets of models; each call row records the address and model it went to; the START row and the

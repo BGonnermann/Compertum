@@ -1,6 +1,7 @@
 # Trial counting: options for the owner - 1 November 2026
 
-Status: proposal. Nothing is changed. Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
+Status: decided. Owner, 1 November 2026: "go with option C". Applied in `src/compertum/ai/engine/cycle.py`.
+Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
 
 ## The question
 

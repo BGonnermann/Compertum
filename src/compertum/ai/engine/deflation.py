@@ -10,9 +10,11 @@ Euler-Mascheroni constant. The deflated Sharpe ratio is the probabilistic Sharpe
 DSR = Phi((SR - SR0) * sqrt(T - 1) / sqrt(1 - skew * SR + (kurtosis - 1) / 4 * SR^2)).
 A candidate passes the deflation gate when DSR >= DSR_MIN. The minimum is fixed here; only the owner changes it.
 
-The trial variance V is the sample variance of the per-period Sharpe ratios of all recorded trials, never below the
+The trial variance V is the sample variance of the per-period Sharpe ratios of the given trials, never below the
 null sampling variance of one estimate, (1 + SR^2 / 2) / (T - 1) (Lo, 2002). So the bar never drops to zero when few
 trials are recorded or all recorded trials scored the same.
+Owner decision, 1 November 2026 (option C in docs/TRIAL_COUNTING_DECISION.md): the real gate gives no recorded trials,
+so V is the null variance; N stays the total trial count of all campaigns. The bench gate already used the null variance.
 """
 from decimal import Decimal,localcontext
 import math

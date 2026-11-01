@@ -375,7 +375,9 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert runs[0]['purpose']=='engineer' and runs[0]['status']=='COMPLETED' and runs[0]['recorded_at']>=steps[candidates_at]['recorded_at'] and 'signals' not in runs[0]
         assert set(r['purpose'] for r in runs[1:])<={'audit'}  # E6: the Auditor's reruns follow a candidate that passed the gate
         assert master_listing()==before  # nothing from this test reaches master's state
-        scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==1
+        scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==0
+        # Option C (owner, 1 November 2026): the real gate uses the null variance of the candidate's own estimate, not the spread of recorded trials.
+        assert scored['trial_variance']['sample_variance'] is None and scored['trial_variance']['trial_variance']==scored['trial_variance']['floor_variance']
         # Every model call went through the E1 ledger with a known role, and no excluded tool was ever offered.
         assert ledger.entries and all(e['status']=='COMPLETED' and e['role'] in ROLES for e in ledger.entries) and len(ledger.entries)==c.requests
         offered={t['function']['name'] for p in state['posts'] for t in p.get('tools',[])}

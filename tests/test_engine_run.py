@@ -52,7 +52,7 @@ def test_cycle_limit_ends_the_run_with_records_and_a_summary(bridge,project,root
     assert Path(result['summary_path']).is_relative_to(project/'state'/'engine')
     # Step S3 (26 October 2026): every sent request is saved with its words, one JSON line each, under state/engine/transcripts. The ledger keeps hashes.
     lines=[json.loads(line) for line in (project/'state'/'engine'/'transcripts'/f"{result['run_id']}.jsonl").read_text(encoding='utf-8').splitlines()]
-    assert len(lines)==result['requests'] and [x['request_index'] for x in lines]==list(range(1,result['requests']+1))
+    assert len(lines)==result['requests'] and sorted(x['request_index'] for x in lines)==list(range(1,result['requests']+1))
     assert all(x['run_purpose']=='practice' and x['training_allowed'] is True and x['messages'][0]['role']=='system' for x in lines)
     assert any(x['role']=='engineer' and x['tool_calls'] for x in lines) and any(x['role']=='director' and '"hypotheses"' in x['content'] for x in lines)
     assert rows[1]['transcript']['lines']==result['requests'] and rows[1]['transcript']['failures']==0 and rows[1]['transcript']['client_failures']==0

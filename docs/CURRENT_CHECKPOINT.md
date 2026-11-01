@@ -316,6 +316,17 @@ The defect hit only runs whose END row has no report, because `compare` rebuilds
 its cap is deliberate, so no faster encoder was added. New test in `tests/test_engine_compare.py` (the cycle comparison skips in the product environment).
 Engine lane 334 passed, 0 failed (`engine-lane-compare-20261101-090644-20261101-090644`); product lane 269 passed, 0 failed, 8 skipped (`product-lane-compare-20261101-090644-20261101-091015`).
 A first product run of the new test failed 1 (the product environment has no `langchain_core`); its files are kept in `compare-fix-product-20261101-090616-20261101-090618`.
+Owner, 1 November 2026: "go with option C". Applied: `cycle.py` gives `trial_variance` no recorded trials, so the real gate uses the null variance
+of the candidate's own estimate; N stays the total trial count of all campaigns. Docstring of `deflation.py`, `docs/ENGINE_PLAN.md` and the decision paper updated;
+`tests/test_engine_roles.py` pins the null variance on a scored step. Earlier ledger records keep their old V. Expected effect, from the recomputation:
+74 of 277 patterned bench candidates would have passed, 0 of 139 on empty markets. Nothing is promoted by this change alone; the Auditor, holdout and vault still follow.
+First engine lane: 1 failed, 333 passed (`engine-lane-optionc-20261101-091351-20261101-091351`, kept): `test_cycle_limit_ends_the_run_with_records_and_a_summary`
+found transcript lines out of request order. Cause: the request index is set before the model call and the line is written after the reply, so with ideas
+running side by side (`bda37ad`) a faster later call is written first. Every line keeps its index, so no record is lost. The test alone passed 5 of 5.
+Fix: the test compares the sorted indexes. Engine lane 334 passed, 0 failed (`engine-lane-optionc2-20261101-091941-20261101-091941`); product lane 269 passed,
+0 failed, 8 skipped (`product-lane-optionc-20261101-091351-20261101-091720`, before the test-only fix; `test_engine_run.py` skips in that environment).
+My error: a rerun with a wrong pytest option (`--count`) ran no test, and I deleted its `retention.json` (`flaky-check-20261101-091853-20261101-091853`). No test result was in it.
+Next: the GLM holdout check on holdout-2 (about $0.40), then GEPA after the owner adds credit.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

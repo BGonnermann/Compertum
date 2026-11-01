@@ -304,9 +304,9 @@ def _run_cycle(engine,cycle_index):
                 candidate['status']='INVALID_SIGNALS';state['scores'][hid]=None
                 ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
                 ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'INVALID','code':error.code,'candidate_id':cid});continue
-            # Deflation (E4): the bar uses the total trial count across all campaigns and the variance of every scored trial, this one included.
+            # Deflation: the total trial count across all campaigns and the null variance of this estimate (owner, option C, 1 November 2026).
             inputs=score['deflation_inputs'];trials=ledger.total_trials()
-            variance=trial_variance(ledger.trial_sharpes()+[inputs['sharpe_per_period']],inputs)
+            variance=trial_variance([],inputs)
             deflation=deflated_sharpe(inputs,trials,variance['trial_variance'])
             ledger.record_trial_score(cid,{'sharpe_per_period':inputs['sharpe_per_period'],'observations':inputs['observations'],'status':'SCORED',
                                            'beats_baseline':score['beats_baseline'],'deflation_status':deflation['status']})
