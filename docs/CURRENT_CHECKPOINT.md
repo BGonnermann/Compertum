@@ -326,6 +326,7 @@ running side by side (`bda37ad`) a faster later call is written first. Every lin
 Fix: the test compares the sorted indexes. Engine lane 334 passed, 0 failed (`engine-lane-optionc2-20261101-091941-20261101-091941`); product lane 269 passed,
 0 failed, 8 skipped (`product-lane-optionc-20261101-091351-20261101-091720`, before the test-only fix; `test_engine_run.py` skips in that environment).
 My error: a rerun with a wrong pytest option (`--count`) ran no test, and I deleted its `retention.json` (`flaky-check-20261101-091853-20261101-091853`). No test result was in it.
+The project map was refreshed: footer and AI node show GLM in every role, the bench-4 result, the option C gate and holdout-2; 9 pages; page 1 was inspected.
 Next: the GLM holdout check on holdout-2 (about $0.40), then GEPA after the owner adds credit.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
