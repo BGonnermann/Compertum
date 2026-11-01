@@ -369,7 +369,7 @@ First sweep `library-20261101-b09754c2`: all 80 history markets, 2.6 minutes, $0
 146 beat buy-and-hold on VALIDATION (about 2020 to mid-2022); 0 passed the gate; best deflated Sharpe 0.26 (TXN, RSI(2) below 20, Sharpe 2.09 against 0.50).
 Only 77 of the 800 TRAIN-chosen settings beat buy-and-hold on TRAIN, and 21 beat it on both. By family, beat buy-and-hold on VALIDATION: low_vol 32 of 80
 (mostly a 20-day window; it stepped out of the 2020 crash), reversal 22, above_ma 15, ma_cross 15, rsi_revert 14, momentum 12, breakout 11, dip_in_trend 10,
-day_of_week 9, turn_of_month 6. The bar for 603 VALIDATION sessions rose from SR0 0.150 to 0.159 per period (annual Sharpe about 2.38 to 2.52).
+day_of_week 9, turn_of_month 6. The bar for 603 VALIDATION sessions rose from SR0 0.145 to 0.156 per period (annual Sharpe about 2.30 to 2.47).
 Reading: no simple single-symbol rule on daily closes clears the real gate on 2016 to mid-2022 data.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
