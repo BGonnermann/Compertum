@@ -344,6 +344,13 @@ GLM everywhere (roles and reflection), 16 exam markets: `GEPA_COMPLETE`, 48 cycl
 Candidate 2 changes only the Researcher prompt (386 to 2,975 bytes): exact rule statements, test both continuation and reversal, avoid constant positions,
 watch turnover cost, a train-only check per idea. Its gain, 0.12 of a level on 16 cycles, is inside the noise (about 0.19), and its new rules are the kind of
 steering the owner asked to keep out of prompts (29 October 2026). The bench check was held for the owner. Prompts: `state/engine/prompts/run-20261101-2a8ab591`.
+Owner, 1 November 2026: "run the real market practice run on SPY first". `run-20261101-c3e61950`, 11:42 to 11:47 EDT, the first completed real-market run:
+`data/history/SPY/manifest.json` (2016-01-05 to 2023-12-29, 2,011 sessions: TRAIN 1,005, VALIDATION 603, vault 403 held back), GLM everywhere, 4 cycles:
+`CYCLE_LIMIT`, 100 requests, 4.7 minutes, 0 faults, OpenRouter spend $0.04 (balance $12.65 to $12.61). 12 ideas, 12 built and scored. Buy-and-hold Sharpe 0.47.
+1 beat buy-and-hold: "Ensemble vote of three orthogonal weak gates with 2-of-3 majority", Sharpe 1.35, deflated Sharpe 0.077 (`REJECTED_DEFLATED`).
+3 more had a higher Sharpe than buy-and-hold (0.95, 0.60, 0.46 against 0.47 for the last) but a lower mean return, so they did not beat it (rule: annual mean excess > 0
+and Sharpe above the benchmark). 4 had no defined Sharpe (no position change). 4 had a lower Sharpe. The Director's ideas were gates, ensembles and train-fitted selectors;
+no plain trend or reversal rule was tried. Reading: the real gate needs about a 2.3 annual Sharpe on 603 validation sessions; the best idea reached 1.35.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
