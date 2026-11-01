@@ -98,6 +98,17 @@ def test_the_command_refuses_without_markets_or_note(tmp_path,capsys):
     assert library.main(['--project',str(tmp_path),'sweep','--all','--note',' '])==2
 
 
+def test_a_market_that_fails_to_load_is_skipped_and_reported(tmp_path,monkeypatch):
+    def fake(root,path):
+        if 'BAD' in path: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
+        m=market('GOOD',1);return {'label':'fixture','train_csv':'session,close,return'+chr(10)+''.join(f"{r['session']},{r['close']},{r['return']}"+chr(10) for r in m['train_rows']),
+                                   'validation_rows':m['validation_rows']},[]
+    import compertum.ai.engine.real_market as real_market
+    monkeypatch.setattr(real_market,'load_market_manifest',fake)
+    out,skipped=library.load_markets(tmp_path,['data/history/GOOD/manifest.json','data/history/BAD/manifest.json'])
+    assert [m['symbol'] for m in out]==['GOOD'] and skipped==[{'symbol':'BAD','code':'ENGINE_MARKET_COVERAGE_INCOMPLETE'}] and len(out[0]['train_rows'])==420
+
+
 def test_all_finds_every_history_manifest_with_forward_slashes(tmp_path,monkeypatch,capsys):
     for symbol in ('AAA','BRK.B'):
         (tmp_path/'data'/'history'/symbol).mkdir(parents=True);(tmp_path/'data'/'history'/symbol/'manifest.json').write_text('{}',encoding='utf-8')

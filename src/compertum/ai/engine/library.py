@@ -215,12 +215,13 @@ def summarize(rows):
 
 def load_markets(root,manifests):
     from .real_market import load_market_manifest
-    out=[]
+    out=[];skipped=[]
     for path in manifests:
-        market,_vault=load_market_manifest(root,str(path))
         symbol=Path(path).parent.name
+        try: market,_vault=load_market_manifest(root,str(path))
+        except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
         out.append({'symbol':symbol,'label':market['label'],'train_rows':_rows(market['train_csv']),'validation_rows':market['validation_rows']})
-    return out
+    return out,skipped
 
 
 def main(argv=None):
@@ -241,10 +242,10 @@ def main(argv=None):
     from .ledger import EngineLedger
     lease=None;run_id=f'library-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
     try:
-        markets=load_markets(root,manifests)
+        markets,skipped=load_markets(root,manifests)
         lease=acquire_owner(resolve_project(root),'coordinator')
         store=StorageManager(lease,load_config(config,root)).store
-        report=sweep(markets,EngineLedger(store),run_id=run_id,note=args.note)
+        report=sweep(markets,EngineLedger(store),run_id=run_id,note=args.note);report['skipped']=skipped
     except RuntimeRefused as error:
         print(json.dumps({'refused':error.code}));return 2
     except (ContractError,ConfigError) as error:
@@ -253,7 +254,7 @@ def main(argv=None):
         if lease is not None: release_owner(lease)
     folder=root/'state'/'engine'/'library';folder.mkdir(parents=True,exist_ok=True)
     path=folder/f'{run_id}.json';path.write_text(json.dumps(report,indent=1,sort_keys=True),encoding='utf-8',newline='\n')
-    print(json.dumps({'run_id':run_id,'report':str(path),'markets':report['markets'],'trials_recorded':report['trials_recorded'],
+    print(json.dumps({'run_id':run_id,'report':str(path),'markets':report['markets'],'skipped':skipped,'trials_recorded':report['trials_recorded'],
                       'total_trials':report['total_trials'],'summary':{k:v for k,v in report['summary'].items() if k!='by_family'}},sort_keys=True))
     return 0
 

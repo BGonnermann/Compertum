@@ -385,6 +385,18 @@ on 7 of the 11 other symbols. Several GLM ideas built on earlier rejected candid
 Index membership (owner: Russell, S&P 500 and Nasdaq lists with weekly adds and deletes): owner chose free sources, an owner-run weekly command, and the
 Russell 3000 + S&P 500 + Nasdaq-100. Probe: iShares and Nasdaq serve no file to automated clients, and a browser-disguised retry was refused by the session's
 safety check (not repeated); Wikipedia's API refuses clients without contact details in the User-Agent. Waiting for the owner's choice of source route.
+Pull finished 13:19 EDT: 291 of 294 symbols, 6,967 requests, 53 minutes, $0, `data/history` now 107 MB, 371 manifests. Refused by the evidence reader
+(`PROVIDER_EVIDENCE_INVALID_PROVIDER_NUMBER`): BIIB (2016 to 2019 chunks kept, no manifest), DXCM and XLRE. JNK has a calendar gap (`ENGINE_MARKET_COVERAGE_INCOMPLETE`).
+Both libraries now skip a market that fails to load and list it in the report, instead of refusing the whole sweep (the first 291-symbol sweep was refused
+by JNK; no trials were recorded). New test; engine lane 350 passed, 0 failed; product lane 285 passed, 0 failed, 8 skipped.
+Single-symbol sweep of the new symbols only (the first 80 were not swept again, so their settings are not counted twice): `library-20261101-e62ff300`,
+290 markets (JNK skipped), 19,430 trials, 2,900 candidates, 497 beat buy-and-hold, 0 passed the gate; best deflated Sharpe 0.26 (JCI dip_in_trend 100/3,
+Sharpe 2.24 against 0.45). Multi-stock sweep `library-multi-20261101-57890b28`: universes stocks 328 and etfs 39 (3 dropped off the common calendar, JNK skipped),
+150 trials, 12 candidates, 3 beat the equal-weight universe (stocks xs_momentum 60-day skip 20, top 10%, monthly: Sharpe 0.81 against 0.56; stocks dual_momentum;
+etfs dual_momentum), 0 passed the gate; best deflated Sharpe 0.0025. Total trials now 28,090 (3,078 this morning).
+The bar for 603 VALIDATION sessions is now SR0 0.167 per period, an annual Sharpe of about 2.66 (2.30 this morning; 2.84 at 100,000 trials).
+Reading: the library sweeps found no strategy near the bar; a realistic multi-stock strategy (annual Sharpe about 0.8) is far below it. Every sweep raises the bar
+for every later candidate, so trial spending now needs a plan. Survivorship: the 371 symbols are today's large names, which flatters long-only results.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

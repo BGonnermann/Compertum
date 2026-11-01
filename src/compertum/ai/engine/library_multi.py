@@ -199,17 +199,19 @@ def sweep(p,ledger,*,run_id,note):
             row.update(validation=s,deflated_sharpe=deflation['deflated_sharpe'],gate='PASS' if s['beats_baseline'] and deflation['status']=='PASS' else 'FAIL')
             rows.append(row)
     return {'run_id':run_id,'kind':'strategy-library-multi','note':note,'calendar':[p['dates'][0],p['dates'][p['train']],p['dates'][-1]],
-            'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'settings_per_universe':SETTINGS,'trials_recorded':trials,'total_trials':total,
+            'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'skipped':p.get('skipped',[]),'settings_per_universe':SETTINGS,'trials_recorded':trials,'total_trials':total,
             'gate_rule':'beats the equal-weight universe and deflated Sharpe >= 0.95 with the total trial count and the null variance (option C)','rows':rows}
 
 
 def load_panel(root,manifests):
     from .history_market import load_history_market
-    markets={}
+    markets={};skipped=[]
     for path in manifests:
-        market,_vault=load_history_market(root,path)
+        try: market,_vault=load_history_market(root,path)
+        except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
         markets[Path(path).parent.name]=(_rows(market['train_csv']),market['validation_rows'])
-    return panel(markets)
+    p=panel(markets);p['skipped']=skipped
+    return p
 
 
 def _rows(text):
@@ -245,7 +247,7 @@ def main(argv=None):
         if lease is not None: release_owner(lease)
     folder=root/'state'/'engine'/'library';folder.mkdir(parents=True,exist_ok=True)
     path=folder/f'{run_id}.json';path.write_text(json.dumps(report,indent=1,sort_keys=True),encoding='utf-8',newline='\n')
-    print(json.dumps({'run_id':run_id,'report':str(path),'universes':report['universes'],'dropped':len(report['dropped']),'trials_recorded':report['trials_recorded'],
+    print(json.dumps({'run_id':run_id,'report':str(path),'universes':report['universes'],'dropped':len(report['dropped']),'skipped':report['skipped'],'trials_recorded':report['trials_recorded'],
                       'total_trials':report['total_trials'],'rows':[{k:r.get(k) for k in ('universe','family','knobs','deflated_sharpe','gate')}|
                       {'sharpe':r['validation'].get('sharpe'),'benchmark_sharpe':r['validation'].get('benchmark_sharpe'),'beats':r['validation'].get('beats_baseline')}
                       for r in report['rows']]},sort_keys=True))
