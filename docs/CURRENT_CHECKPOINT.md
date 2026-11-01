@@ -283,6 +283,10 @@ about $0.26 (retest); Researcher DeepSeek 6.56, 1 found (discard); Researcher Lu
 Reading: Luna everywhere and GLM everywhere differ by 0.26 levels and half a pattern per pass, inside the noise of one pass (0.75 between two passes of one firm).
 Luna costs about 16 times as much a run ($0.77 against $0.05) and takes about 4.5 times as long (78 against 18 model minutes). The keep rule does not weigh cost.
 The next batch from the new incumbent would be four Luna-heavy firms, about $3 of the $4.28 balance. Paused for the owner's choice before batch 4.
+Owner, 20:55 EDT: "Pick GLM, stop." The route search is closed after 3 batches (12 firms, 13 passes, $3.51 of OpenRouter spend). Production firm: GLM 5.3 flash in every
+role with the capped thinking file, `-Models openrouter-think` (tied with Luna everywhere on quality, about 1/16 of the cost and 4 times the speed). DeepSeek v4.1 flash
+lost in every role it took. The engine is free. Final lanes for the route search code (commits 862994c and a648d26): engine 332 passed, 0 failed, 0 skipped
+(`engine-lane-route-final-20261031-205717-20261031-205717`); product 268 passed, 0 failed, 7 skipped (`product-lane-route-final-20261031-205717-20261031-210043`).
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
