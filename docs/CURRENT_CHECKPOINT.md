@@ -287,6 +287,15 @@ Owner, 20:55 EDT: "Pick GLM, stop." The route search is closed after 3 batches (
 role with the capped thinking file, `-Models openrouter-think` (tied with Luna everywhere on quality, about 1/16 of the cost and 4 times the speed). DeepSeek v4.1 flash
 lost in every role it took. The engine is free. Final lanes for the route search code (commits 862994c and a648d26): engine 332 passed, 0 failed, 0 skipped
 (`engine-lane-route-final-20261031-205717-20261031-205717`); product 268 passed, 0 failed, 7 skipped (`product-lane-route-final-20261031-205717-20261031-210043`).
+Owner, 23:50 EDT: "Ok go" for the 4-cycle GLM baseline. `run-20261101-41ee2338`, 23:53 to 00:51 EDT, `-Models openrouter-think`, bench-4, 4 cycles per market,
+2,400-request limit: `MEASURED`, `CYCLE_LIMIT`, 64 cycles, 1,741 requests, 57.1 minutes, OpenRouter spend $0.41 (balance $4.28 to $3.87; my estimate was $0.20).
+Mean level 7.33 (halves 7.34 and 7.31); patterns found 8 of 10; false discoveries 0 of 6; 2 AI faults (1 Mathematician, 1 Engineer).
+Found: seeds 127, 128 (strong momentum), 131, 132 (weak momentum), 130 (strong reversal), 133, 134 (weak reversal) and 135 (regime, capture 0.684), the first regime
+market found on bench-4. Not found: seed 129 (reversal, best capture 0.421) and 136 (regime, 0.110). Empty markets stayed at levels 5 to 7.
+Against the DeepSeek flash direct 4-cycle baseline (`run-20261030-4b8ab911`): mean 7.33 against 6.75, found 8 against 4, 57 against 321 minutes, $0.41 against $1.84,
+2 faults against 14. Model time by role: Mathematician 45 minutes, Engineer 37, Researcher 12, Director 7. Record: `.cache/test-runs/practice-bench-20261031-235344-record.json`.
+This is the GLM baseline that GEPA must beat. Owner, 1 November 2026, after a research report on TradingAgents (TauricResearch) and an X post about the "rea" and "jev"
+tools: "just keep everything we have now. No sense in adding to it." No change made; the critic step that the report suggested is not built.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
