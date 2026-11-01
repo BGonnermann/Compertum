@@ -338,6 +338,12 @@ all strong-pattern markets; 0 on empty markets. They are queued, not promoted; t
 Against the bench-4 baseline (`run-20261101-41ee2338`, same firm and prompts): mean 7.00 against 7.33, found 6 against 8, 0 false in both.
 The 0.33 drop is larger than each run's own noise (the halves of each run agree within 0.03). It may be a small fit of the hand-edited prompts to bench-4 or a harder seed draw; one run cannot separate the two.
 Model time: Mathematician 48 minutes, Engineer 40, Researcher 15, Director 7. Record: `.cache/test-runs/practice-holdout-20261101-093721-record.json`.
+Owner, 1 November 2026: balance $13.14; "small" GEPA run chosen (48 cycles, then a 64-cycle bench-4 check). `run-20261101-2a8ab591`, 11:21 to 11:36 EDT,
+GLM everywhere (roles and reflection), 16 exam markets: `GEPA_COMPLETE`, 48 cycles, 1,245 requests, 13.8 minutes, OpenRouter spend $0.49 (balance $13.14 to $12.65).
+3 candidates: 0 (committed prompts) 0.771 on the 16 exam markets; 1 (a Director change) 0.377 on its 4-market minibatch, not promoted; 2 (a Researcher change) 0.783.
+Candidate 2 changes only the Researcher prompt (386 to 2,975 bytes): exact rule statements, test both continuation and reversal, avoid constant positions,
+watch turnover cost, a train-only check per idea. Its gain, 0.12 of a level on 16 cycles, is inside the noise (about 0.19), and its new rules are the kind of
+steering the owner asked to keep out of prompts (29 October 2026). The bench check was held for the owner. Prompts: `state/engine/prompts/run-20261101-2a8ab591`.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
