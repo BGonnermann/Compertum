@@ -371,6 +371,20 @@ Only 77 of the 800 TRAIN-chosen settings beat buy-and-hold on TRAIN, and 21 beat
 (mostly a 20-day window; it stepped out of the 2020 crash), reversal 22, above_ma 15, ma_cross 15, rsi_revert 14, momentum 12, breakout 11, dip_in_trend 10,
 day_of_week 9, turn_of_month 6. The bar for 603 VALIDATION sessions rose from SR0 0.145 to 0.156 per period (annual Sharpe about 2.30 to 2.47).
 Reading: no simple single-symbol rule on daily closes clears the real gate on 2016 to mid-2022 data.
+Owner, 1 November 2026: "run GLM engine through this new setup ... Increase symbols to 300", then "do both, multi-stock strategies and pull more history".
+Built `src/compertum/ai/engine/library_multi.py`: 6 portfolio families (xs_momentum, xs_reversal, xs_low_vol, dual_momentum, ew_trend, breadth), 75 settings, long-only,
+weights at the close of t earn t+1, 0.0005 per unit of weight changed; universes `stocks` and `etfs` of symbols on the common calendar; benchmark the equal-weight
+universe; knobs on TRAIN, trials before VALIDATION, real gate. `tests/test_engine_library_multi.py` 7 tests; engine lane 349 passed, product lane 284 passed, 8 skipped.
+A first run of the new tests failed 1: the planted-drift fixture was too weak (momentum held the drifting stocks, but the diversified benchmark had a similar Sharpe);
+the fixture was strengthened. Commit `90c95ad`. Pull of 294 more symbols started about 12:12 EDT (owner-asked, read-only Alpaca, $0), still running.
+GLM batch on real data, 12:34 to 13:09 EDT: 12 practice runs of 2 cycles (AAPL, JPM, XOM, JNJ, WMT, NVDA, KO, CAT, NEE, GLD, TLT, QQQ), 647 requests, 31 minutes,
+1 fault, OpenRouter spend $0.27 (balance $12.61 to $12.33). 72 candidates: 13 beat buy-and-hold, 0 passed the gate (12 `REJECTED_DEFLATED`, 1 `REJECTED_AUDIT`).
+The Auditor caught one: on NEE, "Position as function of validation-session index only" (Sharpe 1.94 against 0.41) changed its earlier positions when the
+later prices were perturbed (`VERIFIED_FAIL`, look-ahead). Against the single-symbol library on the same symbols, the library's best VALIDATION Sharpe was higher
+on 7 of the 11 other symbols. Several GLM ideas built on earlier rejected candidates (votes over earlier gates) instead of new mechanisms.
+Index membership (owner: Russell, S&P 500 and Nasdaq lists with weekly adds and deletes): owner chose free sources, an owner-run weekly command, and the
+Russell 3000 + S&P 500 + Nasdaq-100. Probe: iShares and Nasdaq serve no file to automated clients, and a browser-disguised retry was refused by the session's
+safety check (not repeated); Wikipedia's API refuses clients without contact details in the User-Agent. Waiting for the owner's choice of source route.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
