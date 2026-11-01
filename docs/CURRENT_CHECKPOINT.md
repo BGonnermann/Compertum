@@ -328,6 +328,16 @@ Fix: the test compares the sorted indexes. Engine lane 334 passed, 0 failed (`en
 My error: a rerun with a wrong pytest option (`--count`) ran no test, and I deleted its `retention.json` (`flaky-check-20261101-091853-20261101-091853`). No test result was in it.
 The project map was refreshed: footer and AI node show GLM in every role, the bench-4 result, the option C gate and holdout-2; 9 pages; page 1 was inspected.
 Next: the GLM holdout check on holdout-2 (about $0.40), then GEPA after the owner adds credit.
+Owner, 1 November 2026: "yes start the holdout check". `run-20261101-9061136f`, 09:37 to 10:57 EDT, holdout-2 use 1 of 5 (counted in START), GLM 5.3 flash
+everywhere (`-Models openrouter-think`), committed prompts, 4 cycles per market: `MEASURED`, `CYCLE_LIMIT`, 64 cycles, 1,725 requests, 79.7 minutes, 0 AI faults,
+OpenRouter spend $0.56 (balance $3.71 to $3.15). Mean level 7.00 (halves 7.00 and 7.00); patterns found 6 of 10; false discoveries 0 of 6.
+Found: seeds 906, 907 (strong momentum), 908, 909 (strong reversal), 911 (weak momentum) and 915 (regime). Not found: 910 (weak momentum, best capture 0.266),
+912 and 913 (weak reversal, 0.043 and 0.407) and 914 (regime, 0.260). Empty markets stayed at levels 4 to 7.
+First real gate passes in the project, under option C: 10 candidates passed the real gate and the Auditor (`EVALUATION_GATE_PASS`): 5 on seed 906, 4 on 907, 1 on 908,
+all strong-pattern markets; 0 on empty markets. They are queued, not promoted; the vault stays closed.
+Against the bench-4 baseline (`run-20261101-41ee2338`, same firm and prompts): mean 7.00 against 7.33, found 6 against 8, 0 false in both.
+The 0.33 drop is above the noise of a 64-cycle run (about 0.19). It may be a small fit of the hand-edited prompts to bench-4 or a harder seed draw; one run cannot separate the two.
+Model time: Mathematician 48 minutes, Engineer 40, Researcher 15, Director 7. Record: `.cache/test-runs/practice-holdout-20261101-093721-record.json`.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
