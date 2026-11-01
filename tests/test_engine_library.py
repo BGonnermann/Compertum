@@ -96,3 +96,13 @@ def test_a_planted_trend_is_found_and_passes_while_noise_rarely_does(bridge):
 def test_the_command_refuses_without_markets_or_note(tmp_path,capsys):
     assert library.main(['--project',str(tmp_path),'sweep','--note','x'])==2 and json.loads(capsys.readouterr().out)=={'refused':'ENGINE_RUN_LIMITS_DENIED'}
     assert library.main(['--project',str(tmp_path),'sweep','--all','--note',' '])==2
+
+
+def test_all_finds_every_history_manifest_with_forward_slashes(tmp_path,monkeypatch,capsys):
+    for symbol in ('AAA','BRK.B'):
+        (tmp_path/'data'/'history'/symbol).mkdir(parents=True);(tmp_path/'data'/'history'/symbol/'manifest.json').write_text('{}',encoding='utf-8')
+    seen=[]
+    def fake(root,manifests): seen.extend(manifests);raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    monkeypatch.setattr(library,'load_markets',fake)
+    assert library.main(['--project',str(tmp_path),'sweep','--all','--note','x'])==2
+    assert seen==['data/history/AAA/manifest.json','data/history/BRK.B/manifest.json'] and json.loads(capsys.readouterr().out)=={'refused':'ENGINE_MARKET_DENIED'}

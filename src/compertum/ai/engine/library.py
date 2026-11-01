@@ -231,7 +231,7 @@ def main(argv=None):
     run.add_argument('--note',required=True)
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
-    manifests=list(args.manifest)+([str(p.relative_to(root)) for p in sorted((root/'data'/'history').glob('*/manifest.json'))] if args.all else [])
+    manifests=list(args.manifest)+([p.relative_to(root).as_posix() for p in sorted((root/'data'/'history').glob('*/manifest.json'))] if args.all else [])
     if not manifests or not args.note.strip() or len(args.note)>NOTE_LIMIT: print(json.dumps({'refused':'ENGINE_RUN_LIMITS_DENIED'}));return 2
     from compertum.config import ConfigError,load_config
     from compertum.domain import ContractError

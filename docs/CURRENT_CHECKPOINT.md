@@ -356,6 +356,21 @@ Enforced: `tools/practice.ps1` refuses run and gepa without `-MarketManifest` an
 checked by hand: all three refusals stop before any model loads. Recorded in AGENTS.md. Generated markets stay only inside automated tests.
 The harness commands `/run`, `/gepa` and `/bench` pass no manifest, so the wrapper now refuses them too. `tests/test_engine_bench.py` and
 `tests/test_engine_real_market.py` 44 passed (engine environment). Bench-4, holdout-2 and all synthetic results stay as history; they no longer guide decisions.
+Owner, 1 November 2026: "now build the library ... we should do as much as we can so it stays diverse." Built `src/compertum/ai/engine/library.py`:
+10 long/flat families on daily closes (momentum, reversal, above_ma, ma_cross, breakout, rsi_revert, dip_in_trend, low_vol, turn_of_month, day_of_week),
+67 knob settings. Per market and family, the knobs with the best TRAIN Sharpe are chosen; that one setting is scored on VALIDATION with `score_signals`
+(same timing and 0.0005 cost as the firm). Every setting tried counts: the run's trials are one `library:RUN_ID` row in the ledger, written before the first
+VALIDATION score. Gate: beats buy-and-hold and deflated Sharpe >= 0.95 with the total trial count and the null variance (option C). The vault is never read.
+`python -m compertum.ai.engine.library --project . sweep --all --note "..."`; reports in `state/engine/library/`. `tests/test_engine_library.py`, 8 tests
+(causality of every setting, calendar rules, TRAIN-only choice, trials before VALIDATION, gate rule, manifest paths). Engine lane 341 passed, 0 failed;
+product lane 276 passed, 0 failed, 8 skipped (before the path test). The first sweep was refused with `ARTIFACT_ESCAPE`: `--all` passed Windows paths; fixed
+(forward slashes) and pinned by the eighth test, 8 passed in both environments.
+First sweep `library-20261101-b09754c2`: all 80 history markets, 2.6 minutes, $0, 5,360 trials recorded (total 3,078 to 8,438). 800 candidates (80 markets x 10 families).
+146 beat buy-and-hold on VALIDATION (about 2020 to mid-2022); 0 passed the gate; best deflated Sharpe 0.26 (TXN, RSI(2) below 20, Sharpe 2.09 against 0.50).
+Only 77 of the 800 TRAIN-chosen settings beat buy-and-hold on TRAIN, and 21 beat it on both. By family, beat buy-and-hold on VALIDATION: low_vol 32 of 80
+(mostly a 20-day window; it stepped out of the 2020 crash), reversal 22, above_ma 15, ma_cross 15, rsi_revert 14, momentum 12, breakout 11, dip_in_trend 10,
+day_of_week 9, turn_of_month 6. The bar for 603 VALIDATION sessions rose from SR0 0.150 to 0.159 per period (annual Sharpe about 2.38 to 2.52).
+Reading: no simple single-symbol rule on daily closes clears the real gate on 2016 to mid-2022 data.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
