@@ -1,7 +1,7 @@
 """Pull years of Alpaca daily bars into engine history evidence. Owner-started, read-only, $0.
 
     python tools/pull_bars.py --symbols SPY,QQQ [--start 2016] [--end 2023] [--feed sip] [--adjustment split]
-                              [--credentials PATH] [--out data/history] [--dry-run]
+                              [--asof YYYY-MM-DD] [--refetch-empty] [--credentials PATH] [--out data/history] [--dry-run]
 
 For each symbol and each calendar year the tool sends one bars request (1Day, 100 rows per page), follows every page, and retains the
 exchange exactly as compertum.data.alpaca reads it: an alpaca-bars-v1 envelope per symbol and year at data/history/SYMBOL/YEAR.json,
@@ -10,6 +10,11 @@ Every envelope is reread with the evidence reader before it is written, and ever
 The credential file is the owner's Desktop/v20/.env (entries alpaca_key and alpaca_secret, authorized 9 October 2026). The values go
 into the request headers and are never printed, logged or written. Years end before 2024, the vault period, as the evidence reader
 requires. The data folder is outside Git. See docs/ENGINE_PLAN.md, "History markets".
+
+Alpaca reads a symbol as of the asof date and returns that company's whole history under the symbol. Without --asof each year uses
+its own last day, so a company renamed later (FB to META in 2022) has empty years before the rename. With --asof DATE each year uses
+the later of DATE and the year's last day. --refetch-empty moves an envelope without bars to SYMBOL/superseded/ and fetches it again.
+tools/update_indices.py also passes until=DATE for a stock that left the S&P 500: its last envelope ends on that day.
 """
 import argparse
 from datetime import datetime,timezone
@@ -50,13 +55,18 @@ def credentials(path):
 def stamp(): return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
 
 
-def year_params(symbol,year,feed,adjustment):
-    return {'symbols':symbol,'start':f'{year}-01-01T00:00:00Z','end':f'{year}-12-31T23:59:59Z','timeframe':'1Day','adjustment':adjustment,
-            'feed':feed,'asof':f'{year}-12-31','sort':'asc','currency':'USD','limit':PAGE_LIMIT}
+def year_params(symbol,year,feed,adjustment,asof=None,until=None):
+    last=until if until and until[:4]==str(year) else f'{year}-12-31'
+    return {'symbols':symbol,'start':f'{year}-01-01T00:00:00Z','end':f'{last}T23:59:59Z','timeframe':'1Day','adjustment':adjustment,
+            'feed':feed,'asof':max(last,asof or ''),'sort':'asc','currency':'USD','limit':PAGE_LIMIT}
 
 
-def fetch_year(client,symbol,year,feed,adjustment):
-    params=year_params(symbol,year,feed,adjustment);request_id=f'{symbol}-{year}-1Day-{adjustment}';pages=[];token=None
+def bar_count(raw):
+    return sum(len(v) for page in json.loads(raw)['pages'] for v in (json.loads(page['body_utf8']).get('bars') or {}).values())
+
+
+def fetch_year(client,symbol,year,feed,adjustment,asof=None,until=None):
+    params=year_params(symbol,year,feed,adjustment,asof,until);request_id=f'{symbol}-{year}-1Day-{adjustment}';pages=[];token=None
     while True:
         sent=dict(params)
         if token is not None: sent['page_token']=token
@@ -82,13 +92,18 @@ def fetch_year(client,symbol,year,feed,adjustment):
     return raw,evidence
 
 
-def pull_symbol(client,symbol,years,feed,adjustment,out,dry_run):
+def pull_symbol(client,symbol,years,feed,adjustment,out,dry_run,asof=None,refetch_empty=False,until=None):
     folder=out/symbol;folder.mkdir(parents=True,exist_ok=True);record={'symbol':symbol,'years':{},'requests':0}
     for year in years:
         path=folder/f'{year}.json'
+        if path.exists() and refetch_empty and bar_count(path.read_bytes())==0:
+            if dry_run: record['years'][year]='would refetch';continue
+            aside=folder/'superseded'/f'{year}.json';aside.parent.mkdir(exist_ok=True)
+            if aside.exists(): raise RuntimeRefused('SUPERSEDED_EXISTS')
+            path.replace(aside)
         if path.exists(): record['years'][year]='kept';continue
         if dry_run: record['years'][year]='would fetch';continue
-        raw,evidence=fetch_year(client,symbol,year,feed,adjustment)
+        raw,evidence=fetch_year(client,symbol,year,feed,adjustment,asof,until)
         path.write_bytes(raw);record['requests']+=len(json.loads(raw)['pages'])
         record['years'][year]={'rows':len(evidence.rows),'missing':len(evidence.missing),'bytes':len(raw)}
     chunks=[]
@@ -115,9 +130,13 @@ def main(argv=None):
     parser.add_argument('--feed',choices=('sip','iex'),default='sip');parser.add_argument('--adjustment',choices=('split','raw'),default='split')
     parser.add_argument('--credentials',type=Path,default=DEFAULT_CREDENTIALS);parser.add_argument('--out',type=Path,default=ROOT/'data'/'history')
     parser.add_argument('--host',default=HOST);parser.add_argument('--dry-run',action='store_true')
+    parser.add_argument('--asof',default=None);parser.add_argument('--refetch-empty',action='store_true')
     args=parser.parse_args(argv)
     symbols=[s.strip().upper() for s in args.symbols.split(',') if s.strip()]
     if not symbols or not FIRST_YEAR<=args.start<=args.end<=LAST_YEAR: print(json.dumps({'refused':'ARGUMENTS'}));return 2
+    if args.asof is not None:
+        try: args.asof=datetime.strptime(args.asof,'%Y-%m-%d').date().isoformat()
+        except ValueError: print(json.dumps({'refused':'ARGUMENTS'}));return 2
     years=list(range(args.start,args.end+1));out=args.out if args.out.is_absolute() else ROOT/args.out
     if not out.resolve().is_relative_to(ROOT): print(json.dumps({'refused':'OUT_OUTSIDE_PROJECT'}));return 2
     try: headers={} if args.dry_run else credentials(args.credentials)
@@ -125,9 +144,9 @@ def main(argv=None):
     records=[];started=time.time()
     with httpx.Client(base_url=args.host,headers=headers,timeout=60,trust_env=False) as client:
         for symbol in symbols:
-            try: records.append(pull_symbol(client,symbol,years,args.feed,args.adjustment,out,args.dry_run))
+            try: records.append(pull_symbol(client,symbol,years,args.feed,args.adjustment,out,args.dry_run,args.asof,args.refetch_empty))
             except RuntimeRefused as error: records.append({'symbol':symbol,'refused':error.code})
-    summary={'at':stamp(),'feed':args.feed,'adjustment':args.adjustment,'years':[args.start,args.end],'elapsed_seconds':round(time.time()-started,1),
+    summary={'at':stamp(),'feed':args.feed,'adjustment':args.adjustment,'years':[args.start,args.end],'asof':args.asof,'elapsed_seconds':round(time.time()-started,1),
              'requests':sum(r.get('requests',0) for r in records),'symbols':records}
     if not args.dry_run:
         out.mkdir(parents=True,exist_ok=True);(out/f'pull-{datetime.now():%Y%m%d-%H%M%S}.json').write_text(json.dumps(summary,indent=1),encoding='utf-8')

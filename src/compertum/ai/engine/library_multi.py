@@ -4,6 +4,11 @@ Each symbol is loaded with the engine's own history loader, so the vault is cut 
 symbols whose TRAIN and VALIDATION sessions match the common calendar exactly. Weights chosen at the close of session t earn the returns of t+1.
 Every family uses only closes up to t. Turnover costs 0.0005 of NAV per unit of weight changed, the single-market cost.
 The benchmark is the equal-weight portfolio of the same universe, rebalanced daily at no cost.
+
+The point-in-time universe sp500-pit (owner, 1 November 2026) holds on each session only the S&P 500 members of that date
+(data/indices/sp500/history.json, from tools/update_indices.py) that have a close that day, including members that later left.
+Its calendar and its TRAIN and VALIDATION sessions are those of SPY; every row after SPY's last VALIDATION session is dropped on load.
+A held stock without a close on the next session earns 0 for that session.
 Knobs are chosen on TRAIN only; the chosen setting of each family is scored once on VALIDATION. Every setting tried counts as a trial,
 recorded in the ledger before the first VALIDATION score. The gate is the real gate (option C).
 
@@ -43,29 +48,37 @@ def panel(markets):
 
 
 def _returns(closes):
-    return [0.0]+[closes[t]/closes[t-1]-1 for t in range(1,len(closes))]
+    return [0.0]+[None if closes[t] is None or closes[t-1] is None else closes[t]/closes[t-1]-1 for t in range(1,len(closes))]
 
 
 def prepare(p,symbols):
-    closes={s:p['closes'][s] for s in symbols};returns={s:_returns(c) for s,c in closes.items()}
-    n=len(p['dates']);ew=[sum(returns[s][t] for s in symbols)/len(symbols) for t in range(n)];index=[1.0]
+    closes={s:p['closes'][s] for s in symbols};returns={s:_returns(c) for s,c in closes.items()};n=len(p['dates'])
+    if 'eligible' in p:
+        chosen=set(symbols);eligible=[[s for s in e if s in chosen] for e in p['eligible']]
+        ew=[0.0]+[sum(returns[s][t] or 0.0 for s in eligible[t-1])/len(eligible[t-1]) if eligible[t-1] else 0.0 for t in range(1,n)]
+    else:
+        eligible=[list(symbols)]*n;ew=[sum(returns[s][t] for s in symbols)/len(symbols) for t in range(n)]
+    index=[1.0]
     for t in range(1,n): index.append(index[-1]*(1+ew[t]))
-    return {'symbols':list(symbols),'closes':closes,'returns':returns,'ew':ew,'index':index,'n':n,'cache':{}}
+    return {'symbols':list(symbols),'eligible':eligible,'closes':closes,'returns':returns,'ew':ew,'index':index,'n':n,'cache':{}}
 
 
 def _past_return(u,s,t,lookback,skip=0):
     c=u['closes'][s];a=t-skip;b=a-lookback
-    return None if b<0 else c[a]/c[b]-1
+    return None if b<0 or c[a] is None or c[b] is None else c[a]/c[b]-1
 
 
 def _vol(u,s,t,window):
     key=('vol',s,window)
     if key not in u['cache']:
-        r=u['returns'][s];out=[None]*u['n'];acc=0.0;acc2=0.0
+        r=u['returns'][s];out=[None]*u['n'];acc=0.0;acc2=0.0;gaps=0
         for i in range(1,u['n']):
-            acc+=r[i];acc2+=r[i]*r[i]
-            if i>window: acc-=r[i-window];acc2-=r[i-window]*r[i-window]
-            if i>=window: mean=acc/window;out[i]=math.sqrt(max(acc2/window-mean*mean,0.0)*window/(window-1))
+            if r[i] is None: gaps+=1
+            else: acc+=r[i];acc2+=r[i]*r[i]
+            if i>window:
+                if r[i-window] is None: gaps-=1
+                else: acc-=r[i-window];acc2-=r[i-window]*r[i-window]
+            if i>=window and not gaps: mean=acc/window;out[i]=math.sqrt(max(acc2/window-mean*mean,0.0)*window/(window-1))
         u['cache'][key]=out
     return u['cache'][key][t]
 
@@ -73,11 +86,14 @@ def _vol(u,s,t,window):
 def _above_ma(u,s,t,window):
     key=('ma',s,window)
     if key not in u['cache']:
-        c=u['closes'][s];out=[None]*u['n'];acc=0.0
+        c=u['closes'][s];out=[None]*u['n'];acc=0.0;gaps=0
         for i in range(u['n']):
-            acc+=c[i]
-            if i>=window: acc-=c[i-window]
-            if i+1>=window: out[i]=c[i]>acc/window
+            if c[i] is None: gaps+=1
+            else: acc+=c[i]
+            if i>=window:
+                if c[i-window] is None: gaps-=1
+                else: acc-=c[i-window]
+            if i+1>=window and not gaps: out[i]=c[i]>acc/window
         u['cache'][key]=out
     return u['cache'][key][t]
 
@@ -89,35 +105,36 @@ def _top(scores,share,highest=True):
     chosen=[s for _,s in known[:k]];return {s:1.0/len(chosen) for s in chosen}
 
 
-def _equal(u):
-    return {s:1.0/len(u['symbols']) for s in u['symbols']}
+def _equal(u,t):
+    names=u['eligible'][t]
+    return {s:1.0/len(names) for s in names}
 
 
 def xs_momentum(u,t,lookback,skip,share):
-    return _top({s:_past_return(u,s,t,lookback,skip) for s in u['symbols']},share)
+    return _top({s:_past_return(u,s,t,lookback,skip) for s in u['eligible'][t]},share)
 
 
 def xs_reversal(u,t,lookback,share):
-    return _top({s:_past_return(u,s,t,lookback) for s in u['symbols']},share,highest=False)
+    return _top({s:_past_return(u,s,t,lookback) for s in u['eligible'][t]},share,highest=False)
 
 
 def xs_low_vol(u,t,window,share):
-    return _top({s:_vol(u,s,t,window) for s in u['symbols']},share,highest=False)
+    return _top({s:_vol(u,s,t,window) for s in u['eligible'][t]},share,highest=False)
 
 
 def dual_momentum(u,t,lookback,share):
-    scores={s:_past_return(u,s,t,lookback) for s in u['symbols']}
+    scores={s:_past_return(u,s,t,lookback) for s in u['eligible'][t]}
     return _top({s:v for s,v in scores.items() if v is not None and v>0},share) if any(v is not None and v>0 for v in scores.values()) else {}
 
 
 def ew_trend(u,t,window):
     if t+1<window: return {}
-    return _equal(u) if u['index'][t]>sum(u['index'][t-window+1:t+1])/window else {}
+    return _equal(u,t) if u['index'][t]>sum(u['index'][t-window+1:t+1])/window else {}
 
 
 def breadth(u,t,window,level):
-    flags=[_above_ma(u,s,t,window) for s in u['symbols']];known=[f for f in flags if f is not None]
-    return _equal(u) if known and sum(known)/len(known)>level else {}
+    flags=[_above_ma(u,s,t,window) for s in u['eligible'][t]];known=[f for f in flags if f is not None]
+    return _equal(u,t) if known and sum(known)/len(known)>level else {}
 
 
 FAMILIES={
@@ -145,7 +162,7 @@ def score(u,targets,start,end,cost=float(COST)):
     navs=[Decimal(1)];bench=[Decimal(1)];nav=1.0;b=1.0;previous={}
     for t in range(start,end-1):
         w=targets[t];turnover=sum(abs(w.get(s,0.0)-previous.get(s,0.0)) for s in set(w)|set(previous));previous=w
-        gross=sum(weight*u['returns'][s][t+1] for s,weight in w.items())
+        gross=sum(weight*(u['returns'][s][t+1] or 0.0) for s,weight in w.items())
         nav*=1+gross-cost*turnover;b*=1+u['ew'][t+1]
         if nav<=0: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
         navs.append(Decimal(repr(nav)));bench.append(Decimal(repr(b)))
@@ -178,6 +195,8 @@ def choose(u,train):
 
 
 def universes(p):
+    if 'eligible' in p:
+        return {'sp500-pit':sorted(p['closes'])} if p['eligible'] and min(len(e) for e in p['eligible'])>=MIN_UNIVERSE else {}
     stocks=[s for s in p['closes'] if s not in ETFS];etfs=[s for s in p['closes'] if s in ETFS]
     return {name:members for name,members in (('stocks',stocks),('etfs',etfs)) if len(members)>=MIN_UNIVERSE}
 
@@ -200,6 +219,7 @@ def sweep(p,ledger,*,run_id,note):
             rows.append(row)
     return {'run_id':run_id,'kind':'strategy-library-multi','note':note,'calendar':[p['dates'][0],p['dates'][p['train']],p['dates'][-1]],
             'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'skipped':p.get('skipped',[]),'settings_per_universe':SETTINGS,'trials_recorded':trials,'total_trials':total,
+            'membership':p.get('membership'),
             'gate_rule':'beats the equal-weight universe and deflated Sharpe >= 0.95 with the total trial count and the null variance (option C)','rows':rows}
 
 
@@ -214,6 +234,37 @@ def load_panel(root,manifests):
     return p
 
 
+def load_pit_panel(root,manifests,membership='data/indices/sp500/history.json',reference='SPY'):
+    import bisect
+    import hashlib
+    from compertum.domain import ContractError,resolve_project_path
+    from .history_market import load_history,load_history_market
+    paths={Path(m).parent.name:m for m in manifests}
+    if reference not in paths: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    market,_vault=load_history_market(root,paths[reference]);train_rows=_rows(market['train_csv'])
+    dates=[r['session'] for r in train_rows+market['validation_rows']];n=len(dates);where={d:i for i,d in enumerate(dates)}
+    try: raw=resolve_project_path(membership,Path(root).absolute()).read_bytes()
+    except (ContractError,OSError): raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE') from None
+    history=json.loads(raw);days=history['dates']
+    if days[0]>dates[0] or history['last']<dates[-1]: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
+    members=[frozenset(history['members'][bisect.bisect_right(days,d)-1]) for d in dates];names=set().union(*members)
+    closes={};skipped=[]
+    for symbol in sorted(names):
+        if symbol not in paths: continue
+        try: h=load_history(root,paths[symbol])
+        except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
+        c=[None]*n
+        for day,close in h['closes']:
+            if day in where: c[where[day]]=float(close)
+        if sum(x is not None for x in c)>=2: closes[symbol]=c
+    eligible=[[s for s in sorted(members[t]) if s in closes and closes[s][t] is not None] for t in range(n)]
+    shares=[len(eligible[t])/len(members[t]) for t in range(n)]
+    return {'dates':dates,'train':len(train_rows),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
+            'membership':{'path':membership,'sha256':hashlib.sha256(raw).hexdigest(),'members_in_window':len(names),
+                          'with_history':len(closes),'missing':sorted(names-set(closes)-{x['symbol'] for x in skipped}),
+                          'coverage_min':round(min(shares),4),'coverage_mean':round(sum(shares)/n,4),'reference':reference}}
+
+
 def _rows(text):
     import csv,io
     return list(csv.DictReader(io.StringIO(text)))
@@ -223,6 +274,7 @@ def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.library_multi',description='Sweep the multi-stock library over every real history market.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     commands=parser.add_subparsers(dest='command',required=True);run=commands.add_parser('sweep');run.add_argument('--note',required=True)
+    run.add_argument('--universe',choices=('all','sp500-pit'),default='all')
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
     manifests=[p.relative_to(root).as_posix() for p in sorted((root/'data'/'history').glob('*/manifest.json'))]
@@ -235,7 +287,7 @@ def main(argv=None):
     from .ledger import EngineLedger
     lease=None;run_id=f'library-multi-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
     try:
-        p=load_panel(root,manifests)
+        p=load_pit_panel(root,manifests) if args.universe=='sp500-pit' else load_panel(root,manifests)
         lease=acquire_owner(resolve_project(root),'coordinator')
         store=StorageManager(lease,load_config(config,root)).store
         report=sweep(p,EngineLedger(store),run_id=run_id,note=args.note)
@@ -248,6 +300,7 @@ def main(argv=None):
     folder=root/'state'/'engine'/'library';folder.mkdir(parents=True,exist_ok=True)
     path=folder/f'{run_id}.json';path.write_text(json.dumps(report,indent=1,sort_keys=True),encoding='utf-8',newline='\n')
     print(json.dumps({'run_id':run_id,'report':str(path),'universes':report['universes'],'dropped':len(report['dropped']),'skipped':report['skipped'],'trials_recorded':report['trials_recorded'],
+                      'membership':{k:v for k,v in (report['membership'] or {}).items() if k!='missing'} or None,
                       'total_trials':report['total_trials'],'rows':[{k:r.get(k) for k in ('universe','family','knobs','deflated_sharpe','gate')}|
                       {'sharpe':r['validation'].get('sharpe'),'benchmark_sharpe':r['validation'].get('benchmark_sharpe'),'beats':r['validation'].get('beats_baseline')}
                       for r in report['rows']]},sort_keys=True))

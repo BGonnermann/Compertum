@@ -91,3 +91,51 @@ def test_a_planted_cross_sectional_drift_is_found_by_momentum(bridge):
 
 def test_the_command_refuses_without_history_or_note(tmp_path):
     assert lm.main(['--project',str(tmp_path),'sweep','--note','x'])==2
+
+
+def pit(count=14,sessions=400,train=240):
+    """A point-in-time panel: S00 joins at session 100, S01 has no close after session 300 and leaves the index then."""
+    days=calendar(sessions);closes={}
+    for i in range(count):
+        c=[float(r['close']) for r in symbol_rows(days,i)]
+        if i==0: c=[None]*100+c[100:]
+        if i==1: c=c[:301]+[None]*(sessions-301)
+        closes[f'S{i:02d}']=c
+    members=[{s for s in closes if not (s=='S00' and t<100) and not (s=='S01' and t>300)} for t in range(sessions)]
+    eligible=[[s for s in sorted(members[t]) if closes[s][t] is not None] for t in range(sessions)]
+    return {'dates':days,'train':train,'closes':closes,'eligible':eligible,'dropped':[],'skipped':[]}
+
+
+def test_point_in_time_weights_use_only_members_with_a_close_and_stay_causal():
+    p=pit();u=lm.prepare(p,sorted(p['closes']))
+    for name,(_,grid) in lm.FAMILIES.items():
+        for knobs in grid:
+            w=lm.weights(u,name,knobs)
+            for t,target in enumerate(w):
+                hold=knobs['hold'];t0=t-t%hold
+                assert set(target)<=set(p['eligible'][t0]),(name,knobs,t)
+    later={s:c[:250]+[None if x is None else x*1.3 for x in c[250:]] for s,c in p['closes'].items()}
+    q=dict(p,closes=later);v=lm.prepare(q,sorted(later))
+    for name,(_,grid) in lm.FAMILIES.items():
+        for knobs in grid: assert lm.weights(u,name,knobs)[:250]==lm.weights(v,name,knobs)[:250],(name,knobs)
+
+
+def test_point_in_time_benchmark_and_score_handle_joins_and_exits():
+    p=pit();u=lm.prepare(p,sorted(p['closes']))
+    t=150;expected=sum(u['returns'][s][t] for s in p['eligible'][t-1])/len(p['eligible'][t-1]);assert math.isclose(u['ew'][t],expected)
+    assert 'S00' not in p['eligible'][99] and 'S00' in p['eligible'][100] and 'S01' in p['eligible'][300] and 'S01' not in p['eligible'][301]
+    held=[{'S01':1.0}]*u['n'];s=lm.score(u,held,290,320)
+    assert s['sessions']==30 and s['sharpe_status']=='DEFINED'
+    assert lm.universes(p)=={'sp500-pit':sorted(p['closes'])}
+    assert lm.universes(dict(p,eligible=[e[:5] for e in p['eligible']]))=={}
+
+
+def test_the_point_in_time_sweep_counts_trials_and_gates(bridge):
+    b,_=bridge;ledger=EngineLedger(b.store);p=pit()
+    report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000004',note='fixture')
+    assert report['universes']=={'sp500-pit':14} and report['trials_recorded']==75 and ledger.total_trials()==75
+    assert {r['family'] for r in report['rows']}==set(lm.FAMILIES) and all(r['universe']=='sp500-pit' for r in report['rows'])
+
+
+def test_the_point_in_time_loader_needs_spy_and_the_membership_file(tmp_path):
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): lm.load_pit_panel(tmp_path,['data/history/AAA/manifest.json'])

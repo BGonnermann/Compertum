@@ -36,10 +36,11 @@ class Server:
                 if self.headers.get('APCA-API-KEY-ID')!=KEY or self.headers.get('APCA-API-SECRET-KEY')!=SECRET:
                     state['bad_auth']+=1;self.send_response(403);self.end_headers();return
                 year=int(query['start'][:4]);days=sessions_of(year);symbol=query['symbols'];page=int(query.get('page_token','0'))
+                if symbol=='RENM' and query['asof']<'2023-06-01': days=[]
                 bars=[{'t':datetime.combine(datetime.fromisoformat(d).date(),time(),NY).astimezone(timezone.utc).isoformat().replace('+00:00','Z'),
                        'o':100+i,'h':101+i,'l':99+i,'c':100.5+i,'v':1000,'n':5,'vw':100.25+i} for i,d in enumerate(days)]
                 chunk=bars[page*100:(page+1)*100];token=str(page+1) if (page+1)*100<len(bars) else None
-                raw=json.dumps({'bars':{symbol:chunk},'next_page_token':token}).encode()
+                raw=json.dumps({'bars':{symbol:chunk} if days else {},'next_page_token':token}).encode()
                 self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
         self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler);self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
         return self.server.server_address[1],state
@@ -69,3 +70,20 @@ def test_pull_writes_one_envelope_per_year_and_a_loadable_manifest(tmp_path,monk
     assert json.loads(capsys.readouterr().out)=={'refused':'CREDENTIAL_ENTRIES_MISSING'}
     assert pull_bars.main(['--symbols','QQQ','--start','2023','--end','2023','--credentials',str(creds),'--out',str(tmp_path/'history2'),'--dry-run'])==0
     assert json.loads(capsys.readouterr().out)['symbols'][0]['years']['2023']=='would fetch' and not (tmp_path/'history2'/'QQQ'/'2023.json').exists()
+
+
+def test_asof_maps_a_renamed_symbol_and_refetch_keeps_the_empty_envelope(tmp_path,monkeypatch,capsys):
+    monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.0)
+    creds=tmp_path/'env';creds.write_text(f'alpaca_key={KEY}\nalpaca_secret={SECRET}\n',encoding='utf-8');out=tmp_path/'history'
+    base=['--symbols','RENM','--start','2022','--end','2022','--credentials',str(creds),'--out',str(out)]
+    with Server() as (port,state):
+        host=['--host',f'http://127.0.0.1:{port}']
+        assert pull_bars.main(base+host)==0 and 'refused' in json.loads(capsys.readouterr().out)['symbols'][0]['market'] and pull_bars.bar_count((out/'RENM'/'2022.json').read_bytes())==0
+        assert state['requests'][-1][1]['asof']=='2022-12-31'
+        assert pull_bars.main(base+host+['--asof','2023-12-31'])==0 and json.loads(capsys.readouterr().out)['symbols'][0]['years']['2022']=='kept'
+        assert pull_bars.main(base+host+['--asof','2023-12-31','--refetch-empty'])==0
+        summary=json.loads(capsys.readouterr().out);assert summary['asof']=='2023-12-31' and summary['symbols'][0]['years']['2022']['rows']>0
+        assert state['requests'][-1][1]['asof']=='2023-12-31' and pull_bars.bar_count((out/'RENM'/'superseded'/'2022.json').read_bytes())==0
+        assert pull_bars.bar_count((out/'RENM'/'2022.json').read_bytes())==len(sessions_of(2022))
+    assert pull_bars.year_params('X',2020,'sip','split','2019-01-01')['asof']=='2020-12-31'
+    assert pull_bars.main(base+['--asof','2023-13-01'])==2 and json.loads(capsys.readouterr().out)=={'refused':'ARGUMENTS'}

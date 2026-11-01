@@ -465,6 +465,31 @@ snapshots may now be cut at up to 4,096 sessions instead of 500. Minimum history
 A history market is a practice or GEPA market (`-MarketManifest data/history/SPY/manifest.json`); bench and holdout stay synthetic, because only
 a planted pattern has an answer key, and a generated series cannot be remembered by the model. Transcripts of real-market runs stay out of training.
 
+Renamed tickers (1 November 2026). Alpaca reads a symbol as of the request's `asof` date and returns that company's whole history under the symbol.
+`pull_bars.py` used each year's last day, so a company renamed before 2024 had empty years before the rename: META (FB until 2022), BALL (BLL) and
+WELL (HCN). `--asof DATE` now uses the later of DATE and the year's last day, and `--refetch-empty` moves an empty envelope to `SYMBOL/superseded/`
+before it fetches the year again. The three symbols were pulled again with `--asof 2023-12-31` and now load 2,011 sessions each.
+
+Index membership (owner, 1 November 2026: "download all of us indicies With weekly updates if it adds or delete from the indices. Russell, sp500,
+NASDAQ"; free sources; a command the owner runs; source routes 1 and 3). `tools/update_indices.py` keeps everything under `data/indices`, outside Git.
+- Route 1, each week: the owner saves the IWV, IVV and QQQ holdings files into `data/indices/inbox/`. `python tools/update_indices.py` reads each file,
+  keeps equity tickers (iShares `BRKB` becomes `BRK.B`), refuses a count outside the index's range, writes `INDEX/snapshots/AS_OF.json`, appends the
+  names added and removed to `INDEX/changes.jsonl`, moves the file to `INDEX/raw/`, and then pulls 2016 to 2023 history for names without it.
+  The tool does not download the files itself: the fund sites serve no file to automated clients, and the session does not work around that.
+- Route 3, once: `sp500-history` imports the point-in-time S&P 500 list from the GitHub dataset fja05680/sp500 (MIT licence, commit `a2430f2`,
+  1996 to 18 August 2026, 2,720 change dates) into `sp500/history.json`. Cross-check: 90 month-end IVV holdings files from 2016 to 2023, taken from
+  riazarbi/sp500-scraper (commit `4c067cf`, no licence, used only for this check and not redistributed). From 2019 the two differ by 0.25 names a
+  month on average; before 2019 by about 15, almost all one company under two tickers (the dataset uses the later ticker: BKNG for PCLN, KDP for DPS).
+- A past member is pulled with `asof` and the last request ending on the day it left the index, so a later owner of the ticker cannot replace it.
+  A name that fails waits 28 days before the next try (`data/indices/pull-status.json`).
+- The Russell 3000 and the Nasdaq-100 have no free point-in-time history here; their membership starts with the owner's first weekly file.
+
+Point-in-time universe `sp500-pit` in `library_multi.py` (`sweep --universe sp500-pit`): on each session it holds only the S&P 500 members of that date
+that have a close that day, including members that later left. Its calendar and TRAIN and VALIDATION sessions are SPY's; every row after SPY's last
+VALIDATION session is dropped on load, so a stock that left early has no vault of its own, and nothing after the common vault date is ever scored.
+A held stock without a next close earns 0 for that session (a delisting return is not known). On the full-calendar universes the change gives the same
+weights and scores as before (all 75 settings compared on a fixture).
+
 Ideas run side by side (31 October 2026; owner: "let's do that" on the three levers). Inside one cycle, the Researcher memo, the Director's decision and the
 Mathematician's specification of each idea run in parallel threads, and then each candidate's Engineer build and review run in parallel, each candidate in
 its own sandbox with its own run limit. Every idea gets its own role agents, so the repeat guard and the Engineer's file store are never shared. The steps
