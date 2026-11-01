@@ -296,6 +296,11 @@ Against the DeepSeek flash direct 4-cycle baseline (`run-20261030-4b8ab911`): me
 2 faults against 14. Model time by role: Mathematician 45 minutes, Engineer 37, Researcher 12, Director 7. Record: `.cache/test-runs/practice-bench-20261031-235344-record.json`.
 This is the GLM baseline that GEPA must beat. Owner, 1 November 2026, after a research report on TradingAgents (TauricResearch) and an X post about the "rea" and "jev"
 tools: "just keep everything we have now. No sense in adding to it." No change made; the critic step that the report suggested is not built.
+Owner, 1 November 2026: "can you try one cycle with model stepfun/step-5-preview". Smoke test `run-20261101-7e413754`, 08:47 to 08:51 EDT, capped thinking file
+(`-Models openrouter-think -Model stepfun/step-5-preview`), practice market seed 12, 40-request limit: `CYCLE_LIMIT`, 21 requests, 3.7 minutes, 3 ideas, 2 built and scored
+(both beat buy-and-hold and failed the deflation gate, `REJECTED_DEFLATED`), 1 lost: a Mathematician call ended after 107 seconds with no reply (`AI_RESPONSE_REJECTED`).
+Spend $0.14 from the credit balance ($3.87 to $3.73), about $0.0068 a request, about 28 times GLM's $0.00024 in its baseline. Mathematician replies reached 7,130 tokens.
+Against GLM's capped smoke test (27 requests, 1.6 minutes, 3 of 3 built, 0 faults), Step 5 is slower, less complete and much costlier on this one cycle.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
