@@ -3,6 +3,8 @@
 Rules (owner agreement, 25 October 2026):
 - Two separate seed sets. The bench is reused freely. The holdout is used rarely: every use is counted in the ledger before its first
   cycle, and the set is retired after HOLDOUT_USES uses.
+- Holdout-2 (owner, 1 November 2026) is bench-4's layout on seeds 906 to 921 at the calibrated length. It replaces holdout-1,
+  whose 500-session markets cannot confirm a pattern. Holdout-1 stays reserved, and its counted uses stay in the ledger.
 - Bench and holdout cycles start with no history: no recent cycles and no lessons table. Their results never enter the lessons table,
   the Director's recent-cycle list, or GEPA's feedback (ledger.EVALUATION_PURPOSES). So a check cannot teach the prompts the answers.
 - The bench measure does not drift with the global trial count. The cycle still applies the real gate with the global count (the judge is
@@ -48,6 +50,9 @@ SETS={
                ('momentum',5,131),('momentum',5,132),('reversal',3,133),('reversal',3,134),('regimes',5,135),('regimes',3,136),
                (None,0,137),(None,0,138),(None,0,139),('regimes',0,140),('regimes',0,141),('regimes',0,142)),
     'holdout-1':(('momentum',5,901),('momentum',10,902),('reversal',3,903),(None,0,904),(None,0,905)),
+    'holdout-2':(('momentum',5,906),('momentum',5,907),('reversal',3,908),('reversal',3,909),
+                 ('momentum',5,910),('momentum',5,911),('reversal',3,912),('reversal',3,913),('regimes',5,914),('regimes',3,915),
+                 (None,0,916),(None,0,917),(None,0,918),('regimes',0,919),('regimes',0,920),('regimes',0,921)),
 }
 
 
@@ -70,12 +75,17 @@ REGIME_SETS={
     140:[regime(0,None,0,noise=0.005),regime(1638,None,0,noise=0.02)],
     141:[regime(0,None,0,noise=0.02),regime(2457,None,0,noise=0.006)],
     142:[regime(0,None,0,drift=0.001)],
+    914:[regime(0,'momentum',5),regime(2048,'reversal',3)],
+    915:[regime(0,'reversal',3,noise=0.006),regime(2048,'reversal',3,noise=0.02)],
+    919:[regime(0,None,0,noise=0.005),regime(1638,None,0,noise=0.02)],
+    920:[regime(0,None,0,noise=0.02),regime(2457,None,0,noise=0.006)],
+    921:[regime(0,None,0,drift=0.001)],
 }
 WEAK_STRENGTH=STRENGTH/2
-STRENGTHS={seed:WEAK_STRENGTH for seed in (115,116,117,118,131,132,133,134)}
-SET_SESSIONS={'bench-4':CALIBRATED_SESSIONS}
+STRENGTHS={seed:WEAK_STRENGTH for seed in (115,116,117,118,131,132,133,134,910,911,912,913)}
+SET_SESSIONS={'bench-4':CALIBRATED_SESSIONS,'holdout-2':CALIBRATED_SESSIONS}
 BENCH_SET='bench-1'
-HOLDOUT_SET='holdout-1'
+HOLDOUT_SET='holdout-2'
 
 
 def reserved_seed(seed): return any(seed in r for r in RESERVED_SEEDS)

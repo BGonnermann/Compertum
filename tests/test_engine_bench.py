@@ -33,8 +33,8 @@ def test_bench_and_holdout_use_separate_fixed_seed_sets_with_two_empty_markets_e
         markets=bench.set_markets(name)
         assert len({m['validation_csv'] for m in markets})==5 and all(m['set']==name and m['label'].startswith(name+': ') for m in markets)
         assert bench.set_markets(name)[0]['validation_csv']==markets[0]['validation_csv']  # deterministic
-    assert bench.BENCH_SET=='bench-1' and bench.HOLDOUT_SET=='holdout-1' and bench.HOLDOUT_USES==5
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.set_markets('holdout-2')
+    assert bench.BENCH_SET=='bench-1' and bench.HOLDOUT_SET=='holdout-2' and bench.HOLDOUT_USES==5
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.set_markets('holdout-3')
     # Seeds 100 to 199 and 900 to 999 are reserved; every set seed is inside them, so no practice or GEPA seed can rebuild a set market.
     assert all(bench.reserved_seed(s) for v in seeds.values() for s in v) and not bench.reserved_seed(12) and not bench.reserved_seed(99) and bench.reserved_seed(999)
     assert len(bench.reserved_fingerprints())==sum(len(v) for v in bench.SETS.values()) and bench.set_fingerprints('bench-1').isdisjoint(bench.set_fingerprints('holdout-1'))
@@ -54,7 +54,7 @@ def test_the_reference_rule_finds_every_planted_pattern_and_nothing_in_an_empty_
 def test_bench_2_adds_causal_regimes_without_moving_the_holdout():
     markets=bench.set_markets('bench-2')
     assert [m['kind'] for m in markets]==['regimes','regimes','regimes',None,None]
-    assert [m['seed'] for m in markets]==[106,107,108,109,110] and bench.HOLDOUT_SET=='holdout-1'
+    assert [m['seed'] for m in markets]==[106,107,108,109,110] and [s for _,_,s in bench.SETS['holdout-1']]==[901,902,903,904,905]
     assert all(bench.reserved_seed(m['seed']) for m in markets)
     assert len({m['validation_csv'] for m in markets})==5
     for market in markets:
@@ -110,6 +110,29 @@ def test_bench_4_is_bench_3_on_new_seeds_at_the_calibrated_length():
     assert [r['start'] for r in markets[8]['regimes']]==[0,2048] and [r['start'] for r in markets[13]['regimes']]==[0,1638]
     others=frozenset().union(*(bench.set_fingerprints(n) for n in bench.SETS if n!='bench-4'))
     assert bench.set_fingerprints('bench-4').isdisjoint(others) and bench.trials_for(4,len(markets))==192
+
+
+def test_holdout_2_is_bench_4_on_new_seeds_and_is_calibrated_the_same_way():
+    """Owner, 1 November 2026: a calibrated holdout before the next holdout use. Seeds 906 to 921 in order, not chosen by result.
+    The planted rule passes the gate on 8 of 10 patterned markets (bench-4: 8 of 10), and a simple search passes on no empty market."""
+    markets=bench.set_markets('holdout-2');trials=bench.trials_for(4,len(markets))
+    assert bench.HOLDOUT_SET=='holdout-2' and [m['seed'] for m in markets]==list(range(906,922)) and all(bench.reserved_seed(m['seed']) for m in markets)
+    assert [(k,w) for k,w,_ in bench.SETS['holdout-2']]==[(k,w) for k,w,_ in bench.SETS['bench-4']]
+    assert [m['strength'] for m in markets]==[m['strength'] for m in bench.set_markets('bench-4')]
+    assert [m['regimes'] and [r['start'] for r in m['regimes']] for m in markets]==[m['regimes'] and [r['start'] for r in m['regimes']] for m in bench.set_markets('bench-4')]
+    assert len(markets[0]['validation_rows'])==1228 and markets[4]['label']=='holdout-2: seed 910, 4096 sessions, momentum window 5, strength 0.002'
+    assert markets[15]['label']=='holdout-2: seed 921, 4096 sessions, steady drift 0.001, no pattern'
+    others=frozenset().union(*(bench.set_fingerprints(n) for n in bench.SETS if n!='holdout-2'))
+    assert bench.set_fingerprints('holdout-2').isdisjoint(others)
+    digest=hashlib.sha256('\n'.join(m['label']+'\0'+m['train_csv']+'\0'+m['validation_csv'] for m in markets).encode()).hexdigest()
+    assert digest=='dbb3196bcee3b608fd72aa2effbb03cda885b0d892d3d2f35d48232e7765ada0'
+    statuses=[bench.bench_deflation(bench.reference_score(m),trials)['status'] for m in markets]
+    assert statuses==['PASS']*7+['FAIL','PASS']+['FAIL']*7
+    for market in markets:
+        if market['kind'] is not None: continue
+        for name,positions in simple_rules(market['train_rows'],market['validation_rows']).items():
+            score=score_signals(bench.signals_text(market['validation_rows'],positions),market['validation_rows'])
+            assert not (score['beats_baseline'] and bench.bench_deflation(score,trials)['status']=='PASS'),(market['label'],name)
 
 
 def test_on_bench_4_the_planted_rule_passes_the_gate_and_a_simple_search_finds_nothing_in_empty_markets():
@@ -327,7 +350,7 @@ def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_
     record_hashes(folder.parent,2)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='holdout fixture',purpose='holdout',cycles_per_market=1,
                                  prompts_run='run-20261025-00001111',prompts_candidate=2,available_memory=lambda:practice.START_FLOOR+1)
-    assert fake_run['holdout_set']=='holdout-1' and [m['label'] for m in fake_run['schedule']]==[m['label'] for m in bench.set_markets('holdout-1')]
+    assert fake_run['holdout_set']=='holdout-2' and [m['label'] for m in fake_run['schedule']]==[m['label'] for m in bench.set_markets('holdout-2')]
     assert fake_run['prompts']['engineer'].startswith('ROLE: engineer\nA candidate prompt') and record['prompts_source']=='run-20261025-00001111 candidate 2'
     # A candidate prompt with an unfilled placeholder is refused by the preflight check before the lease.
     (folder/'director.md').write_text('ROLE: director\nPick hypotheses for cycle {cycle_index} and reply with JSON only.\n',encoding='utf-8',newline='\n')

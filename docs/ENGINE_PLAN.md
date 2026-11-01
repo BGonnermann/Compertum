@@ -427,6 +427,13 @@ bench-1, bench-2, bench-3 and holdout-1 keep 500 sessions and are unchanged byte
 Real markets keep their 500-session cap, so the same limit applies to them. That is open real-market work.
 The cycle's market fingerprint no longer passes through the 64 KiB event encoder. It keeps the same value for every earlier market.
 
+Calibrated holdout (owner, 1 November 2026). `holdout-2` is bench-4's layout on seeds 906 to 921 at 4,096 sessions, assigned in order.
+`bench.HOLDOUT_SET` is now `holdout-2`, so `tools\practice.ps1 -Mode holdout` measures on it; its use count starts at 0 of 5.
+The planted rule passes the bench gate (192 trials) on 8 of 10 patterned markets; it fails on weak reversal seed 913 and regime seed 915.
+45 simple rules pass on none of the 6 empty markets (0 of 270 checks). A test pins these results and the set's digest.
+`holdout-1` stays reserved and unchanged; its counted uses stay in the ledger. Its 500-session markets cannot confirm a pattern.
+The owner's trial-counting options are in `docs/TRIAL_COUNTING_DECISION.md`.
+
 Reflection on another model (30 October 2026). A GEPA run may send its reflection calls to a second model file: `run_gepa(..., reflector_roles=...)`,
 `practice ... gepa --reflect-models NAME [--reflect-model ID]`, `tools\practice.ps1 -Mode gepa -ReflectModels deepseek -ReflectModel deepseek-flash`.
 The client keeps one request counter and one gate for both sets of models; each call row records the address and model it went to; the START row and the

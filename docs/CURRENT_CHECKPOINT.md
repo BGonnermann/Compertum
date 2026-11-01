@@ -301,6 +301,16 @@ Owner, 1 November 2026: "can you try one cycle with model stepfun/step-5-preview
 (both beat buy-and-hold and failed the deflation gate, `REJECTED_DEFLATED`), 1 lost: a Mathematician call ended after 107 seconds with no reply (`AI_RESPONSE_REJECTED`).
 Spend $0.14 from the credit balance ($3.87 to $3.73), about $0.0068 a request, about 28 times GLM's $0.00024 in its baseline. Mathematician replies reached 7,130 tokens.
 Against GLM's capped smoke test (27 requests, 1.6 minutes, 3 of 3 built, 0 faults), Step 5 is slower, less complete and much costlier on this one cycle.
+Owner, 1 November 2026: "start steps 1 and 2" (step 1: trial-counting options; step 2: a calibrated holdout set). $0, no model call.
+Step 1: `docs/TRIAL_COUNTING_DECISION.md`, a proposal; the gate is unchanged. Finding: the trial variance V, not the count N, blocks the real gate.
+V is the spread of all 2,405 recorded trial Sharpe ratios (0.0132), mixed from 149- and 1,227-return trials and raised by every real success; SR0 is then 0.41 per period
+at 2,736 trials. Recomputed on every bench-3 and bench-4 candidate that beat buy-and-hold: now 0 of 277 patterned pass; with whole-history N and the null variance
+(the bench gate's V) 74 of 277 pass; on empty markets every option passes 0 of 139. Recommended: option C (whole-history N, null variance). Waiting for the owner.
+Step 2: `holdout-2`, bench-4's layout on seeds 906 to 921 at 4,096 sessions; `bench.HOLDOUT_SET` is now `holdout-2` (0 of 5 uses). The planted rule passes the bench
+gate on 8 of 10 patterned markets (fails on weak reversal 913 and regime 915); simple rules pass on 0 of 270 empty-market checks. `holdout-1` stays reserved and unchanged.
+New test pins the layout, calibration and digest. Bench files 55 passed; engine lane 333 passed, 0 failed (`engine-lane-holdout2-20261101-090028-20261101-090028`);
+product lane 269 passed, 0 failed, 7 skipped (`product-lane-holdout2-20261101-090028-20261101-090412`).
+Defect found: `compare.py` fingerprints a market through the 64 KiB event encoder, so it refuses 4,096-session markets (`EVENT_INVALID`). Fix follows.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
