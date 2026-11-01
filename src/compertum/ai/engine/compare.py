@@ -8,14 +8,13 @@ from pathlib import Path
 import re
 import sqlite3
 import sys
-from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 from . import bench
 from .ledger import RUN_ID
 
 
 def market_sha256(market):
-    return hashlib.sha256(canonical({'train_csv':market['train_csv'],'validation_csv':market['validation_csv']})).hexdigest()
+    return hashlib.sha256(json.dumps({'train_csv':market['train_csv'],'validation_csv':market['validation_csv']},sort_keys=True,separators=(',',':')).encode('utf-8')).hexdigest()
 
 
 def run_rows(connection,run_id):

@@ -58,3 +58,20 @@ def test_compare_command_output_and_refusal(tmp_path,monkeypatch,capsys):
     monkeypatch.undo()
     assert compare.main(['--project',str(tmp_path),'run-20261027-00000001','run-20261027-00000002'])==2
     assert 'ENGINE_STORE_UNAVAILABLE' in capsys.readouterr().out
+
+
+def test_the_market_fingerprint_matches_the_cycle_and_works_on_calibrated_markets():
+    """compare.market_sha256 once went through the 64 KiB event encoder and refused 4,096-session markets (1 November 2026).
+    It now hashes like the cycle, and gives the same value as before for every 500-session market."""
+    from types import SimpleNamespace
+    from compertum.events import canonical
+    import hashlib
+    small=bench.set_markets('bench-1')[0];large=bench.set_markets('bench-4')[0]
+    assert compare.market_sha256(small)==hashlib.sha256(canonical({'train_csv':small['train_csv'],'validation_csv':small['validation_csv']})).hexdigest()
+    with pytest.raises(RuntimeRefused,match='^EVENT_INVALID$'): canonical({'train_csv':large['train_csv'],'validation_csv':large['validation_csv']})
+    assert len(compare.market_sha256(large))==64
+    pytest.importorskip('langchain_core')
+    from compertum.ai.engine.cycle import market_sha256 as cycle_sha256
+    for market in (small,large):
+        assert compare.market_sha256(market)==cycle_sha256(SimpleNamespace(train_csv=market['train_csv'],validation_csv=market['validation_csv']))
+

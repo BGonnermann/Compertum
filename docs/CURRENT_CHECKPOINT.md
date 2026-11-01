@@ -311,6 +311,11 @@ gate on 8 of 10 patterned markets (fails on weak reversal 913 and regime 915); s
 New test pins the layout, calibration and digest. Bench files 55 passed; engine lane 333 passed, 0 failed (`engine-lane-holdout2-20261101-090028-20261101-090028`);
 product lane 269 passed, 0 failed, 7 skipped (`product-lane-holdout2-20261101-090028-20261101-090412`).
 Defect found: `compare.py` fingerprints a market through the 64 KiB event encoder, so it refuses 4,096-session markets (`EVENT_INVALID`). Fix follows.
+Fixed: `compare.market_sha256` now hashes like `cycle.market_sha256` (plain JSON and SHA-256, no cap); the value is unchanged for every 500-session market.
+The defect hit only runs whose END row has no report, because `compare` rebuilds only those. The encoder was not slow (0.13 ms per cycle record);
+its cap is deliberate, so no faster encoder was added. New test in `tests/test_engine_compare.py` (the cycle comparison skips in the product environment).
+Engine lane 334 passed, 0 failed (`engine-lane-compare-20261101-090644-20261101-090644`); product lane 269 passed, 0 failed, 8 skipped (`product-lane-compare-20261101-090644-20261101-091015`).
+A first product run of the new test failed 1 (the product environment has no `langchain_core`); its files are kept in `compare-fix-product-20261101-090616-20261101-090618`.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
