@@ -351,6 +351,11 @@ Owner, 1 November 2026: "run the real market practice run on SPY first". `run-20
 3 more had a higher Sharpe than buy-and-hold (0.95, 0.60, 0.46 against 0.47 for the last) but a lower mean return, so they did not beat it (rule: annual mean excess > 0
 and Sharpe above the benchmark). 4 had no defined Sharpe (no position change). 4 had a lower Sharpe. The Director's ideas were gates, ensembles and train-fitted selectors;
 no plain trend or reversal rule was tried. Reading: the real gate needs about a 2.3 annual Sharpe on 603 validation sessions; the best idea reached 1.35.
+Owner direction, 1 November 2026: "for now on we only do real data. We cannot do synthetic data ... with fake data its easier to game."
+Enforced: `tools/practice.ps1` refuses run and gepa without `-MarketManifest` and refuses bench and holdout (generated markets) until real-data evaluation sets exist;
+checked by hand: all three refusals stop before any model loads. Recorded in AGENTS.md. Generated markets stay only inside automated tests.
+The harness commands `/run`, `/gepa` and `/bench` pass no manifest, so the wrapper now refuses them too. `tests/test_engine_bench.py` and
+`tests/test_engine_real_market.py` 44 passed (engine environment). Bench-4, holdout-2 and all synthetic results stay as history; they no longer guide decisions.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

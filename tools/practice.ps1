@@ -85,6 +85,8 @@ if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket')
 if ($Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')) { Fail '-BenchSet applies to bench only; the holdout cannot be moved' }
 if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest applies to run and gepa only; bench and holdout stay fixed' }
 if ($Mode -ne 'run' -and $PSBoundParameters.ContainsKey('Seed')) { Fail '-Seed applies to run only; GEPA, bench and holdout markets are fixed' }
+if ($evaluationMode) { Fail 'real market data only (owner, 1 November 2026): bench and holdout use generated markets and are off until real-data sets exist' }
+if ($MarketManifest.Count -eq 0) { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }

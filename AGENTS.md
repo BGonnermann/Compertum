@@ -65,6 +65,8 @@ Do not use parallel writers. Preserve unrelated work. Make small, targeted chang
 ## Autoresearch engine
 
 - Automated search over strategies, features, and models is allowed under `docs/BUILD_SPEC.md` section 19.
+- Owner direction, 1 November 2026: research runs use real market data only. Practice and GEPA runs need a real history manifest (`-MarketManifest`).
+  Bench and holdout runs on generated markets are off until real-data evaluation sets exist. Generated markets stay only inside automated tests.
 - Never let the engine change the judge, the Auditor, the baseline, the vault, the data tiers, the ledger, or the rules.
 - Run AI-written code only in the section 19 sandbox. Promote code only after automated tests and the Auditor pass.
   Owner exception, 28 October 2026: the interactive harness `bash` tool runs model commands on the host, as in the pi agent.
