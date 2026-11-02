@@ -425,6 +425,12 @@ Owner rule, 1 November 2026: "any def are a max of two words." Applied to this c
 `xs_lowvol` (its family key `xs_low_vol` in reports and the ledger is unchanged), and every test written today in the touched files has a two-word name.
 Older code was not renamed. Tests: engine lane 362 passed, 0 failed; product lane 300 passed, 0 failed, 8 skipped; harness lane 139 passed, 0 failed.
 Not verified: a real Windows Terminal split pane for `/data`. The project map was not refreshed.
+Owner, 1 November 2026: "yes to faster download, grab as many as possible concurrently"; the vwap patch stays aside ("lets leave it alone for now").
+Built: `update_indices.py pull --workers 8` and a shared request slot in `pull_bars.py` at 190 a minute. Alpaca's limit for this account is 200 a minute
+(read from `x-ratelimit-limit`), so the gain is about 1.4 times: live check, 16 stocks into a scratch folder, 384 requests at 185 a minute (single thread:
+about 131), all 128 stock-years equal to the stored bars, scratch removed. Multi-symbol requests were not built: with 100 bars a page they save about
+15% of pages. The `/data` line shows the count of other stocks in progress. Tests: engine lane 364 passed, 0 failed; product lane 302 passed, 0 failed,
+8 skipped; harness lane 139 passed, 0 failed.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

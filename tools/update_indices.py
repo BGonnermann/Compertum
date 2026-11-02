@@ -31,6 +31,7 @@ Everything is written under data/indices, which is outside Git. See docs/ENGINE_
 """
 import argparse
 import bisect
+from concurrent.futures import ThreadPoolExecutor,as_completed
 import csv
 from datetime import date,datetime,timedelta,timezone
 import hashlib
@@ -39,6 +40,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import threading
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -274,7 +276,10 @@ def progress(state,path=None):
     return False
 
 
-def pull(dry_run=False,limit=None,client=None,credentials=None,retry_now=False,job='History pull'):
+WORKERS=8
+
+
+def pull(dry_run=False,limit=None,client=None,credentials=None,retry_now=False,job='History pull',workers=WORKERS):
     sys.path.insert(0,str(ROOT/'tools'));import pull_bars
     status_path=INDICES/'pull-status.json';status=json.loads(status_path.read_text(encoding='utf-8')) if status_path.exists() else {}
     today=date.today().isoformat();retry=(date.today()-timedelta(days=RETRY_DAYS)).isoformat()
@@ -293,26 +298,43 @@ def pull(dry_run=False,limit=None,client=None,credentials=None,retry_now=False,j
     headers=credentials if credentials is not None else pull_bars.credentials(pull_bars.DEFAULT_CREDENTIALS)
     own=client is None
     state={'schema':'pull-progress-v1','job':job,'started_utc':stamp(),'total':len(todo),'done':0,'loaded':0,'failed':0,'current':None,
-           'rate_per_min':None,'eta_minutes':None,'finished':False,'recent':[],'pending':[t for t,_ in todo],'_started':time.time()}
+           'active':0,'rate_per_min':None,'eta_minutes':None,'finished':False,'recent':[],'pending':[t for t,_ in todo],'_started':time.time()}
     progress(state)
-    if own: client=httpx.Client(base_url=pull_bars.HOST,headers=headers,timeout=60,trust_env=False)
+    if own: client=httpx.Client(base_url=pull_bars.HOST,headers=headers,timeout=60,trust_env=False,
+                                limits=httpx.Limits(max_connections=max(1,workers)))
+    guard=threading.Lock();running={}
+
+    def mark():
+        first=next(iter(running.items()),None);state['active']=len(running)
+        state['current']={'symbol':first[0],'years':first[1]} if first else None;progress(state)
+
+    def fetch(t,entry):
+        years_wanted=span(entry)
+        with guard:
+            if t in state['pending']: state['pending'].remove(t)
+            running[t]=f'{years_wanted[0]}-{years_wanted[-1]}';mark()
+        try: record=pull_bars.pull_symbol(client,entry['symbol'],years_wanted,'sip','split',HISTORY,False,entry['asof'],True,until=entry['until'],since=entry.get('since'),folder=t)
+        except Exception as error: record={'symbol':entry['symbol'],'refused':getattr(error,'code',type(error).__name__)}
+        return t,entry,record
+
+    pool=ThreadPoolExecutor(max_workers=max(1,workers))
     try:
-        for t,entry in todo:
-            years_wanted=span(entry);state['pending']=state['pending'][1:]
-            state['current']={'symbol':t,'years':f'{years_wanted[0]}-{years_wanted[-1]}'};progress(state)
-            try: record=pull_bars.pull_symbol(client,entry['symbol'],years_wanted,'sip','split',HISTORY,False,entry['asof'],True,until=entry['until'],since=entry.get('since'),folder=t)
-            except Exception as error: record={'symbol':entry['symbol'],'refused':getattr(error,'code',type(error).__name__)}
-            record.update(key=t,asof=entry['asof'],until=entry['until'],since=entry.get('since'),why=entry['why']);report['symbols'].append(record)
-            ok='market' in record and 'refused' not in record['market']
-            code=record.get('refused') or (record.get('market') or {}).get('refused')
-            status[t]={'tried':today,'ok':ok,'code':code}
-            status_path.parent.mkdir(parents=True,exist_ok=True);status_path.write_text(json.dumps(status,indent=1,sort_keys=True),encoding='utf-8')
-            state['done']+=1;state['loaded' if ok else 'failed']+=1
-            state['recent']=(state['recent']+[{'symbol':t,'status':'loaded' if ok else 'failed',**({} if ok else {'code':code})}])[-8:]
-            minutes=max((time.time()-state['_started'])/60,1e-6);state['rate_per_min']=round(state['done']/minutes,2)
-            state['eta_minutes']=round((state['total']-state['done'])/state['rate_per_min'],1) if state['rate_per_min'] else None;progress(state)
+        for future in as_completed([pool.submit(fetch,t,e) for t,e in todo]):
+            t,entry,record=future.result()
+            with guard:
+                running.pop(t,None)
+                record.update(key=t,asof=entry['asof'],until=entry['until'],since=entry.get('since'),why=entry['why']);report['symbols'].append(record)
+                ok='market' in record and 'refused' not in record['market']
+                code=record.get('refused') or (record.get('market') or {}).get('refused')
+                status[t]={'tried':today,'ok':ok,'code':code}
+                status_path.parent.mkdir(parents=True,exist_ok=True);status_path.write_text(json.dumps(status,indent=1,sort_keys=True),encoding='utf-8')
+                state['done']+=1;state['loaded' if ok else 'failed']+=1
+                state['recent']=(state['recent']+[{'symbol':t,'status':'loaded' if ok else 'failed',**({} if ok else {'code':code})}])[-8:]
+                minutes=max((time.time()-state['_started'])/60,1e-6);state['rate_per_min']=round(state['done']/minutes,2)
+                state['eta_minutes']=round((state['total']-state['done'])/state['rate_per_min'],1) if state['rate_per_min'] else None;mark()
     finally:
-        state['current']=None;state['finished']=True;progress(state)
+        pool.shutdown(wait=True,cancel_futures=True)
+        state['current']=None;state['active']=0;state['finished']=True;progress(state)
         if own: client.close()
     report['elapsed_seconds']=round(time.time()-started,1);report['loaded']=sum(1 for r in report['symbols'] if status[r['key']]['ok'])
     report['failed']=sorted(r['key'] for r in report['symbols'] if not status[r['key']]['ok'])
@@ -342,6 +364,7 @@ def main(argv=None):
     a=sub.add_parser('ingest');a.add_argument('--as-of')
     b=sub.add_parser('sp500-history');b.add_argument('--source',required=True);b.add_argument('--check')
     c=sub.add_parser('pull');c.add_argument('--dry-run',action='store_true');c.add_argument('--limit',type=int);c.add_argument('--retry',action='store_true')
+    c.add_argument('--workers',type=int,default=WORKERS)
     sub.add_parser('status');w=sub.add_parser('weekly');w.add_argument('--no-pull',action='store_true')
     args=parser.parse_args(argv);command=args.command or 'weekly'
     try:
@@ -350,7 +373,7 @@ def main(argv=None):
             if args.as_of and as_of is None: print(json.dumps({'refused':'ARGUMENTS'}));return 2
             result={'ingested':ingest(as_of)}
         elif command=='sp500-history': result=import_history(args.source,args.check)
-        elif command=='pull': result=pull(args.dry_run,args.limit,retry_now=args.retry)
+        elif command=='pull': result=pull(args.dry_run,args.limit,retry_now=args.retry,workers=args.workers)
         elif command=='status': result=status_report()
         else:
             result={'ingested':ingest()}

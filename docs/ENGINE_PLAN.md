@@ -482,6 +482,11 @@ NASDAQ"; free sources; a command the owner runs; source routes 1 and 3). `tools/
   month on average; before 2019 by about 15, almost all one company under two tickers (the dataset uses the later ticker: BKNG for PCLN, KDP for DPS).
 - A past member is pulled with `asof` and the last request ending on the day it left the index, so a later owner of the ticker cannot replace it.
   A name that fails waits 28 days before the next try (`data/indices/pull-status.json`).
+- Parallel pull (1 November 2026; owner: "grab as many as possible concurrently"): `pull --workers 8` (the default) pulls 8 stocks at once.
+  Alpaca allows this account 200 requests a minute (`x-ratelimit-limit`), so every request waits for a shared slot, 190 a minute; a 429 reply holds
+  every thread before the retry. Live check: 16 stocks, 384 requests, 185 a minute (the single-thread pull made about 131), every bar equal to the
+  stored history. The rate limit, not the number of threads, sets the speed. One request still asks for one symbol: the evidence reader allows 100 bars
+  a page, so a 13-symbol request needs almost as many pages (33 against 39 for a year).
 - The Russell 3000 and the Nasdaq-100 have no free point-in-time history here; their membership starts with the owner's first weekly file.
 
 Point-in-time universe `sp500-pit` in `library_multi.py` (`sweep --universe sp500-pit`, loader `pit_panel`): on each session it holds only the S&P 500 members of that date

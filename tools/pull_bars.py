@@ -21,6 +21,11 @@ When a company stops trading, Alpaca adds placeholder bars after its last trade:
 volume-weighted price of 0, which the evidence reader refuses. If the bars of a request end in such a run and the company has stopped
 trading (the request ends on its exit day, or the bars end before the request does), the year is requested again up to the last day
 with trades, and no later year is requested. A run of zero-volume bars inside a company's life is not changed and is still refused.
+
+Alpaca allows this account 200 requests a minute (header x-ratelimit-limit, read 1 November 2026). Every request waits for a shared slot,
+190 a minute, so several threads may pull at once (tools/update_indices.py pull --workers) without passing the limit. A 429 reply holds
+every thread for 15, 30, 45 or 60 seconds before the retry. The evidence reader allows 100 bars a page and 13 symbols a request, so a
+request for several symbols needs almost as many pages; one symbol per request is kept.
 """
 import argparse
 from datetime import datetime,timezone
@@ -28,6 +33,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import threading
 import time
 import httpx
 from compertum.data.alpaca import HOST,read_bar_evidence
@@ -39,7 +45,7 @@ DEFAULT_CREDENTIALS=Path.home()/'Desktop'/'v20'/'.env'
 KEY_NAMES=('alpaca_key','alpaca_secret')
 PAGE_LIMIT=100
 MAX_PAGES=40
-PAUSE_SECONDS=0.35
+PAUSE_SECONDS=60/190
 RETRY_SECONDS=15
 RETRIES=4
 FIRST_YEAR=2000
@@ -56,6 +62,19 @@ def credentials(path):
         if name in KEY_NAMES and value: found[name]=value
     if set(found)!=set(KEY_NAMES): raise RuntimeRefused('CREDENTIAL_ENTRIES_MISSING')
     return {'APCA-API-KEY-ID':found['alpaca_key'],'APCA-API-SECRET-KEY':found['alpaca_secret']}
+
+
+_gate=threading.Lock();_next=[0.0]
+
+
+def pace():
+    with _gate:
+        now=time.monotonic();wait=max(0.0,_next[0]-now);_next[0]=max(now,_next[0])+PAUSE_SECONDS
+    if wait: time.sleep(wait)
+
+
+def hold(seconds):
+    with _gate: _next[0]=max(_next[0],time.monotonic()+seconds)
 
 
 def stamp(): return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
@@ -95,12 +114,12 @@ def fetch_year(client,symbol,year,feed,adjustment,asof=None,until=None,since=Non
         sent=dict(params)
         if token is not None: sent['page_token']=token
         for attempt in range(RETRIES+1):
-            started=stamp();time.sleep(PAUSE_SECONDS)
+            pace();started=stamp()
             try: reply=client.get('/v2/stocks/bars',params=sent)
             except httpx.HTTPError as error: raise RuntimeRefused('PROVIDER_TRANSPORT_'+type(error).__name__.upper()) from None
             received=stamp()
             if reply.status_code==200: break
-            if reply.status_code==429 and attempt<RETRIES: time.sleep(RETRY_SECONDS*(attempt+1));continue
+            if reply.status_code==429 and attempt<RETRIES: hold(RETRY_SECONDS*(attempt+1));continue
             raise RuntimeRefused(f'PROVIDER_STATUS_{reply.status_code}')
         body=reply.text
         pages.append({'request_id':request_id,'page':len(pages),'params':sent,'status':200,'started_utc':started,'received_utc':received,

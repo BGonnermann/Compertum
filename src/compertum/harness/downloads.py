@@ -107,7 +107,9 @@ def _detail(progress, ended):
     symbol = _text(current.get("symbol"), 20) if isinstance(current, dict) else ""
     if symbol:
         years = _text(current.get("years"), 20).replace("-", "–")
-        parts.append(f"now: {symbol}" + (f" ({years})" if years else ""))
+        active = _count(progress.get("active"))
+        more = f" +{active - 1}" if active is not None and active > 1 else ""
+        parts.append(f"now: {symbol}" + (f" ({years})" if years else "") + more)
     rate, eta = _number(progress.get("rate_per_min")), _number(progress.get("eta_minutes"))
     if rate is not None:
         parts.append(f"{rate:.1f}/min")

@@ -48,6 +48,8 @@ def test_running_view():
         "loaded 262 · failed 9 · now: MON (2016–2018) · 5.4/min · ~16 min left")
     assert lines[2:] == ["", "recent", "  ✓ PX", "  ✗ MON  PROVIDER_EVIDENCE_INVALID_PROVIDER_NUMBER", "",
                          "next  NOC  NOV  NRG"]
+    assert progress_lines(record(active=8), width=60, now=NOW)[1] == "loaded 262 · failed 9 · now: MON (2016–2018) +7 · 5.4/min"
+    assert progress_lines(record(active=1), width=60, now=NOW)[1] == lines[1]
     wide = progress_lines(record(), width=120, now=NOW)[0]
     assert wide.count("█") + wide.count("░") == 60 and len(wide) < 120
 

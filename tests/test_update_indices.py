@@ -90,7 +90,8 @@ def test_pull_plan(project,monkeypatch):
     assert ui.pull(dry_run=True)['waiting']==3 and ui.pull(dry_run=True,retry_now=True)['todo']==3
     shown=json.loads((project/'data'/'indices'/'pull-progress.json').read_text(encoding='utf-8'))
     assert shown['schema']=='pull-progress-v1' and shown['finished'] is True and shown['done']==3 and shown['loaded']==2 and shown['failed']==1
-    assert shown['recent'][-1]=={'symbol':'NEWA','status':'failed','code':'ENGINE_MARKET_COVERAGE_INCOMPLETE'} and shown['pending']==[]
+    assert {'symbol':'NEWA','status':'failed','code':'ENGINE_MARKET_COVERAGE_INCOMPLETE'} in shown['recent'] and shown['pending']==[]
+    assert shown['active']==0 and shown['current'] is None
     assert pull_bars.year_params('X',2017,'sip','split','2017-03-15','2017-03-15')['end']=='2017-03-15T23:59:59Z'
 
 
@@ -122,3 +123,37 @@ def test_snapshot_dates(project):
     history_csv(source,[('2015-06-01',base),('2021-02-12',NAMES[:499]+['QQA'])]);ui.import_history(source)
     w=ui.wanted()
     assert w['FTI']['until'] is None and w['FTI']['asof']=='2026-10-30' and w['FTI']['since']=='2017-01-17' and w['FTI-2017']['until']=='2017-01-13'
+
+
+def test_parallel_pull(project,monkeypatch):
+    import threading,time
+    import pull_bars
+    base=NAMES[:500];source=project/'sp.csv';history_csv(source,[('2015-06-01',base)]);ui.import_history(source)
+    lock=threading.Lock();now=[0];peak=[0]
+    def fake(client,symbol,years,feed,adjustment,out,dry_run,asof=None,refetch_empty=False,until=None,since=None,folder=None):
+        with lock: now[0]+=1;peak[0]=max(peak[0],now[0])
+        time.sleep(0.02)
+        with lock: now[0]-=1
+        return {'symbol':symbol,'years':{},'requests':0,'market':{'label':'x'}}
+    monkeypatch.setattr(pull_bars,'pull_symbol',fake)
+    report=ui.pull(client=object(),credentials={},limit=40,workers=6)
+    assert report['loaded']==40 and report['failed']==[] and 1<peak[0]<=6
+    status=json.loads((project/'data'/'indices'/'pull-status.json').read_text(encoding='utf-8'))
+    assert len(status)==40 and all(v['ok'] for v in status.values())
+    shown=json.loads((project/'data'/'indices'/'pull-progress.json').read_text(encoding='utf-8'))
+    assert shown['done']==40 and shown['pending']==[] and shown['finished'] is True
+
+
+def test_shared_pace(monkeypatch):
+    import threading,time
+    import pull_bars
+    monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.02);monkeypatch.setattr(pull_bars,'_next',[0.0])
+    starts=[];lock=threading.Lock()
+    def one():
+        pull_bars.pace()
+        with lock: starts.append(time.monotonic())
+    threads=[threading.Thread(target=one) for _ in range(10)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    starts.sort();assert starts[-1]-starts[0]>=0.02*8.5
+    pull_bars.hold(0.1);begin=time.monotonic();pull_bars.pace();assert time.monotonic()-begin>=0.09
