@@ -1,5 +1,28 @@
 # Current Compertum checkpoint
 
+## Efficiency research and low-risk changes - 2 November 2026
+
+The owner asked for a research cycle on efficiency, then approved the low-risk changes. Findings and owner items are in `docs/EFFICIENCY_RESEARCH.md`.
+Changes:
+- Model call records keep the provider's cost and the cached prompt tokens, when the reply reports them. The change is in `src/compertum/ai/models.py`.
+- A new read-only tool, `tools/run_cost.py [RUN_ID]`, adds up a run's calls, tokens, cached share and cost by role.
+- `tools/run_tests.py` adds `--durations=25`.
+- Three native test files got a `native_` prefix, so the whole suite collects again.
+- Four test files stop their HTTP test server in 0.01 s instead of 0.5 s.
+- `.gitignore` ignores `config/models-route-*.toml`.
+
+Verification, source, engine environment, through `tools/run_tests.py`. All jobs passed, and their working files were removed:
+- `test_ai_models_interface.py`, `test_run_cost_tool.py` and `test_run_tests_tool.py`: 100 passed, 0 failed, 0 skipped, in 5.37 s. Before the server change, the same files took 24.18 s.
+  Outputs: `.cache/test-runs/efficiency-tweaks-20261102-065028` and `efficiency-poll-20261102-065119`.
+- Harness lane, `tests/test_harness_*.py`: 143 passed, 0 failed, 0 skipped, in 11.35 s. Output: `.cache/test-runs/efficiency-harness-lane-20261102-065138`.
+- `test_harness_agent.py`, `test_harness_model.py` and `test_pull_bars.py`: 18 passed, 0 failed, 0 skipped, with 12 pandas warnings from existing code.
+- Whole-suite collection: 8,002 tests, 0 errors. Before the renames, it stopped with 3 errors.
+Not run: the engine lane, the product lane and the native tests. Another session had uncommitted engine edits.
+No dummy reserve file was removed, because their results or ownership are unclear (owner item 1 in the report).
+The project map was not refreshed. These changes do not alter architecture, loops or model behavior.
+
+Exact next action: the owner decides on the owner items in `docs/EFFICIENCY_RESEARCH.md`. Storage (items 1 to 3) comes first.
+
 ## Harness 0.6.6 project rules, compaction and repeat stop - 2 November 2026
 
 The owner asked about a post on harness design. It summarizes "Harness Engineering" (arXiv 2609.00006), a source-code study of 11 coding agents.

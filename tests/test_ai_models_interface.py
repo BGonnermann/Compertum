@@ -9,7 +9,7 @@ import time
 import pytest
 from test_ai_manual import bridge
 from compertum.ai.models import (ENGINE_ROLES,ModelClient,RoleModel,StoreLedger,auth_headers,checked_spec,load_models,load_providers,loopback_base_url,
-                                   model_base_url,remote_base_url)
+                                   model_base_url,remote_base_url,usage_counts)
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 
@@ -61,7 +61,7 @@ def server(mode='ok',model='synthetic-model'):
             if state['mode']=='thinkingsecret': message['reasoning_content']='Maybe use api_key=abcd1234efgh5678 for the call.'
             self.send({'choices':[{'message':message,'finish_reason':'stop'}],'usage':usage})
     http=ThreadingHTTPServer(('127.0.0.1',0),Handler);http.daemon_threads=True
-    thread=threading.Thread(target=http.serve_forever,daemon=True);thread.start()
+    thread=threading.Thread(target=http.serve_forever,kwargs={'poll_interval':.01},daemon=True);thread.start()
     try: yield http.server_port,state
     finally: http.shutdown();http.server_close();thread.join(timeout=2)
 
@@ -470,6 +470,18 @@ def test_usage_record_keeps_only_token_counts():
     with server('bigusage') as (port,state):
         _,entry=client(port).complete('director',[{'role':'user','content':'x'}],purpose='e1-fixture')
         assert entry['usage']=={'prompt_tokens':10,'completion_tokens':3,'total_tokens':13} and len(canonical(entry))<4096
+
+
+def test_usage_cost():
+    """The usage record keeps the provider's cost and its cached prompt tokens (OpenRouter and DeepSeek forms) and drops bad values."""
+    base={'prompt_tokens':100,'completion_tokens':5}
+    openrouter=usage_counts({**base,'cost':0.00042,'prompt_tokens_details':{'cached_tokens':64}})
+    assert openrouter=={**base,'cached_tokens':64,'cost':0.00042} and canonical({'usage':openrouter})
+    assert usage_counts({**base,'prompt_cache_hit_tokens':80,'prompt_cache_miss_tokens':20})=={**base,'cached_tokens':80}
+    for bad in (float('nan'),float('inf'),-0.1,1e9,'0.1',True,None):
+        assert usage_counts({**base,'cost':bad})==base
+    for bad in (-1,1.5,'64',None):
+        assert usage_counts({**base,'prompt_tokens_details':{'cached_tokens':bad}})==base
 
 
 def test_the_transcript_gets_the_words_of_every_sent_request_and_never_a_key(monkeypatch):

@@ -50,7 +50,7 @@ class Server:
                 chunk=bars[page*100:(page+1)*100];token=str(page+1) if (page+1)*100<len(bars) else None
                 raw=json.dumps({'bars':{symbol:chunk} if days else {},'next_page_token':token}).encode()
                 self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
-        self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler);self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
+        self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler);self.thread=threading.Thread(target=self.server.serve_forever,kwargs={'poll_interval':.01},daemon=True);self.thread.start()
         return self.server.server_address[1],state
     def __exit__(self,*args): self.server.shutdown();self.server.server_close()
 

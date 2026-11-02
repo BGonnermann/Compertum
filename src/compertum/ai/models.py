@@ -282,6 +282,7 @@ class StoreLedger:
 PASSED_CODES=frozenset({'AI_RESPONSE_INVALID','AI_RESPONSE_INCOMPLETE','AI_RESPONSE_TRUNCATED','AI_RESPONSE_BOUND','AI_TOOL_EXECUTION_DENIED','AI_USAGE_BOUND'})
 PROVIDER_DENIED_STATUSES=frozenset({401,402,403})
 FINISH_CHARS=32
+COST_LIMIT=1000
 
 
 def model_ids(raw):
@@ -294,13 +295,20 @@ def model_ids(raw):
 
 
 def usage_counts(usage):
-    """The token counts of a reply, bounded: prompt, completion and total, plus reasoning tokens when the server reports them. None when absent."""
+    """The token counts of a reply, bounded: prompt, completion and total, plus reasoning tokens, cached prompt tokens and the
+    provider's cost in US dollars when the server reports them. None when absent."""
     if usage is None: return None
     if not isinstance(usage,dict) or type(usage.get('prompt_tokens')) is not int or type(usage.get('completion_tokens')) is not int: raise RuntimeRefused('AI_USAGE_BOUND')
     # Keep only the token counts. A server-sized dict must not grow the record past its bound.
     counts={k:usage[k] for k in ('prompt_tokens','completion_tokens','total_tokens') if type(usage.get(k)) is int}
     details=usage.get('completion_tokens_details')
     if isinstance(details,dict) and type(details.get('reasoning_tokens')) is int: counts['reasoning_tokens']=details['reasoning_tokens']
+    prompt=usage.get('prompt_tokens_details')
+    cached=prompt.get('cached_tokens') if isinstance(prompt,dict) else None
+    if type(cached) is not int: cached=usage.get('prompt_cache_hit_tokens')
+    if type(cached) is int and cached>=0: counts['cached_tokens']=cached
+    cost=usage.get('cost')
+    if isinstance(cost,(int,float)) and not isinstance(cost,bool) and math.isfinite(cost) and 0<=cost<=COST_LIMIT: counts['cost']=cost
     return counts
 
 

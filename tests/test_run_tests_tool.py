@@ -161,4 +161,5 @@ def test_end_to_end_job(tmp_path,monkeypatch,capsys,body,exit_code,removed):
     record=json.loads((job/'retention.json').read_text(encoding='utf-8'))
     assert record['removed'] is removed and (job/'tmp').exists() is not removed and record['exit_code']==exit_code
     assert (job/'output.txt').exists() and record['job']==str(job.relative_to(root)) and len(record['output_sha256'])==64
+    assert tool.DURATIONS in record['command'] and 'slowest' in (job/'output.txt').read_text(encoding='utf-8')
     assert ('working files removed' if removed else 'working files kept as evidence') in capsys.readouterr().out

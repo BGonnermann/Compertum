@@ -43,6 +43,9 @@ logs/
 *.pt
 *.pth
 
+# Generated route-search candidates (tools/route_search.py)
+config/models-route-*.toml
+
 # Editors and OS metadata
 .vscode/
 .idea/
