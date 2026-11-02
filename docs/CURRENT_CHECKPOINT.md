@@ -486,7 +486,17 @@ raised; 49 daily industry portfolios as a universe with its own vault). Built; s
 run.py 8d548d1029c31c70 -> 3f90c681609ccb1d; vault.py c4cf5c916d6e472e -> dd0e7094ac377a35; cycle.py 3f7fa354652a1150 -> db97a0f65fc1fa1b.
 Tests: engine lane (with tests/test_engine_french.py) 376 passed, 0 failed; product lane 308 passed, 0 failed, 8 skipped; harness lane 143 passed, 0 failed.
 No vault batch was opened; no French vault row was scored.
-Exact next action: the owner-requested french49 sweep; then refresh the project map.
+Owner: "run a french49 sweep once it's committed". `library-multi-20261102-6f0f36f0`: 49 industries, 75 trials (total 28,165 to 28,240), 80 seconds, $0.
+Question in the note: does any of the 6 families beat the equal-weight 49 industries on VALIDATION 1973-02-26 to 2003-08-13 (7,694 sessions)?
+Equal-weight industries: annual Sharpe 0.85. First gate passes of the project (stage 1 only; no vault test yet):
+- xs_momentum (252-day lookback, no skip, top 20%, monthly): Sharpe 1.08, mean excess +5.4% a year, max drawdown 40%, DSR 0.962.
+- ew_trend (equal-weight industries only when their index is above its 50-day average, daily): Sharpe 1.31, excess +0.25% a year, drawdown
+  20%, invested 4,981 of 7,694 sessions, DSR 0.999.
+Not passed: breadth (Sharpe 1.30, DSR 0.999, but mean return 0.8% a year below the benchmark), dual_momentum (DSR 0.85), xs_low_vol, xs_reversal.
+Caveats: both families are published anomalies (industry momentum; trend timing) whose papers used years inside this VALIDATION, so the
+family list carries selection that the trial count does not see; costs are 0.05% per unit of turnover, low for trading 49 industries before
+sector ETFs (1998); cash earns 0. The multi-stock library has no vault route yet, so neither can take the stage-2 test (vault 2003-2023).
+Exact next action: report the sweep; owner decides on a multi-asset vault route; refresh the project map; improvement research is running.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
