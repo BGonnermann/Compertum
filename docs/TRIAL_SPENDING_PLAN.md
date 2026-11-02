@@ -1,6 +1,8 @@
 # Trial spending: plan and options for the owner - 2 November 2026
 
-Status: proposal. The owner decides. Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
+Status: part 1 agreed; option 1 with option 3 agreed in principle. Owner, 2 November 2026: "ok go".
+The exact option 1 rules (section "Option 1: exact rules") wait for the owner's yes before any sealed file changes.
+Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
 Owner, 1 November 2026: "start the trial-spending plan". Nothing in the code or the ledger changed for this document.
 
 ## The question
@@ -43,7 +45,9 @@ Sessions that an observed annual Sharpe ratio needs to pass:
 | 1.0 | 697 (2.8 years) | 4,501 (18 years) | 6,338 (25 years) | 8,496 (34 years) |
 | 1.5 | 312 (1.2 years) | 2,056 (8 years) | 2,759 (11 years) | 3,886 (15 years) |
 
-The vault (2024-01-01 to 2025-12-31, about 502 sessions) gives these bars: N = 1: 1.17; N = 3: 1.78; N = 5: 2.02; N = 10: 2.30.
+The engine's vault is the last 20% of each history: for SPY, 403 sessions from 2022-05-24 to 2023-12-29 (TRAIN 50%, VALIDATION 30%,
+`market.split_market_tiers`). It gives these bars: N = 1: 1.30; N = 3: 1.99; N = 5: 2.26; N = 10: 2.57.
+Correction: the first version of this plan used the product's protected final period (2024 to 2025) as the vault. That period is separate.
 
 The best real results so far: annual Sharpe 0.81 (survivor stock list, 1 November 2026) and 0.54 (point-in-time S&P 500, 2 November 2026).
 
@@ -71,15 +75,33 @@ Each option below changes the gate or the data tiers. Each needs the owner's exp
 
 ### Option 1, recommended: two stages, explore then confirm
 
-- Stage 1, exploration on TRAIN and VALIDATION: the gate becomes a screen. A candidate goes to the queue when it beats the benchmark
-  and passes the DSR with the current global N, as now. Only the stage-2 rule is new.
-- Stage 2, confirmation in the vault: N is the number of candidates in the sealed vault batch, not the global count.
-  The selection happened in stage 1 on other data; the vault data is new to every candidate, so only the vault looks are multiple tests.
-- Problem: stage 1 still needs about 3.8, so no candidate reaches stage 2. Option 1 helps only together with option 2 or 3,
-  or with a screen in stage 1 that does not use the global N (for example: beat the benchmark on TRAIN and VALIDATION, with at most 10
-  candidates a quarter).
-- With a batch of 3, a candidate needs an observed Sharpe of 1.78 on the 502 vault sessions; with 1, it needs 1.17.
+- Stage 1, exploration on TRAIN and VALIDATION: the gate becomes a screen. A candidate may go to the queue when it beats the benchmark
+  and passes its tests and the Auditor; the DSR with the global N ranks the candidates (see "Option 1: exact rules").
+- Stage 2, confirmation in the vault: N is the number of candidates evaluated in that vault so far, not the global count.
+  The selection happened in stage 1 on other data; the vault data is new to every candidate, so only the vault tests are multiple tests.
+- With the current DSR minimum in stage 1 (about 3.8), no candidate would reach stage 2. So stage 1 ranks by DSR and caps the count
+  instead of requiring the minimum.
+- With 3 candidates, a candidate needs an observed Sharpe of 1.99 on the 403 vault sessions; with 1, it needs 1.30.
+  With option 3 (history from 1990, a vault of about 1,700 sessions): 3 candidates need 0.96, 12 need 1.28.
 - Cost: the vault is a finite resource. Each batch uses it; a failed candidate cannot be tried again on the same vault.
+
+### Option 1: exact rules (for the owner's yes)
+
+1. Screen (stage 1). A candidate may enter the queue when it beats the baseline on VALIDATION, its tests pass and the Auditor passes.
+   The DSR with the global N is still computed and recorded, but it is a ranking, not a minimum.
+2. Quota. At most 3 candidates enter the queue in a calendar quarter: the 3 with the highest VALIDATION DSR among the eligible ones.
+   The quarter closes before the owner may open a batch for it, so a later candidate cannot push out an earlier one after a look.
+3. Vault budget. At most 12 candidates are ever evaluated in one vault. The vault for the current histories is spent after that.
+4. Confirmation (stage 2). A candidate passes when it beats the baseline in the vault and its vault DSR is at least 0.95, with N equal to
+   the number of candidates evaluated in that vault so far, this batch included, and V the null variance of its own estimate (option C).
+   N counts every earlier batch, so repeated batches cannot test the same vault for free.
+5. Unchanged: every trial still counts; the owner's note opens each batch; the look is counted before any vault row is read;
+   no candidate is evaluated twice; the Engineer never sees vault rows; a failed vault test is final.
+6. Timing. Build and test the rules now, with an Auditor re-seal and the canaries. Open no batch until the longer history (option 3)
+   exists, because a 403-session vault spends a finite resource on a test that a realistic strategy is unlikely to pass.
+
+Changed files would be `vault.py` and `cycle.py` (both sealed), the library sweep (a route into the queue), and their tests.
+Risk: the language models may remember market history from their training. The vault test cannot rule that out for real data.
 
 ### Option 2: count correlated trials as fewer trials
 
@@ -108,7 +130,10 @@ Each option below changes the gate or the data tiers. Each needs the owner's exp
 
 Agree to part 1 now. For part 2, choose option 1 (two stages) together with option 3 (a longer free history), and keep options 2 and 4
 for later. Until the owner decides, research continues under the current gate, and every result is reported against it.
+Agreed by the owner on 2 November 2026 ("ok go"). Next: the owner's yes on the exact option 1 rules; research on free long-history
+sources for option 3 is running.
 
 ## What this plan does not do
 
 It changes no code, threshold, ledger row or data tier. It does not open the vault. It records no trial.
+The SPY tier dates above came from the history loader; no vault price or return was read or scored.
