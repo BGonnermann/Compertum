@@ -243,7 +243,7 @@ def test_role_tools(bridge,root,verification,market,project):
         with pytest.raises(RuntimeRefused,match='^ENGINE_FILES_DENIED$'): researcher.run('Write the memo.',{'/x.txt':'y'})
         with pytest.raises(RuntimeRefused,match='^AI_TOOLS_DENIED$'): build_role_agent('director',c,system_prompt=load_prompt(PROJECT,'director'),tools=[run_job_tool(sandbox)])
         built=engineer.run('Build it.')
-        assert built['text'].startswith('DONE') and built['tool_calls']==2 and built['files']=={'/main.py':ENGINEER_CODE}
+        assert built['text']=='' and built['tool_calls']==2 and built['files']=={'/main.py':ENGINEER_CODE} and c.requests==3
         offered={t['function']['name'] for t in state['posts'][-1]['tools']}
         assert offered==set(FILE_TOOLS)|{'run_job'}=={'read_file','write_file','edit_file','run_job'} and not offered&{'ls','glob','grep','execute','task','delete','write_todos'}
         assert len(sandbox.runs)==1 and sandbox.runs[0]['status']=='COMPLETED' and sandbox.runs[0]['signals_present'] is True
@@ -538,21 +538,23 @@ def test_build_fault(bridge,root,verification,market,project):
         candidate=result['candidates'][0]
         assert result['status']=='COMPLETED' and candidate['run_statuses']==['COMPLETED'] and candidate['status']!='BUILD_FAILED'
         assert candidate['status'] in ('QUEUED','REJECTED_AUDIT','REJECTED_DEFLATED','REJECTED') and result['scores']['h1']['sessions']==len(market['validation_rows'])
-        assert result['faults']==[{'role':'engineer','kind':'build','code':'ENGINE_REPEATED_TOOL_CALL','candidate_id':candidate['candidate_id']}]
+        assert result['faults']==[]
         steps=engine.ledger.steps(result['cycle_id'])
-        review=[s for s in steps if s['kind']=='review'][0];assert review['phase']=='REVIEW_SKIPPED' and 'faulted after a completed run' in review['reason']
+        assert not any(s['kind']=='review' and s['phase']=='REVIEW_SKIPPED' for s in steps)
+        engineer_posts=[q for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: engineer')]
+        assert len(engineer_posts)==2 and not any('/signals.csv' in str(q['messages']) for q in engineer_posts)
         # The Engineer starts from the starter program and run_job's result says the signals are accepted and what to do next.
         build_task=next(p['messages'][1]['content'] for p in state['posts'] if p['messages'][0]['content'].startswith('ROLE: engineer'))
         assert build_task.startswith('Build this specification') and 'starter program' in build_task and 'SPECIFICATION\n' in build_task
         # Practice runs 5 to 10 sent the literal text of a template here. The task must hold the specification itself, a TRAIN sample
         # and no validation row; the placeholder text must not appear.
-        assert build_task.endswith(SPEC) and '{state[' not in build_task and '[hid]' not in build_task
+        assert 'SPECIFICATION\n'+SPEC in build_task and '/main.py\n```python\n' in build_task and '{state[' not in build_task and '[hid]' not in build_task
         sample=build_task.split('TRAIN SAMPLE (the first rows of train.csv)\n',1)[1].split('\n\nSPECIFICATION',1)[0].splitlines()
         assert sample[0]=='session,close,return' and len(sample)==7 and sample[1].startswith('0,')
         first_validation=market['validation_rows'][0]
         assert f"\n{first_validation['session']}," not in build_task and first_validation['close'] not in build_task
         tool_results=[m['content'] for p in state['posts'] for m in p['messages'] if m['role']=='tool' and '"signals_present": true' in m['content']]
-        assert tool_results and 'is accepted' in tool_results[0] and 'Reply with the single word DONE' in tool_results[0]
+        assert tool_results==[]
 
 
 def test_run_retry(bridge,root,verification,market,project):
@@ -648,3 +650,16 @@ def test_parallel_ideas(bridge,root,verification,market,project):
     assert results[True]['scores']==results[False]['scores']
     assert results[True]['specifications'].keys()==results[False]['specifications'].keys()=={'h1','h2','h3'}
     assert timings[True]<timings[False]*0.75,timings
+
+
+def test_accepted_stop():
+    """The Engineer's conversation ends after run_job accepts the signals; a failed run, another tool, or a later model turn does not end it."""
+    from langchain_core.messages import AIMessage,ToolMessage
+    from compertum.ai.engine.roles import signals_accepted
+    ok=ToolMessage(content='{"signals_present": true, "status": "COMPLETED"}',tool_call_id='1',name='run_job')
+    failed=ToolMessage(content='{"signals_present": false, "status": "FAILED"}',tool_call_id='2',name='run_job')
+    other=ToolMessage(content='{"signals_present": true}',tool_call_id='3',name='read_file')
+    assert signals_accepted([AIMessage(content=''),ok]) and signals_accepted([AIMessage(content=''),ok,other])
+    assert not signals_accepted([AIMessage(content=''),failed]) and not signals_accepted([AIMessage(content=''),other])
+    assert not signals_accepted([ok,AIMessage(content='DONE')]) and not signals_accepted([]) and not signals_accepted(None)
+    assert not signals_accepted([ToolMessage(content='not json',tool_call_id='4',name='run_job')])

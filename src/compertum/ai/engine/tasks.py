@@ -9,6 +9,7 @@ from .market import COST,cost_at,dated
 
 TRANSCRIPT_BYTES=8192
 RETRY_REPLY_BYTES=2048  # how much of an unusable reply a retry task shows the model
+MAIN_TEXT_BYTES=16384
 SAMPLE_ROWS=6  # train rows shown to the Engineer. Never validation rows: a model that has read the validation returns can type positions from memory.
 STARTER_MAIN='''"""Starter program for one specification. Edit decide(); keep the file names as they are.
 The job folder holds train.csv and validation.csv next to this file. Open them by these plain names.
@@ -128,11 +129,11 @@ def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=No
               'This time: edit decide() in /main.py (or rewrite the file), then call run_job with entry main.py, then reply DONE.\n\n'
               f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
     origin='your program from the first build' if review is not None else 'a starter program'
-    task=(head+f'Your file store holds two files: /main.py, {origin} (edit decide(), keep the file names), and /spec.md, the specification below. '
-          'It holds nothing else. You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
-          'When run_job reports that signals.csv was written, reply DONE.\n\n'
-          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}')
-    if memo is not None: task+=f'\n\nMEMO (the research behind the specification)\n{memo}'
-    # The starter slot (26 October 2026): GEPA may rewrite the starter program; it is AI-written code and runs only in the sandbox.
     main=code.get('/main.py',starter) if review is not None and isinstance(code,dict) else starter
+    task=(head+f'Your file store holds two files: /main.py, {origin} (edit decide(), keep the file names), and /spec.md, the specification below. '
+          'Both are shown in full below, so you do not need to read them first. '
+          'You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
+          'When run_job reports that signals.csv was written, the build is complete.\n\n'
+          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}\n\n/main.py\n```python\n{clip_bytes(main,MAIN_TEXT_BYTES)}\n```')
+    if memo is not None: task+=f'\n\nMEMO (the research behind the specification)\n{memo}'
     return task,{'/main.py':main,'/spec.md':specification}

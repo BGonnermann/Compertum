@@ -16,6 +16,7 @@ from .tasks import (REVIEW_LENGTH_RULE,SAMPLE_ROWS,STARTER_MAIN,agenda_task,appr
 TASK_BYTES=65536  # no task may be larger than one reply bound
 # An unfilled Python format field: {name}, {name.attr}, {name[key]} or {name(args)}. JSON text starts with {" and does not match.
 PLACEHOLDER=re.compile(r'\{[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\]|\.[A-Za-z_]\w*|\([^)]*\))*\}')
+CODE_FENCE=re.compile(r'```python\n.*?\n```',re.S)
 MAX_PROBLEMS=50
 
 # Sample values. Each one is a word that no builder, market or prompt contains, so its presence in a task proves that the value arrived.
@@ -43,8 +44,9 @@ def _text_problems(name,text,required):
     if not isinstance(text,str) or not text.strip(): return [f'{name}: the task is empty']
     size=len(text.encode('utf-8'))
     if size>TASK_BYTES: out.append(f'{name}: the task is {size} bytes, above {TASK_BYTES}')
-    for match in PLACEHOLDER.finditer(text): out.append(f'{name}: unfilled placeholder {match.group(0)}')
-    if '\\n' in text: out.append(f'{name}: the task holds a literal backslash-n, a broken escape')
+    template=CODE_FENCE.sub('',text)
+    for match in PLACEHOLDER.finditer(template): out.append(f'{name}: unfilled placeholder {match.group(0)}')
+    if '\\n' in template: out.append(f'{name}: the task holds a literal backslash-n, a broken escape')
     for label,value in required.items():
         if value not in text: out.append(f'{name}: the task does not hold the {label}')
     return out

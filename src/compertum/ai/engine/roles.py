@@ -186,6 +186,27 @@ class RoleAgent:
                 'tool_calls':sum(len(m.tool_calls) for m in messages if isinstance(m,AIMessage))}
 
 
+def signals_accepted(messages):
+    """True when a run_job result after the last model turn reports accepted signals."""
+    for message in reversed(messages or []):
+        if isinstance(message,AIMessage): return False
+        if isinstance(message,ToolMessage) and message.name=='run_job':
+            try: return json.loads(text_of(message.content)).get('signals_present') is True
+            except (ValueError,AttributeError): return False
+    return False
+
+
+def accepted_stop():
+    """Middleware that ends the Engineer's conversation once run_job accepts the signals: no closing reply, no rerun after a result."""
+    from langchain.agents.middleware import AgentMiddleware,hook_config
+
+    class AcceptedStop(AgentMiddleware):
+        @hook_config(can_jump_to=['end'])
+        def before_model(self,state,runtime):
+            return {'jump_to':'end'} if signals_accepted(state.get('messages')) else None
+    return AcceptedStop()
+
+
 def build_role_agent(role,client,*,system_prompt,tools=(),recursion_limit=RECURSION_LIMIT,max_tokens=None,temperature=None):
     """One role over the ledgered model: a `TextRole` for the text roles, a Deep Agent for the Engineer.
     tools: extra LangChain tools, for the Engineer only. max_tokens and temperature come from the settings slot; None keeps the model file's
@@ -207,6 +228,7 @@ def build_role_agent(role,client,*,system_prompt,tools=(),recursion_limit=RECURS
     from deepagents.backends import StateBackend
     from deepagents.middleware.filesystem import FilesystemMiddleware
     backend=StateBackend()
-    graph=create_deep_agent(model=model,tools=list(tools),system_prompt=system_prompt,backend=backend,
-                            middleware=[FilesystemMiddleware(backend=backend,tools=list(FILE_TOOLS))],name=f'compertum-{role}')
+    middleware=[FilesystemMiddleware(backend=backend,tools=list(FILE_TOOLS))]
+    if any(getattr(tool,'name',None)=='run_job' for tool in tools): middleware.append(accepted_stop())
+    graph=create_deep_agent(model=model,tools=list(tools),system_prompt=system_prompt,backend=backend,middleware=middleware,name=f'compertum-{role}')
     return RoleAgent(role,graph.with_config({'recursion_limit':recursion_limit}),backend,recursion_limit,model)
