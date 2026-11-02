@@ -22,6 +22,7 @@ from decimal import Decimal
 import json
 import math
 from pathlib import Path
+import re
 import sys
 from uuid import uuid4
 from compertum.data.errors import DataError
@@ -218,6 +219,7 @@ def sweep(p,ledger,*,run_id,note):
             inputs=s.pop('deflation_inputs');deflation=deflated_sharpe(inputs,total,trial_variance([],inputs)['trial_variance'])
             row.update(validation=s,deflated_sharpe=deflation['deflated_sharpe'],gate='PASS' if s['beats_baseline'] and deflation['status']=='PASS' else 'FAIL')
             rows.append(row)
+    admit_rows(p,ledger,run_id,groups,rows)
     return {'run_id':run_id,'kind':'strategy-library-multi','note':note,'calendar':[p['dates'][0],p['dates'][p['train']],p['dates'][-1]],
             'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'skipped':p.get('skipped',[]),'settings_per_universe':SETTINGS,'trials_recorded':trials,'total_trials':total,
             'membership':p.get('membership'),
@@ -258,22 +260,93 @@ def resolve_member(ticker,day,periods):
     return None if ticker in periods else ticker
 
 
-def french_panel(root,manifests):
+def french_panel(root,manifests,with_vault=False):
     """The 49 French industry portfolios on their own calendar: TRAIN before VALIDATION_START, VALIDATION before VAULT_START; vault rows are
-    never loaded. An industry is eligible on a session when it has a close; it joins on the day after its last missing value."""
+    never loaded, except with_vault=True, which only the stage-2 vault scorer passes inside a counted look. An industry is eligible on a
+    session when it has a close; it joins on the day after its last missing value."""
     from .french_market import VALIDATION_START,VAULT_START,load_french
     series={};skipped=[]
     for path in manifests:
         try: history=load_french(root,path)
         except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
         if history['symbol']!='Mkt': series[history['symbol']]=dict(history['closes'])
-    dates=sorted({d for c in series.values() for d in c if d<VAULT_START})
+    dates=sorted({d for c in series.values() for d in c if with_vault or d<VAULT_START})
     if not dates: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     closes={s:[float(c[d]) if d in c else None for d in dates] for s,c in series.items()}
     eligible=[[s for s in sorted(closes) if closes[s][t] is not None] for t in range(len(dates))]
     return {'dates':dates,'train':sum(1 for d in dates if d<VALIDATION_START),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
-            'universe':'french49','membership':{'source':'Kenneth French Data Library, 49 industry portfolios, value weighted, daily','industries':len(closes),
+            'universe':'french49','vault':'french-v1','membership':{'source':'Kenneth French Data Library, 49 industry portfolios, value weighted, daily','industries':len(closes),
             'validation_start':VALIDATION_START,'vault_start':VAULT_START,'smallest_universe':min(len(e) for e in eligible)}}
+
+
+PERTURB=(1,4,8)
+ROUTES=frozenset({'french49'})
+
+
+def causal(p,members,family,knobs):
+    """The Auditor's lookahead check for a portfolio rule: changing the closes of the last k sessions leaves every earlier weight unchanged.
+    Each symbol gets its own factor, so rankings across symbols change too, not only the level."""
+    n=len(p['dates']);base=weights(prepare(p,members),family,knobs)
+    def factor(j,t): return (0.85+0.3*((j*7)%11)/10)*(1-0.01*(t-n+k))
+    for k in PERTURB:
+        if not 1<=k<n-p['train']-1: return False
+        q={**p,'closes':{s:[c if c is None or t<n-k else c*factor(j,t) for t,c in enumerate(closes)] for j,(s,closes) in enumerate(sorted(p['closes'].items()))}}
+        if weights(prepare(q,members),family,knobs)[:n-k]!=base[:n-k]: return False
+    return True
+
+
+def admit_rows(p,ledger,run_id,groups,rows):
+    """Stage 1 for portfolio rules: a setting that beat the equal-weight universe is ELIGIBLE when a recompute gives the same score and the
+    lookahead check passes. Only universes with a vault scorer (ROUTES) are admitted."""
+    from .vault import CandidateQueue
+    queue=CandidateQueue(ledger)
+    for row in rows:
+        if not (row.get('validation') or {}).get('beats_baseline'): continue
+        if row['universe'] not in ROUTES: row['queue']={'event':'NOT_ADMITTED','reason':'no vault scorer for this universe'};continue
+        members=groups[row['universe']];u=prepare(p,members)
+        full=_safe(u,weights(u,row['family'],row['knobs']),p['train'],u['n'])
+        again=_safe(prepare(p,members),weights(prepare(p,members),row['family'],row['knobs']),p['train'],u['n'])
+        row['recomputed']=full==again;row['causal']=causal(p,members,row['family'],row['knobs'])
+        if not (row['recomputed'] and row['causal']): row['queue']={'event':'NOT_ADMITTED','reason':'recompute or lookahead check failed'};continue
+        inputs=full['deflation_inputs'];deflation=deflated_sharpe(inputs,ledger.total_trials(),trial_variance([],inputs)['trial_variance'])
+        route={'kind':'library-multi','run_id':run_id,'universe':row['universe'],'family':row['family'],'knobs':row['knobs'],'members':len(members),
+               'checks':'recompute and lookahead (closes of the last 1, 4 and 8 sessions changed); no sandbox Auditor run'}
+        event=queue.admit(f"{run_id}:{row['universe']}:{row['family']}",full,deflation,tests_passed=True,auditor_passed=True,route=route,vault=p.get('vault','history-v1'))
+        row['queue']={'event':event['event'],'quarter':event['quarter'],'candidate_id':event['candidate_id']}
+    return rows
+
+
+def admit_report(report,p,ledger):
+    """Stage 1 for a sweep that ran before the route existed: every row must reproduce its recorded VALIDATION score from the same files.
+    No trial is recorded again; the sweep's trials are already in the ledger."""
+    if report.get('kind')!='strategy-library-multi' or not isinstance(report.get('rows'),list): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+    groups=universes(p)
+    if set(report.get('universes') or {})!=set(groups) or any(len(groups[k])!=v for k,v in report['universes'].items()): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+    rows=[dict(r) for r in report['rows'] if isinstance(r,dict) and r.get('universe') in groups and r.get('family') in FAMILIES]
+    for row in rows:
+        u=prepare(p,groups[row['universe']]);again=_safe(u,weights(u,row['family'],row['knobs']),p['train'],u['n']);again.pop('deflation_inputs',None)
+        if again!=row.get('validation'): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+    return admit_rows(p,ledger,report['run_id'],groups,rows)
+
+
+def vault_score(queue,look_id,candidate_id,root,manifests):
+    """Stage 2 for a french49 portfolio rule: the admitted rule must reproduce its VALIDATION score from the same files; then, inside the
+    counted look, the rule runs over the whole history and only the vault sessions are scored against the equal-weight industries."""
+    import hashlib
+    from compertum.events import canonical
+    _,_,eligible=queue._fold(candidate_id);route=(eligible or {}).get('route') or {}
+    if route.get('kind')!='library-multi' or route.get('universe')!='french49' or route.get('family') not in FAMILIES: raise RuntimeRefused('ENGINE_VAULT_DENIED')
+    family,knobs=route['family'],route['knobs']
+    p=french_panel(root,manifests);members=sorted(p['closes']);u=prepare(p,members)
+    if len(members)!=route.get('members') or hashlib.sha256(canonical(_safe(u,weights(u,family,knobs),p['train'],u['n']))).hexdigest()!=eligible.get('score_sha256'):
+        raise RuntimeRefused('ENGINE_VAULT_DENIED')
+    def read():
+        full=french_panel(root,manifests,with_vault=True);start=len(p['dates'])
+        if full['dates'][:start]!=p['dates'] or sorted(full['closes'])!=members: raise RuntimeRefused('ENGINE_VAULT_DENIED')
+        return full,start
+    def scored(produced):
+        full,start=produced;w=prepare(full,members);return score(w,weights(w,family,knobs),start,w['n'])
+    return queue.evaluate_in_vault(look_id,candidate_id,None,read,vault='french-v1',score=scored)
 
 
 def pit_panel(root,manifests,membership='data/indices/sp500/history.json',reference='SPY',periods_path='data/indices/sp500/periods.json'):
@@ -320,8 +393,11 @@ def main(argv=None):
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     commands=parser.add_subparsers(dest='command',required=True);run=commands.add_parser('sweep');run.add_argument('--note',required=True)
     run.add_argument('--universe',choices=('all','sp500-pit','french49'),default='all')
+    admit=commands.add_parser('admit');admit.add_argument('--run',required=True)
+    vault=commands.add_parser('vault');vault.add_argument('--look',required=True);vault.add_argument('--candidate',required=True)
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
+    if args.command in ('admit','vault'): return queue_command(args,root,config)
     folder='french' if args.universe=='french49' else 'history'
     manifests=[p.relative_to(root).as_posix() for p in sorted((root/'data'/folder).glob('*/manifest.json'))]
     if not manifests or not args.note.strip() or len(args.note)>NOTE_LIMIT: print(json.dumps({'refused':'ENGINE_RUN_LIMITS_DENIED'}));return 2
@@ -351,6 +427,35 @@ def main(argv=None):
                       {'sharpe':r['validation'].get('sharpe'),'benchmark_sharpe':r['validation'].get('benchmark_sharpe'),'beats':r['validation'].get('beats_baseline')}
                       for r in report['rows']]},sort_keys=True))
     return 0
+
+
+def queue_command(args,root,config):
+    from compertum.config import ConfigError,load_config
+    from compertum.domain import ContractError
+    from compertum.runtime.identity import resolve_project
+    from compertum.runtime.owners import acquire_owner,release_owner
+    from compertum.storage import StorageManager
+    from .ledger import EngineLedger
+    from .vault import CandidateQueue
+    french=[q.relative_to(root).as_posix() for q in sorted((root/'data'/'french').glob('*/manifest.json'))];lease=None
+    try:
+        lease=acquire_owner(resolve_project(root),'coordinator');ledger=EngineLedger(StorageManager(lease,load_config(config,root)).store)
+        if args.command=='admit':
+            if not re.fullmatch(r'library-multi-[0-9]{8}-[0-9a-f]{8}',args.run): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+            report=json.loads((root/'state'/'engine'/'library'/f'{args.run}.json').read_text(encoding='utf-8'))
+            if report.get('universes')!={'french49':49}: raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+            rows=admit_report(report,french_panel(root,french),ledger)
+            result={'admitted':[r['queue'] for r in rows if r.get('queue')]}
+        else:
+            event=vault_score(CandidateQueue(ledger),args.look,args.candidate,root,french)
+            result={'candidate':args.candidate,'status':event['status'],'confirmation':event.get('confirmation')}
+    except RuntimeRefused as error:
+        print(json.dumps({'refused':error.code}));return 2
+    except (ContractError,ConfigError,OSError,ValueError) as error:
+        print(json.dumps({'refused':getattr(error,'reason',None) or type(error).__name__}));return 2
+    finally:
+        if lease is not None: release_owner(lease)
+    print(json.dumps(result,sort_keys=True,default=str));return 0
 
 
 if __name__=='__main__': sys.exit(main())

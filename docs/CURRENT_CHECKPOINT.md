@@ -496,7 +496,11 @@ Not passed: breadth (Sharpe 1.30, DSR 0.999, but mean return 0.8% a year below t
 Caveats: both families are published anomalies (industry momentum; trend timing) whose papers used years inside this VALIDATION, so the
 family list carries selection that the trial count does not see; costs are 0.05% per unit of turnover, low for trading 49 industries before
 sector ETFs (1998); cash earns 0. The multi-stock library has no vault route yet, so neither can take the stage-2 test (vault 2003-2023).
-Exact next action: report the sweep; owner decides on a multi-asset vault route; refresh the project map; improvement research is running.
+Owner: "Yes" to the multi-asset vault route. Built (ENGINE_PLAN.md, "Multi-asset vault route"); a test caught that a same-factor lookahead check
+missed a rule reading the next day's best industry; fixed. vault.py dd0e7094ac377a35 -> 175abf4962978031 (score hook). Tests: engine lane 378 passed,
+0 failed; product lane 308 passed, 0 failed, 8 skipped; harness lane 143 passed, 0 failed. The two french49 passes are not admitted yet.
+Improvement research: docs/IMPROVEMENT_RESEARCH.md. Project map refreshed (9 pages, 81 links, 0 broken).
+Exact next action: the owner decides on fixes 1 to 3 (benchmark-relative test, risk-free rate, realistic costs) and the French TRAIN bench.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

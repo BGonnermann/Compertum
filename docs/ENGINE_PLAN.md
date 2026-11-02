@@ -551,6 +551,16 @@ Kenneth R. French", no licence stated; built from CRSP; survivorship-free (each 
 - Bars at these lengths (DSR 0.95, normal returns): VALIDATION 7,694 sessions, N = 1: about 0.30 annual Sharpe, N = 28,165: about 1.05;
   vault 5,130 sessions, 1 candidate: about 0.37, 12: about 0.74.
 
+Multi-asset vault route (2 November 2026; owner: "Yes" to building it). `library_multi.admit_rows` makes a french49 setting that beat the
+equal-weight industries ELIGIBLE in `french-v1` when a recompute gives the same score and the lookahead check passes: the closes of the last
+1, 4 and 8 sessions change by a different factor for each industry, and every earlier weight must stay the same. A first version changed every
+industry by the same factor; it kept rankings, so a planted rule that read the next day's best industry passed. The test now catches it.
+Other universes (stocks, etfs, sp500-pit) have no vault scorer and are not admitted. `library_multi admit --run RUN_ID` admits an earlier
+french49 sweep after every row reproduces its recorded VALIDATION score; it records no trial. `library_multi vault --look --candidate`
+recomputes the admitted score, refuses other files, then reads the vault inside the counted look and scores only the vault sessions against
+the equal-weight industries (`evaluate_in_vault(..., score=...)`). Owner commands: `control queue`, `control close-quarter --quarter`,
+`control open-batch --vault --candidate --note`. A quarter can be closed only after it ends: 2026-Q4 candidates can be queued from 2027-01-01.
+
 Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
 the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
 to `open_market`; `history_market.load_history_market` to `build_market` and `load_history_manifest` to `open_history`; `gepa_run.score_for_cycle` to

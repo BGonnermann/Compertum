@@ -188,12 +188,13 @@ class CandidateQueue:
             if look['look_id']==look_id: return total
         raise RuntimeRefused('ENGINE_LOOK_UNKNOWN')
 
-    def evaluate_in_vault(self,look_id,candidate_id,signals_text,read_vault,*,vault=VAULT_ID):
+    def evaluate_in_vault(self,look_id,candidate_id,signals_text,read_vault,*,vault=VAULT_ID,score=None):
         """Score one candidate on the vault rows, once, inside its sealed look, and decide stage 2.
 
         read_vault is a callable with no arguments. It is called only after the look and the candidate's state pass, so a
         repeat or a denied attempt never reads the vault. It returns the vault rows; when signals_text is None it returns
         (signals_text, vault_rows), for the Validator that produces the signals by a trusted re-run on the vault (E6).
+        score, when given, turns what read_vault returns into the score record (a multi-asset portfolio); it needs deflation_inputs and beats_baseline.
         """
         if not callable(read_vault): raise RuntimeRefused('ENGINE_VAULT_DENIED')
         look=self.ledger.look(look_id)
@@ -204,9 +205,12 @@ class CandidateQueue:
         trials=self.vault_trials(look_id)
         try:
             produced=read_vault()
-            if signals_text is None: signals_text,rows=produced
-            else: rows=produced
-            result=score_signals(signals_text,rows)
+            if score is not None: result=score(produced)
+            else:
+                if signals_text is None: signals_text,rows=produced
+                else: rows=produced
+                result=score_signals(signals_text,rows)
+            if not isinstance(result,dict) or 'deflation_inputs' not in result or 'beats_baseline' not in result: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
             inputs=result['deflation_inputs'];variance=trial_variance([],inputs)
             deflation=deflated_sharpe(inputs,trials,variance['trial_variance'])
         except RuntimeRefused as error:

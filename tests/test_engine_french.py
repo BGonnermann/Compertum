@@ -149,3 +149,63 @@ def test_vault_separation(bridge,monkeypatch):
         Engine(client=None,ledger=None,lease=None,project_root=None,sandbox_root=None,verification={},train_csv='',validation_csv='',
                validation_rows=[],memory_floor_bytes=0,vault='other')
     assert "vault=market.get('vault','history-v1')" in inspect.getsource(gepa_run) and "vault=item.get('vault','history-v1')" in inspect.getsource(run)
+
+
+@pytest.fixture
+def drift(tmp_path,monkeypatch):
+    import random
+    from datetime import date,timedelta
+    days=[];day=date(1950,1,2)
+    while len(days)<900:
+        if day.weekday()<5: days.append(day.strftime('%Y%m%d'))
+        day+=timedelta(days=1)
+    days+=['20231229','20240102']
+    monkeypatch.setattr(fm,'MIN_SESSIONS',5);monkeypatch.setattr(fm,'VALIDATION_START',f'{days[540][:4]}-{days[540][4:6]}-{days[540][6:]}')
+    monkeypatch.setattr(fm,'VAULT_START',f'{days[780][:4]}-{days[780][4:6]}-{days[780][6:]}')
+    rng=random.Random(7);names=[f'D{i:02d}' for i in range(20)]
+    rows=[(d,[round(rng.gauss(0.3 if i<2 else 0.0,1.0),2) for i in range(20)]) for d in days]
+    sha=zipped(tmp_path/'data'/'french'/'raw'/'drift.zip','49_Industry_Portfolios_Daily.csv',industries_csv(names,rows))
+    paths=[manifest(tmp_path,n,'data/french/raw/drift.zip',sha) for n in names]
+    return tmp_path,paths
+
+
+def test_multi_route(bridge,drift,monkeypatch):
+    from compertum.ai.engine import vault as vault_module
+    from datetime import date
+    root,paths=drift;b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    monkeypatch.setattr(vault_module,'today',lambda:date(2026,11,2))
+    p=lm.french_panel(root,paths);assert p['vault']=='french-v1' and p['dates'][-1]<fm.VAULT_START
+    report=lm.sweep(p,ledger,run_id='library-multi-20261102-00000001',note='fixture')
+    beat=[r for r in report['rows'] if r['validation'].get('beats_baseline')];assert any(r['family']=='xs_momentum' for r in beat)
+    assert all(r['recomputed'] and r['causal'] and r['queue']['event']=='ELIGIBLE' for r in beat)
+    assert all(queue.vault_of(r['queue']['candidate_id'])=='french-v1' for r in beat) and len(queue.eligible())==len(beat)
+    def peek(u,t):
+        if t+1>=u['n']: return {}
+        return {max(u['eligible'][t],key=lambda s:u['returns'][s][t+1] or 0.0):1.0}
+    monkeypatch.setitem(lm.FAMILIES,'peek',(peek,[{'hold':1}]))
+    assert lm.causal(p,sorted(p['closes']),'peek',{'hold':1}) is False and lm.causal(p,sorted(p['closes']),beat[0]['family'],beat[0]['knobs']) is True
+    queue.close_quarter('2026-Q4',day=quarter_end('2026-Q4'));chosen=queue.queued();assert 1<=len(chosen)<=3
+    cid=chosen[0];look=queue.open_batch([cid],'Owner OK: French vault fixture',vault='french-v1')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): lm.vault_score(queue,look['look_id'],cid,root,paths[:-1])  # other files: refused before any read
+    assert queue.state(cid)[0]=='LOOK_COUNTED'
+    event=lm.vault_score(queue,look['look_id'],cid,root,paths)
+    assert event['status']=='SCORED' and event['result']['sessions']==len(lm.french_panel(root,paths,with_vault=True)['dates'])-len(p['dates'])
+    assert event['confirmation']['vault']=='french-v1' and event['confirmation']['trials']==1 and event['confirmation']['status'] in ('PASS','FAIL')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_REPEAT$'): lm.vault_score(queue,look['look_id'],cid,root,paths)
+
+
+def test_multi_admit(bridge,drift,monkeypatch):
+    root,paths=drift;b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    p=lm.french_panel(root,paths)
+    monkeypatch.setattr(lm,'ROUTES',frozenset())
+    report=lm.sweep(p,ledger,run_id='library-multi-20261102-00000002',note='fixture');trials=ledger.total_trials()
+    assert all(r['queue']['event']=='NOT_ADMITTED' for r in report['rows'] if r.get('queue')) and queue.eligible()==[]
+    monkeypatch.setattr(lm,'ROUTES',frozenset({'french49'}))
+    stored=json.loads(json.dumps(report));tampered=json.loads(json.dumps(report))
+    row=next(r for r in tampered['rows'] if r['validation'].get('beats_baseline'));row['validation']['sharpe']='9.9'
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): lm.admit_report(tampered,p,ledger)
+    rows=lm.admit_report(stored,p,ledger);admitted=[r['queue'] for r in rows if r.get('queue')]
+    assert admitted and all(a['event']=='ELIGIBLE' for a in admitted) and ledger.total_trials()==trials  # no trial is recorded twice
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): lm.admit_report(stored,p,ledger)  # already ELIGIBLE
+    from compertum.ai.engine.control import queue_state
+    state=queue_state(b.store);assert state['vaults']['french-v1']['eligible']==[a['candidate_id'] for a in admitted] and state['vaults']['history-v1']['budget_used']==0

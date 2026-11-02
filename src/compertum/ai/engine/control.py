@@ -3,6 +3,10 @@
     python -m compertum.ai.engine.control --project PATH list
     python -m compertum.ai.engine.control --project PATH clear-freeze --freeze FREEZE_ID --note "why"
     python -m compertum.ai.engine.control --project PATH close-run --run RUN_ID --note "why"
+    python -m compertum.ai.engine.control --project PATH queue
+    python -m compertum.ai.engine.control --project PATH close-quarter --quarter 2026-Q4
+    python -m compertum.ai.engine.control --project PATH open-batch --vault french-v1 --candidate ID [--candidate ID] --note "Owner OK: ..."
+
 
 The command takes the coordinator owner lease for its duration, so it cannot run while the coordinator or a bounded run
 holds it. Every action keeps the original row and adds the owner's note. Exit 0 on success, 2 on a refusal.
@@ -39,6 +43,16 @@ def close_abandoned(store,run_id,owner_note):
     return ledger.close_run(run_id,{'reason':'OWNER_CLOSED','owner_note':owner_note,'ended_at':utc_now()})
 
 
+def queue_state(store):
+    from .vault import QUOTA,VAULT_BUDGET,VAULTS,CandidateQueue
+    queue=CandidateQueue(EngineLedger(store));out={'quota_per_quarter':QUOTA,'budget_per_vault':VAULT_BUDGET,'vaults':{}}
+    for vault in VAULTS:
+        used=sum(len(look['candidate_ids']) for look in queue._vault_looks(vault))
+        out['vaults'][vault]={'eligible':[c for c in queue.eligible() if queue.vault_of(c)==vault],'queued':[c for c in queue.queued() if queue.vault_of(c)==vault],
+                              'budget_used':used}
+    return out
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.control',description='Owner commands for the section 19 engine.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
@@ -46,6 +60,10 @@ def main(argv=None):
     commands.add_parser('list')
     freeze=commands.add_parser('clear-freeze');freeze.add_argument('--freeze',required=True);freeze.add_argument('--note',required=True)
     run=commands.add_parser('close-run');run.add_argument('--run',required=True);run.add_argument('--note',required=True)
+    commands.add_parser('queue')
+    close=commands.add_parser('close-quarter');close.add_argument('--quarter',required=True)
+    batch=commands.add_parser('open-batch');batch.add_argument('--vault',required=True);batch.add_argument('--candidate',action='append',required=True)
+    batch.add_argument('--note',required=True)
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
     lease=None
@@ -54,6 +72,13 @@ def main(argv=None):
         store=StorageManager(lease,load_config(config,root)).store
         if args.command=='list': result=engine_state(store)
         elif args.command=='clear-freeze': result=clear_freeze(store,args.freeze,args.note)
+        elif args.command=='queue': result=queue_state(store)
+        elif args.command=='close-quarter':
+            from .vault import CandidateQueue
+            result={'quarter':args.quarter,'queued':CandidateQueue(EngineLedger(store)).close_quarter(args.quarter)}
+        elif args.command=='open-batch':
+            from .vault import CandidateQueue
+            result=CandidateQueue(EngineLedger(store)).open_batch(args.candidate,args.note,vault=args.vault)
         else: result=close_abandoned(store,args.run,args.note)
     except RuntimeRefused as error:
         print(json.dumps({'refused':error.code}));return 2
