@@ -438,7 +438,12 @@ names to 0.15 point in time: the survivor list flattered it. The vault was not o
 Owner: rename "Yes", scope "Engine, harness, tools": 349 names in 352 definitions and 53 files (25 code names, 324 test names); 11 kept (see ENGINE_PLAN.md, "Code names").
 No sealed file, milestone product file or product test changed, so no fingerprint changed and the Auditor was not re-sealed.
 Tests after the rename: engine lane 364 passed, 0 failed; product lane 302 passed, 0 failed, 8 skipped; harness lane 139 passed, 0 failed;
-native Windows harness files 6 passed, 0 failed, 0 skipped. The project map was not refreshed.
+native Windows harness files 6 passed, 0 failed, 0 skipped. Commit `a7311dd`.
+Project map refreshed (9 pages, 81 links, 0 broken; snapshot 821b4293e964): status footer, owner `/data`, history pulls, real-data-only firm, roadmap summary.
+Owner, 1 November 2026, week plan: "go with the real-data bench". Monday: the owner saves the IWV, IVV and QQQ files into `data/indices/inbox/`;
+ingest and the Russell 3000 pull follow (about 4 to 5 hours). Tuesday: a trial-spending plan for the owner. Wednesday and Thursday: a real-data bench
+from the point-in-time S&P 500 data, with an independent review. Friday: one owner-started GLM baseline on it and a report.
+Exact next action: ingest the owner's first holdings files when they are in the inbox; meanwhile write the trial-spending plan.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
