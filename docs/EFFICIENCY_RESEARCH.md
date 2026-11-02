@@ -50,7 +50,12 @@ Not changed, because they are product tests or product helpers with recorded fin
 2. Storage scan time. Each start walks the project. Measured: 15.4 s of the 30 s `storage_scan_seconds` deadline, 349,461 files, 71% under `.cache/test-runs`.
    The gap between two practice runs was 21 to 22 s. Cleaning the small files of passed old jobs could cut the scan to about 5 s (estimate).
    The large file counts are in `m5-local-economics` (36k files) and `native-accounting` (24k files). Both are evidence folders, so the owner decides.
-3. Backups category: 20.41 GiB of 21.0 GiB. 16 GiB are dummy reserves inside backed-up fixtures. The owner decides whether a hash record may replace them.
+3. Backups category: 20.41 GiB of 21.0 GiB. 16 GiB are 1 GiB reserves inside backed-up fixtures, and 9 more are 320 MiB reserves in `historical-test-folders-20261013-01` and `-02`.
+   Checked 2 November 2026, nothing removed. These backups exist to keep the fixtures byte for byte, and the reports record that the bytes are unchanged:
+   `reports/M5_MARKET_OWNER_PROGRESS.md`, `M5_RETRY_INTEGRATION.md`, `M5_OPENING_INTEGRATION.md`, `docs/M3_REPAIR_PLAN.md` and `M3_PAIR_VALIDATION_REPAIR.md`.
+   Seven of the 16 hold failed fixtures, and one is the interrupted M3 runtime.
+   A sparse file does not help: `storage.py` charges each file at the larger of its length and its allocation.
+   Options for the owner: keep everything and raise the backups limit, or allow removal from the passed fixtures only (8 GiB), which ends their byte-for-byte record.
 4. Engineer task: 92% of 210 builds spent their first request on reading `/main.py` or `/spec.md`, which the task could show directly.
    Estimate: about 10% fewer requests per cycle. It changes what the firm sees, so it is a hand edit of the firm. That edit needs the bench exam, and the bench is off.
 5. Mathematician review in a practice cycle: 14 to 15% of request time, and the result is only recorded. `review: off` already exists. Section 19 and the sealed `cycle.py` name the review.
