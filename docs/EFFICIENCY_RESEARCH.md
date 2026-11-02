@@ -82,3 +82,27 @@ Not changed, because they are product tests or product helpers with recorded fin
 
 The AppContainer start cost, `ledger.summary()` per cycle, the history and French loaders (they read vault rows), the engine lane durations,
 and provider cache hits (item 1 of the changes now records them).
+
+## Second cycle, open brief - 2 November 2026
+
+Owner: "run auto research to find a better path towards efficiency within our system", with an open brief on purpose and the model-agnostic standard.
+A read-only agent chose its own focus. It changed no file and made no model call. Evidence: bench baseline 1 (`run-20261102-8d10b89b`), 16 GLM runs (5,781 requests), sandbox job folders, and the engine code.
+
+Measured findings:
+1. About 43% of requests do no scored work (27.6% of request time). Director approvals: 11.2% of requests, 641 of 647 approved. Advice-only Mathematician reviews: 11.0%. The Engineer's closing "DONE" reply: 11.0%. First Engineer turns that only read `/main.py` or `/spec.md`: 9.9%. The bench run used 9.0 requests per candidate.
+2. Candidates re-implement the judge. 47 of 47 specs ask the program to compute Sharpe and the gates, and 55 of 58 programs compute Sharpe (median 133 lines). The cause: `tasks.market_brief` describes the gate. Trusted code already computes it.
+3. The Engineer sees VALIDATION results. `run_job` returns stdout. 480 of 739 successful runs printed Sharpe, PASS or excess figures. 45 of 714 Engineer conversations ran again after a success, 19 of them after seeing such figures. Only the last run is scored, so selection on VALIDATION can happen without a counted trial.
+4. Sandbox jobs run one at a time (`SANDBOX_LOCK` and the heavy-job slot). One bench cycle took 500 s of 1,430 s: two programs timed out at 120 s, and fast jobs waited 113 to 114 s for the lock. The median lock hold in GEPA was 0.13 s.
+5. The real bench is almost flat. All 16 cycles reached level 5 or 6 (mean 5.19, standard error about 0.1), and all 47 candidates were rejected. GEPA's score on real data is therefore nearly constant. The bench still detects breakage.
+6. The firm has 0 real-data gate passes in about 1,170 requests. Both stage-1 eligibles came from the deterministic french49 library (75 trials, 88 s, $0). The firm can build only single-asset long/flat timing rules.
+7. Spending is small ($0.1277 a bench run). Wall time and the robustness of weaker models are the real limits.
+
+Recommended path:
+1. Remove two Engineer turns that do no work: show the starter `/main.py` in the task, and end the Engineer conversation in code when `run_job` accepts the signals. That also closes the rerun channel of finding 3. Check with one bench-french-1 exam against baseline 1.
+2. Owner: the brief says the Validator computes the score and checks; the program writes positions only; `run_job` returns no stdout after a success (`execution.py` is fixed). Decide whether this conflicts with the no-steering rule of 29 October 2026.
+3. Owner: sandbox throughput: a shorter deadline for candidate jobs, or 2 to 4 light jobs at once (AGENTS "retain job deadlines"; section 19 "one heavy job").
+4. Owner: run bench markets in parallel through GEPA's parallel-cycle path, after step 3.
+5. Owner: skip the Director approval, or test `review: off`, in the bench exam (section 19 names both steps).
+6. Owner: a continuous bench score (for example the Sharpe gap to buy-and-hold of audited candidates), so GEPA can see quality on real data.
+7. Owner, largest lever: let the firm propose cross-sectional weights on the french49 panel (`docs/IMPROVEMENT_RESEARCH.md` item 4).
+Estimate: steps 1 to 3 could cut a bench run from about 24 minutes to 4 to 8 minutes, with about 40% fewer requests. Not checked: the effect on local models, the quality effect of ending the Engineer early, and rate limits under parallel load.
