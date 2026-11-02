@@ -11,7 +11,7 @@ spec=importlib.util.spec_from_file_location('engine_tail',PROJECT/'tools'/'engin
 SCORE={'sharpe':'1.234','benchmark_sharpe':'0.8','beats_baseline':True,'sessions':90,'positions_held':40,'position_changes':9}
 
 
-def test_a_cycle_end_shows_its_level_and_every_idea():
+def test_cycle_end():
     record={'status':'COMPLETED','hypotheses':[{'id':'h1','title':'Three-day\nreversal'},{'id':'h2','title':'Noise chase'}],
             'candidates':[{'hypothesis_id':'h1','status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':'0.6123'},'audit':{'label':'VERIFIED_PASS'}}],
             'scores':{'h1':SCORE},'decisions':{'h1':{'decision':'approve'},'h2':{'decision':'reject','reason':'no falsifier'}},
@@ -23,7 +23,7 @@ def test_a_cycle_end_shows_its_level_and_every_idea():
     assert tail.cycle_lines(8,'START',{'purpose':'bench'})==['CYCLE   #8 START (bench)']
 
 
-def test_steps_sandbox_jobs_and_model_calls_print_the_useful_part():
+def test_useful_parts():
     assert tail.step_line('mathematician','proposal',{'phase':'PROPOSED','changed':True,'new_bytes':900})=='GEPA    rewrote mathematician (PROPOSED, 900 bytes)'
     assert tail.step_line('director','pick',{'phase':'REQUEST'}) is None and tail.step_line('director','pick',{'phase':'REQUEST'},all_steps=True).startswith('STEP    director')
     assert tail.step_line('validator','score',{'phase':'SCORED','candidate_id':'c:h2','score':SCORE,'deflation':{'deflated_sharpe':'0.1','trials':40},'status':'REJECTED_DEFLATED'})==(
@@ -37,7 +37,7 @@ def test_steps_sandbox_jobs_and_model_calls_print_the_useful_part():
     assert tail.clip('SCORE   '+'x'*200,20)=='SCORE   xxxxxxxxx...'  # padding kept, line cut
 
 
-def test_the_transcript_reader_takes_whole_lines_only(tmp_path):
+def test_whole_lines(tmp_path):
     folder=tmp_path/tail.TRANSCRIPTS;folder.mkdir(parents=True);path=folder/'run-20261026-0123abcd.jsonl'
     path.write_text(json.dumps({'call_id':'a','content':'one'})+'\n'+'{"call_id": "b", "con',encoding='utf-8')  # the second line is still being written
     reader=tail.Transcripts(tmp_path);reader.poll('run-20261026-0123abcd')
@@ -47,7 +47,7 @@ def test_the_transcript_reader_takes_whole_lines_only(tmp_path):
     reader.poll('run-20261026-missing');reader.poll(None)  # no file, no run: nothing happens
 
 
-def test_a_replay_reads_the_store_and_never_changes_it(tmp_path,capsys):
+def test_readonly_replay(tmp_path,capsys):
     state=tmp_path/'state';state.mkdir();store=state/'research.sqlite'
     with sqlite3.connect(store) as db:
         db.execute('CREATE TABLE engine_bounded_runs(row_id INTEGER PRIMARY KEY,run_id,phase,recorded_at,record)')

@@ -133,7 +133,7 @@ def models_report(project_root,models='local',model=None):
     return {'servers':servers,'roles':report,'all_listed':all(r['listed'] for r in report.values())}
 
 
-def set_research_state(store,value):
+def set_state(store,value):
     with store._live(),store.conn: store.conn.execute('INSERT INTO state VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',('research_state',canonical(value).decode()))
 
 
@@ -193,10 +193,10 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
     schedule=None;holdout_set=None
     if market_manifests is not None:
         from .gepa_run import MAX_MARKETS
-        from .real_market import load_market_manifest
+        from .real_market import open_market
         if (not isinstance(market_manifests,(list,tuple)) or any(not isinstance(p,str) for p in market_manifests)
                 or not 1<=len(market_manifests)<=(MAX_MARKETS if gepa else 1)): raise RuntimeRefused('ENGINE_MARKET_DENIED')
-        loaded=[load_market_manifest(root,path,**({} if sessions is None else {'sessions':sessions})) for path in market_manifests]
+        loaded=[open_market(root,path,**({} if sessions is None else {'sessions':sessions})) for path in market_manifests]
         market=loaded[0][0];markets=[item[0] for item in loaded];validation_markets=None
     else:
         sessions=bench.CALIBRATED_SESSIONS if sessions is None else sessions
@@ -223,7 +223,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         pipe=r'\\.\pipe\compertum-practice-'+uuid4().hex[:8];listener=Listener(pipe,'AF_PIPE')
         try: verification=verify_sandbox(sandbox_root,memory_floor_bytes=START_FLOOR,fixed_targets=engine_fixed_targets(root),pipe=pipe)
         finally: listener.close()
-        previous=research_state(store);set_research_state(store,'RUNNING')
+        previous=research_state(store);set_state(store,'RUNNING')
         try:
             limits=RunLimits(request_limit=requests,cycle_limit=cycles,hour_limit=hours)
             if gepa:
@@ -243,7 +243,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                     outcomes=run_together(ids,lambda m:run_bounded(roles=role_sets[m],run_group=group,cycle_counter=counter,**options))
                 else: result=run_bounded(roles=roles,**options)
         finally:
-            set_research_state(store,previous);after=research_state(store)
+            set_state(store,previous);after=research_state(store)
         common={'sandbox_root':str(sandbox_root),'vault_sessions_held_back':held_back,'verification':{'failed':verification['failed'],'observations':verification['observations']},
                 'research_state_after':after,'free_memory_bytes_at_start':available,'preflight':checked}
         if market_manifests is not None: common['market_provenance']=[m['provenance'] for m in markets]

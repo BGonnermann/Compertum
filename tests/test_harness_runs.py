@@ -17,7 +17,7 @@ class Process:
         self.code = 1
 
 
-def test_owner_started_test_run_has_a_uniform_card_and_stops(tmp_path):
+def test_run_card(tmp_path):
     processes = []
     commands = []
     def spawn(command, **kwargs):
@@ -51,7 +51,7 @@ def test_owner_started_test_run_has_a_uniform_card_and_stops(tmp_path):
     assert "-CyclesPerMarket" in commands[2] and "3" in commands[2]
 
 
-def test_run_recovers_the_original_process_after_a_console_restart(tmp_path):
+def test_run_recovery(tmp_path):
     process = Process()
     manager = RunManager(tmp_path, spawn=lambda *a, **k: process, available_memory=lambda: MEMORY_FLOOR)
     card = manager.start("test", paths=TESTS)
@@ -64,7 +64,7 @@ def test_run_recovers_the_original_process_after_a_console_restart(tmp_path):
     assert finished.card(card["run"])["exit_code"] == 1
 
 
-def test_run_refuses_low_memory_and_a_second_active_job(tmp_path):
+def test_run_refusals(tmp_path):
     manager = RunManager(tmp_path, spawn=lambda *a, **k: Process(), available_memory=lambda: MEMORY_FLOOR - 1)
     with pytest.raises(RunError, match="AVAILABLE_RAM_FLOOR"):
         manager.start("test", paths=TESTS)
@@ -74,7 +74,7 @@ def test_run_refuses_low_memory_and_a_second_active_job(tmp_path):
         manager.start("test", paths=TESTS)
 
 
-def test_finished_engine_stop_does_not_plant_the_kill_switch(tmp_path):
+def test_finished_stop(tmp_path):
     process = Process()
     manager = RunManager(tmp_path, spawn=lambda *a, **k: process, available_memory=lambda: MEMORY_FLOOR)
     card = manager.start("gepa", cycles=1, requests=10, hours=1, note="fake")
@@ -83,7 +83,7 @@ def test_finished_engine_stop_does_not_plant_the_kill_switch(tmp_path):
     assert not (tmp_path / "state" / "engine" / "STOP").exists()
 
 
-def test_engine_expiry_uses_the_kill_switch_not_wrapper_termination(tmp_path):
+def test_engine_expiry(tmp_path):
     process = Process()
     manager = RunManager(tmp_path, spawn=lambda *a, **k: process, available_memory=lambda: MEMORY_FLOOR)
     card = manager.start("practice", cycles=1, requests=10, hours=1, note="fake")
@@ -92,7 +92,7 @@ def test_engine_expiry_uses_the_kill_switch_not_wrapper_termination(tmp_path):
     assert not process.terminated
 
 
-def test_lost_run_does_not_block_and_absolute_test_path_is_refused(tmp_path):
+def test_lost_run(tmp_path):
     lost = Process()
     lost.code = "LOST"
     manager = RunManager(tmp_path, spawn=lambda *a, **k: Process(), available_memory=lambda: MEMORY_FLOOR)
@@ -101,7 +101,7 @@ def test_lost_run_does_not_block_and_absolute_test_path_is_refused(tmp_path):
         manager.start("test", paths=[str(tmp_path.parent / "outside.py")])
 
 
-def test_owner_can_dismiss_an_unverifiable_terminal_record(tmp_path):
+def test_dismiss_record(tmp_path):
     manager = RunManager(tmp_path, spawn=lambda *a, **k: Process(), available_memory=lambda: MEMORY_FLOOR)
     card = manager.start("test", paths=TESTS)
     manager.active[card["run"]]["process"].code = "UNKNOWN"
@@ -111,7 +111,7 @@ def test_owner_can_dismiss_an_unverifiable_terminal_record(tmp_path):
     assert manager.start("test", paths=TESTS)["status"] == "RUNNING"
 
 
-def test_engine_stop_clears_only_its_own_kill_switch_and_cards_stay_true(tmp_path):
+def test_engine_stop(tmp_path):
     processes, options = [], []
 
     def spawn(command, **kwargs):
@@ -146,7 +146,7 @@ def test_engine_stop_clears_only_its_own_kill_switch_and_cards_stay_true(tmp_pat
     assert manager.card(first)["elapsed_seconds"] == 30.0  # A finished run's time stops at its last log write.
 
 
-def test_engine_runs_leave_the_console_and_the_job_and_test_runs_stay(tmp_path):
+def test_detached_runs(tmp_path):
     flags = []
 
     def spawn(command, **kwargs):

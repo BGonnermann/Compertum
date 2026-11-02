@@ -11,7 +11,7 @@ deepagents=pytest.importorskip('deepagents');gepa=pytest.importorskip('gepa')
 from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
 from test_ai_models_interface import FLOOR,roles  # noqa: E402
 from test_engine_acceptance import tiers  # noqa: E402,F401  (fixture)
-from test_engine_limits import set_research_state  # noqa: E402
+from test_engine_limits import set_state  # noqa: E402
 from test_engine_roles import role_server,root,verification  # noqa: E402,F401  (fixtures)
 from test_engine_run import project  # noqa: E402,F401  (fixture)
 from compertum.ai.engine.gepa_run import PROMPTS_DIR,apply_prompts,run_gepa  # noqa: E402
@@ -38,8 +38,8 @@ def start(bridge,project,root,verification,markets,port,limits,**extra):
                     memory_floor_bytes=FLOOR,limits=limits,owner_approval='Owner OK for the GEPA fixture run',available_memory=lambda:FLOOR+1,**extra)
 
 
-def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_gepa_run(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     assert roles_module.ROLES==ROLES and roles_module.load_prompt is load_prompt  # one loader, re-exported
     before={role:load_prompt(project,role) for role in ROLES};markets=markets_for(tiers)
     markets[0]['provenance']={'provider':'alpaca','financial_accepted':False,'snapshot_sha256':'b'*64}
@@ -78,10 +78,10 @@ def test_gepa_run_improves_prompts_in_memory_and_writes_candidates_for_the_owner
     assert {role:load_prompt(PROJECT,role) for role in ROLES}=={role:load_prompt(PROJECT,role) for role in ROLES}  # master's config untouched
 
 
-def test_a_longer_gepa_run_rewrites_the_firms_slots_too(bridge,project,root,verification,tiers):
+def test_longer_run(bridge,project,root,verification,tiers):
     """Owner direction, 26 October 2026: GEPA improves the firm, not only its prompts. In turn it rewrites the four prompts, then the routing,
     the settings, the analysis tool and the starter. Every candidate is written with all eight files; the tool and starter run only in the sandbox."""
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     (project/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 2000\n',encoding='utf-8')  # room for eight rewrites in this test project
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,markets_for(tiers),port,RunLimits(request_limit=2000,cycle_limit=40))
@@ -104,8 +104,8 @@ def test_a_longer_gepa_run_rewrites_the_firms_slots_too(bridge,project,root,veri
     assert any(str(x['purpose']).startswith('gepa-reflect-') for x in saved)
 
 
-def test_gepa_run_stops_at_the_request_limit_and_records_the_reason(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_request_limit(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,markets_for(tiers),port,RunLimits(request_limit=12,cycle_limit=6))
     assert result['reason']=='REQUEST_LIMIT' and result['requests']==12==len(state['posts'])

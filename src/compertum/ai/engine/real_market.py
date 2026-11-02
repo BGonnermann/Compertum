@@ -92,13 +92,13 @@ def provider_market(snapshot,symbol,*,sessions=500):
     return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':label,'provenance':provenance,'vault_sessions':len(vault)},vault
 
 
-def load_market_manifest(project_root,manifest_path,*,sessions=None):
+def open_market(project_root,manifest_path,*,sessions=None):
     """A history manifest (kind "history") gives every retained session up to MAX_SESSIONS unless sessions is given; a provider
     snapshot manifest keeps its 500-session default."""
     root=Path(project_root).absolute()
     value=_json(_read(root,manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
     if isinstance(value,dict) and value.get('kind')=='history':
-        from .history_market import load_history_market
-        return load_history_market(root,manifest_path,sessions=sessions)
+        from .history_market import build_market
+        return build_market(root,manifest_path,sessions=sessions)
     snapshot,symbol=load_snapshot(root,manifest_path)
     return provider_market(snapshot,symbol,sessions=500 if sessions is None else sessions)

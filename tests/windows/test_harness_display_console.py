@@ -40,7 +40,7 @@ json.dump({"animate": display.animate, "rows": rows, "spinner": SPINNER}, sys.st
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="Windows console output")
 
 
-def test_spinner_leaves_only_the_answer_in_a_real_console(tmp_path):
+def test_real_spinner(tmp_path):
     # A hidden console gives the child a real screen buffer without opening a window.
     result = subprocess.run([sys.executable, "-c", CHILD], capture_output=True, text=True, encoding="utf-8",
                             timeout=30, creationflags=subprocess.CREATE_NO_WINDOW, cwd=tmp_path)

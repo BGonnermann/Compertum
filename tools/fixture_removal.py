@@ -68,7 +68,7 @@ def sha(path,poll=lambda:None):
         while data:=stream.read(65536):poll();result.update(data)
     return result.hexdigest()
 
-def save_removal_record(path,value):
+def save_removal(path,value):
     assert path.parent==NAMESPACE,'REMOVAL_RECORD_LOCATION'
     raw=(json.dumps(value,sort_keys=True,indent=2)+'\n').encode()
     assert len(raw)<=1024**2,'REMOVAL_RECORD_BOUND'
@@ -88,7 +88,7 @@ def namespace_usage(api,poll=lambda:None):
         assert all(not (Path(base)/name).lstat().st_file_attributes&0x400 for name in dirs)
     return total
 
-def require_namespace_budget(api,hold=0):
+def namespace_budget(api,hold=0):
     original=(NAMESPACE/'execution-budget-baseline.json').read_bytes()
     baseline=json.loads(original)
     approval=json.loads((NAMESPACE/'recovery01-owner-approval.json').read_bytes())
@@ -143,13 +143,13 @@ def verify_backups(api,poll,locks):
         old=json.loads((ROOT/'.cache/test-runs/m5-fixture-consolidation-plan-20261015-01'/f'group-{number:02d}.json').read_bytes())
         for suffix,content in (('contents.tar.gz',True),('properties.json.gz',False)):
             name=f'root-{number:02d}.{suffix}';reader=archive.NativeReader(api,retained[name],poll)
-            if content:archive.verify_canonical_tar(reader,old['inventory'],poll)
+            if content:archive.verify_tar(reader,old['inventory'],poll)
             else:archive.verify_properties(reader,archive.compact(group),poll)
             row=next(value for value in result['payloads'] if value['name']==name)
             assert reader.count==row['size'] and reader.digest.hexdigest()==row['sha256']
     return result,index
 
-def verify_retained_links(api,entries,removed,poll):
+def verify_links(api,entries,removed,poll):
     """Check every remaining master link against the fresh raw-link record."""
     from compertum.runtime._windows import HANDLE,DWORD,BOOL
     device=c.WinDLL('kernel32',use_last_error=True).DeviceIoControl
@@ -186,7 +186,7 @@ def execute_removal(context):
     links=json.loads((namespace/'recovery01-stage-b-gate-links.json').read_bytes())
     assert capacity['capacity_qualified'] and not capacity['unknown_streams'] and not capacity['barriers'] and not capacity['ledger_failures']
     assert not links['incoming'] and not links['unresolved'] and not links['barriers']
-    archive.require_scratch_baseline(capacity['categories']['scratch'],capacity['outstanding_conservative_bytes']['scratch'])
+    archive.scratch_baseline(capacity['categories']['scratch'],capacity['outstanding_conservative_bytes']['scratch'])
     pending=dict(capacity['outstanding_conservative_bytes']);pending['records']+=10*1024**2
     assert pending['records']>=34*1024**2
     assert all(capacity['categories'][key]+pending[key]<=limit for key,limit in context['CAPS'].items() if key!='scratch')
@@ -202,7 +202,7 @@ def execute_removal(context):
         nonlocal last_budget
         base_poll()
         if time.monotonic()-last_budget>=.25:
-            require_namespace_budget(api,256*1024);last_budget=time.monotonic()
+            namespace_budget(api,256*1024);last_budget=time.monotonic()
     with ExitStack() as locks:
         parents={};handles={};by_name={row['path']:row for row in rows}
         def hold_outside(path):
@@ -264,8 +264,8 @@ def execute_removal(context):
         assert manifest_bytes<=1024**2
         # Hold the actual full manifest plus the entire journal, result and
         # final-receipt ceilings before the first irreversible operation.
-        require_namespace_budget(api,((manifest_bytes+4095)//4096)*4096+3*1024**2+1024**2+512*1024)
-        save_removal_record(manifest_path,manifest)
+        namespace_budget(api,((manifest_bytes+4095)//4096)*4096+3*1024**2+1024**2+512*1024)
+        save_removal(manifest_path,manifest)
         try:
             with journal_path.open('xb',buffering=0) as log:
                 def note(value):
@@ -286,7 +286,7 @@ def execute_removal(context):
                     changed_dirs.add(row['path'].rsplit('/',1)[0])
             for row in rows:absent(row)
             verify_backups(api,poll,locks)
-            preserved_links=verify_retained_links(api,links['links'],set(by_name),poll)
+            preserved_links=verify_links(api,links['links'],set(by_name),poll)
             for ledger in capacity['ledgers']:
                 path=ROOT/ledger['path'];assert context['digest'](path)==ledger['sha256']
                 assert not any(Path(str(path)+suffix).exists() for suffix in ('-wal','-shm','-journal'))
@@ -297,5 +297,5 @@ def execute_removal(context):
             result.update(error=type(error).__name__,detail=str(error));raise
         finally:
             result.update(entries_disposed=len(disposed_paths),entries_verified_absent=len(verified_paths),disposed_paths=disposed_paths,verified_absent_paths=verified_paths)
-            save_removal_record(result_path,result)
+            save_removal(result_path,result)
     return result

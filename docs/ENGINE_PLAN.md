@@ -494,6 +494,21 @@ that have a close that day, including members that later left. Its calendar and 
 VALIDATION session is dropped on load, so a stock that left early has no vault of its own, and nothing after the common vault date is ever scored.
 A held stock without a next close earns 0 for that session (a delisting return is not known). On the full-calendar universes the change gives the same
 weights and scores as before (all 75 settings compared on a fixture).
+First point-in-time sweep `library-multi-20261102-4ad46134` (1 November 2026, owner: "yes"): 654 members, 75 trials (total 28,165), 8.5 minutes, $0.
+No family beat the equal-weight S&P 500 members on VALIDATION (annual Sharpe 0.48); 0 passed the gate. Best by Sharpe: xs_low_vol (window 60, top 20%,
+monthly) 0.54, but its mean return was 1.7% a year below the benchmark, so it does not beat it. xs_momentum (20-day, skip 20, top 20%, monthly) 0.15,
+against 0.81 on the 328 of today's large names in the survivor sweep `library-multi-20261101-57890b28`. The difference is the survivorship effect that the
+point-in-time universe removes.
+
+Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
+the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
+to `open_market`; `history_market.load_history_market` to `build_market` and `load_history_manifest` to `open_history`; `gepa_run.score_for_cycle` to
+`cycle_score`, `gepa_cycle_level` to `gepa_cycle`, `score_with_speed` to `speed_score`, `speed_for_calls` to `call_speed`; `bench.bench_cycle_level` to
+`bench_cycle`; `control.close_abandoned_run` to `close_abandoned`; `practice.set_research_state` to `set_state`; `preflight.check_given_prompts` to
+`check_texts`; `prompts.load_routing_text` to `load_routing`; `roles.to_chat_messages` to `chat_messages`; the library functions `dip_in_trend`,
+`turn_of_month` and `day_of_week` to `trend_dip`, `month_turn` and `week_day` (their family keys in reports and the ledger are unchanged); and 324 test
+names. Kept: `roles.build_role_agent` (the sealed `cycle.py` calls it), five tool functions that product tests call, and `_get_ls_params`,
+`make_reflective_dataset` and `propose_new_texts`, which LangChain and GEPA require.
 
 Placeholder bars and reused tickers (1 November 2026; owner: "start with 1 and 2. Then retry the ones we couldnt get the first time").
 The evidence reader refused 21 stocks for a volume-weighted price of 0. A check of every refused stock-year (24 stock-years, 422 days) showed that each

@@ -51,7 +51,7 @@ def text_of(content):
     raise RuntimeRefused('AI_MESSAGES_DENIED')
 
 
-def to_chat_messages(messages):
+def chat_messages(messages):
     """LangChain messages to Chat Completions messages. Tool calls keep their ids so the ledger can pair call and result."""
     out=[]
     for message in messages:
@@ -115,7 +115,7 @@ class LedgerChatModel(BaseChatModel):
 
     def _generate(self,messages,stop=None,run_manager=None,**kwargs):
         if stop: raise RuntimeRefused('AI_SETTINGS_DENIED')
-        tools=kwargs.get('tools');chat=to_chat_messages(messages)
+        tools=kwargs.get('tools');chat=chat_messages(messages)
         settings=dict(purpose=self.purpose,max_tokens=self.max_tokens,temperature=self.temperature,seconds=self.seconds,override_tokens=self.override_tokens,
                       override_temperature=self.override_temperature)
         if tools: content,calls,entry=self.client.complete_tools(self.role,chat,tools,**settings)

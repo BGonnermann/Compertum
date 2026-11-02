@@ -121,4 +121,4 @@ def load_component(project_root,name):
     return check_component(name,text)
 
 
-def load_routing_text(project_root): return load_component(project_root,'routing')
+def load_routing(project_root): return load_component(project_root,'routing')

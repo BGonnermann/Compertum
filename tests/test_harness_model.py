@@ -16,7 +16,7 @@ def server_for(handler):
     return server, thread
 
 
-def test_streamed_reply_and_model_list(tmp_path):
+def test_streamed_reply(tmp_path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             raw = json.dumps({"data": [{"id": "scripted"}, {"id": ""}, {"id": "x" * 257}]}).encode()
@@ -52,7 +52,7 @@ def test_streamed_reply_and_model_list(tmp_path):
 
 @pytest.mark.parametrize("finish,model,code", [("length", "scripted", "AI_RESPONSE_TRUNCATED"),
                                                 ("stop", "other", "MODEL_IDENTITY_MISMATCH")])
-def test_bad_reply_finish_or_model_is_refused(finish, model, code):
+def test_bad_reply(finish, model, code):
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
             self.rfile.read(int(self.headers["Content-Length"]))
@@ -76,7 +76,7 @@ def test_bad_reply_finish_or_model_is_refused(finish, model, code):
         thread.join(timeout=2)
 
 
-def test_oversized_conversation_is_a_clean_model_error():
+def test_oversized_conversation():
     client = ModelClient(parse("http://127.0.0.1:1/v1"), "scripted", {})
     with pytest.raises(ModelError, match=r"CONVERSATION_FULL: the conversation holds 586 KiB of 512 KiB; use /new"):
         client.chat([{"role": "user", "content": "x" * 600000}], [], deadline=time.monotonic() + 5)
@@ -88,7 +88,7 @@ def test_oversized_conversation_is_a_clean_model_error():
     assert "CONVERSATION_FULL" not in str(failure.value) and "EVENT_INVALID" not in str(failure.value)
 
 
-def test_requests_leave_temperature_to_the_provider_and_errors_give_the_reason():
+def test_provider_temperature():
     # Kimi k3.1-pro answered HTTP 400 "invalid temperature: only 1 is allowed for this model" to temperature 0.
     bodies = []
 

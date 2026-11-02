@@ -31,7 +31,7 @@ from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.market import market_csv,parse_signals,score_signals,split_market,synthetic_market  # noqa: E402
 from compertum.ai.engine.prompts import ROUTING_DEFAULT,SETTINGS_DEFAULT,load_component,options_text,parse_routing,routing_text  # noqa: E402
 from compertum.ai.engine.tasks import STARTER_MAIN  # noqa: E402
-from compertum.ai.engine.roles import FILE_TOOLS,ROLES,LedgerChatModel,build_role_agent,load_prompt,to_chat_messages  # noqa: E402
+from compertum.ai.engine.roles import FILE_TOOLS,ROLES,LedgerChatModel,build_role_agent,load_prompt,chat_messages  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 from compertum.runtime.sandbox import verify_sandbox  # noqa: E402
 
@@ -162,7 +162,7 @@ def make_engine(bridge,root,verification,market,model_client,project_root):
                   train_csv=market['train_csv'],validation_csv=market['validation_csv'],validation_rows=market['validation_rows'],memory_floor_bytes=FLOOR)
 
 
-def test_prompts_load_from_the_project_and_carry_the_role_marker(tmp_path):
+def test_prompt_loading(tmp_path):
     for role in ROLES:
         text=load_prompt(PROJECT,role)
         assert text.startswith(f'ROLE: {role}\n') and len(text)<=16384
@@ -175,7 +175,7 @@ def test_prompts_load_from_the_project_and_carry_the_role_marker(tmp_path):
     with pytest.raises(RuntimeRefused,match='^AI_ROLE_DENIED$'): load_prompt(PROJECT,'auditor')
 
 
-def test_harden_environment_turns_tracing_off_and_removes_provider_key_names(monkeypatch):
+def test_harden_environment(monkeypatch):
     monkeypatch.setenv('ANTHROPIC_API_KEY','fixture-value-never-read');monkeypatch.setenv('LANGSMITH_TRACING','true')
     result=harden_environment()
     assert 'ANTHROPIC_API_KEY' in result['removed_keys'] and 'ANTHROPIC_API_KEY' not in os.environ
@@ -187,7 +187,7 @@ def test_harden_environment_turns_tracing_off_and_removes_provider_key_names(mon
     assert utils.tracing_is_enabled() is False
 
 
-def test_director_summary_is_bounded(bridge):
+def test_director_summary(bridge):
     from compertum.events import canonical
     b,_=bridge;ledger=EngineLedger(b.store)
     for index in range(1,26):
@@ -198,7 +198,7 @@ def test_director_summary_is_bounded(bridge):
     assert summary['recent'][-1]['cycle_index']==25 and len(summary['recent'][-1]['hypotheses'][0]['title'])==120 and 'extra' not in summary['recent'][-1]['candidates'][0]
 
 
-def test_ledger_chat_model_sends_every_call_through_the_e1_client():
+def test_ledger_model():
     from langchain_core.messages import AIMessage,HumanMessage,SystemMessage,ToolMessage
     from langchain_core.tools import tool
     @tool
@@ -225,11 +225,11 @@ def test_ledger_chat_model_sends_every_call_through_the_e1_client():
         assert [e['status'] for e in ledger.entries]==['COMPLETED']*3 and all(e['role']=='engineer' for e in ledger.entries)
         with pytest.raises(RuntimeRefused,match='^AI_TOOLS_DENIED$'): model.bind_tools([run_job],tool_choice='any')
         with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'): model.invoke([HumanMessage(content='x')],stop=['\n'])
-        with pytest.raises(RuntimeRefused,match='^AI_MESSAGES_DENIED$'): to_chat_messages([HumanMessage(content=[{'type':'image_url','image_url':'x'}])])
-        assert to_chat_messages([AIMessage(content=[{'type':'text','text':'a'},'b'])])==[{'role':'assistant','content':'ab'}]
+        with pytest.raises(RuntimeRefused,match='^AI_MESSAGES_DENIED$'): chat_messages([HumanMessage(content=[{'type':'image_url','image_url':'x'}])])
+        assert chat_messages([AIMessage(content=[{'type':'text','text':'a'},'b'])])==[{'role':'assistant','content':'ab'}]
 
 
-def test_text_roles_get_no_tools_and_the_engineer_gets_file_tools_and_run_job(bridge,root,verification,market,project):
+def test_role_tools(bridge,root,verification,market,project):
     with role_server() as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         sandbox=EngineerSandbox(root,ledger=engine.ledger,lease=engine.lease,verification=verification,cycle_id='cycle-tools',
@@ -254,7 +254,7 @@ def test_text_roles_get_no_tools_and_the_engineer_gets_file_tools_and_run_job(br
             with pytest.raises(RuntimeRefused): build_role_agent(kw['role'],c,system_prompt=kw['system_prompt'],recursion_limit=kw.get('recursion_limit',40))
 
 
-def test_recursion_limit_bounds_a_looping_agent():
+def test_recursion_limit():
     with role_server(mode='loopvary') as (port,state):
         c=client(port,limit=50)
         agent=build_role_agent('engineer',c,system_prompt=load_prompt(PROJECT,'engineer'),recursion_limit=6)
@@ -262,7 +262,7 @@ def test_recursion_limit_bounds_a_looping_agent():
         assert 1<=c.requests<=4 and len(state['posts'])==c.requests
 
 
-def test_repeated_identical_tool_calls_stop_the_agent_before_the_step_limit():
+def test_repeat_guard():
     # Practice run 1: a real model repeated the same file reads until the step limit, 20 requests for nothing.
     with role_server(mode='loop') as (port,state):
         c=client(port,limit=50)
@@ -274,7 +274,7 @@ def test_repeated_identical_tool_calls_stop_the_agent_before_the_step_limit():
         assert c.requests==6
 
 
-def test_synthetic_market_and_validator_adapter_are_deterministic_and_strict(market):
+def test_validator_adapter(market):
     assert synthetic_market(7,300,planted={'kind':'momentum','window':5,'strength':0.004})==synthetic_market(7,300,planted={'kind':'momentum','window':5,'strength':0.004})
     assert synthetic_market(7,300)!=synthetic_market(8,300)
     rows=market['validation_rows'];sessions=[str(r['session']) for r in rows]
@@ -292,7 +292,7 @@ def test_synthetic_market_and_validator_adapter_are_deterministic_and_strict(mar
         with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): synthetic_market(bad.pop('seed'),bad.pop('sessions'),**bad)
 
 
-def test_replies_are_parsed_strictly():
+def test_strict_replies():
     assert parse_json_reply('```json\n{"a": 1}\n```')=={'a':1} and parse_json_reply('Sure: {"a": [1]} done')=={'a':[1]}
     for bad in ('[1]','no json here','','{"a":',None,'x'*70000):
         with pytest.raises(RuntimeRefused,match='^ENGINE_REPLY_INVALID$'): parse_json_reply(bad)
@@ -304,7 +304,7 @@ def test_replies_are_parsed_strictly():
     with pytest.raises(RuntimeRefused,match='^ENGINE_REPLY_INVALID$'): parse_decision('{"decision":"maybe","reason":"r"}')
 
 
-def test_sandbox_tool_refuses_bad_files_and_records_every_run(bridge,root,verification,market):
+def test_sandbox_tool(bridge,root,verification,market):
     b,_=bridge;ledger=EngineLedger(b.store)
     sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=verification,cycle_id='cycle-files',
                             train_csv=market['train_csv'],validation_csv=market['validation_csv'],memory_floor_bytes=FLOOR,max_runs=2)
@@ -324,7 +324,7 @@ def test_sandbox_tool_refuses_bad_files_and_records_every_run(bridge,root,verifi
     assert job_files({'/a/b.py':'x'})=={'a/b.py':'x'}
 
 
-def test_each_candidate_has_its_own_engineer_runs_and_the_cycle_total_is_bounded(bridge,root,verification,market):
+def test_engineer_runs(bridge,root,verification,market):
     # Practice run 11: one count for the whole cycle left later candidates with no run at all.
     b,_=bridge;ledger=EngineLedger(b.store)
     sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=verification,cycle_id='cycle-budget',
@@ -339,7 +339,7 @@ def test_each_candidate_has_its_own_engineer_runs_and_the_cycle_total_is_bounded
     assert [r['status'] for r in ledger.runs('cycle-budget')].count('COMPLETED')==6
 
 
-def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,market,project):
+def test_supervised_cycle(bridge,root,verification,market,project):
     # Master's state/engine may hold real practice-run records (since 24 October 2026); this test must add nothing there.
     master_engine_state=PROJECT/'state'/'engine'
     def master_listing(): return sorted(str(p) for p in master_engine_state.rglob('*')) if master_engine_state.exists() else []
@@ -389,7 +389,7 @@ def test_one_supervised_cycle_on_the_synthetic_market(bridge,root,verification,m
         assert store.runs(result['cycle_id']+'-tool')[0]['purpose']=='tool' and all(r['purpose']!='tool' for r in runs)  # the Auditor sees only the candidates' runs
 
 
-def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,market,project):
+def test_routing_inputs(bridge,root,verification,market,project):
     """Routing (owner direction, 26 October 2026): every route on, then the review off. The routing changes what roles receive, never the judge."""
     on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes','director_sees_tool':'yes','researcher_sees_tool':'yes','specify_sees_tool':'yes'}
     (project/'config'/'engine_prompts'/'routing.md').write_text(routing_text(on),encoding='utf-8',newline='\n')
@@ -421,7 +421,7 @@ def test_the_routing_sends_each_input_where_it_says(bridge,root,verification,mar
     with pytest.raises(RuntimeRefused,match='^ENGINE_ROUTING_INVALID$'): run_cycle(engine,3)
 
 
-def test_the_settings_tool_and_starter_slots_change_the_cycle(bridge,root,verification,market,project):
+def test_settings_slots(bridge,root,verification,market,project):
     """The firm's other slots (26 October 2026): settings, the analysis tool and the Engineer's starter, all from one GEPA candidate."""
     settings=dict(SETTINGS_DEFAULT,hypotheses='1',mathematician_max_tokens='4096',mathematician_temperature='0.7')
     # The tool reads train.csv; its validation.csv holds the header only, so it cannot see a validation row.
@@ -455,7 +455,7 @@ def test_the_settings_tool_and_starter_slots_change_the_cycle(bridge,root,verifi
         with pytest.raises(RuntimeRefused,match=f'^{code}$'): run_cycle(engine,3)
 
 
-def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_market(bridge,root,verification,market,project):
+def test_lessons_table(bridge,root,verification,market,project):
     with role_server() as (port,state):
         ledger=ListLedger();c=client(port,ledger,limit=120);engine=make_engine(bridge,root,verification,market,c,project)
         first=run_cycle(engine,1);posts=len(state['posts']);second=run_cycle(engine,2)
@@ -469,7 +469,7 @@ def test_the_second_pick_shows_the_lessons_table_of_the_first_cycle_on_this_mark
         starts=[r for r in engine.ledger.cycles() if r['phase']=='START'];assert all(r['market_sha256']==first['market_sha256'] for r in starts)
 
 
-def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,verification,market,project):
+def test_loopback_freeze(bridge,root,verification,market,project):
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(60);port=listener.getsockname()[1]
     def accept():
         try:
@@ -499,7 +499,7 @@ def test_engineer_code_that_reaches_loopback_freezes_the_engine(bridge,root,veri
         listener.close();waiter.join(timeout=3)
 
 
-def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root,verification,market,project):
+def test_faulty_memo(bridge,root,verification,market,project):
     # Owner direction, 24 October 2026: a step fault is recorded, not a reason to stop the cycle and learn nothing.
     with role_server(mode='memofault') as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
@@ -513,7 +513,7 @@ def test_a_faulty_memo_rejects_that_hypothesis_and_the_cycle_goes_on(bridge,root
         assert engine.ledger.cycles()[-1]['faults']==result['faults']
 
 
-def test_an_unusable_json_reply_gets_one_retry_that_shows_the_failure(bridge,root,verification,market,project):
+def test_json_retry(bridge,root,verification,market,project):
     with role_server(mode='badjson') as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -531,7 +531,7 @@ def test_an_unusable_json_reply_gets_one_retry_that_shows_the_failure(bridge,roo
         assert [s.get('retry') for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='pick' and s['phase']=='INVALID']==[0,1]
 
 
-def test_a_build_fault_after_a_completed_run_still_scores_the_signals(bridge,root,verification,market,project):
+def test_build_fault(bridge,root,verification,market,project):
     with role_server(mode='postloop') as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -555,7 +555,7 @@ def test_a_build_fault_after_a_completed_run_still_scores_the_signals(bridge,roo
         assert tool_results and 'is accepted' in tool_results[0] and 'Reply with the single word DONE' in tool_results[0]
 
 
-def test_an_engineer_reply_without_a_run_gets_one_retry(bridge,root,verification,market,project):
+def test_run_retry(bridge,root,verification,market,project):
     with role_server(mode='norun') as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -567,7 +567,7 @@ def test_an_engineer_reply_without_a_run_gets_one_retry(bridge,root,verification
         assert retry_task.startswith('Build this specification') and 'without running the program' in retry_task and 'DONE I read the starter' in retry_task and 'SPECIFICATION\n' in retry_task
 
 
-def test_the_engineer_can_read_the_specification_file_from_its_store(bridge,root,verification,market,project):
+def test_specification_file(bridge,root,verification,market,project):
     with role_server(mode='readspec') as (port,state):
         c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -577,7 +577,7 @@ def test_the_engineer_can_read_the_specification_file_from_its_store(bridge,root
         assert reads and SPEC.splitlines()[0] in reads[0]  # read_file returned the specification text, not an error
 
 
-def test_a_streak_of_read_only_rounds_stops_the_engineer_with_no_progress():
+def test_readonly_streak():
     # Practice run 10: a real model read different missing files round after round, which the identical-call guard cannot see.
     with role_server(mode='loopvary') as (port,state):
         c=client(port,limit=50)
@@ -588,7 +588,7 @@ def test_a_streak_of_read_only_rounds_stops_the_engineer_with_no_progress():
         assert c.requests==10  # the streak starts from zero with the next conversation
 
 
-def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,market,project):
+def test_request_limit(bridge,root,verification,market,project):
     with role_server() as (port,state):
         c=client(port,limit=3);engine=make_engine(bridge,root,verification,market,c,project)
         result=run_cycle(engine,1)
@@ -599,7 +599,7 @@ def test_request_limit_stops_the_cycle_and_is_recorded(bridge,root,verification,
         with pytest.raises(RuntimeRefused,match='^ENGINE_CYCLE_DENIED$'): run_cycle(engine,0)
 
 
-def test_the_chat_message_carries_the_stop_reason_and_the_token_counts():
+def test_stop_reason():
     """26 October 2026: LangChain sees what the ledger records, so a capped reply is visible in the agent's own messages too."""
     from compertum.ai.engine.roles import LedgerChatModel,usage_metadata
     assert usage_metadata(None) is None and usage_metadata({'prompt_tokens':'x','completion_tokens':1}) is None
@@ -613,7 +613,7 @@ def test_the_chat_message_carries_the_stop_reason_and_the_token_counts():
     assert message.usage_metadata=={'input_tokens':900,'output_tokens':700,'total_tokens':1600,'output_token_details':{'reasoning':512}}
 
 
-def test_the_market_fingerprint_keeps_its_value_for_small_markets_and_accepts_calibrated_ones():
+def test_market_fingerprint():
     from types import SimpleNamespace
     from compertum.ai.engine.cycle import market_sha256
     from compertum.ai.engine.market import split_market_tiers
@@ -625,7 +625,7 @@ def test_the_market_fingerprint_keeps_its_value_for_small_markets_and_accepts_ca
     assert len(large.train_csv)+len(large.validation_csv)>65536 and len(market_sha256(large))==64
 
 
-def test_the_ideas_of_a_cycle_run_side_by_side_with_the_same_outcome_as_in_order(bridge,root,verification,market,project):
+def test_parallel_ideas(bridge,root,verification,market,project):
     """31 October 2026: memo, decision and specification per idea, then each candidate's build and review, run in parallel threads;
     scoring, the gate and the Auditor follow in candidate order. Three approved ideas on a slow server take far less than three times one idea."""
     from dataclasses import replace

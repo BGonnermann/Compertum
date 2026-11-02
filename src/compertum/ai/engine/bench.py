@@ -194,7 +194,7 @@ def bench_level(candidate,score,trials=BENCH_TRIALS):
     return 10 if level>=7 and audited(candidate) and local['status']=='PASS' else level
 
 
-def bench_cycle_level(cycle,trials=BENCH_TRIALS):
+def bench_cycle(cycle,trials=BENCH_TRIALS):
     scores=cycle.get('scores') or {}
     levels=[bench_level(c,scores.get(c.get('hypothesis_id')),trials) for c in cycle.get('candidates') or [] if isinstance(c,dict)]
     return max(levels) if levels else 1
@@ -208,7 +208,7 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
         mine=[c for c in cycles if c.get('market')==market['label']]
         reference=reference_score(market);patterned=market['kind'] is not None
         row={'market':market['label'],'pattern':patterned,'cycles':len(mine),'cycles_stopped':sum(1 for c in mine if c.get('stop_code') is not None),
-             'levels':[bench_cycle_level(c,trials) for c in mine],'candidates':0,'scored':0,'beat_buy_and_hold':0,'audit_passed':0,'bench_gate_passed':0,
+             'levels':[bench_cycle(c,trials) for c in mine],'candidates':0,'scored':0,'beat_buy_and_hold':0,'audit_passed':0,'bench_gate_passed':0,
              'best_capture':None,'reference':{'sharpe':reference['sharpe'],'benchmark_sharpe':reference['benchmark_sharpe'],'beats_baseline':reference['beats_baseline'],
                                               'bench_deflated_sharpe':bench_deflation(reference,trials)['deflated_sharpe']},
              'statuses':{}}

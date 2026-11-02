@@ -11,7 +11,7 @@ from compertum.harness.model import ModelClient
 from compertum.harness.tools import WorkspaceTools
 
 
-def test_real_agent_loop_uses_a_scripted_model_and_read_tool(tmp_path):
+def test_agent_loop(tmp_path):
     (tmp_path / "note.txt").write_text("hello")
     requests = []
     class Handler(BaseHTTPRequestHandler):
@@ -54,7 +54,7 @@ def test_real_agent_loop_uses_a_scripted_model_and_read_tool(tmp_path):
     assert [kind for kind, _ in records].count("message") == 5
 
 
-def test_resume_closes_a_tool_call_left_open_by_process_exit(tmp_path):
+def test_resume_closes(tmp_path):
     records = []
     agent = Agent(None, None, Limits(1, 1), Display(StringIO(), color=False), tmp_path,
                   emit=lambda kind, payload: records.append((kind, payload)))
@@ -65,7 +65,7 @@ def test_resume_closes_a_tool_call_left_open_by_process_exit(tmp_path):
     assert messages[-1] == {"role": "tool", "tool_call_id": "open", "content": "not run: the task was stopped"}
 
 
-def test_sensitive_task_is_not_sent_or_recorded(tmp_path):
+def test_sensitive_task(tmp_path):
     records = []
     agent = Agent(None, None, Limits(1, 1), Display(StringIO(), color=False), tmp_path,
                   emit=lambda kind, payload: records.append((kind, payload)))
@@ -75,7 +75,7 @@ def test_sensitive_task_is_not_sent_or_recorded(tmp_path):
     assert records == []  # Neither the refused task nor the unused system message is saved.
 
 
-def test_edit_diff_reaches_the_display_but_not_the_model(tmp_path):
+def test_display_diff(tmp_path):
     from types import SimpleNamespace
     (tmp_path / "note.txt").write_text("hello\n")
     replies = iter([
@@ -93,7 +93,7 @@ def test_edit_diff_reaches_the_display_but_not_the_model(tmp_path):
     assert agent.messages[-2] == {"role": "tool", "tool_call_id": "call-1", "content": "edited note.txt"}
 
 
-def test_unexpected_errors_and_failed_saves_still_end_the_task(tmp_path):
+def test_unexpected_errors(tmp_path):
     from types import SimpleNamespace
     output = StringIO()
 

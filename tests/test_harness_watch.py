@@ -49,7 +49,7 @@ def project(tmp_path):
     return root
 
 
-def test_engine_runs_list_running_first_with_progress(tmp_path):
+def test_running_first(tmp_path):
     root = project(tmp_path)
     assert engine_runs(root) == []
     store(root, [("run-old", "bench", 300, True, 4), ("run-live", "gepa", 42, False, 3)])
@@ -64,7 +64,7 @@ def test_engine_runs_list_running_first_with_progress(tmp_path):
     assert duration(59) == "0:59" and duration(3725) == "1:02:05"
 
 
-def test_watch_picks_an_outside_engine_run_and_opens_the_live_view(tmp_path):
+def test_outside_run(tmp_path):
     root = project(tmp_path)
     store(root, [("run-live", "gepa", 5, False, 2)])
     shown, watched = [], []
@@ -87,7 +87,7 @@ def test_watch_picks_an_outside_engine_run_and_opens_the_live_view(tmp_path):
     assert '"run": "run-live"' in text and '"engine_runs": [' in text
 
 
-def test_scripted_watch_shows_the_newest_running_run_and_cancel_shows_nothing(tmp_path):
+def test_scripted_watch(tmp_path):
     root = project(tmp_path)
     store(root, [("run-old", "bench", 300, True, 1), ("run-live", "gepa", 5, False, 1)])
     output = StringIO()
@@ -101,7 +101,7 @@ def test_scripted_watch_shows_the_newest_running_run_and_cancel_shows_nothing(tm
     assert '"run":' not in output.getvalue()
 
 
-def test_live_view_refreshes_on_its_interval_and_survives_a_read_error():
+def test_live_refresh():
     keys = iter(["", "", "", "q"])
     ticks = iter([0.0, 0.5, 1.0, 2.5, 2.5, 3.0])
     calls = []
@@ -121,7 +121,7 @@ def test_live_view_refreshes_on_its_interval_and_survives_a_read_error():
     assert text.startswith("\x1b[?25l") and text.endswith("\x1b[?25h")
 
 
-def test_watch_opens_a_side_pane_so_the_prompt_stays_free(tmp_path):
+def test_side_pane(tmp_path):
     from compertum.harness import pane
     root = project(tmp_path)
     store(root, [("run-live", "gepa", 5, False, 2)])
@@ -144,7 +144,7 @@ def test_watch_opens_a_side_pane_so_the_prompt_stays_free(tmp_path):
     assert not pane.available({"WT_SESSION": "x"}, lambda name: None)
 
 
-def test_pane_view_reads_engine_and_harness_runs_without_changing_them(tmp_path):
+def test_pane_readonly(tmp_path):
     import os
     from compertum.harness import pane
     root = project(tmp_path)

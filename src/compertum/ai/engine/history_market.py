@@ -22,7 +22,7 @@ MIN_HISTORY_SESSIONS=50
 from .real_market import MANIFEST_BYTES,_json,_read
 
 
-def load_history_manifest(project_root,manifest_path):
+def open_history(project_root,manifest_path):
     root=Path(project_root).absolute()
     value=_json(_read(root,manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
     try: return validate_record('engine_market_history.v1',value,project_root=root)
@@ -30,7 +30,7 @@ def load_history_manifest(project_root,manifest_path):
 
 
 def load_history(project_root,manifest_path):
-    root=Path(project_root).absolute();manifest=load_history_manifest(root,manifest_path);symbol=manifest['symbol']
+    root=Path(project_root).absolute();manifest=open_history(root,manifest_path);symbol=manifest['symbol']
     if len(manifest['chunks'])>MAX_CHUNKS: raise RuntimeRefused('ENGINE_MARKET_INPUT_BOUND')
     closes={};hashes=[];total=0
     for item in manifest['chunks']:
@@ -75,5 +75,5 @@ def history_market(history,sessions=None):
     return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':label,'provenance':provenance,'vault_sessions':len(vault)},vault
 
 
-def load_history_market(project_root,manifest_path,*,sessions=None):
+def build_market(project_root,manifest_path,*,sessions=None):
     return history_market(load_history(project_root,manifest_path),sessions)

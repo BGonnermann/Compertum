@@ -15,7 +15,7 @@ import pytest
 deepagents=pytest.importorskip('deepagents')
 from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
 from test_ai_models_interface import FLOOR,roles  # noqa: E402
-from test_engine_limits import set_research_state  # noqa: E402
+from test_engine_limits import set_state  # noqa: E402
 from test_engine_roles import ENGINEER_CODE,role_server  # noqa: E402
 from test_engine_run import project  # noqa: E402,F401  (fixture)
 from compertum.ai.engine import audit as audit_module,control  # noqa: E402
@@ -86,8 +86,8 @@ def start(bridge,project,root,verification,tiers,port,limits):
                        memory_floor_bytes=FLOOR,limits=limits,owner_approval='Owner OK for the acceptance fixture run',available_memory=lambda:FLOOR+1)
 
 
-def test_bounded_run_finds_the_planted_pattern_and_opens_the_vault_only_with_the_owner(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_bounded_run(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     assert verification['fixed_targets'] and len(verification['fixed_targets'])>=10 and verification['controls']['fixed_targets_read_denied'] is True
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
@@ -128,8 +128,8 @@ def test_bounded_run_finds_the_planted_pattern_and_opens_the_vault_only_with_the
     assert '- 1 candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.' in summary and 'Queue: '+candidate['candidate_id'] in summary
 
 
-def test_write_to_a_fixed_part_fails_the_run_and_freezes_the_engine(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_fixed_write(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     target=str(PROJECT/'AGENTS.md').replace('\\','\\\\');before=(PROJECT/'AGENTS.md').read_bytes()
     with role_server(engineer_code=WRITE_FIXED_CODE.replace('TARGET',target)) as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=3))
@@ -142,8 +142,8 @@ def test_write_to_a_fixed_part_fails_the_run_and_freezes_the_engine(bridge,proje
     control.clear_freeze(store,frozen[0]['freeze_id'],'owner cleared after review (fixture)');assert ledger.active_freezes()==[]
 
 
-def test_non_reproducible_candidate_is_rejected_without_a_freeze(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_reproduce_reject(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     with role_server(engineer_code=RANDOM_CODE) as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
     candidate=result['cycles'][0]['candidates'][0]
@@ -153,8 +153,8 @@ def test_non_reproducible_candidate_is_rejected_without_a_freeze(bridge,project,
     summary=Path(result['summary_path']).read_text(encoding='utf-8');assert '- 1 failed the Auditor (not reproducible or lookahead).' in summary
 
 
-def test_lookahead_candidate_is_rejected_by_the_perturbation_check(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_lookahead_reject(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     with role_server(engineer_code=LOOKAHEAD_CODE) as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
     candidate=result['cycles'][0]['candidates'][0];score=next(s for s in ledger.steps(result['cycles'][0]['cycle_id']) if s['kind']=='score')['score']
@@ -186,8 +186,8 @@ print('signals written',len(rows))
 '''
 
 
-def test_a_candidate_that_does_not_beat_buy_and_hold_is_not_audited(bridge,project,root,verification,tiers):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_hold_unaudited(bridge,project,root,verification,tiers):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     with role_server(engineer_code=FLAT_CODE) as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
     cycle=result['cycles'][0];candidate=cycle['candidates'][0]
@@ -195,8 +195,8 @@ def test_a_candidate_that_does_not_beat_buy_and_hold_is_not_audited(bridge,proje
     assert [r['purpose'] for r in ledger.runs(cycle['cycle_id'])]==['engineer'] and not any(s['kind']=='audit' for s in ledger.steps(cycle['cycle_id']))
 
 
-def test_an_integrity_failure_below_the_gate_still_freezes_the_engine(bridge,project,root,verification,tiers,monkeypatch):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_integrity_freeze(bridge,project,root,verification,tiers,monkeypatch):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     below_gate(monkeypatch,'0.97000000')  # status FAIL with a value above the minimum: the record contradicts itself
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=2))
@@ -206,10 +206,10 @@ def test_an_integrity_failure_below_the_gate_still_freezes_the_engine(bridge,pro
     control.clear_freeze(store,frozen[0]['freeze_id'],'owner cleared after review (fixture)');assert ledger.active_freezes()==[]
 
 
-def test_an_honest_strategy_below_the_gate_is_audited_kept_and_never_queued(bridge,project,root,verification,tiers,monkeypatch):
+def test_honest_kept(bridge,project,root,verification,tiers,monkeypatch):
     # Owner decision, 25 October 2026: the Auditor checks every candidate that beats buy-and-hold, not only those at the gate.
     from compertum.ai.engine.gepa_run import candidate_level
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
     with role_server() as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
     cycle=result['cycles'][0];candidate=cycle['candidates'][0]
@@ -221,9 +221,9 @@ def test_an_honest_strategy_below_the_gate_is_audited_kept_and_never_queued(brid
     assert candidate_level(candidate,score)==9  # beat buy-and-hold, audited, deflated Sharpe 0.80
 
 
-def test_a_lookahead_strategy_below_the_gate_is_rejected_without_a_freeze(bridge,project,root,verification,tiers,monkeypatch):
+def test_lookahead_below(bridge,project,root,verification,tiers,monkeypatch):
     from compertum.ai.engine.gepa_run import candidate_level
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store);below_gate(monkeypatch)
     with role_server(engineer_code=LOOKAHEAD_CODE) as (port,state):
         result=start(bridge,project,root,verification,tiers,port,RunLimits(request_limit=100,cycle_limit=1))
     cycle=result['cycles'][0];candidate=cycle['candidates'][0]
@@ -233,8 +233,8 @@ def test_a_lookahead_strategy_below_the_gate_is_rejected_without_a_freeze(bridge
     assert candidate_level(candidate,score)==3  # cheating sits below every honest strategy at any deflated Sharpe
 
 
-def test_auditor_integrity_failure_freezes_the_engine(bridge,project,root,verification,tiers,monkeypatch):
-    b,_=bridge;store=b.store;set_research_state(store,'RUNNING');ledger=EngineLedger(store)
+def test_auditor_freeze(bridge,project,root,verification,tiers,monkeypatch):
+    b,_=bridge;store=b.store;set_state(store,'RUNNING');ledger=EngineLedger(store)
     # The recorded score and the Auditor's recomputation disagree: a judge or ledger fault, never a candidate defect.
     monkeypatch.setattr(audit_module,'score_signals',lambda text,rows: {'tampered':True})
     with role_server() as (port,state):

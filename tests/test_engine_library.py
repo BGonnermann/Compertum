@@ -25,13 +25,13 @@ def market(symbol,seed,count=700,train=420):
     data=rows(count,seed);return {'symbol':symbol,'label':f'fixture {symbol}','train_rows':data[:train],'validation_rows':data[train:]}
 
 
-def test_the_grid_has_ten_families_and_67_settings():
+def test_grid_size():
     assert len(library.FAMILIES)==10 and library.SETTINGS==67
     for name,(rule,grid) in library.FAMILIES.items():
         assert grid and len({json.dumps(k,sort_keys=True) for k in grid})==len(grid),name
 
 
-def test_every_family_is_causal_and_long_or_flat():
+def test_causal_families():
     """Changing prices after session k never changes a position at or before k (calendar rules read only the next session's date)."""
     base=rows(600,7);changed=[dict(r) for r in base]
     for r in changed[400:]: r['close']=f"{float(r['close'])*1.5:.6f}"
@@ -43,11 +43,11 @@ def test_every_family_is_causal_and_long_or_flat():
             assert pa[:400]==pb[:400],(name,knobs)
 
 
-def test_calendar_rules_use_the_next_session_date():
+def test_calendar_rules():
     data=rows(60,3);s=library.series(data,[])
-    monday=library.day_of_week(s,weekday=0)
+    monday=library.week_day(s,weekday=0)
     assert all(p==(1 if date.fromisoformat(data[t+1]['session']).weekday()==0 else 0) for t,p in enumerate(monday[:-1])) and monday[-1]==0
-    tom=library.turn_of_month(s,last=1,first=1)
+    tom=library.month_turn(s,last=1,first=1)
     for t in range(len(data)-1):
         today=date.fromisoformat(data[t]['session']);nxt=date.fromisoformat(data[t+1]['session'])
         if today.month!=nxt.month: assert tom[t]==1 and (t==0 or tom[t-1]==1),data[t+1]['session']
@@ -55,12 +55,12 @@ def test_calendar_rules_use_the_next_session_date():
             assert tom[t]==0,data[t+1]['session']
 
 
-def test_knobs_are_chosen_on_train_only():
+def test_train_knobs():
     m=market('AAA',11);other=dict(m);other['validation_rows']=[dict(r,close=f"{float(r['close'])*0.7:.6f}") for r in m['validation_rows']]
     assert library.choose(m)==library.choose(other)
 
 
-def test_the_sweep_counts_every_setting_before_validation_and_uses_the_real_gate(bridge,monkeypatch):
+def test_sweep_gate(bridge,monkeypatch):
     b,_=bridge;ledger=EngineLedger(b.store);ledger.record_external_trials('earlier',100,{})
     markets=[market('AAA',1),market('BBB',2)];order=[]
     real_record=ledger.record_external_trials;real_validate=library.validate
@@ -78,7 +78,7 @@ def test_the_sweep_counts_every_setting_before_validation_and_uses_the_real_gate
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): library.sweep([market('AAA',1),market('AAA',2)],ledger,run_id='library-20261101-00000002',note='x')
 
 
-def test_a_planted_trend_is_found_and_passes_while_noise_rarely_does(bridge):
+def test_planted_trend(bridge):
     """A strong drift regime switch that a moving-average rule can follow should beat buy-and-hold; the gate decides the rest."""
     b,_=bridge;ledger=EngineLedger(b.store)
     data=rows(900,5,drift=0.0)
@@ -93,23 +93,23 @@ def test_a_planted_trend_is_found_and_passes_while_noise_rarely_does(bridge):
     assert any(r['validation']['beats_baseline'] for r in best)
 
 
-def test_the_command_refuses_without_markets_or_note(tmp_path,capsys):
+def test_command_refusals(tmp_path,capsys):
     assert library.main(['--project',str(tmp_path),'sweep','--note','x'])==2 and json.loads(capsys.readouterr().out)=={'refused':'ENGINE_RUN_LIMITS_DENIED'}
     assert library.main(['--project',str(tmp_path),'sweep','--all','--note',' '])==2
 
 
-def test_a_market_that_fails_to_load_is_skipped_and_reported(tmp_path,monkeypatch):
+def test_skipped_market(tmp_path,monkeypatch):
     def fake(root,path):
         if 'BAD' in path: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
         m=market('GOOD',1);return {'label':'fixture','train_csv':'session,close,return'+chr(10)+''.join(f"{r['session']},{r['close']},{r['return']}"+chr(10) for r in m['train_rows']),
                                    'validation_rows':m['validation_rows']},[]
     import compertum.ai.engine.real_market as real_market
-    monkeypatch.setattr(real_market,'load_market_manifest',fake)
+    monkeypatch.setattr(real_market,'open_market',fake)
     out,skipped=library.load_markets(tmp_path,['data/history/GOOD/manifest.json','data/history/BAD/manifest.json'])
     assert [m['symbol'] for m in out]==['GOOD'] and skipped==[{'symbol':'BAD','code':'ENGINE_MARKET_COVERAGE_INCOMPLETE'}] and len(out[0]['train_rows'])==420
 
 
-def test_all_finds_every_history_manifest_with_forward_slashes(tmp_path,monkeypatch,capsys):
+def test_all_manifests(tmp_path,monkeypatch,capsys):
     for symbol in ('AAA','BRK.B'):
         (tmp_path/'data'/'history'/symbol).mkdir(parents=True);(tmp_path/'data'/'history'/symbol/'manifest.json').write_text('{}',encoding='utf-8')
     seen=[]

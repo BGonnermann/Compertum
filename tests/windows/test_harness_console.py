@@ -76,7 +76,7 @@ json.dump({"text": text, "paste": paste, "before": before.value, "after": after.
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="Windows console input")
 
 
-def test_composer_reads_real_console_key_and_resize_events(tmp_path):
+def test_console_keys(tmp_path):
     # A hidden console gives the child a real input buffer without opening a window.
     result = subprocess.run([sys.executable, "-c", CHILD], capture_output=True, text=True, encoding="utf-8",
                             timeout=30, creationflags=subprocess.CREATE_NO_WINDOW, cwd=tmp_path)

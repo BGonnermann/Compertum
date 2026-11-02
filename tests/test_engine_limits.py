@@ -19,7 +19,7 @@ from compertum.runtime.errors import RuntimeRefused
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def set_research_state(store,value):
+def set_state(store,value):
     with store._live(),store.conn: store.conn.execute('INSERT INTO state VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',('research_state',canonical(value).decode()))
 
 
@@ -27,7 +27,7 @@ def settings_file(root,text):
     (root/'config').mkdir(exist_ok=True);(root/'config'/'engine.toml').write_text(text,encoding='utf-8')
 
 
-def test_hard_maximum_comes_only_from_the_owner_file(tmp_path):
+def test_hard_maximum(tmp_path):
     # The committed file holds the owner's value (450 from 24 October 2026; 600, then 10000 since 26 October 2026). The engine only reads it.
     assert load_run_settings(PROJECT)=={'request_hard_maximum':10000,'path':'config/engine.toml'}
     settings_file(tmp_path,'[run]\nrequest_hard_maximum = 500\n');assert load_run_settings(tmp_path)['request_hard_maximum']==500
@@ -42,7 +42,7 @@ def test_hard_maximum_comes_only_from_the_owner_file(tmp_path):
     assert HARD_MAXIMUM_CEILING==10000
 
 
-def test_run_limits_need_one_bound_and_stay_under_the_hard_maximum():
+def test_run_limits():
     assert check_limits(RunLimits(request_limit=40,cycle_limit=3),100)=={'cycle_limit':3,'hour_limit':None,'request_limit':40,'request_hard_maximum':100}
     assert check_limits(RunLimits(request_limit=100,hour_limit=1.5),100)['hour_limit']==1.5
     assert check_limits(RunLimits(request_limit=1,cycle_limit=MAX_CYCLES,hour_limit=MAX_HOURS),1)['cycle_limit']==1000
@@ -58,23 +58,23 @@ def test_run_limits_need_one_bound_and_stay_under_the_hard_maximum():
     assert stop_reason('ENGINE_FROZEN')=='FROZEN' and stop_reason('AVAILABLE_RAM_FLOOR')=='STOPPED_AVAILABLE_RAM_FLOOR'
 
 
-def test_run_gate_stops_on_stop_file_pause_hour_limit_and_freeze(bridge,tmp_path):
+def test_run_gate(bridge,tmp_path):
     b,_=bridge;store=b.store;ledger=EngineLedger(store);ticks=[0.0]
     gate=RunGate(store,ledger,project_root=tmp_path,hour_limit=1,clock=lambda:ticks[0])
     with pytest.raises(RuntimeRefused,match='^ENGINE_STOPPED$'): gate()  # every store starts paused
     assert gate.trigger=='RESEARCH_STATE'
-    set_research_state(store,'RUNNING');assert gate() is True and gate.checks==2 and gate.last_refusal=='ENGINE_STOPPED'
+    set_state(store,'RUNNING');assert gate() is True and gate.checks==2 and gate.last_refusal=='ENGINE_STOPPED'
     # The stop file needs no lease: the owner creates it while the run holds the coordinator owner lease.
     stop=tmp_path/'state'/'engine'/'STOP';stop.parent.mkdir(parents=True);stop.write_text('owner stop (fixture)',encoding='utf-8')
     assert gate.stop_file==stop and gate.stop_requested() is True
     with pytest.raises(RuntimeRefused,match='^ENGINE_STOPPED$'): gate()
     assert gate.trigger=='STOP_FILE'
     stop.unlink();assert gate() is True
-    set_research_state(store,'PAUSED')
+    set_state(store,'PAUSED')
     with pytest.raises(RuntimeRefused,match='^ENGINE_STOPPED$'): gate()
-    set_research_state(store,'STOPPED')
+    set_state(store,'STOPPED')
     with pytest.raises(RuntimeRefused,match='^ENGINE_STOPPED$'): gate()
-    set_research_state(store,'RUNNING');ticks[0]=3599.9;assert gate() is True
+    set_state(store,'RUNNING');ticks[0]=3599.9;assert gate() is True
     ticks[0]=3600.0
     with pytest.raises(RuntimeRefused,match='^ENGINE_HOUR_LIMIT$'): gate()
     assert gate.elapsed_seconds()==3600.0
@@ -85,7 +85,7 @@ def test_run_gate_stops_on_stop_file_pause_hour_limit_and_freeze(bridge,tmp_path
     with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_LIMITS_DENIED$'): RunGate(store,ledger,project_root=tmp_path,hour_limit=0)
 
 
-def test_run_rows_are_insert_only_and_open_runs_are_visible(bridge):
+def test_run_rows(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     assert ledger.open_runs()==[]
     start=ledger.record_run_phase('run-20261024-0123abcd','START',{'limits':{'cycle_limit':2}})
@@ -99,7 +99,7 @@ def test_run_rows_are_insert_only_and_open_runs_are_visible(bridge):
     with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_DUPLICATE$'): ledger.close_run('run-20261024-0123abcd',{'reason':'again'})
 
 
-def test_daily_summary_is_plain_text_bounded_and_private(bridge,tmp_path):
+def test_daily_summary(bridge,tmp_path):
     b,_=bridge;ledger=EngineLedger(b.store)
     ledger.record_cycle('cycle-0001-aaaaaaaa',1,'END',{'status':'COMPLETED'})
     ledger.record_run('cycle-0001-aaaaaaaa',{'run_id':'job-1','status':'TIMED_OUT'})
@@ -127,22 +127,22 @@ def test_daily_summary_is_plain_text_bounded_and_private(bridge,tmp_path):
     assert (PROJECT/'.gitignore').read_text(encoding='utf-8').splitlines().count('state/')==1
 
 
-def test_owner_commands_clear_freezes_and_close_abandoned_runs(bridge):
+def test_owner_commands(bridge):
     b,_=bridge;store=b.store;ledger=EngineLedger(store)
     frozen=ledger.freeze('AUDITOR_FAILED',{'fixture':True});ledger.record_run_phase('run-20261024-0123abcd','START',{})
     state=control.engine_state(store)
     assert [f['freeze_id'] for f in state['active_freezes']]==[frozen['freeze_id']] and [r['run_id'] for r in state['open_runs']]==['run-20261024-0123abcd'] and state['total_trials']==0
-    with pytest.raises(RuntimeRefused,match='^ENGINE_RECORD_DENIED$'): control.close_abandoned_run(store,'run-20261024-0123abcd','')
-    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_UNKNOWN$'): control.close_abandoned_run(store,'run-20261024-ffffffff','note')
-    closed=control.close_abandoned_run(store,'run-20261024-0123abcd','owner closed after a crash (fixture)')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RECORD_DENIED$'): control.close_abandoned(store,'run-20261024-0123abcd','')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_UNKNOWN$'): control.close_abandoned(store,'run-20261024-ffffffff','note')
+    closed=control.close_abandoned(store,'run-20261024-0123abcd','owner closed after a crash (fixture)')
     assert closed['reason']=='OWNER_CLOSED' and control.engine_state(store)['open_runs']==[]
-    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_UNKNOWN$'): control.close_abandoned_run(store,'run-20261024-0123abcd','again')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_UNKNOWN$'): control.close_abandoned(store,'run-20261024-0123abcd','again')
     cleared=control.clear_freeze(store,frozen['freeze_id'],'owner cleared (fixture)')
     assert cleared['cleared_at'] and control.engine_state(store)['active_freezes']==[]
     with pytest.raises(RuntimeRefused,match='^ENGINE_FREEZE_UNKNOWN$'): control.clear_freeze(store,frozen['freeze_id'],'again')
 
 
-def test_control_command_opens_the_project_and_reports_json(tmp_path,capsys):
+def test_control_command(tmp_path,capsys):
     """The command takes the coordinator owner lease once per process, like every owner tool. Each call is its own process."""
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     def command(*args):

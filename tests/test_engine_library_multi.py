@@ -152,7 +152,7 @@ def test_pit_periods(tmp_path,monkeypatch):
     periods={'DOW':[{'key':'DOW-2017','until':days[100],'last':days[99]},{'key':'DOW','since':days[150]}]}
     (idx/'periods.json').write_text(_json.dumps({'periods':periods}),encoding='utf-8')
     rows=[{'session':d,'close':'100','return':'0'} for d in days]
-    monkeypatch.setattr(history_market,'load_history_market',lambda root,path:({'train_csv':'session,close,return'+NL+NL.join(f"{r['session']},100,0" for r in rows[:240])+NL,
+    monkeypatch.setattr(history_market,'build_market',lambda root,path:({'train_csv':'session,close,return'+NL+NL.join(f"{r['session']},100,0" for r in rows[:240])+NL,
                                                                              'validation_rows':rows[240:]},[]))
     monkeypatch.setattr(history_market,'load_history',lambda root,path:{'closes':[(d,str(100+i)) for i,d in enumerate(days)]})
     manifests=[f'data/history/{s}/manifest.json' for s in ['SPY','DOW','DOW-2017']+names]

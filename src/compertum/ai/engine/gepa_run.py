@@ -138,7 +138,7 @@ SPEED_TOKEN_CAP=16384  # output tokens per candidate built at which speed reache
 UNCOUNTED_CALL_TOKENS=2048
 
 
-def speed_for_calls(entries,candidates_built):
+def call_speed(entries,candidates_built):
     """The speed record of one cycle from its model-call records, or None when the cycle made no call."""
     if not entries: return None
     counted=[e['usage']['completion_tokens'] for e in entries if isinstance(e,dict) and isinstance(e.get('usage'),dict) and type(e['usage'].get('completion_tokens')) is int]
@@ -150,7 +150,7 @@ def speed_for_calls(entries,candidates_built):
 MAX_SPEED_WEIGHT=0.1
 
 
-def score_with_speed(score,speed,weight=SPEED_WEIGHT):
+def speed_score(score,speed,weight=SPEED_WEIGHT):
     """The level score plus the speed bonus. The default weight breaks ties only; a run may raise it up to one level (MAX_SPEED_WEIGHT).
     Without speed data the score is the level score alone."""
     return score if speed is None else round(score+weight*speed['speed'],6)
@@ -166,7 +166,7 @@ def gepa_level(candidate,score,empty=False):
     return FALSE_DISCOVERY_LEVEL if false_discovery(candidate,score) else min(level,6)
 
 
-def gepa_cycle_level(result,empty=False):
+def gepa_cycle(result,empty=False):
     scores=result.get('scores') or {};candidates=[c for c in result.get('candidates') or [] if isinstance(c,dict)]
     if not candidates: return 1
     if empty and any(false_discovery(c,scores.get(c.get('hypothesis_id'))) for c in candidates): return FALSE_DISCOVERY_LEVEL
@@ -176,10 +176,10 @@ def gepa_cycle_level(result,empty=False):
 def level_text(level): return LEVELS.get(level,FALSE_DISCOVERY_TEXT)
 
 
-def score_for_cycle(result,empty=False):
+def cycle_score(result,empty=False):
     """GEPA's score of one cycle: its level divided by 10. A stopped cycle is systemic and is raised, not scored; 0.0 marks it if it is ever asked."""
     if result.get('stop_code') is not None: return 0.0
-    return gepa_cycle_level(result,empty)/10
+    return gepa_cycle(result,empty)/10
 
 
 def _clip(text): return text if len(text.encode('utf-8'))<=TEXT_BYTES else text.encode('utf-8')[:TEXT_BYTES].decode('utf-8',errors='ignore')
@@ -198,7 +198,7 @@ def earlier_titles(ledger,current_cycle_id):
 def feedback_for(result,earlier=None,empty=False):
     """Plain sentences for GEPA's reflection: the cycle's level with its meaning, and for each candidate the numbers behind its level.
     Built from the cycle's own records; earlier maps normalized titles of past cycles to their cycle index, to name repeated ideas."""
-    level=gepa_cycle_level(result,empty);scores=result.get('scores') or {};earlier=earlier or {}
+    level=gepa_cycle(result,empty);scores=result.get('scores') or {};earlier=earlier or {}
     titles={h.get('id'):str(h.get('title'))[:120] for h in result.get('hypotheses') or [] if isinstance(h,dict)}
     parts=[f'Cycle level {level} of 10: {level_text(level)}']
     if empty:
@@ -292,9 +292,9 @@ class PromptAdapter:
                 # A refusal from the model path, the gate or a freeze is systemic: GEPA must stop, not score it.
                 raise RuntimeRefused(result['stop_code'])
             mine=[r for r in rows()[before:] if r.get('cycle_id') in (None,result['cycle_id'])] if before is not None else None
-            speed=speed_for_calls(mine,len(result.get('candidates') or [])) if mine is not None else None
+            speed=call_speed(mine,len(result.get('candidates') or [])) if mine is not None else None
             empty='kind' in market and market['kind'] is None
-            level=gepa_cycle_level(result,empty);score=score_with_speed(score_for_cycle(result,empty),speed,self.speed_weight)
+            level=gepa_cycle(result,empty);score=speed_score(cycle_score(result,empty),speed,self.speed_weight)
             found={'false_discovery':True} if empty and level==FALSE_DISCOVERY_LEVEL else {}
             outputs.append({'cycle_id':result['cycle_id'],'score':score,'level':level,'speed':speed,**found});scores.append(score)
             self.candidates[index]['scores'].append({'market':market.get('label'),'score':score,'level':level,**({'speed':speed} if speed else {}),**found})

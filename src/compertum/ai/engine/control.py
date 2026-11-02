@@ -31,7 +31,7 @@ def clear_freeze(store,freeze_id,owner_note):
     return EngineLedger(store).clear_freeze(freeze_id,owner_note)
 
 
-def close_abandoned_run(store,run_id,owner_note):
+def close_abandoned(store,run_id,owner_note):
     """Owner action for a run that stopped without an END row (for example a crash). Adds the END row with the note."""
     if not isinstance(owner_note,str) or not 1<=len(owner_note)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_RECORD_DENIED')
     ledger=EngineLedger(store)
@@ -54,7 +54,7 @@ def main(argv=None):
         store=StorageManager(lease,load_config(config,root)).store
         if args.command=='list': result=engine_state(store)
         elif args.command=='clear-freeze': result=clear_freeze(store,args.freeze,args.note)
-        else: result=close_abandoned_run(store,args.run,args.note)
+        else: result=close_abandoned(store,args.run,args.note)
     except RuntimeRefused as error:
         print(json.dumps({'refused':error.code}));return 2
     except (ContractError,ConfigError) as error:

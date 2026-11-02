@@ -28,11 +28,11 @@ IDENTITY_KEYS=('volume','file_id','attributes','hardlinks','creation_100ns','wri
 def compact(value):
     return json.dumps(value,sort_keys=True,separators=(',',':')).encode()
 
-def require_write_bound(position,amount,maximum):
+def write_bound(position,amount,maximum):
     if not all(type(value) is int and value>=0 for value in (position,amount,maximum)) or position+amount>maximum:
         raise ValueError('ARCHIVE_WRITE_BOUND')
 
-def require_scratch_baseline(physical,pending):
+def scratch_baseline(physical,pending):
     if physical>APPROVED_SCRATCH_MAXIMUM or pending!=0:
         raise ValueError('SCRATCH_BASELINE_OR_RESERVATIONS_CHANGED')
 
@@ -72,7 +72,7 @@ def member(name,row):
     else:item.size=row['size']
     return item
 
-def verify_canonical_tar(source,inventory,poll=lambda:None):
+def verify_tar(source,inventory,poll=lambda:None):
     reader=StrictGzipReader(source,poll);length=0
     members=[(name,row,None) for name,row in sorted(inventory.items()) if row['kind']!='reparse']
     metadata=compact(inventory)
@@ -130,7 +130,7 @@ class NativeFile:
         except BaseException:
             self.handle.close();raise
     def write(self,data):
-        self.poll();require_write_bound(self.position,len(data),self.maximum)
+        self.poll();write_bound(self.position,len(data),self.maximum)
         count=c.c_uint32();buffer=c.create_string_buffer(data)
         self.api.checked(self.api.WriteFile(self.handle.get(),buffer,len(data),c.byref(count),None),'ArchiveWrite')
         assert count.value==len(data),'ARCHIVE_SHORT_WRITE'
@@ -193,7 +193,7 @@ def create_archives(context):
     assert not link_check['incoming'] and not link_check['unresolved'] and not link_check['barriers']
     assert tuple(group['root'] for group in metadata['groups'])==tuple(row[1] for row in SPEC)
     pending=dict(capacity['outstanding_conservative_bytes'])
-    require_scratch_baseline(capacity['categories']['scratch'],pending['scratch'])
+    scratch_baseline(capacity['categories']['scratch'],pending['scratch'])
     assert capacity['probe_growth_hold_bytes']==16*1024**2 and pending['records']>=16*1024**2
     pending['records']+=10*1024**2  # Retain the old preparation hold and publication allowance.
     pending['backups']+=BACKUP_CAP
@@ -319,7 +319,7 @@ def create_archives(context):
             for suffix,is_content in (('contents.tar.gz',True),('properties.json.gz',False)):
                 name=f'root-{number:02d}.{suffix}';output=outputs[name]
                 reader=NativeReader(api,read_handles[name],poll)
-                if is_content:verify_canonical_tar(reader,old['inventory'],poll)
+                if is_content:verify_tar(reader,old['inventory'],poll)
                 else:verify_properties(reader,compact(fresh),poll)
                 assert reader.count==output.position and reader.digest.hexdigest()==output.digest.hexdigest()
                 results.append(dict(name=name,size=output.position,allocation=allocation(read_handles[name])['allocation'],allocation_cap=output.maximum,sha256=reader.digest.hexdigest(),volume=output.original_id[0],file_id=output.original_id[1]))

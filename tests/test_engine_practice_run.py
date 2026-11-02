@@ -16,7 +16,7 @@ from test_engine_roles import role_server  # noqa: E402
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def test_practice_run_as_a_separate_process(tmp_path):
+def test_separate_process(tmp_path):
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
     (tmp_path/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 450\n',encoding='utf-8')
@@ -39,7 +39,7 @@ def test_practice_run_as_a_separate_process(tmp_path):
     shutil.rmtree(result['sandbox_root'],ignore_errors=True)
 
 
-def test_two_models_run_together_as_one_process(tmp_path):
+def test_two_models(tmp_path):
     """31 October 2026: --model A,B starts one run per model at the same time. The record holds one run record per model."""
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
@@ -58,7 +58,7 @@ def test_two_models_run_together_as_one_process(tmp_path):
         assert result['research_state_after']=='PAUSED' and result['preflight']['markets']==1
 
 
-def test_two_models_from_two_files_run_together(tmp_path):
+def test_two_files(tmp_path):
     """31 October 2026: FILE::ID entries take their roles from other model files, so models with different limits share one trip."""
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')

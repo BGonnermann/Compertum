@@ -58,17 +58,17 @@ def control(verification,name):
     assert verification['controls'][name],json.dumps({'control':name,'report':verification['report'],'result':verification['result']},indent=1)
 
 
-def test_probe_runs_in_an_appcontainer_at_low_integrity(verification):
+def test_appcontainer_probe(verification):
     control(verification,'appcontainer_token');control(verification,'low_integrity')
     assert verification['result']['exit_code'] in (0,0xC0000017,0xC000012D) or verification['report'].get('allocate',{}).get('ok') is False
 
 
-def test_external_network_is_denied(verification):
+def test_external_network(verification):
     control(verification,'external_network_denied')
     assert verification['report']['external_connect']['error']=='PermissionError'
 
 
-def test_loopback_reach_is_observed_and_recorded_not_gated(verification):
+def test_loopback_recorded(verification):
     # Owner decision, 23 October 2026 (option 1): loopback reachability is a documented limitation on this host.
     # The probe still tries loopback, the result is recorded with every verification, and it never passes or fails the gate.
     assert not any(name.startswith('loopback') for name in CONTROLS) and set(verification['observations'])==set(OBSERVATIONS)
@@ -80,20 +80,20 @@ def test_loopback_reach_is_observed_and_recorded_not_gated(verification):
     assert observations_from({'loopback_connect':{'ok':True,'value':'CONNECTED'}},listener_saw_connection=True)=={'loopback_connected':True,'loopback_seen_by_listener':True}
 
 
-def test_read_outside_the_job_folder_is_denied(verification):
+def test_outside_read(verification):
     control(verification,'outside_read_denied')
     assert verification['report']['outside_read']['error']=='PermissionError'
 
 
-def test_write_outside_the_job_folder_is_denied(verification):
+def test_outside_write(verification):
     control(verification,'outside_write_denied');control(verification,'outside_file_absent')
 
 
-def test_write_inside_the_job_folder_is_allowed(verification):
+def test_inside_write(verification):
     control(verification,'inside_write_allowed')
 
 
-def test_fixed_part_files_and_the_owner_pipe_are_not_readable(verification):
+def test_fixed_unreadable(verification):
     # Section 19: the job cannot read the ledger or write the rules. The real files are the targets, not stand-ins.
     control(verification,'fixed_targets_read_denied');control(verification,'pipe_open_denied')
     assert verification['fixed_targets']==[str(p) for p in FIXED_TARGETS] and len(FIXED_TARGETS)>=3
@@ -102,7 +102,7 @@ def test_fixed_part_files_and_the_owner_pipe_are_not_readable(verification):
     assert verification['report']['pipe_open']['error']=='PermissionError' and verification['pipe'].startswith(r'\\.\pipe\compertum-e2-')
 
 
-def test_fixed_target_refusals(root):
+def test_target_refusals(root):
     bad=[[Path('relative.txt')],[root/'absent.txt'],[root],[PROJECT/'AGENTS.md']*2,[PROJECT/'AGENTS.md']*17,'AGENTS.md',[42]]
     for targets in bad:
         with pytest.raises(RuntimeRefused,match='^SANDBOX_TARGETS_DENIED$'): fixed_target_paths(targets)
@@ -110,7 +110,7 @@ def test_fixed_target_refusals(root):
     with pytest.raises(RuntimeRefused,match='^SANDBOX_TARGETS_DENIED$'): verify_sandbox(root,memory_floor_bytes=FLOOR,pipe='not-a-pipe')
 
 
-def test_loopback_watcher_records_a_connection_the_sandbox_makes_and_a_quiet_job_stays_clean(root):
+def test_loopback_watcher(root):
     # Loopback is reachable on this host (owner decision, option 1). The watcher is the compensating control, so it must see it.
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(20);port=listener.getsockname()[1]
     def accept():
@@ -143,7 +143,7 @@ def test_loopback_watcher_records_a_connection_the_sandbox_makes_and_a_quiet_job
     assert sorted(c['remote_port'] for c in crafted.loopback_connections())==[80,81,41343]
 
 
-def test_an_earlier_job_folder_is_not_readable_by_the_next_job(verification,root):
+def test_earlier_folder(verification,root):
     # The identity is the same for every job, so the grant on a finished job folder must be gone.
     control(verification,'previous_job_read_denied')
     first=job(root,"open('inside.txt','w').write('first')\n")
@@ -154,7 +154,7 @@ def test_an_earlier_job_folder_is_not_readable_by_the_next_job(verification,root
     assert (first/'inside.txt').read_text()=='first'
 
 
-def test_controls_do_not_pass_on_the_wrong_error():
+def test_wrong_error():
     done=SandboxResult('j','S-1-15-2-1',1,0,False,.1,1,1,0,False,b'',b'')
     good={'token':{'ok':True,'value':{'is_appcontainer':1,'integrity_level':4096}},
           'external_connect':{'ok':False,'error':'PermissionError','detail':'10013'},'loopback_connect':{'ok':False,'error':'PermissionError','detail':'10013'},
@@ -183,15 +183,15 @@ def test_controls_do_not_pass_on_the_wrong_error():
     assert not controls_from(killed,done,**ok)['memory_limit_enforced']
 
 
-def test_child_process_is_denied(verification):
+def test_child_process(verification):
     control(verification,'child_process_denied')
 
 
-def test_memory_limit_is_enforced(verification):
+def test_memory_limit(verification):
     control(verification,'memory_limit_enforced')
 
 
-def test_require_verified_names_every_failed_control(verification):
+def test_failed_controls(verification):
     passing={'controls':{name:True for name in CONTROLS},'failed':[]}
     assert require_verified(passing) is True
     failing={'controls':{name:name not in ('child_process_denied','outside_read_denied') for name in CONTROLS},'failed':['child_process_denied','outside_read_denied']}
@@ -206,13 +206,13 @@ def test_require_verified_names_every_failed_control(verification):
     assert require_verified(verification) is True
 
 
-def test_deadline_terminates_the_job(root):
+def test_job_deadline(root):
     folder=job(root,'import time\ntime.sleep(60)\n')
     started=time.monotonic();result=run(root,folder,seconds=2)
     assert result.timed_out is True and result.exit_code==124 and time.monotonic()-started<15
 
 
-def test_disk_overrun_is_flagged_and_normal_use_is_not(root):
+def test_disk_overrun(root):
     folder=job(root,"open('big.bin','wb').write(b'x'*(3*1024*1024))\n")
     result=run(root,folder,disk_bytes=MIB)
     assert result.exit_code==0 and result.disk_overrun is True and result.job_folder_bytes>=3*MIB
@@ -221,7 +221,7 @@ def test_disk_overrun_is_flagged_and_normal_use_is_not(root):
     assert result.exit_code==0 and result.disk_overrun is False
 
 
-def test_environment_holds_three_windows_variables_and_nothing_inherited(root):
+def test_job_environment(root):
     folder=job(root,'import json,os,sys\nprint(json.dumps({"env":sorted(os.environ),"argv":sys.argv,"isolated":sys.flags.isolated,"cwd":os.getcwd()}))\n')
     result=run(root,folder)
     assert result.exit_code==0,result.stderr
@@ -230,14 +230,14 @@ def test_environment_holds_three_windows_variables_and_nothing_inherited(root):
     assert seen['isolated']==1 and Path(seen['cwd'])==folder.resolve() and seen['argv']==['main.py']
 
 
-def test_stderr_and_exit_code_are_captured(root):
+def test_stderr_capture(root):
     result=run(root,job(root,'raise SystemExit(7)\n'))
     assert result.exit_code==7
     result=run(root,job(root,'open("missing.txt")\n'))
     assert result.exit_code==1 and b'Traceback' in result.stderr and b'FileNotFoundError' in result.stderr
 
 
-def test_each_job_gets_a_fresh_profile_with_the_same_identity_and_no_state_survives(root):
+def test_fresh_profile(root):
     package=packages_folder()/PROFILE_NAME
     # Inside the container Windows points LOCALAPPDATA at the package's own AC folder, which the container may write.
     listing='import os\nfolder=os.environ["LOCALAPPDATA"]\nassert folder.lower().endswith(r"packages\\%s\\ac"),folder\n'%PROFILE_NAME.lower()
@@ -251,13 +251,13 @@ def test_each_job_gets_a_fresh_profile_with_the_same_identity_and_no_state_survi
     assert not package.exists()
 
 
-def test_record_is_plain_json_with_fixed_fields(root):
+def test_job_record(root):
     record=run(root,job(root,'print("x"*10)\n')).record()
     assert set(record)=={'job_id','sid','pid','exit_code','timed_out','elapsed_seconds','peak_process_bytes','job_folder_bytes','package_folder_bytes','disk_overrun','stdout_bytes','stderr_bytes'}
     assert record['stdout_bytes']==12 and record['peak_process_bytes']>0 and json.loads(json.dumps(record))==record
 
 
-def test_output_capture_is_bounded_and_a_junction_in_the_job_folder_is_not_followed(root):
+def test_output_bounds(root):
     result=run(root,job(root,'import sys\nsys.stdout.write("y"*200000)\n'))
     assert result.exit_code==0 and len(result.stdout)==65536
     folder=job(root,'import subprocess\n')
@@ -269,7 +269,7 @@ def test_output_capture_is_bounded_and_a_junction_in_the_job_folder_is_not_follo
     assert result.exit_code==0 and result.disk_overrun is False and result.job_folder_bytes<MIB
 
 
-def test_refusals_happen_before_any_process_exists(root):
+def test_early_refusals(root):
     folder=job(root,'print(1)\n');nested=folder/'inner';nested.mkdir();(nested/'main.py').write_text('print(1)\n',encoding='utf-8')
     before=set(stale_profiles())
     cases=[(dict(root=root,job_dir=root.parent,argv=['main.py']),'SANDBOX_FOLDER_DENIED'),
@@ -291,7 +291,7 @@ def test_refusals_happen_before_any_process_exists(root):
     assert set(stale_profiles())==before
 
 
-def test_profile_names_are_fixed_and_stale_profiles_are_listed_then_removed():
+def test_stale_profiles():
     api=SandboxAPI()
     for name in ('Other.Name','',PROFILE_PREFIX+'.bad/name',PROFILE_PREFIX+'.'+'x'*80,None):
         with pytest.raises(RuntimeRefused,match='^SANDBOX_PROFILE_NAME_DENIED$'): Profile(api,name)
@@ -308,7 +308,7 @@ def test_profile_names_are_fixed_and_stale_profiles_are_listed_then_removed():
     with pytest.raises(RuntimeRefused,match='^SANDBOX_PROFILE_UNKNOWN$'): remove_stale_profile(api,None)
 
 
-def test_engine_jobs_hold_the_one_heavy_job_slot(tmp_path):
+def test_heavy_slot(tmp_path):
     # Section 19: one heavy job at a time. The engine takes the same slot as the campaign launcher.
     from compertum.runtime.identity import resolve_project
     from compertum.runtime.jobs import hold_job_slot,job_slot_busy

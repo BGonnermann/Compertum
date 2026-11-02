@@ -18,7 +18,7 @@ from compertum.runtime.sandbox import fixed_target_paths
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def test_fixed_targets_cover_rules_configuration_judge_code_and_store(tmp_path):
+def test_fixed_targets(tmp_path):
     targets=engine_fixed_targets(PROJECT)
     names={p.relative_to(PROJECT).as_posix() for p in targets}
     for name in ('docs/BUILD_SPEC.md','AGENTS.md','config/default.toml','config/engine.toml','config/models.toml','src/compertum/ai/engine/deflation.py',
@@ -35,7 +35,7 @@ def test_fixed_targets_cover_rules_configuration_judge_code_and_store(tmp_path):
     assert [p.name for p in engine_fixed_targets(tmp_path)]==['AGENTS.md','research.sqlite']
 
 
-def test_forbidden_access_rerun_files_data_removal_and_perturbation(tmp_path):
+def test_forbidden_access(tmp_path):
     assert forbidden_access(b"Traceback...\nPermissionError: [Errno 13] Permission denied: 'C:\\\\x\\\\AGENTS.md'\n") is True
     assert forbidden_access(b'OSError: [WinError 5] Access is denied') is True
     assert forbidden_access(b'FileNotFoundError: no such file') is False and forbidden_access('text') is False and forbidden_access(b'') is False
@@ -56,7 +56,7 @@ def test_forbidden_access_rerun_files_data_removal_and_perturbation(tmp_path):
         with pytest.raises(RuntimeRefused,match='^ENGINE_AUDIT_DENIED$'): perturbed_rows(rows,k)
 
 
-def test_scorecard_trials_and_request_invariant(bridge):
+def test_scorecard_trials(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     card={'schema':'synthetic-campaign-scorecard-v1','family_size':12,'registered_family':[{'candidate_id':f'c{i}'} for i in range(12)],'financial_accepted':False}
     row=register_scorecard_trials(ledger,'m3-repair-20261023-02',card)
@@ -71,7 +71,7 @@ def test_scorecard_trials_and_request_invariant(bridge):
     with pytest.raises(RuntimeRefused,match='^ENGINE_RECORD_DENIED$'): check_request_invariant(ledger,'r','41',40)
 
 
-def test_promotion_writes_a_versioned_template_once(tmp_path):
+def test_promotion_template(tmp_path):
     files={'main.py':'print("signals")\n','pkg/util.py':'X=1\n'};job=tmp_path/'job-7'
     audit={'label':'VERIFIED_PASS','integrity':True,'reasons':[],'checks':{'reproducible':True,'no_lookahead':True}}
     result=promote(tmp_path,'cycle-0001-abcdefab:h1',files,audit=audit,score={'beats_baseline':True},deflation={'status':'PASS'},source_job_folder=job)
@@ -88,7 +88,7 @@ def test_promotion_writes_a_versioned_template_once(tmp_path):
     assert (PROJECT/'.gitignore').read_text(encoding='utf-8').splitlines().count('state/')==1
 
 
-def test_validator_matches_a_hand_calculated_fixture():
+def test_validator_fixture():
     """Six validation sessions with returns 0.01, 0.02, -0.01, 0.03, 0.00, 0.01 and positions 1, 1, 0, 1, 1, 0.
 
     The position chosen at session t earns the return of t+1; a position change costs 0.0005 of NAV.
@@ -112,7 +112,7 @@ def test_validator_matches_a_hand_calculated_fixture():
     assert score['beats_baseline'] is False and score['deflation_inputs']['observations']==5
 
 
-def test_deflation_record_must_agree_with_itself_at_the_gate_or_below_it():
+def test_deflation_record():
     # Owner decision, 25 October 2026: the Auditor checks every candidate that beats buy-and-hold, so a consistent FAIL is no integrity fault.
     base={'minimum':'0.95','trials':12}
     assert deflation_consistent({**base,'status':'PASS','deflated_sharpe':'0.95000000'},12) is True

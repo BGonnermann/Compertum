@@ -8,7 +8,7 @@ import pytest
 from test_provider_snapshot import build,encode,envelopes  # noqa: F401
 from test_engine_bench import fake_run,project  # noqa: F401
 from compertum.ai.engine import practice
-from compertum.ai.engine.real_market import load_market_manifest,load_snapshot,provider_market
+from compertum.ai.engine.real_market import open_market,load_snapshot,provider_market
 from compertum.runtime.errors import RuntimeRefused
 
 PROJECT=Path(__file__).resolve().parents[1]
@@ -26,7 +26,7 @@ def evidence_project(tmp_path,envelopes,snapshot=None,evidence_values=None):
     return tmp_path,'evidence/manifest.json',snapshot
 
 
-def test_manifest_revalidates_evidence_and_builds_a_development_market(tmp_path,envelopes):
+def test_manifest_market(tmp_path,envelopes):
     root,path,snapshot=evidence_project(tmp_path,envelopes)
     loaded, symbol=load_snapshot(root,path)
     assert loaded==snapshot and symbol=='AAPL'
@@ -39,7 +39,7 @@ def test_manifest_revalidates_evidence_and_builds_a_development_market(tmp_path,
     assert 'validation_csv' in market and 'vault_csv' not in market
 
 
-def test_changed_missing_and_incomplete_inputs_are_refused(tmp_path,envelopes):
+def test_bad_inputs(tmp_path,envelopes):
     root,path,snapshot=evidence_project(tmp_path,envelopes)
     manifest_path=root/'evidence/manifest.json';manifest=json.loads(manifest_path.read_text())
     manifest['snapshot']['sha256']='0'*64;manifest_path.write_text(json.dumps(manifest))
@@ -52,14 +52,14 @@ def test_changed_missing_and_incomplete_inputs_are_refused(tmp_path,envelopes):
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): load_snapshot(root,path)
 
 
-def test_incomplete_coverage_is_never_filled(tmp_path,envelopes):
+def test_incomplete_coverage(tmp_path,envelopes):
     snapshot=build(envelopes[:-1])
     root,path,_=evidence_project(tmp_path,envelopes,snapshot=snapshot,evidence_values=envelopes[:-1])
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): load_snapshot(root,path)
     with pytest.raises(RuntimeRefused,match='^PROVIDER_SNAPSHOT_CORRUPT$'): provider_market(replace(snapshot,sha256='0'*64),'AAPL',sessions=50)
 
 
-def test_practice_accepts_a_verified_manifest_and_records_provenance(tmp_path,envelopes,monkeypatch):
+def test_practice_manifest(tmp_path,envelopes,monkeypatch):
     root=tmp_path/'project';root.mkdir();root=project(root);_,path,snapshot=evidence_project(root,envelopes);seen={}
     def fake_run(**kwargs):
         seen.update(kwargs)
@@ -72,7 +72,7 @@ def test_practice_accepts_a_verified_manifest_and_records_provenance(tmp_path,en
     assert record['market_provenance'][0]['financial_accepted'] is False and record['vault_sessions_held_back']==10
 
 
-def test_gepa_accepts_multiple_manifests_without_training_on_them(tmp_path,envelopes,monkeypatch):
+def test_gepa_manifests(tmp_path,envelopes,monkeypatch):
     root=tmp_path/'project';root.mkdir();root=project(root);_,path,_=evidence_project(root,envelopes);seen={}
     def fake_gepa(**kwargs):
         seen.update(kwargs)
@@ -84,7 +84,7 @@ def test_gepa_accepts_multiple_manifests_without_training_on_them(tmp_path,envel
     assert record['kind']=='gepa' and record['vault_sessions_held_back']==20
 
 
-def test_bench_and_holdout_refuse_manifests_before_the_lease(tmp_path,fake_run):
+def test_evaluation_refusal(tmp_path,fake_run):
     for purpose in ('bench','holdout'):
         with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
             practice.run_practice(tmp_path,tmp_path/'missing.toml',cycles=None,hours=None,requests=10,note='x',purpose=purpose,
@@ -92,7 +92,7 @@ def test_bench_and_holdout_refuse_manifests_before_the_lease(tmp_path,fake_run):
     assert not (tmp_path/'state/locks').exists() and fake_run=={}
 
 
-def test_command_line_forwards_real_market_manifests(tmp_path,monkeypatch):
+def test_manifest_forwarding(tmp_path,monkeypatch):
     seen={}
     def fake(root,config,**kwargs): seen.update(kwargs);return {'kind':'cycles'}
     monkeypatch.setattr(practice,'run_practice',fake)

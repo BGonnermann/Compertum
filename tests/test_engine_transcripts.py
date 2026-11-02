@@ -3,7 +3,7 @@ import json
 from compertum.ai.engine.transcripts import TRANSCRIPTS_DIR,TranscriptWriter
 
 
-def test_lines_carry_the_training_mark_and_the_file_has_a_cap(tmp_path):
+def test_training_mark(tmp_path):
     practice=TranscriptWriter(tmp_path,'run-20261026-0123abcd','practice',max_bytes=600)
     practice({'role':'director','content':'a'*100});practice({'role':'director','content':'b'*100});practice({'role':'director','content':'c'*400})
     lines=[json.loads(x) for x in (tmp_path/TRANSCRIPTS_DIR/'run-20261026-0123abcd.jsonl').read_text(encoding='utf-8').splitlines()]

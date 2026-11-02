@@ -14,7 +14,7 @@ from compertum.runtime.errors import RuntimeRefused
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def test_models_listing_is_read_only_and_checks_the_address():
+def test_models_listing():
     with server() as (port,state):
         assert practice.list_models(RoleModel('director',f'http://127.0.0.1:{port}/v1','m'))==['synthetic-model'] and state['posts']==[] and state['gets']==1
     for bad in ('http://10.0.0.5:1234/v1','https://api.example.com/v1','not a url'):
@@ -22,7 +22,7 @@ def test_models_listing_is_read_only_and_checks_the_address():
     with pytest.raises(RuntimeRefused,match='^LOCAL_COMPLETION_UNVERIFIED$'): practice.list_models(RoleModel('director','http://127.0.0.1:9/v1','m'),seconds=2)
 
 
-def test_the_model_is_chosen_per_run_without_editing_files(tmp_path):
+def test_model_choice(tmp_path):
     # Owner direction, 26 October 2026: pick the model at run time. --model replaces every role's ID for that run only.
     with server() as (port,state):
         write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','file-model') for role in ('director','researcher','mathematician','engineer')])
@@ -37,7 +37,7 @@ def test_the_model_is_chosen_per_run_without_editing_files(tmp_path):
     assert practice.model_file(tmp_path,'deepseek')==tmp_path/'config/models-deepseek.toml' and practice.model_file(tmp_path,'local')==tmp_path/'config/models.toml'
 
 
-def test_models_report_says_whether_each_role_model_is_listed(tmp_path):
+def test_models_report(tmp_path):
     with server() as (port,state):
         write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','synthetic-model' if role!='engineer' else 'SET_FROM_SERVER_MODEL_LIST') for role in ('director','researcher','mathematician','engineer')])
         report=practice.models_report(tmp_path)
@@ -52,7 +52,7 @@ def test_models_report_says_whether_each_role_model_is_listed(tmp_path):
     assert all(s['error'] in ('LOCAL_COMPLETION_UNVERIFIED',None) and (s['error'] is None or s['models']==[]) for s in committed['servers'].values())
 
 
-def test_run_refuses_below_the_start_floor_before_taking_any_lease(tmp_path):
+def test_memory_floor(tmp_path):
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml');(tmp_path/'config').mkdir()
     shutil.copyfile(PROJECT/'config/models.toml',tmp_path/'config'/'models.toml')
     with pytest.raises(RuntimeRefused,match='^AVAILABLE_RAM_FLOOR$'):
@@ -61,20 +61,20 @@ def test_run_refuses_below_the_start_floor_before_taking_any_lease(tmp_path):
     assert practice.START_FLOOR==8*1024**3  # owner decision, 26 October 2026 (was 16 GiB)
 
 
-def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch):
+def test_gepa_record(tmp_path,monkeypatch):
     """The owner's `gepa` command: the same preamble as `run`, then run_gepa; the printed record summarizes the prompts folder."""
     from compertum.ai.engine import gepa_run
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')  # the preflight check reads the run's prompts (25 October 2026)
     seen={}
-    def fake_run_gepa(**kwargs):
+    def fake_gepa(**kwargs):
         seen.update(kwargs)
         return {'run_id':'run-20261024-0123abcd','reason':'CYCLE_LIMIT','cycles':[{'cycle_index':1,'status':'COMPLETED','market':'seed 12','candidates':[{'hypothesis_id':'h1','status':'QUEUED','deflation':{'status':'PASS'},'audit':{'label':'VERIFIED_PASS'}}]}],
                 'requests':9,'elapsed_seconds':12.5,'summary_path':str(tmp_path/'state'/'engine'/'summary.md'),'models':{'director':{'address':'http://127.0.0.1:1234/v1','model':'synthetic-model'}},
                 'prompts':{'folder':str(tmp_path/'state'/'engine'/'prompts'/'run-20261024-0123abcd'),'best_index':1,'mean_scores':[0.7,1.0],'candidate_count':2,
                            'gepa':{'best_index_in_gepa_pool':1,'best_folder_index':1,'val_aggregate_scores':[0.7,1.0],'total_metric_calls':4}}}
-    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_gepa)
     record=practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=4,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1)
     assert record['kind']=='gepa' and record['reason']=='CYCLE_LIMIT' and record['cycles'][0]['candidates'][0]['audit']=='VERIFIED_PASS' and record['research_state_after']=='PAUSED'
     assert record['prompts']=={'folder':str(tmp_path/'state'/'engine'/'prompts'/'run-20261024-0123abcd'),'best_index':1,'mean_scores':[0.7,1.0],'candidate_count':2,
@@ -89,7 +89,7 @@ def test_gepa_practice_record_is_built_from_the_run_result(tmp_path,monkeypatch)
     json.dumps(record)  # printable
 
 
-def test_command_reports_json_and_exit_codes(tmp_path,capsys):
+def test_exit_codes(tmp_path,capsys):
     with server() as (port,state):
         shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
         write_models(tmp_path,[(role,f'http://127.0.0.1:{port}/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
@@ -101,17 +101,17 @@ def test_command_reports_json_and_exit_codes(tmp_path,capsys):
     with pytest.raises(SystemExit): practice.main(['--project',str(tmp_path),'run','--cycles','1'])  # --requests and --note are required
 
 
-def test_a_gepa_run_may_send_its_reflection_calls_to_another_model_file(tmp_path,monkeypatch):
+def test_reflection_models(tmp_path,monkeypatch):
     from compertum.ai.engine import gepa_run
     from compertum.ai.models import ENGINE_ROLES
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     path=write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
     shutil.copyfile(path,tmp_path/'config'/'models-reflect.toml');shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
     seen={};listed=[]
-    def fake_run_gepa(**kwargs):
+    def fake_gepa(**kwargs):
         seen.update(kwargs)
         return {'run_id':'run-20261030-0123abcd','reason':'CYCLE_LIMIT','cycles':[],'requests':0,'elapsed_seconds':1.0,'summary_path':str(tmp_path/'s.md'),'models':{}}
-    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_gepa)
     monkeypatch.setattr(practice,'models_report',lambda root,models,model=None:(listed.append((models,model)) or {'all_listed':True}))
     record=practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,
                                  reflect_models='reflect',reflect_model='other-model')
@@ -124,7 +124,7 @@ def test_a_gepa_run_may_send_its_reflection_calls_to_another_model_file(tmp_path
         practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,reflect_models='reflect')
 
 
-def test_a_gepa_run_may_weight_speed_and_carry_an_instruction_for_this_run(tmp_path,monkeypatch):
+def test_speed_weight(tmp_path,monkeypatch):
     from compertum.ai.engine import gepa_run
     def project(name):
         root=tmp_path/name;root.mkdir()
@@ -132,10 +132,10 @@ def test_a_gepa_run_may_weight_speed_and_carry_an_instruction_for_this_run(tmp_p
         write_models(root,[(role,'http://127.0.0.1:1234/v1','synthetic-model') for role in ('director','researcher','mathematician','engineer')])
         shutil.copytree(PROJECT/'config'/'engine_prompts',root/'config'/'engine_prompts');return root
     seen={}
-    def fake_run_gepa(**kwargs):
+    def fake_gepa(**kwargs):
         seen.update(kwargs)
         return {'run_id':'run-20261030-0123abce','reason':'CYCLE_LIMIT','cycles':[],'requests':0,'elapsed_seconds':1.0,'summary_path':str(tmp_path/'s.md'),'models':{}}
-    monkeypatch.setattr(gepa_run,'run_gepa',fake_run_gepa)
+    monkeypatch.setattr(gepa_run,'run_gepa',fake_gepa)
     goal='Cut the time per cycle without lowering the level.';first=project('first');second=project('second')
     practice.run_practice(first,first/'config.toml',cycles=2,hours=None,requests=50,note='GEPA fixture',gepa=True,available_memory=lambda:practice.START_FLOOR+1,speed_weight=0.05,goal=goal)
     assert seen['speed_weight']==0.05 and seen['goal_extra']==goal
@@ -146,7 +146,7 @@ def test_a_gepa_run_may_weight_speed_and_carry_an_instruction_for_this_run(tmp_p
         practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,goal=goal)
 
 
-def test_several_models_are_listed_and_checked_together(tmp_path,capsys):
+def test_several_models(tmp_path,capsys):
     """31 October 2026: --model A,B,C names several models. The listing checks each; the run refuses the forms that cannot share a process."""
     assert practice.model_list(None) is None and practice.model_list('a')==['a'] and practice.model_list(' a, b ')==['a','b'] and practice.model_list(['a','b'])==['a','b']
     for bad in ('a,a','a,','',',b',','.join(f'm{i}' for i in range(practice.MAX_MODELS_TOGETHER+1)),12):
@@ -169,7 +169,7 @@ def test_several_models_are_listed_and_checked_together(tmp_path,capsys):
     assert not (tmp_path/'state'/'locks').exists()  # refused before the lease
 
 
-def test_run_together_keeps_every_outcome(monkeypatch):
+def test_run_together(monkeypatch):
     """One thread per model: a refusal is recorded next to the results; any other error is raised after every run ended."""
     def start(m):
         if m=='refused': raise RuntimeRefused('ENGINE_STOPPED')
@@ -180,7 +180,7 @@ def test_run_together_keeps_every_outcome(monkeypatch):
     with pytest.raises(ValueError): practice.run_together(['a','broken'],start)
 
 
-def test_a_model_entry_may_name_its_own_file(tmp_path,capsys):
+def test_entry_file(tmp_path,capsys):
     """31 October 2026: FILE::ID takes its roles from config/models-FILE.toml, so models with different files share one trip."""
     assert practice.model_entry('a','local')==('local','a') and practice.model_entry('alt::a','local')==('alt','a') and practice.model_entry('x/y:free','local')==('local','x/y:free')
     assert practice.model_list('alt::a,a','local')==['alt::a','a'] and practice.model_list('alt::a,local::a')==['alt::a','local::a']

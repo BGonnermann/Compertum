@@ -14,7 +14,7 @@ class Terminal(StringIO):
         return True
 
 
-def test_diff_rows_number_changes_and_count_them():
+def test_diff_rows():
     rows, added, removed = diff_rows("a\nb\nc\nd\n", "a\nB\nc\nd\ne\n")
     assert (added, removed) == (2, 1)
     assert rows == [(" ", 1, "a"), ("-", 2, "b"), ("+", 2, "B"), (" ", 3, "c"), (" ", 4, "d"), ("+", 5, "e")]
@@ -22,7 +22,7 @@ def test_diff_rows_number_changes_and_count_them():
     assert ("⋮", None, "") in rows
 
 
-def test_edit_shows_a_colored_diff_with_line_numbers():
+def test_colored_diff():
     out = StringIO()
     display = Display(out, color=True, animate=False)
     display.tool_call("edit", {"path": "notes.py", "old": "b", "new": "B"})
@@ -35,7 +35,7 @@ def test_edit_shows_a_colored_diff_with_line_numbers():
     assert '"old"' not in text
 
 
-def test_terminal_output_separates_blocks_and_colors_status_words():
+def test_terminal_output():
     out = StringIO()
     display = Display(out, color=True, animate=True)
     display.busy = lambda *args, **kwargs: None
@@ -63,7 +63,7 @@ def test_terminal_output_separates_blocks_and_colors_status_words():
     assert script.getvalue() == "Commands:\n  /runs    show run cards\n"
 
 
-def test_new_file_and_long_diff_are_summarized():
+def test_diff_summary():
     out = StringIO()
     display = Display(out, color=False, animate=False)
     content = "".join(f"row {n}\n" for n in range(1, 31))
@@ -80,7 +80,7 @@ def test_new_file_and_long_diff_are_summarized():
     assert "the previous file cannot be shown" in out.getvalue()
 
 
-def test_read_run_and_failure_results_are_readable():
+def test_readable_results():
     out = StringIO()
     display = Display(out, color=False, animate=False)
     display.tool_call("read", {"path": "config/gepa_goal.md"})
@@ -96,7 +96,7 @@ def test_read_run_and_failure_results_are_readable():
     assert lines[-1] == "  ⎿ error: the old text must occur exactly once"
 
 
-def test_tools_record_the_change_only_for_the_display(tmp_path):
+def test_display_change(tmp_path):
     tools = WorkspaceTools(tmp_path, tmp_path)
     assert tools.run("write", {"path": "a.txt", "content": "one\n"}, time.monotonic() + 5) == "wrote a.txt (4 bytes)"
     assert tools.take_change() == ("a.txt", "", "one\n", True)
@@ -107,7 +107,7 @@ def test_tools_record_the_change_only_for_the_display(tmp_path):
     assert tools.take_change() is None
 
 
-def test_spinner_animates_until_the_next_output_and_marks_the_tab():
+def test_spinner_animation():
     out = Terminal()
     display = Display(out, color=False, animate=True)
     display.step(1, 40, 3.0)
@@ -126,7 +126,7 @@ def test_spinner_animates_until_the_next_output_and_marks_the_tab():
     assert TAB_IDLE in out.getvalue() and "\x1b]0;Compertum · done\x07" in out.getvalue()
 
 
-def test_fast_tool_does_not_flash_the_spinner_and_scripts_get_no_controls():
+def test_fast_tool():
     out = Terminal()
     display = Display(out, color=False, animate=True)
     display.tool_call("read", {"path": "a.txt"})
@@ -140,7 +140,7 @@ def test_fast_tool_does_not_flash_the_spinner_and_scripts_get_no_controls():
     assert "[asking] step 1/40 | 0:00" in plain.getvalue()
 
 
-def test_empty_and_existing_empty_files_are_reported_without_a_crash(tmp_path):
+def test_empty_files(tmp_path):
     out = StringIO()
     display = Display(out, color=False, animate=False)
     tools = WorkspaceTools(tmp_path, tmp_path)
@@ -153,14 +153,14 @@ def test_empty_and_existing_empty_files_are_reported_without_a_crash(tmp_path):
     assert "Added 1 line, removed 0 lines" in text and "1 + x = 1" in text
 
 
-def test_display_failure_never_reaches_the_task():
+def test_display_failure():
     out = StringIO()
     display = Display(out, color=False, animate=False)
     display.tool_result("wrote a.py", True, name="write", change=("a.py", 5, "text", False))
     assert "finished; the details cannot be shown" in out.getvalue()
 
 
-def test_large_changed_region_shows_a_summary_quickly():
+def test_large_region():
     out = StringIO()
     display = Display(out, color=False, animate=False)
     started = time.monotonic()
@@ -175,7 +175,7 @@ def test_large_changed_region_shows_a_summary_quickly():
     assert rows == [(" ", 450, "449"), ("-", 451, "450"), ("+", 451, "half"), (" ", 452, "451")]
 
 
-def test_diff_numbers_stay_correct_after_a_gap_and_line_endings_are_named():
+def test_diff_numbers():
     old = "".join(f"{n}\n" for n in range(1, 21))
     rows, _, _ = diff_rows(old, old.replace("3\n", "c\n", 1).replace("18\n", "r\n"))
     gap = rows.index(("⋮", None, ""))
@@ -186,7 +186,7 @@ def test_diff_numbers_stay_correct_after_a_gap_and_line_endings_are_named():
     assert "Changed only line endings" in out.getvalue()
 
 
-def test_terminal_controls_from_models_files_and_programs_are_shown_as_text():
+def test_terminal_controls():
     out = Terminal()
     display = Display(out, color=False, animate=True)
     display.tool_call("write", {"path": "a\x1b]52;c;ZXZpbA==\x07.txt"})
@@ -199,7 +199,7 @@ def test_terminal_controls_from_models_files_and_programs_are_shown_as_text():
     assert "a\\x1b]52;c;ZXZpbA==\\x07.txt" in text and "\\x1b[2Khidden" in text and "reply\\x1b[31m\n" in text
 
 
-def test_error_after_a_started_step_returns_the_tab_to_idle():
+def test_idle_tab():
     out = Terminal()
     display = Display(out, color=False, animate=True)
     display.step(1, 40, 0)

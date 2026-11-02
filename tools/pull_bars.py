@@ -166,9 +166,9 @@ def pull_symbol(client,symbol,years,feed,adjustment,out,dry_run,asof=None,refetc
     if chunks and not dry_run:
         manifest={'schema_version':'1','kind':'history','symbol':symbol,'feed':feed,'adjustment':adjustment,'chunks':chunks}
         (folder/'manifest.json').write_text(json.dumps(manifest,indent=1),encoding='utf-8')
-        from compertum.ai.engine.real_market import load_market_manifest
+        from compertum.ai.engine.real_market import open_market
         try:
-            market,_=load_market_manifest(ROOT,(folder/'manifest.json').relative_to(ROOT).as_posix())
+            market,_=open_market(ROOT,(folder/'manifest.json').relative_to(ROOT).as_posix())
             record['market']={'label':market['label'],'sessions_available':market['provenance']['sessions_available'],
                               'start':market['provenance']['market_start'],'end':market['provenance']['market_end'],'manifest':(folder/'manifest.json').relative_to(ROOT).as_posix()}
         except RuntimeRefused as error: record['market']={'refused':error.code}

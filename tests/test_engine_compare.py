@@ -20,7 +20,7 @@ def write_run(ledger,run_id,markets,reference,saved_report):
     ledger.record_run_phase(run_id,'END',{'reason':'CYCLE_LIMIT','requests':10,'elapsed_seconds':20.0,**({'report':report} if saved_report else {})})
 
 
-def test_saved_and_legacy_reports_support_an_equal_market_comparison(bridge):
+def test_equal_comparison(bridge):
     b,_=bridge;ledger=EngineLedger(b.store);markets=bench.set_markets('bench-1')
     write_run(ledger,'run-20261027-00000001',markets,False,True)
     write_run(ledger,'run-20261027-00000002',markets,True,False)
@@ -32,7 +32,7 @@ def test_saved_and_legacy_reports_support_an_equal_market_comparison(bridge):
     assert result['markets'][0]['right_levels']==[10] and 'does not establish' in result['warning']
 
 
-def test_incompatible_and_unknown_runs_are_refused(bridge,tmp_path):
+def test_incompatible_runs(bridge,tmp_path):
     b,_=bridge;ledger=EngineLedger(b.store);markets=bench.set_markets('bench-1')
     write_run(ledger,'run-20261027-00000001',markets,False,True)
     write_run(ledger,'run-20261027-00000002',markets,True,True)
@@ -44,14 +44,14 @@ def test_incompatible_and_unknown_runs_are_refused(bridge,tmp_path):
         compare.compare(tmp_path/'missing.sqlite','run-20261027-00000001','run-20261027-00000002')
 
 
-def test_legacy_reconstruction_covers_bench_2(bridge):
+def test_legacy_bench2(bridge):
     b,_=bridge;ledger=EngineLedger(b.store);markets=bench.set_markets('bench-2')
     write_run(ledger,'run-20261027-00000002',markets,True,False)
     summary=compare.run_summary(b.store.conn,'run-20261027-00000002')
     assert summary['report']['patterns_found']==3 and summary['report']['unknown_markets']==[]
 
 
-def test_compare_command_output_and_refusal(tmp_path,monkeypatch,capsys):
+def test_compare_command(tmp_path,monkeypatch,capsys):
     monkeypatch.setattr(compare,'compare',lambda *args:{'comparison':'fixture'})
     assert compare.main(['--project',str(tmp_path),'run-20261027-00000001','run-20261027-00000002'])==0
     assert 'fixture' in capsys.readouterr().out
@@ -60,7 +60,7 @@ def test_compare_command_output_and_refusal(tmp_path,monkeypatch,capsys):
     assert 'ENGINE_STORE_UNAVAILABLE' in capsys.readouterr().out
 
 
-def test_the_market_fingerprint_matches_the_cycle_and_works_on_calibrated_markets():
+def test_market_fingerprint():
     """compare.market_sha256 once went through the 64 KiB event encoder and refused 4,096-session markets (1 November 2026).
     It now hashes like the cycle, and gives the same value as before for every 500-session market."""
     from types import SimpleNamespace

@@ -53,7 +53,7 @@ def source_bindings(label):
         label+'-stderr.log':4096, label+'.closure.json':65536}
 
 
-def write_source_job(label):
+def source_job(label):
     from evidence_folder import EvidenceFolder
     plan = json.loads((ROOT/'artifacts/ai/review-plan-verification-20261018-01/ai-review-tests03.job.json').read_text())
     for key in ('repair_history', 'fresh_capacity_sha256', 'fresh_closure_sha256'):
@@ -120,7 +120,7 @@ def prepare_source(label):
     previous.previous.CAPACITY = previous.prior.CAPACITY = CAPACITY
     previous.previous.SUITES = SUITES
     previous.previous.pins = pins
-    write_source_job(label)
+    source_job(label)
     return {'label': label, 'wrapper': str(SOURCE_WORK / 'run_bounded.py'), 'kind': 'ai'}
 
 

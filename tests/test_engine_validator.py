@@ -22,7 +22,7 @@ def near(value,expected,places=7):
     return abs(Decimal(str(value))-Decimal(str(expected)))<=Decimal(10)**-places
 
 
-def test_normal_functions_match_the_table():
+def test_normal_table():
     # Standard normal quantiles: Z(0.9) = 1.2815516, Z(0.95) = 1.6448536, Z(0.975) = 1.9599640.
     assert near(normal_quantile(0.9),'1.2815516') and near(normal_quantile(0.95),'1.6448536') and near(normal_quantile(0.975),'1.9599640')
     assert normal_cdf(0.0)==0.5 and near(normal_cdf(1.959964),'0.975',6)
@@ -30,7 +30,7 @@ def test_normal_functions_match_the_table():
         with pytest.raises(RuntimeRefused,match='^ENGINE_DEFLATION_DENIED$'): normal_quantile(bad)
 
 
-def test_expected_max_sharpe_hand_cases():
+def test_expected_sharpe():
     # N = 10, V = 0.01: SR0 = 0.1 * ((1 - 0.5772157) * Z(0.9) + 0.5772157 * Z(1 - 1/(10 e)))
     #                       = 0.1 * (0.4227843 * 1.2815516 + 0.5772157 * 1.7892418) = 0.1574598
     assert near(expected_max_sharpe(10,'0.01'),'0.15745983')
@@ -44,7 +44,7 @@ def test_expected_max_sharpe_hand_cases():
         with pytest.raises(RuntimeRefused,match='^ENGINE_DEFLATION_DENIED$'): expected_max_sharpe(trials,variance)
 
 
-def test_deflated_sharpe_hand_cases():
+def test_deflated_sharpe():
     # Case A: SR = 0.2, T = 100, normal returns, N = 10, V = 0.01. Term = 1 + (3 - 1)/4 * 0.04 = 1.02.
     # z = (0.2 - 0.1574598) * sqrt(99) / sqrt(1.02) = 0.4190991; DSR = Phi(z) = 0.6624281 -> FAIL.
     a=deflated_sharpe(CANDIDATE,10,'0.01')
@@ -69,7 +69,7 @@ def test_deflated_sharpe_hand_cases():
     with pytest.raises(RuntimeRefused,match='^ENGINE_DEFLATION_DENIED$'): family_size(0)
 
 
-def test_moments_hand_case():
+def test_moments_case():
     # Returns 0.01, -0.02, 0.03, 0.00, 0.02, -0.01: mean 0.005, sample sd 0.0187083, SR = 0.2672612.
     # Deviations 0.005, -0.025, 0.025, -0.005, 0.015, -0.015 are symmetric, so skewness is exactly 0.
     # Kurtosis = (sum d^4 / 6) / (sum d^2 / 6)^2 = 1.7314286.
@@ -80,7 +80,7 @@ def test_moments_hand_case():
         with pytest.raises(RuntimeRefused,match='^ENGINE_DEFLATION_DENIED$'): moments(bad)
 
 
-def test_trial_variance_never_falls_below_the_null_floor():
+def test_variance_floor():
     # Sharpe ratios 0.1, 0.3, 0.2: sample variance 0.01. Floor for SR = 0.2, T = 100: (1 + 0.02) / 99 = 0.0103030.
     v=trial_variance(['0.1','0.3','0.2'],CANDIDATE)
     assert v=={'trial_sharpes':3,'sample_variance':'0.01000000','floor_variance':'0.01030303','trial_variance':'0.01030303'}
@@ -92,7 +92,7 @@ def test_trial_variance_never_falls_below_the_null_floor():
     with pytest.raises(RuntimeRefused,match='^ENGINE_DEFLATION_DENIED$'): trial_variance(['0.1'],{**CANDIDATE,'observations':3})
 
 
-def test_total_trial_count_is_insert_only(bridge):
+def test_trial_count(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     assert ledger.total_trials()==0
     ledger.record_trial('cycle-0001-x','cycle-0001-x:h1',{'hypothesis_id':'h1'});ledger.record_trial('cycle-0001-x','cycle-0001-x:h2',{'hypothesis_id':'h2'})
@@ -114,7 +114,7 @@ def test_total_trial_count_is_insert_only(bridge):
     assert ledger.trial_sharpes()==['0.2'] and ledger.total_trials()==14
 
 
-def test_queue_admission_requires_every_gate(bridge):
+def test_queue_admission(bridge):
     b,_=bridge;queue=CandidateQueue(EngineLedger(b.store));cid=f'cycle-0001-{uuid4().hex[:8]}:h1'
     score={'beats_baseline':True,'sharpe':'1.0'}
     for kwargs,reason in ((dict(score={**score,'beats_baseline':False},deflation=PASSING,tests_passed=True,auditor_passed=True),'does not beat the baseline on VALIDATION'),
@@ -133,7 +133,7 @@ def test_queue_admission_requires_every_gate(bridge):
     with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit('',score,PASSING,tests_passed=True,auditor_passed=True)
 
 
-def test_vault_batch_is_sealed_counted_first_and_never_repeated(bridge):
+def test_vault_batch(bridge):
     b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
     rows=synthetic_market(11,200);train,validation,vault=split_market_tiers(rows)
     assert (len(train),len(validation),len(vault))==(100,60,40) and vault[0]['session']==160 and vault[-1]['session']==199
@@ -179,7 +179,7 @@ def test_vault_batch_is_sealed_counted_first_and_never_repeated(bridge):
         with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): split_market_tiers(rows,*bad)
 
 
-def test_score_signals_carries_deflation_inputs():
+def test_deflation_inputs():
     rows=synthetic_market(7,300,planted={'kind':'momentum','window':5,'strength':0.004});_,validation,_=split_market_tiers(rows)
     text='session,position\n'+''.join(f"{r['session']},{i%2}\n" for i,r in enumerate(validation))
     score=score_signals(text,validation);inputs=score['deflation_inputs']
@@ -189,7 +189,7 @@ def test_score_signals_carries_deflation_inputs():
     assert record['status'] in ('PASS','FAIL') and record['trials']==1 and record['section_10_family_size']==12
 
 
-def test_reversal_markets_lean_against_the_trend_and_existing_markets_are_unchanged():
+def test_reversal_markets():
     # Added 25 October 2026 for varied GEPA markets (owner decision). The fingerprints were taken before the change to market.py.
     import hashlib
     def fingerprint(rows): return hashlib.sha256(market_csv(rows).encode()).hexdigest()

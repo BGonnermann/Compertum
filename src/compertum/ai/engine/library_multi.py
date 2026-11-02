@@ -225,10 +225,10 @@ def sweep(p,ledger,*,run_id,note):
 
 
 def load_panel(root,manifests):
-    from .history_market import load_history_market
+    from .history_market import build_market
     markets={};skipped=[]
     for path in manifests:
-        try: market,_vault=load_history_market(root,path)
+        try: market,_vault=build_market(root,path)
         except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
         markets[Path(path).parent.name]=(_rows(market['train_csv']),market['validation_rows'])
     p=panel(markets);p['skipped']=skipped
@@ -262,10 +262,10 @@ def pit_panel(root,manifests,membership='data/indices/sp500/history.json',refere
     import bisect
     import hashlib
     from compertum.domain import ContractError,resolve_project_path
-    from .history_market import load_history,load_history_market
+    from .history_market import load_history,build_market
     paths={Path(m).parent.name:m for m in manifests}
     if reference not in paths: raise RuntimeRefused('ENGINE_MARKET_DENIED')
-    market,_vault=load_history_market(root,paths[reference]);train_rows=_rows(market['train_csv'])
+    market,_vault=build_market(root,paths[reference]);train_rows=_rows(market['train_csv'])
     dates=[r['session'] for r in train_rows+market['validation_rows']];n=len(dates);where={d:i for i,d in enumerate(dates)}
     try: raw=resolve_project_path(membership,Path(root).absolute()).read_bytes()
     except (ContractError,OSError): raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE') from None

@@ -44,7 +44,7 @@ def _console(path):
 
 
 @pytest.mark.parametrize("breakaway", [True, False], ids=["job-allows-breakaway", "job-forbids-breakaway"])
-def test_engine_run_leaves_the_console_and_job_that_started_it(tmp_path, breakaway):
+def test_run_detach(tmp_path, breakaway):
     from compertum.harness.runs import OwnedProcess
     job = _job(breakaway)
     ntdll = ctypes.WinDLL("ntdll")

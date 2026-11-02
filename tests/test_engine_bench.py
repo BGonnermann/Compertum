@@ -22,7 +22,7 @@ from test_engine_gepa import record_hashes
 PROJECT=Path(__file__).resolve().parents[1]
 
 
-def test_bench_and_holdout_use_separate_fixed_seed_sets_with_two_empty_markets_each():
+def test_seed_sets():
     seeds={name:{seed for _,_,seed in markets} for name,markets in bench.SETS.items()}
     assert seeds['bench-1'].isdisjoint(seeds['holdout-1'])
     used_elsewhere={12}|set(practice.GEPA_SEEDS)
@@ -41,7 +41,7 @@ def test_bench_and_holdout_use_separate_fixed_seed_sets_with_two_empty_markets_e
 
 
 @pytest.mark.parametrize('name',['bench-1','holdout-1'])
-def test_the_reference_rule_finds_every_planted_pattern_and_nothing_in_an_empty_market(name):
+def test_reference_rule(name):
     for market in bench.set_markets(name):
         score=bench.reference_score(market)
         if market['kind'] is None:
@@ -51,7 +51,7 @@ def test_the_reference_rule_finds_every_planted_pattern_and_nothing_in_an_empty_
             assert bench.capture(score,score)=='1.000'
 
 
-def test_bench_2_adds_causal_regimes_without_moving_the_holdout():
+def test_bench2_regimes():
     markets=bench.set_markets('bench-2')
     assert [m['kind'] for m in markets]==['regimes','regimes','regimes',None,None]
     assert [m['seed'] for m in markets]==[106,107,108,109,110] and [s for _,_,s in bench.SETS['holdout-1']]==[901,902,903,904,905]
@@ -68,7 +68,7 @@ def test_bench_2_adds_causal_regimes_without_moving_the_holdout():
     assert markets[3]['regimes'][0]['noise']!=markets[3]['regimes'][1]['noise']
 
 
-def test_bench_3_has_six_empty_markets_two_seeds_per_pattern_and_a_weak_strength():
+def test_bench3_layout():
     markets=bench.set_markets('bench-3')
     assert [m['seed'] for m in markets]==list(range(111,127)) and all(bench.reserved_seed(m['seed']) for m in markets)
     assert [(m['kind'],m['window'],m['strength']) for m in markets[:8]]==[('momentum',5,0.004),('momentum',5,0.004),('reversal',3,0.004),('reversal',3,0.004),
@@ -99,7 +99,7 @@ def simple_rules(train,validation):
     return rules
 
 
-def test_bench_4_is_bench_3_on_new_seeds_at_the_calibrated_length():
+def test_bench4_seeds():
     markets=bench.set_markets('bench-4')
     assert [m['seed'] for m in markets]==list(range(127,143)) and all(bench.reserved_seed(m['seed']) for m in markets)
     assert [(k,w) for k,w,_ in bench.SETS['bench-4']]==[(k,w) for k,w,_ in bench.SETS['bench-3']]
@@ -112,7 +112,7 @@ def test_bench_4_is_bench_3_on_new_seeds_at_the_calibrated_length():
     assert bench.set_fingerprints('bench-4').isdisjoint(others) and bench.trials_for(4,len(markets))==192
 
 
-def test_holdout_2_is_bench_4_on_new_seeds_and_is_calibrated_the_same_way():
+def test_holdout2_seeds():
     """Owner, 1 November 2026: a calibrated holdout before the next holdout use. Seeds 906 to 921 in order, not chosen by result.
     The planted rule passes the gate on 8 of 10 patterned markets (bench-4: 8 of 10), and a simple search passes on no empty market."""
     markets=bench.set_markets('holdout-2');trials=bench.trials_for(4,len(markets))
@@ -135,7 +135,7 @@ def test_holdout_2_is_bench_4_on_new_seeds_and_is_calibrated_the_same_way():
             assert not (score['beats_baseline'] and bench.bench_deflation(score,trials)['status']=='PASS'),(market['label'],name)
 
 
-def test_on_bench_4_the_planted_rule_passes_the_gate_and_a_simple_search_finds_nothing_in_empty_markets():
+def test_bench4_calibration():
     """Calibration of 29 October 2026: on 500 sessions the exact planted rule passed the bench gate on 7 of 64 calibration markets.
     At 4096 sessions every strong pattern passes; the weak reversal markets stay out of reach, and the report says so for each market."""
     markets=bench.set_markets('bench-4');trials=bench.trials_for(4,len(markets))
@@ -148,7 +148,7 @@ def test_on_bench_4_the_planted_rule_passes_the_gate_and_a_simple_search_finds_n
             assert not (score['beats_baseline'] and bench.bench_deflation(score,trials)['status']=='PASS'),(market['label'],name)
 
 
-def test_adding_bench_3_leaves_the_earlier_sets_byte_for_byte_unchanged():
+def test_earlier_sets():
     def digest(name):
         return hashlib.sha256('\n'.join(m['label']+'\0'+m['train_csv']+'\0'+m['validation_csv'] for m in bench.set_markets(name)).encode()).hexdigest()
     assert digest('bench-1')=='927922558f7d493ec449940eb3eb03dcb503fdfeae0e6a598d0282b65ecc62ed'
@@ -158,7 +158,7 @@ def test_adding_bench_3_leaves_the_earlier_sets_byte_for_byte_unchanged():
     assert all(m['strength']==bench.STRENGTH for m in bench.set_markets('bench-1')[:3])
 
 
-def test_regime_reference_starts_at_the_first_leanable_position_and_handles_empty_regimes():
+def test_regime_reference():
     rows=[{'session':i,'return':'0.01'} for i in range(6)]
     regimes=[bench.regime(0,'momentum',2),bench.regime(4,'reversal',2)]
     assert bench.reference_positions([],rows,'regimes',0,regimes)==[0,1,1,1,0,0]
@@ -167,7 +167,7 @@ def test_regime_reference_starts_at_the_first_leanable_position_and_handles_empt
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.reference_positions([],rows,'regimes',0,None)
 
 
-def test_regime_definitions_are_bounded_and_old_synthetic_calls_keep_their_shape():
+def test_regime_bounds():
     rows=synthetic_market(12,40)
     assert synthetic_market(12,40,regimes=None)==rows and len(rows)==40
     valid=[bench.regime(0,'momentum',5),bench.regime(20,'reversal',3)]
@@ -179,14 +179,14 @@ def test_regime_definitions_are_bounded_and_old_synthetic_calls_keep_their_shape
         synthetic_market(12,40,planted={'kind':'momentum','window':5,'strength':0.004},regimes=valid)
 
 
-def test_the_exact_planted_rule_rarely_passes_the_gate_on_150_validation_sessions():
+def test_planted_gate():
     """The finding of 25 October 2026 that set the found rule: perfect knowledge of the pattern passes the bench-local gate (60 trials)
     on 2 of 6 patterned markets. The real gate uses the global count, above 100, so it is stricter still. Found therefore uses capture."""
     statuses={m['label']:bench.bench_deflation(bench.reference_score(m))['status'] for name in ('bench-1','holdout-1') for m in bench.set_markets(name) if m['kind']}
     assert sorted(statuses.values())==['FAIL','FAIL','FAIL','FAIL','PASS','PASS']
 
 
-def test_the_bench_measure_does_not_move_with_the_global_trial_count():
+def test_bench_measure():
     market=bench.set_markets('bench-1')[0];score=bench.reference_score(market)
     first=bench.bench_deflation(score);second=bench.bench_deflation(score)
     assert first==second and first['trials']==bench.BENCH_TRIALS==60
@@ -207,7 +207,7 @@ def candidate_cycle(market,positions,hid='h1',audit='VERIFIED_PASS',status='REJE
             'candidates':[{'hypothesis_id':hid,'status':status,'audit':{'label':audit},'deflation':{'deflated_sharpe':'0.10000000','status':'FAIL'}}]}
 
 
-def test_the_report_finds_patterns_by_the_reference_and_calls_any_find_in_an_empty_market_broken():
+def test_bench_report():
     markets=bench.set_markets('bench-1')
     reference=[candidate_cycle(m,bench.reference_positions(m['train_rows'],m['validation_rows'],m['kind'],m['window'])) for m in markets[:3]]
     flat=[candidate_cycle(m,[0]*len(m['validation_rows']),status='REJECTED') for m in markets[3:]]
@@ -237,7 +237,7 @@ def test_the_report_finds_patterns_by_the_reference_and_calls_any_find_in_an_emp
     json.dumps(report)
 
 
-def test_the_trial_count_follows_the_cycles_per_market_and_a_real_gate_pass_on_an_empty_market_is_broken(monkeypatch):
+def test_trial_count(monkeypatch):
     markets=bench.set_markets('bench-1')
     short=bench.report([],markets,cycles_per_market=1)
     assert short['bench_trials']==15 and short['cycles_per_market']==1 and short['candidates_total']==0 and bench.report([],markets)['bench_trials']==60
@@ -248,12 +248,12 @@ def test_the_trial_count_follows_the_cycles_per_market_and_a_real_gate_pass_on_a
         assert report['false_discoveries']==1 and report['verdict'].startswith('BROKEN'),status
 
 
-def test_audit_failures_and_missing_scores_keep_their_levels():
+def test_failure_levels():
     market=bench.set_markets('bench-1')[0]
     assert bench.bench_level({'status':'REJECTED_AUDIT','audit':{'label':'VERIFIED_FAIL'}},{'beats_baseline':True})==3
     assert bench.bench_level({'status':'BUILD_FAILED'},None)==2
     cycle=candidate_cycle(market,bench.reference_positions(market['train_rows'],market['validation_rows'],'momentum',5))
-    assert bench.bench_cycle_level(cycle)==10 and bench.bench_cycle_level({'candidates':[]})==1
+    assert bench.bench_cycle(cycle)==10 and bench.bench_cycle({'candidates':[]})==1
 
 
 def write_end(ledger,index,purpose,title):
@@ -262,7 +262,7 @@ def write_end(ledger,index,purpose,title):
     ledger.record_cycle(f'cycle-{index:04d}-x',index,'END',record)
 
 
-def test_bench_and_holdout_cycles_never_reach_the_summary_the_lessons_or_gepa_feedback(bridge):
+def test_evaluation_isolation(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     write_end(ledger,1,None,'Old practice idea');write_end(ledger,2,'practice','New practice idea')
     write_end(ledger,3,'bench','Bench idea');write_end(ledger,4,'holdout','Holdout idea')
@@ -277,7 +277,7 @@ def test_bench_and_holdout_cycles_never_reach_the_summary_the_lessons_or_gepa_fe
     assert [learning_cycle({'purpose':p}) for p in ('practice','gepa','bench','holdout',None)]==[True,False,False,False,True]
 
 
-def test_holdout_uses_count_every_started_run_of_that_set(bridge):
+def test_holdout_uses(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     ledger.record_run_phase('run-20261025-0000aaa1','START',{'purpose':'holdout','holdout_set':'holdout-1'})  # crashed: no END row, still a use
     ledger.record_run_phase('run-20261025-0000aaa2','START',{'purpose':'holdout','holdout_set':'holdout-1'});ledger.record_run_phase('run-20261025-0000aaa2','END',{})
@@ -306,7 +306,7 @@ def project(tmp_path):
     return tmp_path
 
 
-def test_the_bench_command_runs_an_interleaved_schedule_and_prints_the_report(tmp_path,fake_run):
+def test_bench_command(tmp_path,fake_run):
     root=project(tmp_path)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench fixture',purpose='bench',available_memory=lambda:practice.START_FLOOR+1)
     labels=[m['label'] for m in bench.set_markets('bench-1')]
@@ -318,7 +318,7 @@ def test_the_bench_command_runs_an_interleaved_schedule_and_prints_the_report(tm
     json.dumps(record)
 
 
-def test_the_bench_command_can_select_bench_2_without_changing_the_default(tmp_path,fake_run):
+def test_bench2_select(tmp_path,fake_run):
     root=project(tmp_path)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 2 fixture',purpose='bench',bench_set='bench-2',
                                  available_memory=lambda:practice.START_FLOOR+1)
@@ -327,7 +327,7 @@ def test_the_bench_command_can_select_bench_2_without_changing_the_default(tmp_p
     assert bench.BENCH_SET=='bench-1'
 
 
-def test_the_bench_command_runs_bench_3_with_its_sixteen_markets(tmp_path,fake_run):
+def test_bench3_command(tmp_path,fake_run):
     root=project(tmp_path)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 3 fixture',purpose='bench',bench_set='bench-3',
                                  cycles_per_market=2,available_memory=lambda:practice.START_FLOOR+1)
@@ -336,7 +336,7 @@ def test_the_bench_command_runs_bench_3_with_its_sixteen_markets(tmp_path,fake_r
     assert record['preflight']['markets']==16 and record['vault_sessions_held_back']==16*100
 
 
-def test_the_bench_command_runs_bench_4_at_the_calibrated_length(tmp_path,fake_run):
+def test_bench4_command(tmp_path,fake_run):
     root=project(tmp_path)
     record=practice.run_practice(root,root/'config.toml',cycles=None,hours=None,requests=450,note='bench 4 fixture',purpose='bench',bench_set='bench-4',
                                  cycles_per_market=1,available_memory=lambda:practice.START_FLOOR+1)
@@ -344,7 +344,7 @@ def test_the_bench_command_runs_bench_4_at_the_calibrated_length(tmp_path,fake_r
     assert record['preflight']['markets']==16 and record['vault_sessions_held_back']==16*820
 
 
-def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_path,fake_run):
+def test_holdout_command(tmp_path,fake_run):
     root=project(tmp_path);folder=root/'state'/'engine'/'prompts'/'run-20261025-00001111'/'candidate-2';folder.mkdir(parents=True)
     for role in ('director','researcher','mathematician','engineer'): (folder/f'{role}.md').write_text(f'ROLE: {role}\nA candidate prompt from a GEPA fixture, long enough to pass.\n',encoding='utf-8',newline='\n')
     record_hashes(folder.parent,2)
@@ -378,14 +378,14 @@ def test_the_holdout_command_names_its_set_and_can_measure_a_gepa_candidate(tmp_
     ({'seed':200},'ENGINE_SEED_RESERVED'),
     ({'seed':150},'ENGINE_SEED_RESERVED'),
 ])
-def test_bad_bench_options_are_refused_before_the_lease(tmp_path,fake_run,options,code):
+def test_bad_options(tmp_path,fake_run,options,code):
     root=project(tmp_path)
     with pytest.raises(RuntimeRefused,match=f'^{code}$'):
         practice.run_practice(root,root/'config.toml',cycles=1,hours=None,requests=10,note='x',available_memory=lambda:practice.START_FLOOR+1,**options)
     assert not (root/'state'/'locks').exists() and fake_run=={}
 
 
-def test_the_command_line_passes_bench_and_holdout_options(tmp_path,monkeypatch,capsys):
+def test_option_passing(tmp_path,monkeypatch,capsys):
     seen={}
     def fake(root,config,**kwargs): seen.update(kwargs);return {'kind':kwargs['purpose']}
     monkeypatch.setattr(practice,'run_practice',fake)

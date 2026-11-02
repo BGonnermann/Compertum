@@ -11,14 +11,14 @@ from compertum.harness.commands import COMMANDS, DESCRIPTIONS, EXAMPLES, complet
 from compertum.harness.editor import SYNC_END, SYNC_START, LineEditor, Picker, _InputRecord, console_keys
 
 
-def test_slash_completion_inserts_an_editable_run_template():
+def test_slash_completion():
     assert complete("/ge") == "/gepa CYCLES REQUESTS HOURS NOTE"
     assert complete("/run") == "/run CYCLES REQUESTS HOURS NOTE"
     assert complete("/bench") == "/bench CYCLES REQUESTS HOURS NOTE"
     assert complete("ordinary text") is None
 
 
-def test_identifier_completion_uses_session_and_run_ids():
+def test_identifier_completion():
     sessions = lambda: ["session-20261028-one"]
     runs = lambda: {"test-20261028-one": {}}
     assert complete("/resume ses", sessions, runs) == "/resume session-20261028-one"
@@ -27,7 +27,7 @@ def test_identifier_completion_uses_session_and_run_ids():
     assert complete("/report te") is None
 
 
-def test_help_comes_from_the_same_command_registry():
+def test_help_registry():
     text = help_text()
     assert "/gepa CYCLES REQUESTS HOURS NOTE" in text
     assert "/model [NAME] [MODEL_ID]" in text
@@ -35,7 +35,7 @@ def test_help_comes_from_the_same_command_registry():
     assert "Tab inserts the selection and completes identifiers" in text
 
 
-def test_model_completion_uses_model_files_and_cached_ids():
+def test_model_completion():
     files = lambda: ["deepseek", "kimi", "local"]
     ids = lambda name: ["k3", "k3.1-pro"] if name == "kimi" else []
     assert complete("/model ki") is None
@@ -46,13 +46,13 @@ def test_model_completion_uses_model_files_and_cached_ids():
     assert complete("/models kimi ", model_files=files, model_ids=ids) is None
 
 
-def test_editor_passes_model_completion_sources():
+def test_completion_sources():
     keys = iter([*"/model ki", "\t", "\r"])
     editor = LineEditor(StringIO(), get_key=lambda: next(keys), width=80, model_files=lambda: ["kimi"])
     assert editor.read() == "/model kimi"
 
 
-def test_editor_completes_and_draws_the_box_and_hint():
+def test_box_hint():
     output = StringIO()
     keys = iter([*"/ge", "\t", "\r"])
     editor = LineEditor(output, get_key=lambda: next(keys), width=80)
@@ -63,7 +63,7 @@ def test_editor_completes_and_draws_the_box_and_hint():
     assert "start a bounded GEPA run" in rendered
 
 
-def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
+def test_box_title():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=60, title="Compertum · deepseek-flash")
     top, middle, _, _, _ = editor._lines()
     assert top.startswith("╭─ Compertum · deepseek-flash ─") and len(top) == len(middle) == 58
@@ -72,7 +72,7 @@ def test_box_title_shows_the_model_and_tab_leaves_out_optional_parts():
     assert complete("/model") == "/model " and complete("/watc") == "/watch " and complete("/res") == "/resume SESSION_ID"
 
 
-def test_enter_runs_the_highlighted_command_or_fills_its_template():
+def test_enter_command():
     # The owner typed "/", moved to /runs and pressed Enter; the harness sent "/" instead of /runs.
     def typed(*keys):
         pressed = iter(keys)
@@ -87,7 +87,7 @@ def test_enter_runs_the_highlighted_command_or_fills_its_template():
     assert typed(*"hello /", "\r") == "hello /"
 
 
-def test_paste_keeps_line_breaks_and_tabs_in_one_task():
+def test_paste_task():
     keys = ["l", "1", "\r", "\t", "l", "2", "\r"]
     # Characters wait after every pasted key except the last Enter, which sends the whole paste.
     editor = LineEditor(StringIO(), get_key=lambda: keys.pop(0), width=60, more=lambda: bool(keys))
@@ -96,7 +96,7 @@ def test_paste_keeps_line_breaks_and_tabs_in_one_task():
     assert "l1↵→l2" in middle
 
 
-def test_composer_keys_for_clearing_moving_deleting_words_and_emoji():
+def test_composer_keys():
     def typed(*keys):
         pressed = iter(keys)
         return LineEditor(StringIO(), get_key=lambda: next(pressed), width=60).read()
@@ -110,7 +110,7 @@ def test_composer_keys_for_clearing_moving_deleting_words_and_emoji():
         typed("\x1a")
 
 
-def test_enter_on_a_menu_choice_shows_the_command_that_runs():
+def test_enter_choice():
     output, screen = StringIO(), Screen(100)
     pressed = iter(["/", "r", "u", "\xe0P", "\r"])
     assert LineEditor(output, get_key=lambda: next(pressed), width=100).read() == "/runs"
@@ -119,7 +119,7 @@ def test_enter_on_a_menu_choice_shows_the_command_that_runs():
     assert set(screen.text()[1:]) <= {""}
 
 
-def test_tab_after_a_space_completes_the_argument_not_the_template():
+def test_tab_argument():
     sessions = lambda: ["session-20261029-one"]
     runs = lambda: {"gepa-20261029-one": {}}
     assert complete("/resume ", sessions, runs) == "/resume session-20261029-one"
@@ -128,7 +128,7 @@ def test_tab_after_a_space_completes_the_argument_not_the_template():
     assert complete("/model ", model_files=lambda: ["kimi"]) == "/model kimi"
 
 
-def test_picker_moves_selects_cancels_and_clears_its_rows():
+def test_picker_rows():
     options = [f"model-{n}" for n in range(12)]
     for keys, result in ((["\xe0P", "\xe0P", "\r"], 2), (["\xe0H", "\x1b"], None)):
         output, screen, pressed = StringIO(), Screen(60), iter(keys)
@@ -145,7 +145,7 @@ def test_picker_moves_selects_cancels_and_clears_its_rows():
     assert Picker(StringIO(), options, 0, get_key=lambda: next(keys), width=60).read() == 11
 
 
-def test_enter_erases_the_command_menu():
+def test_enter_erases():
     output = StringIO()
     keys = iter(["/", "\r"])
     screen = Screen(80)
@@ -155,7 +155,7 @@ def test_enter_erases_the_command_menu():
     assert (screen.row, screen.column) == (1, 0)
 
 
-def test_editor_supports_cursor_editing():
+def test_cursor_editing():
     keys = iter([*"abc", "\x00K", "\x08", "\x00O", "d", "\x00G", "z", "\x00S", "\r"])
     editor = LineEditor(StringIO(), get_key=lambda: next(keys), width=60)
     assert editor.read() == "zcd"
@@ -225,7 +225,7 @@ def body(text):
     return text[len(SYNC_START):-len(SYNC_END)]
 
 
-def test_console_events_translate_to_editor_keys():
+def test_console_events():
     assert console_keys(1, True, 0x41, "a") == ["a"]
     assert console_keys(1, True, 0x41, "a", repeat=3) == ["a", "a", "a"]
     assert console_keys(1, True, 0x26) == ["\xe0H"]
@@ -250,11 +250,11 @@ def test_console_events_translate_to_editor_keys():
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows console record layout")
-def test_console_record_matches_the_windows_layout():
+def test_console_record():
     assert ctypes.sizeof(_InputRecord) == 20
 
 
-def test_each_frame_is_one_synchronized_write():
+def test_synchronized_frame():
     output = Writes()
     keys = iter([*"/ge", "\xe0P", "\t", "\r"])
     editor = LineEditor(output, get_key=lambda: next(keys), width=80)
@@ -266,7 +266,7 @@ def test_each_frame_is_one_synchronized_write():
     assert output.frames[-1] == "\r\x1b[1A\x1b[J› /gepa CYCLES REQUESTS HOURS NOTE\n"
 
 
-def test_stable_frame_rewrites_only_changed_rows():
+def test_stable_frame():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=60)
     editor._render()
@@ -283,7 +283,7 @@ def test_stable_frame_rewrites_only_changed_rows():
     assert body(output.getvalue()) == "\x1b[3G"
 
 
-def test_height_change_forces_a_full_redraw(monkeypatch):
+def test_height_change(monkeypatch):
     size = [os.terminal_size((80, 30))]
     monkeypatch.setattr("compertum.harness.editor.shutil.get_terminal_size", lambda fallback: size[0])
     output = StringIO()
@@ -298,7 +298,7 @@ def test_height_change_forces_a_full_redraw(monkeypatch):
     assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
 
 
-def test_menu_movement_rewrites_menu_rows_without_the_box():
+def test_menu_movement():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=100)
     editor.buffer, editor.cursor = "/", 1
@@ -313,7 +313,7 @@ def test_menu_movement_rewrites_menu_rows_without_the_box():
     assert "› " in patch and "\x1b[J" not in patch
 
 
-def test_redraw_returns_to_the_input_row_and_borders_align():
+def test_redraw_borders():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=60)
     editor._render()
@@ -322,7 +322,7 @@ def test_redraw_returns_to_the_input_row_and_borders_align():
     assert len(top) == len(middle) == len(bottom) == 58
 
 
-def test_resize_rewinds_reflowed_lines_and_erases_from_line_start():
+def test_resize_rewind():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=100)
     editor._render()
@@ -340,7 +340,7 @@ def test_resize_rewinds_reflowed_lines_and_erases_from_line_start():
     assert body(output.getvalue()).startswith("\x1b[1A\r\x1b[J")
 
 
-def test_typing_menu_movement_and_widening_leave_only_the_current_frame():
+def test_current_frame():
     random = Random(20261028)
     keys = ["g", "e", "m", "o", "n", "x", " ", "\x08", "\xe0H", "\xe0P", "\xe0P", "\xe0P", "\xe0K", "\xe0M", "\t"]
     # Each round opens the command menu, edits and scrolls it, then clears the input.
@@ -371,7 +371,7 @@ def test_typing_menu_movement_and_widening_leave_only_the_current_frame():
     assert checked == len(script) + 1
 
 
-def test_unchanged_frame_does_not_write_during_resize_polling():
+def test_unchanged_frame():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=60)
     editor._render()
@@ -381,7 +381,7 @@ def test_unchanged_frame_does_not_write_during_resize_polling():
     assert output.getvalue() == ""
 
 
-def test_composer_width_follows_terminal_and_long_input_scrolls():
+def test_composer_width():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=80)
     editor.buffer = "x" * 20
     assert editor._size() == 78
@@ -396,19 +396,19 @@ def test_composer_width_follows_terminal_and_long_input_scrolls():
     assert editor._size() == 40
 
 
-def test_editor_ctrl_z_reaches_eof():
+def test_ctrlz_eof():
     editor = LineEditor(StringIO(), get_key=lambda: "\x1a", width=60)
     with pytest.raises(EOFError):
         editor.read()
 
 
-def test_editor_ctrl_c_interrupts_without_a_command():
+def test_ctrlc_interrupt():
     editor = LineEditor(StringIO(), get_key=lambda: "\x03", width=60)
     with pytest.raises(KeyboardInterrupt):
         editor.read()
 
 
-def test_command_menu_shows_description_and_example():
+def test_menu_description():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
     editor.buffer = "/gepa"
     _, _, _, hints, _ = editor._lines()
@@ -416,7 +416,7 @@ def test_command_menu_shows_description_and_example():
                      "    Example: /gepa 20 450 2 improve reversal capture"]
 
 
-def test_command_menu_aligns_descriptions_and_spaces_its_sections():
+def test_menu_alignment():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=100)
     editor.buffer = editor.menu_text = "/"
     editor.selected = 6
@@ -430,7 +430,7 @@ def test_command_menu_aligns_descriptions_and_spaces_its_sections():
     assert hints[-1] == "    Example: /resume session-20261028-104110-7382a492"
 
 
-def test_narrow_command_menu_moves_the_description_below_the_list():
+def test_narrow_menu():
     editor = LineEditor(StringIO(), get_key=lambda: "\r", width=44)
     editor.buffer = editor.menu_text = "/"
     editor.selected = 6
@@ -439,7 +439,7 @@ def test_narrow_command_menu_moves_the_description_below_the_list():
     assert hints[-2:] == ["    resume a conversation", "    Example: /resume session-20261028-1041"]
 
 
-def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
+def test_menu_scroll():
     output = StringIO()
     keys = iter(["/", *["\xe0P"] * 6, "\t", "\r"])
     editor = LineEditor(output, get_key=lambda: next(keys), width=100)
@@ -450,12 +450,12 @@ def test_command_menu_scrolls_and_tab_inserts_highlighted_command():
     assert "Example: /resume" in rendered
 
 
-def test_command_examples_cover_every_registered_command():
+def test_command_examples():
     assert set(EXAMPLES) == {command for command, _, _ in COMMANDS}
     assert all(EXAMPLES.values())
 
 
-def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
+def test_menu_wrap():
     output = StringIO()
     keys = iter(["/", "\xe0H", "\t", "\r"])
     editor = LineEditor(output, get_key=lambda: next(keys), width=100)
@@ -470,7 +470,7 @@ def test_command_menu_up_wraps_to_last_and_limits_visible_rows():
     assert "    ↑ 13 more" in hints and not any("↓" in hint for hint in hints)
 
 
-def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
+def test_cursor_reposition():
     output = StringIO()
     editor = LineEditor(output, get_key=lambda: "\r", width=80)
     editor._render()
@@ -490,7 +490,7 @@ def test_redraw_repositions_cursor_when_menu_rows_grow_and_shrink():
     assert patch.endswith("\x1b[2A\x1b[5G")
 
 
-def test_color_paints_the_frame_without_changing_its_text():
+def test_frame_color():
     from compertum.harness.display import ACCENT, FAINT, MUTED
     editor = LineEditor(StringIO(), width=80, title="Compertum · m", color=True)
     editor.buffer, editor.cursor = "/r", 2
@@ -510,7 +510,7 @@ def test_color_paints_the_frame_without_changing_its_text():
     assert LineEditor(StringIO(), width=80)._painted(lines, 0) == top
 
 
-def test_a_sent_task_leaves_a_one_line_echo_instead_of_the_box():
+def test_task_echo():
     from compertum.harness.display import ACCENT
     output = StringIO()
     keys = iter(list("fix it") + ["\r"])

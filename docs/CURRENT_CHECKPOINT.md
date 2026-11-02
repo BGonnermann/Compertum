@@ -430,7 +430,15 @@ Built: `update_indices.py pull --workers 8` and a shared request slot in `pull_b
 (read from `x-ratelimit-limit`), so the gain is about 1.4 times: live check, 16 stocks into a scratch folder, 384 requests at 185 a minute (single thread:
 about 131), all 128 stock-years equal to the stored bars, scratch removed. Multi-symbol requests were not built: with 100 bars a page they save about
 15% of pages. The `/data` line shows the count of other stocks in progress. Tests: engine lane 364 passed, 0 failed; product lane 302 passed, 0 failed,
-8 skipped; harness lane 139 passed, 0 failed.
+8 skipped; harness lane 139 passed, 0 failed. Commit `52be875`.
+Owner: point-in-time sweep "Yes". `library-multi-20261102-4ad46134`: universe `sp500-pit`, 654 members (BRCM, CNX, GMCR, PCL, PCP skipped: too short),
+75 trials recorded (total 28,090 to 28,165), 8.5 minutes, $0. Equal-weight members: annual Sharpe 0.48 on VALIDATION. No family beat it; 0 passed the gate;
+best deflated Sharpe 0.0006 (xs_low_vol, Sharpe 0.54 but mean return 1.7% a year below the benchmark). xs_momentum fell from 0.81 on today's 328 large
+names to 0.15 point in time: the survivor list flattered it. The vault was not opened.
+Owner: rename "Yes", scope "Engine, harness, tools": 349 names in 352 definitions and 53 files (25 code names, 324 test names); 11 kept (see ENGINE_PLAN.md, "Code names").
+No sealed file, milestone product file or product test changed, so no fingerprint changed and the Auditor was not re-sealed.
+Tests after the rename: engine lane 364 passed, 0 failed; product lane 302 passed, 0 failed, 8 skipped; harness lane 139 passed, 0 failed;
+native Windows harness files 6 passed, 0 failed, 0 skipped. The project map was not refreshed.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

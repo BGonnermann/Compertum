@@ -86,7 +86,7 @@ def rsi_revert(s,period,entry):
     return out
 
 
-def dip_in_trend(s,trend,pullback):
+def trend_dip(s,trend,pullback):
     c=s['closes'];p=s['prefix'];out=[]
     for t in range(len(c)):
         m=_sma(p,t,trend);out.append(1 if m is not None and t>=pullback and c[t]>m and c[t]<c[t-pullback] else 0)
@@ -105,7 +105,7 @@ def low_vol(s,window,quantile):
     return out
 
 
-def turn_of_month(s,last,first):
+def month_turn(s,last,first):
     d=s['dates'];out=[]
     for t in range(len(d)):
         if t+1>=len(d): out.append(0);continue
@@ -118,7 +118,7 @@ def turn_of_month(s,last,first):
     return out
 
 
-def day_of_week(s,weekday):
+def week_day(s,weekday):
     d=s['dates'];return [1 if t+1<len(d) and d[t+1].weekday()==weekday else 0 for t in range(len(d))]
 
 
@@ -129,10 +129,10 @@ FAMILIES={
     'ma_cross':(ma_cross,[{'fast':a,'slow':b} for a,b in ((5,20),(5,50),(10,50),(10,100),(20,50),(20,100),(20,200),(50,100),(50,200))]),
     'breakout':(breakout,[{'entry':a,'exit':b} for a,b in ((20,10),(55,20),(100,50),(200,100))]),
     'rsi_revert':(rsi_revert,[{'period':n,'entry':e} for n in (2,5,14) for e in (10,20,30)]),
-    'dip_in_trend':(dip_in_trend,[{'trend':n,'pullback':k} for n in (100,200) for k in (1,3,5)]),
+    'dip_in_trend':(trend_dip,[{'trend':n,'pullback':k} for n in (100,200) for k in (1,3,5)]),
     'low_vol':(low_vol,[{'window':n,'quantile':q} for n in (10,20) for q in (0.5,0.7)]),
-    'turn_of_month':(turn_of_month,[{'last':a,'first':b} for a in (1,2,3) for b in (1,2,3)]),
-    'day_of_week':(day_of_week,[{'weekday':w} for w in range(5)]),
+    'turn_of_month':(month_turn,[{'last':a,'first':b} for a in (1,2,3) for b in (1,2,3)]),
+    'day_of_week':(week_day,[{'weekday':w} for w in range(5)]),
 }
 SETTINGS=sum(len(grid) for _,grid in FAMILIES.values())
 
@@ -214,11 +214,11 @@ def summarize(rows):
 
 
 def load_markets(root,manifests):
-    from .real_market import load_market_manifest
+    from .real_market import open_market
     out=[];skipped=[]
     for path in manifests:
         symbol=Path(path).parent.name
-        try: market,_vault=load_market_manifest(root,str(path))
+        try: market,_vault=open_market(root,str(path))
         except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
         out.append({'symbol':symbol,'label':market['label'],'train_rows':_rows(market['train_csv']),'validation_rows':market['validation_rows']})
     return out,skipped

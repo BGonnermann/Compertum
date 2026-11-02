@@ -58,7 +58,7 @@ class Agent:
             for message in self.messages[1:]:
                 if message.get("role") in ("user", "tool") and isinstance(message.get("content"), str):
                     message["content"] = guard(message["content"])
-            self._close_open_calls()
+            self._close_calls()
 
     def _append(self, message):
         self.messages.append(message)
@@ -82,7 +82,7 @@ class Agent:
         def end(status, answer="", detail=""):
             outcome = Outcome(status, answer, step, self.clock() - start, detail)
             try:
-                self._close_open_calls()
+                self._close_calls()
                 self.emit("outcome", {"status": status, "steps": step, "seconds": outcome.seconds, "detail": detail})
             except Exception as exc:  # noqa: BLE001
                 # A failed save must not hide the outcome. The conversation in memory stays complete.
@@ -151,7 +151,7 @@ class Agent:
         self.display.tool_result(result, ok, name=name, change=take_change())
         return result
 
-    def _close_open_calls(self):
+    def _close_calls(self):
         for i in range(len(self.messages) - 1, -1, -1):
             message = self.messages[i]
             if message["role"] == "assistant":

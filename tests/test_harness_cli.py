@@ -28,7 +28,7 @@ def saved_session(root):
     return session.identity
 
 
-def test_console_opens_without_a_model_request_and_lists_sessions(tmp_path):
+def test_console_opens(tmp_path):
     root = tmp_path / "project"
     config(root)
     answers = iter(["/status", "/sessions", "/exit"])
@@ -41,7 +41,7 @@ def test_console_opens_without_a_model_request_and_lists_sessions(tmp_path):
     assert '"completion_sent"' not in text
 
 
-def test_console_can_resume_a_saved_session_without_a_model(tmp_path):
+def test_console_resume(tmp_path):
     root = tmp_path / "project"
     config(root)
     first = main(["--project", str(root)], display=Display(StringIO(), color=False), input_fn=lambda _: "/exit")
@@ -56,7 +56,7 @@ def test_console_can_resume_a_saved_session_without_a_model(tmp_path):
     assert identity in output.getvalue()
 
 
-def test_watch_without_runs_has_a_clear_message(tmp_path):
+def test_watch_empty(tmp_path):
     root = tmp_path / "project"
     config(root)
     answers = iter(["/watch", "/exit"])
@@ -67,7 +67,7 @@ def test_watch_without_runs_has_a_clear_message(tmp_path):
     assert "Error:" not in output.getvalue()
 
 
-def test_watch_prefix_and_bare_run_command_have_correct_errors(tmp_path):
+def test_watch_errors(tmp_path):
     root = tmp_path / "project"
     config(root)
     answers = iter(["/watchdog", "/gepa", "/exit"])
@@ -80,7 +80,7 @@ def test_watch_prefix_and_bare_run_command_have_correct_errors(tmp_path):
     assert '"status": "RUNNING"' not in text
 
 
-def test_model_selection_preserves_the_session_and_changes_future_run_defaults(tmp_path, monkeypatch):
+def test_model_selection(tmp_path, monkeypatch):
     from compertum.harness.model import Reply
 
     root = tmp_path / "project"
@@ -106,7 +106,7 @@ def test_model_selection_preserves_the_session_and_changes_future_run_defaults(t
     assert text.count('"model_file": "kimi"') == 4
 
 
-def test_failed_model_selection_keeps_the_active_model(tmp_path):
+def test_failed_selection(tmp_path):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -120,7 +120,7 @@ def test_failed_model_selection_keeps_the_active_model(tmp_path):
     assert '"model": "exact"' not in text
 
 
-def test_model_listing_uses_the_named_file_without_switching(tmp_path, monkeypatch):
+def test_model_listing(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -136,7 +136,7 @@ def test_model_listing_uses_the_named_file_without_switching(tmp_path, monkeypat
     assert '"model": "scripted"' in text and '"model_file": "local"' in text
 
 
-def test_model_selection_survives_resume_inside_the_console(tmp_path):
+def test_selection_resume(tmp_path):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -164,7 +164,7 @@ def status_model(root, argv=(), answers=("/status", "/exit")):
     return output.getvalue()
 
 
-def test_model_choice_survives_a_restart_and_options_still_win(tmp_path):
+def test_choice_restart(tmp_path):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -178,7 +178,7 @@ def test_model_choice_survives_a_restart_and_options_still_win(tmp_path):
     assert "The saved model choice kimi kimi-exact no longer loads. Using local." in text and '"model": "scripted"' in text
 
 
-def test_plain_model_command_opens_a_picker_that_selects_and_saves(tmp_path):
+def test_model_picker(tmp_path):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -204,7 +204,7 @@ def test_plain_model_command_opens_a_picker_that_selects_and_saves(tmp_path):
     assert "Kept kimi-default." in output.getvalue()
 
 
-def test_picker_keeps_models_used_before_and_a_listing_refreshes_them(tmp_path, monkeypatch):
+def test_picker_history(tmp_path, monkeypatch):
     # The owner used deepseek-flash, switched to Kimi and then v4-pro; flash then vanished from the picker.
     root = tmp_path / "project"
     config(root)
@@ -225,7 +225,7 @@ def test_picker_keeps_models_used_before_and_a_listing_refreshes_them(tmp_path, 
     assert "new-id" in labels and "flash-id" not in labels
 
 
-def test_commands_accept_real_notes_paths_case_and_explain_missing_parts(tmp_path, monkeypatch):
+def test_command_parsing(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")
@@ -249,7 +249,7 @@ def test_commands_accept_real_notes_paths_case_and_explain_missing_parts(tmp_pat
     assert "kimi-typo is not a known model for kimi. /models kimi lists what the provider offers." in text
 
 
-def test_ctrl_c_during_a_command_keeps_the_harness_open(tmp_path, monkeypatch):
+def test_ctrlc_command(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
 
@@ -261,7 +261,7 @@ def test_ctrl_c_during_a_command_keeps_the_harness_open(tmp_path, monkeypatch):
     assert "Stopped the command." in text and '"model": "scripted"' in text
 
 
-def test_sessions_list_dates_and_first_tasks(tmp_path):
+def test_sessions_list(tmp_path):
     root = tmp_path / "project"
     config(root)
     identity = saved_session(root)
@@ -269,7 +269,7 @@ def test_sessions_list_dates_and_first_tasks(tmp_path):
     assert f"{identity}  {identity[8:12]}-{identity[12:14]}-{identity[14:16]}" in text and "an earlier task" in text
 
 
-def test_engine_runs_refuse_an_interactive_only_provider(tmp_path, monkeypatch):
+def test_interactive_provider(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
     started = []
@@ -282,7 +282,7 @@ def test_engine_runs_refuse_an_interactive_only_provider(tmp_path, monkeypatch):
     assert started == ["test"]
 
 
-def test_tasks_default_to_the_highest_limits_and_limits_can_change(tmp_path):
+def test_task_limits(tmp_path):
     root = tmp_path / "project"
     config(root)
     text = status_model(root, answers=("/limits", "/limits 40 20", "/limits 0 5", "/limits x", "/exit"))
@@ -292,7 +292,7 @@ def test_tasks_default_to_the_highest_limits_and_limits_can_change(tmp_path):
     assert "use /limits STEPS MINUTES, for example /limits 100 60" in text
 
 
-def test_bracket_placeholders_and_missing_keys_get_clear_messages(tmp_path, monkeypatch):
+def test_placeholder_messages(tmp_path, monkeypatch):
     root = tmp_path / "project"
     config(root)
     model_file(root, "kimi", "kimi-default")

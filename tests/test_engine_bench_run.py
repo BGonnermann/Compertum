@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 deepagents=pytest.importorskip('deepagents')
 from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
-from test_engine_limits import set_research_state  # noqa: E402
+from test_engine_limits import set_state  # noqa: E402
 from test_engine_roles import market,role_server,root,verification  # noqa: E402,F401  (fixtures)
 from test_engine_run import project,start  # noqa: E402,F401  (fixture and helper)
 from compertum.ai.engine import bench  # noqa: E402
@@ -21,8 +21,8 @@ from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
 
 @pytest.mark.parametrize('bench_name',['bench-1','bench-2'])
-def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,verification,market,bench_name):
-    b,_=bridge;set_research_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
+def test_bench_isolation(bridge,project,root,verification,market,bench_name):
+    b,_=bridge;set_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
     markets=bench.set_markets(bench_name)
     first=market_sha256(SimpleNamespace(train_csv=markets[0]['train_csv'],validation_csv=markets[0]['validation_csv']))
     # Nine earlier practice cycles on the first bench market's files: a practice cycle there would see them as lessons.
@@ -68,8 +68,8 @@ def test_a_bench_run_sees_no_history_and_teaches_nothing(bridge,project,root,ver
     assert all(r['candidates']==1 and r['scored']==1 for r in report['markets'])
 
 
-def test_holdout_uses_are_counted_before_the_first_cycle_and_retired_after_the_limit(bridge,project,root,verification,market):
-    b,_=bridge;set_research_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
+def test_holdout_retire(bridge,project,root,verification,market):
+    b,_=bridge;set_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
     for n in range(bench.HOLDOUT_USES-1):  # four earlier uses, one of them crashed with no END row
         run_id=f'run-20261025-0000bbb{n}';ledger.record_run_phase(run_id,'START',{'purpose':'holdout','holdout_set':'holdout-1'})
         if n: ledger.record_run_phase(run_id,'END',{})
@@ -79,7 +79,7 @@ def test_holdout_uses_are_counted_before_the_first_cycle_and_retired_after_the_l
         with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_ACTIVE$'):  # the crashed use is still open: the owner closes it first
             start(bridge,project,root,verification,market,port,RunLimits(request_limit=60,cycle_limit=1),schedule=holdout,purpose='holdout',holdout_set='holdout-1')
         from compertum.ai.engine import control
-        control.close_abandoned_run(b.store,'run-20261025-0000bbb0','closed (fixture)')
+        control.close_abandoned(b.store,'run-20261025-0000bbb0','closed (fixture)')
         result=start(bridge,project,root,verification,market,port,RunLimits(request_limit=60,cycle_limit=1),schedule=holdout,purpose='holdout',holdout_set='holdout-1',prompts=prompts)
         row=ledger.run_rows(result['run_id'])[0]
         assert row['purpose']=='holdout' and row['holdout_set']=='holdout-1' and row['holdout_use']==5 and row['holdout_uses_allowed']==5
@@ -107,8 +107,8 @@ def test_holdout_uses_are_counted_before_the_first_cycle_and_retired_after_the_l
     ({'purpose':'bench','schedule':'NOLABEL'},'ENGINE_MARKET_DENIED'),
     ({'purpose':'bench','schedule':'TWIN'},'ENGINE_MARKET_DENIED'),  # one label, two markets
 ])
-def test_bad_purposes_and_schedules_are_refused_before_the_start_row(bridge,project,root,verification,market,extra,code):
-    b,_=bridge;set_research_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
+def test_bad_purposes(bridge,project,root,verification,market,extra,code):
+    b,_=bridge;set_state(b.store,'RUNNING');ledger=EngineLedger(b.store)
     extra=dict(extra);limits=extra.pop('limits',RunLimits(request_limit=60,cycle_limit=1))
     markets={'S':bench.set_markets('bench-1'),'H':bench.set_markets('holdout-1')}
     markets['NOLABEL']=[{k:v for k,v in m.items() if k!='label'} for m in markets['S']]
@@ -120,8 +120,8 @@ def test_bad_purposes_and_schedules_are_refused_before_the_start_row(bridge,proj
     assert ledger.run_starts()==[] and state['posts']==[]
 
 
-def test_a_bench_stop_before_the_first_cycle_still_saves_an_incomplete_report(bridge,project,root,verification,market):
-    b,_=bridge;set_research_state(b.store,'RUNNING');ticks=[0.0]
+def test_early_stop(bridge,project,root,verification,market):
+    b,_=bridge;set_state(b.store,'RUNNING');ticks=[0.0]
     def clock():
         ticks[0]+=600.0;return ticks[0]
     markets=bench.set_markets('bench-1')

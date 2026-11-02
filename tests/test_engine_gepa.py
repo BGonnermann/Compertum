@@ -10,7 +10,7 @@ from test_ai_manual import bridge  # noqa: F401  (fixture)
 from decimal import Decimal
 from compertum.ai.engine import bench,practice
 from compertum.ai.engine.gepa_run import (CLEARLY_WORSE,GEPA_TRIALS,SPEED_WEIGHT,GOAL_FILE,LEVELS,MAX_RECORDS,PROMPTS_DIR,PromptAdapter,QuietLogger,apply_prompts,candidate_level,check_prompt,cycle_level,earlier_titles,
-                                          candidate_prompts,feedback_for,gepa_cycle_level,gepa_level,load_goal,records_text,score_for_cycle,sha,write_candidates)
+                                          candidate_prompts,feedback_for,gepa_cycle,gepa_level,load_goal,records_text,cycle_score,sha,write_candidates)
 from compertum.ai.engine.prompts import (COMPONENT_FILES,ROUTING_DEFAULT,SETTINGS_DEFAULT,default_component,options_text,parse_routing,parse_settings,
                                          routing_text)
 from compertum.ai.engine.gepa_run import SLOT_REFLECTOR,unfenced
@@ -35,7 +35,7 @@ class StubClient:
         return self.replies.pop(0),{'call_id':f'call-{len(self.calls)}'}
 
 
-def test_proposed_prompts_pass_the_committed_prompt_rules_and_the_secret_check():
+def test_proposal_rules():
     for role in ROLES: assert check_prompt(role,load_prompt(PROJECT,role))==load_prompt(PROJECT,role)
     good='ROLE: director\n'+'Pick hypotheses and answer in JSON only.\n'*2
     assert check_prompt('director',good)==good
@@ -59,7 +59,7 @@ def validator_scores():
             'long_but_last':score([1]*(n-1)+[0]),'flat_but_last':score([0]*(n-1)+[1]),'flat_first':score([0]+[1]*(n-1))}
 
 
-def test_ten_levels_come_from_the_validator_numbers_only():
+def test_ten_levels():
     s=validator_scores()
     assert sorted(LEVELS)==list(range(1,11)) and all(len(text)>20 for text in LEVELS.values())
     assert s['winner']['beats_baseline'] is True and s['loser']['beats_baseline'] is False and s['near'] is not None
@@ -91,10 +91,10 @@ def test_ten_levels_come_from_the_validator_numbers_only():
     # A cycle scores its best candidate; nothing built is level 1; GEPA's score is the level divided by 10.
     result={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'REJECTED'},{'hypothesis_id':'h2','status':'REJECTED'}],
             'scores':{'h1':s['long_all'],'h2':s['near']}}
-    assert cycle_level(result)==6 and score_for_cycle(result)==0.6
-    assert cycle_level({'status':'COMPLETED','candidates':[]})==1 and score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[]})==0.1
-    assert score_for_cycle({'status':'COMPLETED','stop_code':None,'candidates':[{'status':'QUEUED'}]})==1.0
-    assert score_for_cycle({'status':'STOPPED_AI_REQUEST_BUDGET','stop_code':'AI_REQUEST_BUDGET','candidates':[{'status':'QUEUED'}]})==0.0
+    assert cycle_level(result)==6 and cycle_score(result)==0.6
+    assert cycle_level({'status':'COMPLETED','candidates':[]})==1 and cycle_score({'status':'COMPLETED','stop_code':None,'candidates':[]})==0.1
+    assert cycle_score({'status':'COMPLETED','stop_code':None,'candidates':[{'status':'QUEUED'}]})==1.0
+    assert cycle_score({'status':'STOPPED_AI_REQUEST_BUDGET','stop_code':'AI_REQUEST_BUDGET','candidates':[{'status':'QUEUED'}]})==0.0
 
 
 def momentum_score():
@@ -104,7 +104,7 @@ def momentum_score():
     return score_signals('session,position\n'+''.join(f"{r['session']},{p}\n" for r,p in zip(validation,positions)),validation)
 
 
-def test_gepa_levels_use_a_fixed_trial_count_and_never_reward_a_find_on_an_empty_market():
+def test_level_trials():
     s=validator_scores();rule=momentum_score();passed={'label':'VERIFIED_PASS'}
     early={'hypothesis_id':'h1','status':'REJECTED_DEFLATED','deflation':{'deflated_sharpe':'0.60','trials':10},'audit':passed}
     late={**early,'deflation':{'deflated_sharpe':'0.01','trials':5000}}
@@ -113,17 +113,17 @@ def test_gepa_levels_use_a_fixed_trial_count_and_never_reward_a_find_on_an_empty
     assert gepa_level(early,rule)==gepa_level(late,rule)==8
     assert gepa_level(late,s['winner'])==10 and gepa_level({**late,'audit':None},s['winner'])==6
     patterned={'status':'COMPLETED','stop_code':None,'candidates':[late],'scores':{'h1':rule}}
-    assert gepa_cycle_level(patterned)==8 and score_for_cycle(patterned)==0.8
-    assert gepa_level(late,rule,empty=True)==6 and score_for_cycle(patterned,empty=True)==0.6
+    assert gepa_cycle(patterned)==8 and cycle_score(patterned)==0.8
+    assert gepa_level(late,rule,empty=True)==6 and cycle_score(patterned,empty=True)==0.6
     found={**late,'hypothesis_id':'h2'}
     both={'status':'COMPLETED','stop_code':None,'candidates':[late,found],'scores':{'h1':rule,'h2':s['winner']}}
-    assert gepa_cycle_level(both)==10 and gepa_cycle_level(both,empty=True)==0 and score_for_cycle(both,empty=True)==0.0
+    assert gepa_cycle(both)==10 and gepa_cycle(both,empty=True)==0 and cycle_score(both,empty=True)==0.0
     queued={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'QUEUED'}],'scores':{}}
-    assert score_for_cycle(queued)==1.0 and score_for_cycle(queued,empty=True)==0.0
+    assert cycle_score(queued)==1.0 and cycle_score(queued,empty=True)==0.0
     honest={'status':'COMPLETED','stop_code':None,'candidates':[{'hypothesis_id':'h1','status':'REJECTED'}],'scores':{'h1':s['near']}}
-    assert score_for_cycle(honest,empty=True)==0.6==score_for_cycle(honest)
+    assert cycle_score(honest,empty=True)==0.6==cycle_score(honest)
     nothing={'status':'COMPLETED','stop_code':None,'candidates':[]}
-    assert score_for_cycle(nothing,empty=True)==0.1>score_for_cycle(both,empty=True)
+    assert cycle_score(nothing,empty=True)==0.1>cycle_score(both,empty=True)
     text=feedback_for(patterned)
     assert text.startswith('Cycle level 8 of 10') and f'The level uses a fixed 60 trials: deflated Sharpe {bench.bench_deflation(rule,60)["deflated_sharpe"]}.' in text
     capped=feedback_for(patterned,empty=True)
@@ -134,7 +134,7 @@ def test_gepa_levels_use_a_fixed_trial_count_and_never_reward_a_find_on_an_empty
     assert practice.practice_market(41,500,0.004,None,0)[0]['kind'] is None and practice.practice_market(12,500,0.004)[0]['kind']=='momentum'
 
 
-def test_feedback_explains_the_level_with_the_numbers_behind_it(bridge):
+def test_level_feedback(bridge):
     s=validator_scores();n=s['n']
     result={'status':'COMPLETED','hypotheses':[{'id':'h1','title':'Five-session momentum'},{'id':'h2','title':'Mean reversion'}],
             'candidates':[{'hypothesis_id':'h1','status':'REJECTED','deflation':{'deflated_sharpe':'0.10','trials':12,'status':'FAIL'},'run_statuses':['COMPLETED']}],
@@ -166,7 +166,7 @@ def test_feedback_explains_the_level_with_the_numbers_behind_it(bridge):
     assert earlier_titles(ledger,'cycle-0031-aaaaaaaa')=={'five session momentum':32}
 
 
-def test_evaluate_scores_a_real_record_and_names_a_repeated_idea(bridge):
+def test_evaluate_record(bridge):
     # Through the adapter: a scored candidate reaches its level, and the ledger's earlier cycles name the repeat.
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
     ledger.record_cycle('cycle-0007-aaaaaaaa',7,'END',{'hypotheses':[{'id':'h1','title':'Near buy and hold'}]})
@@ -181,7 +181,7 @@ def test_evaluate_scores_a_real_record_and_names_a_repeated_idea(bridge):
     assert feedback.startswith('Cycle level 6 of 10: A real strategy, close to buy-and-hold but not better.') and 'This idea repeats cycle 7.' in feedback
 
 
-def test_evaluate_caps_only_markets_that_are_known_to_have_no_pattern(bridge):
+def test_evaluate_caps(bridge):
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
     prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
     def fake_cycle(engine,index):
@@ -194,7 +194,7 @@ def test_evaluate_caps_only_markets_that_are_known_to_have_no_pattern(bridge):
     assert 'This market has no pattern.' in batch.trajectories[1]['feedback'] and 'no pattern' not in batch.trajectories[2]['feedback']
 
 
-def test_evaluate_runs_the_markets_of_a_batch_at_the_same_time_and_records_them_in_order(bridge):
+def test_evaluate_parallel(bridge):
     import threading
     from compertum.ai.models import CYCLE
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
@@ -228,7 +228,7 @@ def test_evaluate_runs_the_markets_of_a_batch_at_the_same_time_and_records_them_
     assert [e['cycle_index'] for e in halted.evaluations]==[5,6] and all(e['stop_code']=='ENGINE_STOP_FILE_PRESENT' for e in halted.evaluations)
 
 
-def test_a_candidate_with_a_false_discovery_is_never_best_while_a_clean_one_exists():
+def test_false_discovery():
     from compertum.ai.engine.gepa_run import best_candidate
     reckless={'scores':[{'level':10},{'level':10},{'level':10},{'level':0,'false_discovery':True}]}
     honest={'scores':[{'level':8},{'level':8},{'level':8},{'level':6}]}
@@ -236,7 +236,7 @@ def test_a_candidate_with_a_false_discovery_is_never_best_while_a_clean_one_exis
     assert best_candidate([reckless])==0
 
 
-def test_reflective_dataset_is_bounded_and_per_role(bridge):
+def test_reflective_dataset(bridge):
     b,_=bridge;adapter=PromptAdapter(build_engine=None,run_cycle=None,client=None,ledger=EngineLedger(b.store),run_id='run-20261024-0123abcd',next_index=1,cycle_limit=6)
     transcript=[{'role':'director','kind':'pick','task':'Pick '+'t'*9000,'reply':'{"hypotheses":[]}'},{'role':'researcher','kind':'memo','task':'Write','reply':'memo'}]
     batch=Batch([{'transcript':transcript,'feedback':'cycle status COMPLETED.','score':0.4}]*10)
@@ -248,7 +248,7 @@ def test_reflective_dataset_is_bounded_and_per_role(bridge):
     with pytest.raises(RuntimeRefused,match='^AI_ROLE_DENIED$'): adapter.make_reflective_dataset({},batch,['owner'])
 
 
-def test_proposals_go_through_the_client_and_invalid_ones_keep_the_old_text(bridge):
+def test_proposal_client(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     current={role:load_prompt(PROJECT,role) for role in ROLES}
     improved='ROLE: director\nImproved: pick at most three hypotheses and answer in JSON only, with one sentence of reasoning each.\n'
@@ -285,7 +285,7 @@ def test_proposals_go_through_the_client_and_invalid_ones_keep_the_old_text(brid
     text=records_text(big);assert len(text.encode('utf-8'))<=24000 and json.loads(text)==big[:3] and records_text([])=='[]'
 
 
-def test_cycle_limit_is_a_hard_bound_and_candidates_are_written_from_observations(bridge,tmp_path):
+def test_cycle_limit(bridge,tmp_path):
     b,_=bridge;ledger=EngineLedger(b.store);seen=[]
     prompts={name:load_component(PROJECT,name) for name in COMPONENTS};other=dict(prompts,director='ROLE: director\nA different director prompt, long enough to pass the length rule.\n')
     def fake_cycle(engine,index):
@@ -327,7 +327,7 @@ def record_hashes(run_folder,index):
     (run_folder/'result.json').write_text(json.dumps({'candidate_sha256':hashes}),encoding='utf-8')
 
 
-def test_apply_prompts_copies_one_candidate_into_config_after_the_checks(tmp_path):
+def test_apply_prompts(tmp_path):
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
     run_id='run-20261024-0123abcd';folder=tmp_path/PROMPTS_DIR/run_id/'candidate-1';folder.mkdir(parents=True)
     for role in ROLES: (folder/f'{role}.md').write_text(f'ROLE: {role}\nImproved prompt for the {role} role. Keep every output format rule of the original.\n',encoding='utf-8')
@@ -347,40 +347,40 @@ def test_apply_prompts_copies_one_candidate_into_config_after_the_checks(tmp_pat
     assert json.loads(json.dumps(result))==result
 
 
-def test_speed_only_breaks_ties_between_equal_levels():
+def test_speed_ties():
     """Step V2 (26 October 2026): the speed bonus can never outweigh a level difference, for any number of markets GEPA averages over."""
     from itertools import product
-    from compertum.ai.engine.gepa_run import MAX_MARKETS,SPEED_WEIGHT,score_with_speed
+    from compertum.ai.engine.gepa_run import MAX_MARKETS,SPEED_WEIGHT,speed_score
     assert SPEED_WEIGHT<0.1/MAX_MARKETS
     fast={'speed':1.0};slow={'speed':0.0}
     for k in range(1,MAX_MARKETS+1):
         # Two prompt sets whose summed levels differ by one level step over k markets: the better one must win even if it is slowest.
-        better=[score_with_speed(0.6,slow)]*(k-1)+[score_with_speed(0.7,slow)];worse=[score_with_speed(0.6,fast)]*k
+        better=[speed_score(0.6,slow)]*(k-1)+[speed_score(0.7,slow)];worse=[speed_score(0.6,fast)]*k
         assert sum(better)/k>sum(worse)/k,k
-    assert score_with_speed(0.6,fast)>score_with_speed(0.6,slow)>=0.6 and score_with_speed(0.6,None)==0.6
+    assert speed_score(0.6,fast)>speed_score(0.6,slow)>=0.6 and speed_score(0.6,None)==0.6
     from compertum.ai.engine.gepa_run import MAX_SPEED_WEIGHT
-    assert MAX_SPEED_WEIGHT==0.1 and score_with_speed(0.6,fast,MAX_SPEED_WEIGHT)==0.7 and score_with_speed(0.6,{'speed':0.5},0.05)==0.625
+    assert MAX_SPEED_WEIGHT==0.1 and speed_score(0.6,fast,MAX_SPEED_WEIGHT)==0.7 and speed_score(0.6,{'speed':0.5},0.05)==0.625
     for level,speed in product(range(1,11),(0.0,0.5,1.0)):
-        assert level/10<=score_with_speed(level/10,{'speed':speed})<(level+1)/10
+        assert level/10<=speed_score(level/10,{'speed':speed})<(level+1)/10
 
 
-def test_speed_comes_from_output_tokens_per_candidate_built():
-    from compertum.ai.engine.gepa_run import SPEED_TOKEN_CAP,UNCOUNTED_CALL_TOKENS,speed_for_calls
+def test_speed_tokens():
+    from compertum.ai.engine.gepa_run import SPEED_TOKEN_CAP,UNCOUNTED_CALL_TOKENS,call_speed
     calls=[{'usage':{'prompt_tokens':900,'completion_tokens':3000}},{'usage':{'prompt_tokens':300,'completion_tokens':1096}},{'usage':None},{'status':'REFUSED_AI_RESPONSE_REJECTED'}]
     total=3000+1096+2*UNCOUNTED_CALL_TOKENS  # a call without counts never looks fast
-    assert speed_for_calls(calls,2)=={'calls':4,'calls_with_tokens':2,'output_tokens':total,'candidates_built':2,'tokens_per_candidate':total/2,
+    assert call_speed(calls,2)=={'calls':4,'calls_with_tokens':2,'output_tokens':total,'candidates_built':2,'tokens_per_candidate':total/2,
                                       'speed':round(1-(total/2)/SPEED_TOKEN_CAP,6)}
-    assert speed_for_calls([],2) is None and speed_for_calls([{'usage':None}],0)['speed']==round(1-UNCOUNTED_CALL_TOKENS/SPEED_TOKEN_CAP,6)
-    assert speed_for_calls([{'usage':{'completion_tokens':SPEED_TOKEN_CAP*3}}],1)['speed']==0.0
+    assert call_speed([],2) is None and call_speed([{'usage':None}],0)['speed']==round(1-UNCOUNTED_CALL_TOKENS/SPEED_TOKEN_CAP,6)
+    assert call_speed([{'usage':{'completion_tokens':SPEED_TOKEN_CAP*3}}],1)['speed']==0.0
     # Review, 26 October 2026: extra short calls lowered the old per-call mean. Adding calls can now only lower speed.
     base=[{'usage':{'completion_tokens':600}}]*10;padded=base+[{'usage':{'completion_tokens':20}}]*4
-    assert speed_for_calls(padded,2)['speed']<speed_for_calls(base,2)['speed']
+    assert call_speed(padded,2)['speed']<call_speed(base,2)['speed']
     # Building more candidates with the same tokens is not slower; building fewer is not faster.
-    assert speed_for_calls(base,3)['speed']>speed_for_calls(base,2)['speed']
+    assert call_speed(base,3)['speed']>call_speed(base,2)['speed']
 
 
 @pytest.mark.parametrize('name',['bench-1','bench-2','holdout-1'])
-def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
+def test_evaluation_refused(name):
     """Review, 26 October 2026: only practice.py's seed check kept GEPA off reserved markets. run_gepa now refuses them itself."""
     from compertum.ai.engine import bench
     from compertum.ai.engine.gepa_run import run_gepa
@@ -399,7 +399,7 @@ def test_gepa_refuses_bench_and_holdout_markets_before_anything_runs(name):
 def validation_kinds(validation): return [(m['kind'],m['label'].split(', ')[2]) for m in validation[8:]]
 
 
-def test_gepa_markets_have_their_own_seeds_a_split_and_a_mix_of_patterns():
+def test_gepa_markets():
     train,validation=practice.gepa_markets(500,0.004)
     assert len(train)==16 and len(validation)==16 and len({m['validation_csv'] for m in train+validation})==32
     assert [int(m['label'].split(',')[0].split()[1]) for m in train+validation]==list(range(200,232))
@@ -412,11 +412,11 @@ def test_gepa_markets_have_their_own_seeds_a_split_and_a_mix_of_patterns():
     assert not ({bench.fingerprint(m['train_csv'],m['validation_csv']) for m in train+validation}&bench.reserved_fingerprints())
 
 
-def test_the_best_candidate_has_the_highest_mean_level_whatever_the_counts():
+def test_best_candidate():
     """Review, 26 October 2026: unequal evaluation counts give a mean gap in score below SPEED_WEIGHT, so ranking by
     mean score picked a faster candidate with a lower level. The ranking now compares exact mean levels first."""
-    from compertum.ai.engine.gepa_run import best_candidate,mean_level,score_with_speed
-    def entries(levels,speed): return [{'level':v,'score':score_with_speed(v/10,{'speed':speed}),'speed':{'speed':speed}} for v in levels]
+    from compertum.ai.engine.gepa_run import best_candidate,mean_level,speed_score
+    def entries(levels,speed): return [{'level':v,'score':speed_score(v/10,{'speed':speed}),'speed':{'speed':speed}} for v in levels]
     better={'scores':entries([6]*7+[7],0.0)};faster={'scores':entries([6]*8+[7],1.0)}
     old=[sum(s['score'] for s in c['scores'])/len(c['scores']) for c in (better,faster)]
     assert old[1]>old[0]  # the defect: by mean score the lower level won
@@ -428,7 +428,7 @@ def test_the_best_candidate_has_the_highest_mean_level_whatever_the_counts():
     assert best_candidate([{'scores':[]},{'scores':entries([1],0.0)}])==1 and best_candidate([{'scores':[]}])==0
 
 
-def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
+def test_speed_bonus(bridge):
     s=validator_scores();b,_=bridge;ledger=EngineLedger(b.store)
     prompts={name:load_component(PROJECT,name) for name in COMPONENTS}
     calls=[{'usage':{'prompt_tokens':1,'completion_tokens':1000}}]  # an older call: never counted for the next cycle
@@ -446,7 +446,7 @@ def test_evaluate_adds_the_speed_bonus_from_the_cycles_own_calls(bridge):
     assert batch.outputs[0]['speed']=={'calls':4,'calls_with_tokens':4,'output_tokens':2048,'candidates_built':1,'tokens_per_candidate':2048.0,'speed':speed}
     assert '2048 output tokens, 2048.0 per candidate built' in batch.trajectories[0]['feedback'] and adapter.evaluations[0]['speed']['calls']==4
 
-def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path):
+def test_owner_goal(bridge,tmp_path):
     """Owner direction, 26 October 2026: tell GEPA what we want. The goal file steers the proposals only; it never enters a score."""
     assert load_goal(tmp_path) is None  # optional
     assert load_goal(PROJECT).startswith("The owner's goal")  # the committed goal passes the checks
@@ -463,7 +463,7 @@ def test_the_owners_goal_reaches_every_reflection_and_is_checked(bridge,tmp_path
     user=client.calls[0]['user'];assert "THE OWNER'S GOAL\nFind real patterns" in user and user.index('GOAL')<user.index('CURRENT PROMPT')
 
 
-def test_the_firms_slots_have_fixed_shapes(tmp_path):
+def test_slot_shapes(tmp_path):
     """The firm's slots (owner direction, 26 October 2026: "USE GEPA to improve the firm"): each committed slot passes its check; without a
     file a slot is its default, which is the cycle before the slots existed; a proposal that breaks a slot's shape keeps the old text."""
     assert COMPONENTS==ROLES+('routing','settings','tool','starter')
@@ -488,7 +488,7 @@ def test_the_firms_slots_have_fixed_shapes(tmp_path):
     assert SLOT_REFLECTOR=={'routing':'director','settings':'director','tool':'mathematician','starter':'engineer'}
 
 
-def test_the_routing_is_a_fifth_component_with_fixed_keys(bridge,tmp_path):
+def test_routing_component(bridge,tmp_path):
     """Routing (owner direction, 26 October 2026): GEPA chooses routes, code reads only the listed keys and values, and the defaults keep the old cycle."""
     committed=load_component(PROJECT,'routing');assert parse_routing(committed)['review']=='advice'
     assert load_component(tmp_path,'routing')==routing_text(ROUTING_DEFAULT)  # no file: the default routes

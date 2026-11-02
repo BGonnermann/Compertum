@@ -20,12 +20,12 @@ def markets():
     return [practice.practice_market(12,500,0.004)[0]]+train+validation
 
 
-def test_every_task_of_every_practice_market_and_the_committed_prompts_pass():
+def test_every_task():
     assert preflight.preflight(PROJECT,markets())=={'markets':33,'tasks_per_market':16,'prompts':4}
     assert preflight.check_prompts(PROJECT)==[]
 
 
-def test_the_cycle_builds_its_tasks_with_the_checked_builders():
+def test_checked_builders():
     """The check is only worth something if the cycle uses the same code. cycle.py imports every builder from tasks.py. Engine lane: cycle.py needs the engine library."""
     pytest.importorskip('langchain_core')
     from compertum.ai.engine import cycle
@@ -34,7 +34,7 @@ def test_the_cycle_builds_its_tasks_with_the_checked_builders():
     assert cycle.STARTER_MAIN is tasks.STARTER_MAIN
 
 
-def test_task_text_is_pinned():
+def test_pinned_text():
     """The move from cycle.py to tasks.py kept every task byte-identical. A change to any task text changes this hash on purpose only.
     Changed on purpose on 26 October 2026: the review task gained REVIEW_LENGTH_RULE (bench baseline 1)."""
     m=practice.practice_market(12,500,0.004)[0];e=SimpleNamespace(train_csv=m['train_csv'],validation_rows=m['validation_rows'],max_hypotheses=3)
@@ -52,7 +52,7 @@ def failed(monkeypatch,name,replacement):
     return error.value.problems
 
 
-def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
+def test_run5_bug(monkeypatch):
     """The real bug: the second half of the Engineer task had no f prefix."""
     def broken(engine,specification,*,previous_reply=None,**routed):
         task,files=tasks.engineer_task(engine,specification,previous_reply=previous_reply,**routed)
@@ -72,11 +72,11 @@ def test_the_practice_run_5_to_10_bug_is_found(monkeypatch):
     ('retry_task',lambda task,code,previous:task+code,'retry: the task does not hold the previous reply'),
     ('market_brief',lambda engine:'MARKET\nno counts','the market brief gives the wrong session counts'),
 ])
-def test_each_kind_of_incomplete_task_is_found(monkeypatch,name,replacement,expected):
+def test_incomplete_tasks(monkeypatch,name,replacement,expected):
     assert any(expected in p for p in failed(monkeypatch,name,replacement))
 
 
-def test_the_engineer_never_sees_a_validation_row_and_gets_the_right_files(monkeypatch):
+def test_engineer_files(monkeypatch):
     shown='\n'.join(markets()[0]['validation_csv'].splitlines()[1:4])  # three validation rows of the market that failed() checks
 
     def leak(engine,specification,*,previous_reply=None,**routed):
@@ -88,7 +88,7 @@ def test_the_engineer_never_sees_a_validation_row_and_gets_the_right_files(monke
     assert any("the start files are ['/extra.txt', '/main.py', '/spec.md']" in p for p in problems)
 
 
-def test_prompts_are_checked(tmp_path):
+def test_prompt_checks(tmp_path):
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
     assert preflight.check_prompts(tmp_path)==[]
     (tmp_path/'config'/'engine_prompts'/'director.md').write_text('ROLE: director\nPick hypotheses for {cycle_index} and reply with JSON only, please.\n',encoding='utf-8',newline='\n')
@@ -96,7 +96,7 @@ def test_prompts_are_checked(tmp_path):
     assert preflight.check_prompts(tmp_path)==['prompt director: unfilled placeholder {cycle_index}','prompt engineer: ENGINE_PROMPT_UNAVAILABLE']
 
 
-def test_a_failed_preflight_stops_the_run_before_the_lease_and_prints_the_problems(tmp_path,capsys):
+def test_failed_preflight(tmp_path,capsys):
     shutil.copyfile(PROJECT/'config/default.toml',tmp_path/'config.toml')
     (tmp_path/'config'/'engine_prompts').mkdir(parents=True)  # no prompts: the preflight refuses
     with pytest.raises(preflight.PreflightFailed) as error:
@@ -111,5 +111,5 @@ def test_a_failed_preflight_stops_the_run_before_the_lease_and_prints_the_proble
         practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=10,note='x',available_memory=lambda:practice.START_FLOOR-1)
 
 
-def test_the_problem_list_is_bounded():
+def test_problem_bound():
     assert len(preflight.PreflightFailed([f'p{i}' for i in range(500)]).problems)==preflight.MAX_PROBLEMS

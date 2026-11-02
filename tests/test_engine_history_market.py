@@ -55,7 +55,7 @@ def history_days():
     return days,closes
 
 
-def test_the_evidence_reader_accepts_any_ticker_only_when_asked(history_days):
+def test_any_ticker(history_days):
     days,closes=history_days;raw=encode(envelope(SYMBOL,days[:50],closes[:50]))
     with pytest.raises(DataError,match='^PROVIDER_PROFILE$'): read_bar_evidence(raw)
     assert len(read_bar_evidence(raw,universe=None).rows)==50 and SYMBOL not in SYMBOLS
@@ -64,39 +64,39 @@ def test_the_evidence_reader_accepts_any_ticker_only_when_asked(history_days):
     assert len(read_bar_evidence(encode(envelope('BRK.B',days[:50],closes[:50])),universe=None).rows)==50
 
 
-def test_a_history_manifest_builds_a_market_from_every_retained_session(tmp_path,history_days):
+def test_history_manifest(tmp_path,history_days):
     days,closes=history_days
     root,path=project(tmp_path,[envelope(SYMBOL,days[:60],closes[:60]),envelope(SYMBOL,days[60:],closes[60:])])
-    market,vault=real_market.load_market_manifest(root,path)
+    market,vault=real_market.open_market(root,path)
     assert market['provenance']['symbol']==SYMBOL and market['provenance']['sessions_available']==119 and market['provenance']['financial_accepted'] is False
     assert market['provenance']['market_start']==days[1] and market['provenance']['market_end']==days[-1] and len(market['provenance']['chunks_sha256'])==2
     assert market['label'].startswith(f'history alpaca/sip {SYMBOL}, {days[1]} to {days[-1]}, 119 sessions') and market['vault_sessions']==len(vault)
     train=market['train_csv'].splitlines();assert train[0]=='session,close,return' and train[1].startswith(days[1]+',')
     assert len(train)-1+len(market['validation_rows'])+len(vault)==119
-    shorter,_=real_market.load_market_manifest(root,path,sessions=MIN_HISTORY_SESSIONS);assert shorter['provenance']['market_end']==days[-1] and 'sessions' in shorter['label']
+    shorter,_=real_market.open_market(root,path,sessions=MIN_HISTORY_SESSIONS);assert shorter['provenance']['market_end']==days[-1] and 'sessions' in shorter['label']
     assert history_market.history_market({'symbol':SYMBOL,'feed':'sip','adjustment':'split','chunks_sha256':[],'closes':[(d,str(c)) for d,c in zip(days,closes)]})[0]['provenance']['sessions_available']==119
 
 
 def test_history_refusals(tmp_path,history_days):
     days,closes=history_days
     root,path=project(tmp_path,[envelope(SYMBOL,days[:60],closes[:60]),envelope(SYMBOL,days[60:],closes[60:])])
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.load_market_manifest(root,path,sessions=200)
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): real_market.load_market_manifest(root,path,sessions=MIN_HISTORY_SESSIONS-1)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.open_market(root,path,sessions=200)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): real_market.open_market(root,path,sessions=MIN_HISTORY_SESSIONS-1)
     manifest_path=root/path;manifest=json.loads(manifest_path.read_text())
     manifest['adjustment']='raw';manifest_path.write_text(json.dumps(manifest))
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_MANIFEST_INVALID$'): real_market.load_market_manifest(root,path)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_MANIFEST_INVALID$'): real_market.open_market(root,path)
     manifest['adjustment']='split';manifest['chunks'][0]['sha256']='0'*64;manifest_path.write_text(json.dumps(manifest))
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_EVIDENCE_CHANGED$'): real_market.load_market_manifest(root,path)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_EVIDENCE_CHANGED$'): real_market.open_market(root,path)
     gap=days[:60]+days[61:];gap_closes=closes[:60]+closes[61:]
     root2,path2=project(tmp_path/'gap',[envelope(SYMBOL,gap,gap_closes,start=days[0],end=days[-1])])
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.load_market_manifest(root2,path2)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.open_market(root2,path2)
     root3,path3=project(tmp_path/'dup',[envelope(SYMBOL,days[:60],closes[:60]),envelope(SYMBOL,days[59:],closes[59:])])
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_MANIFEST_INVALID$'): real_market.load_market_manifest(root3,path3)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_MANIFEST_INVALID$'): real_market.open_market(root3,path3)
     root4,path4=project(tmp_path/'short',[envelope(SYMBOL,days[:MIN_HISTORY_SESSIONS],closes[:MIN_HISTORY_SESSIONS])])
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.load_market_manifest(root4,path4)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.open_market(root4,path4)
 
 
-def test_provider_markets_may_now_reach_the_calibrated_length(envelopes):
+def test_calibrated_length(envelopes):
     snapshot=build(envelopes)
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_COVERAGE_INCOMPLETE$'): real_market.provider_market(snapshot,'AAPL',sessions=MAX_SESSIONS)
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): real_market.provider_market(snapshot,'AAPL',sessions=MAX_SESSIONS+1)

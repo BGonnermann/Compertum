@@ -32,7 +32,7 @@ def project(tmp_path):
     return WorkspaceTools(tmp_path, tmp_path)
 
 
-def test_search_returns_numbered_matches_and_skips_protected_files(tmp_path):
+def test_search_matches(tmp_path):
     tools = project(tmp_path)
     result = tools.run("search", {"pattern": "needle"}, later()).splitlines()
     assert result == [f"keys.py:1: {SECRET_TEXT}", "src/a.py:4: VALUE = 'needle'", "src/b.txt:1: needle in text"]
@@ -45,7 +45,7 @@ def test_search_returns_numbered_matches_and_skips_protected_files(tmp_path):
         tools.run("search", {"pattern": "needle", "path": "state"}, later())
 
 
-def test_search_skips_git_ignored_files(tmp_path):
+def test_ignored_files(tmp_path):
     tools = project(tmp_path)
     (tmp_path / "build").mkdir()
     (tmp_path / "build" / "out.py").write_text("needle\n")
@@ -56,7 +56,7 @@ def test_search_skips_git_ignored_files(tmp_path):
 
 
 @needs_bash
-def test_bash_runs_in_the_workspace_without_secret_variables(tmp_path, monkeypatch):
+def test_bash_workspace(tmp_path, monkeypatch):
     monkeypatch.setenv("COMPERTUM_TEST_API_KEY", "should-not-pass")
     monkeypatch.setenv("COMPERTUM_TEST_PLAIN", "visible")
     tools = WorkspaceTools(tmp_path, tmp_path)
@@ -68,7 +68,7 @@ def test_bash_runs_in_the_workspace_without_secret_variables(tmp_path, monkeypat
 
 
 @needs_bash
-def test_bash_stops_slow_commands_and_keeps_the_head_and_tail(tmp_path):
+def test_slow_commands(tmp_path):
     tools = WorkspaceTools(tmp_path, tmp_path)
     started = time.monotonic()
     result = json.loads(tools.run("bash", {"command": "sleep 30", "seconds": 1}, later()))
@@ -81,7 +81,7 @@ def test_bash_stops_slow_commands_and_keeps_the_head_and_tail(tmp_path):
 
 
 @needs_bash
-def test_bash_ends_background_and_grandchild_processes(tmp_path):
+def test_background_processes(tmp_path):
     tools = WorkspaceTools(tmp_path, tmp_path)
     started = time.monotonic()
     result = json.loads(tools.run("bash", {"command": "(sleep 2; echo late > late.txt) & echo started"}, later()))
@@ -95,7 +95,7 @@ def test_bash_ends_background_and_grandchild_processes(tmp_path):
 
 
 @needs_bash
-def test_bash_binary_output_and_provider_key_names(tmp_path, monkeypatch):
+def test_binary_output(tmp_path, monkeypatch):
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "providers.toml").write_text('[providers.moon]\nbase_url = "https://x"\nkey_variable = "MOON_PAT"\n')
     monkeypatch.setenv("MOON_PAT", "should-not-pass")
@@ -106,20 +106,20 @@ def test_bash_binary_output_and_provider_key_names(tmp_path, monkeypatch):
     assert result["exit_code"] == 0
 
 
-def test_output_cut_drops_partial_lines():
+def test_partial_lines():
     head = bytearray(b"one\ntwo\nsk-abc")
     tail = bytearray(b"defghijklmnop\nlast\n")
     assert shell._clip(head, tail, 100_000) == b"one\ntwo\n... 99987 bytes skipped ...\nlast\n"
     assert shell._clip(bytearray(b"a\n"), bytearray(b"b\n"), 4) == b"a\nb\n"
 
 
-def test_bash_waits_for_an_owner_run(tmp_path):
+def test_owner_wait(tmp_path):
     tools = WorkspaceTools(tmp_path, tmp_path, busy=lambda: True)
     with pytest.raises(ToolError, match="JOB_SLOT_BUSY"):
         tools.run("bash", {"command": "ls"}, later())
 
 
-def test_secret_scan_reads_local_text_but_not_model_requests():
+def test_secret_scan():
     with pytest.raises(Exception, match="AI_SENSITIVE_INPUT_DENIED"):
         checked([{"role": "tool", "tool_call_id": "x", "content": "line one\nsk-abcdefghijklmnop"}], MAX_CONVERSATION, "FULL")
     with pytest.raises(Exception, match="AI_SENSITIVE_INPUT_DENIED"):
@@ -132,7 +132,7 @@ def test_secret_scan_reads_local_text_but_not_model_requests():
         f"ok\n{SECRET_LINE}\nmax_tokens = 16384"
 
 
-def test_search_works_in_a_workspace_that_a_parent_repository_ignores(tmp_path):
+def test_ignored_workspace(tmp_path):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / ".gitignore").write_text("inner/\n")
     workspace = tmp_path / "inner"
@@ -142,7 +142,7 @@ def test_search_works_in_a_workspace_that_a_parent_repository_ignores(tmp_path):
     assert tools.run("search", {"pattern": "needle"}, later()) == "a.py:1: needle"
 
 
-def test_warning_returns_after_a_new_conversation(tmp_path):
+def test_warning_returns(tmp_path):
     output = StringIO()
     replies = iter([SimpleNamespace(content="ok", tool_calls=[])] * 2)
     agent = Agent(SimpleNamespace(chat=lambda *args: next(replies)), WorkspaceTools(tmp_path, tmp_path), Limits(4, 20),
@@ -154,7 +154,7 @@ def test_warning_returns_after_a_new_conversation(tmp_path):
     assert output.getvalue().count("Use /new soon.") == 2
 
 
-def test_reading_a_file_with_a_token_rule_no_longer_blocks_the_conversation(tmp_path):
+def test_token_rule(tmp_path):
     # The owner's task read packets.py, whose rule text matches the token rule, and every later request was refused.
     (tmp_path / "rules.py").write_bytes(b'PATTERN = r"|_authtoken|"\nLIMIT = 5\n')
     calls = iter([
@@ -174,7 +174,7 @@ def test_reading_a_file_with_a_token_rule_no_longer_blocks_the_conversation(tmp_
     assert agent.messages[3]["content"] == f"{SECRET_LINE}\nLIMIT = 5\n"
 
 
-def test_a_session_with_refused_text_resumes_and_a_secret_task_is_refused(tmp_path):
+def test_refused_text(tmp_path):
     history = [{"role": "system", "content": "start"}, {"role": "user", "content": "look"},
                {"role": "assistant", "content": None, "tool_calls": [
                    {"id": "c1", "type": "function", "function": {"name": "read", "arguments": "{}"}}]},
@@ -189,7 +189,7 @@ def test_a_session_with_refused_text_resumes_and_a_secret_task_is_refused(tmp_pa
     assert agent.messages[-1]["role"] == "tool"
 
 
-def test_bash_refuses_low_memory_and_bad_input(tmp_path, monkeypatch):
+def test_bash_refusals(tmp_path, monkeypatch):
     tools = WorkspaceTools(tmp_path, tmp_path)
     with pytest.raises(ToolError, match="1 to 8192"):
         tools.run("bash", {"command": " "}, later())
@@ -200,7 +200,7 @@ def test_bash_refuses_low_memory_and_bad_input(tmp_path, monkeypatch):
         tools.run("bash", {"command": "ls"}, later())
 
 
-def test_sessions_accept_records_above_the_old_event_limit(tmp_path):
+def test_event_limit(tmp_path):
     session = SessionStore(tmp_path).create()
     session.append("message", {"role": "system", "content": "start"})
     session.append("message", {"role": "tool", "tool_call_id": "x", "content": "é" * 100_000})
@@ -210,7 +210,7 @@ def test_sessions_accept_records_above_the_old_event_limit(tmp_path):
         session.append("message", {"role": "tool", "tool_call_id": "x", "content": "y" * MAX_CONVERSATION})
 
 
-def test_agent_warns_once_when_the_conversation_is_nearly_full(tmp_path):
+def test_full_warning(tmp_path):
     output = StringIO()
     replies = iter([SimpleNamespace(content="ok", tool_calls=[]), SimpleNamespace(content="ok", tool_calls=[])])
     client = SimpleNamespace(chat=lambda *args: next(replies))
@@ -222,7 +222,7 @@ def test_agent_warns_once_when_the_conversation_is_nearly_full(tmp_path):
     assert output.getvalue().count("Use /new soon.") == 1
 
 
-def test_display_shows_bash_and_search_lines():
+def test_display_lines():
     output = StringIO()
     display = Display(output, color=False, animate=False)
     display.tool_call("bash", {"command": "git status\ngit diff"})

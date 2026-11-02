@@ -111,7 +111,7 @@ def check_prompts(project_root):
     return problems
 
 
-def check_given_prompts(prompts):
+def check_texts(prompts):
     """Prompts the run will use instead of the committed ones (a GEPA candidate on the bench): the role line and no unfilled placeholder."""
     problems=[]
     for role in ROLES:
@@ -128,7 +128,7 @@ def check_given_prompts(prompts):
 def preflight(project_root,markets,*,max_hypotheses=3,prompts=None):
     """Raise PreflightFailed when any task or prompt has a problem. Returns the number of checked tasks when all are complete.
     prompts: the prompts the run uses instead of the committed ones, or None."""
-    problems=check_prompts(project_root) if prompts is None else check_given_prompts(prompts)
+    problems=check_prompts(project_root) if prompts is None else check_texts(prompts)
     for market in markets: problems+=check_market(market,max_hypotheses)
     if problems: raise PreflightFailed(problems)
     return {'markets':len(markets),'tasks_per_market':16,'prompts':len(ROLES)}

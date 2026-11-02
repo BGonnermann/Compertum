@@ -7,7 +7,7 @@ import sys
 import threading
 from urllib.parse import parse_qs,urlparse
 import pytest
-from compertum.ai.engine.real_market import load_market_manifest
+from compertum.ai.engine.real_market import open_market
 from compertum.data.calendar import NY,session_times
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -67,7 +67,7 @@ def test_pull_envelopes(tmp_path,monkeypatch,capsys):
         record=summary['symbols'][0];assert record['symbol']=='QQQ' and record['requests']==3 and record['years']['2023']['missing']==0
         envelope=json.loads((out/'QQQ'/'2023.json').read_bytes());assert envelope['schema_version']=='alpaca-bars-v1' and len(envelope['pages'])==3
         assert KEY not in (out/'QQQ'/'2023.json').read_text(encoding='utf-8') and 'APCA' not in (out/'QQQ'/'2023.json').read_text(encoding='utf-8')
-        market,_=load_market_manifest(ROOT,record['market']['manifest'])
+        market,_=open_market(ROOT,record['market']['manifest'])
         assert market['provenance']['symbol']=='QQQ' and market['provenance']['sessions_available']==record['market']['sessions_available']==len(sessions_of(2023))-1
         again=pull_bars.main(['--symbols','QQQ','--start','2023','--end','2023','--credentials',str(creds),'--out',str(out),'--host',f'http://127.0.0.1:{port}'])
         assert again==0 and len(state['requests'])==3 and json.loads(capsys.readouterr().out)['symbols'][0]['years']['2023']=='kept'
