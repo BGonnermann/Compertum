@@ -443,7 +443,9 @@ Project map refreshed (9 pages, 81 links, 0 broken; snapshot 821b4293e964): stat
 Owner, 1 November 2026, week plan: "go with the real-data bench". Monday: the owner saves the IWV, IVV and QQQ files into `data/indices/inbox/`;
 ingest and the Russell 3000 pull follow (about 4 to 5 hours). Tuesday: a trial-spending plan for the owner. Wednesday and Thursday: a real-data bench
 from the point-in-time S&P 500 data, with an independent review. Friday: one owner-started GLM baseline on it and a report.
-Exact next action: ingest the owner's first holdings files when they are in the inbox; meanwhile write the trial-spending plan.
+Trial-spending plan written: `docs/TRIAL_SPENDING_PLAN.md` (proposal). Finding: at 603 VALIDATION sessions the observed annual Sharpe must be about 3.8
+(the earlier "2.66" was SR0, not the pass level); more trials barely move it, a longer test does. No code, threshold or ledger row changed.
+Exact next action: the owner decides on part 1 (spending rules) and part 2 (options 1 to 4); ingest the holdings files when they are in the inbox.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's
