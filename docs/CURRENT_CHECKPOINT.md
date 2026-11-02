@@ -397,6 +397,34 @@ etfs dual_momentum), 0 passed the gate; best deflated Sharpe 0.0025. Total trial
 The bar for 603 VALIDATION sessions is now SR0 0.167 per period, an annual Sharpe of about 2.66 (2.30 this morning; 2.84 at 100,000 trials).
 Reading: the library sweeps found no strategy near the bar; a realistic multi-stock strategy (annual Sharpe about 0.8) is far below it. Every sweep raises the bar
 for every later candidate, so trial spending now needs a plan. Survivorship: the 371 symbols are today's large names, which flatters long-only results.
+Owner, 1 November 2026, "go with 1 and 3" (index membership sources). Built `tools/update_indices.py` (commit `aee90e2`): route 1, the owner saves the IWV,
+IVV and QQQ holdings files into `data/indices/inbox/` each week and runs `python tools/update_indices.py`; route 3, the point-in-time S&P 500 list from
+GitHub fja05680/sp500, cross-checked against 90 month-end IVV holdings files from riazarbi/sp500-scraper (from 2019: 0.25 names apart a month on average;
+before 2019 mostly one company under two tickers). Renamed tickers had empty years (META, BALL, WELL); `pull_bars.py --asof` fixed them (2,011 sessions each).
+`library_multi` gained the point-in-time universe `sp500-pit`. Pull of 359 S&P 500 members, 45 minutes, $0: 328 loaded.
+Owner: Alpaca's vwap 0 rejects whole years; "list the bad days ... Stop and report if any of those days has volume 0". Result: all 422 bad days in 24
+stock-years of 21 stocks have volume 0 and trade count 0 and one flat price, so the work stopped there; the vwap change was not committed (patch kept outside
+the repository). A first version of the check read prices as text and flagged almost every bar; the corrected check read them as exact decimals.
+A research agent found the causes: 15 delistings, 3 ticker changes, 2 confirmed Nasdaq halts for FDA panels (BIIB), no stock split; DXCM, BHF and XLRE unexplained.
+Owner: "start with 1 and 2. Then retry the ones we couldnt get the first time." Built: history ends on the last day with trades; past members are asked up to
+the session before their exit (Alpaca maps a later asof to a stub); DOW, FTI and IR split into one folder per company; CCEP pulled as CCE and WYND as WYN;
+LVLT with a later asof; `--retry`; a progress file. Owner: "is the loading bar status built in the harness yet? if not do so with a sub agent." A subagent
+built harness 0.6.5 `/data` in a separate worktree (harness files only); it was copied into master and checked against the real progress file.
+Retries: 18 of 32, then 6 of 16, then FTI loaded. Last trading days match the public dates (ADT 29 April 2016, ATVI 12 October 2023, CA 2 November 2018,
+SBNY 10 March 2023, XL 11 September 2018). Point-in-time S&P 500 over TRAIN and VALIDATION: 654 of 662 members load; at least 97.8% of members have a
+close on every session (mean 99.45%). Left out: BIIB, DXCM, BHF (a placeholder inside their life; volume 0 is not admitted) and BRCM, CNX, GMCR, PCL, PCP
+(members only until early 2016; Alpaca's bars start in 2016, so below the 50-session minimum). A 2015 pull for them returned no bars.
+Evidence: of 5,129 history files recorded before the retries, 5,120 are unchanged, 9 were moved to `superseded/` byte for byte (empty or one-bar years and
+the old companies' 2016 years), none was changed in place or deleted; no file after 2023 exists; `engine_looks` is 0 (the vault was never opened).
+No sweep ran and no trial was recorded. An independent reviewer found 9 points; fixed: a progress write that collided with the pane reading the file
+could stop the pull (now retried, never fatal); a huge number in the progress file could end the harness outside Windows Terminal; the point-in-time
+loader now clips each company to its own period and refuses a missing or malformed periods file; a weekly snapshot entry is no longer cut short by a
+period; a timer edge case; tests added for each. Not changed: a placeholder run that reaches the end of a year that is not the exit year still fails
+the stock openly, and a stock held into a ticker change earns 0 on the gap day (TT on 2 March 2020).
+Owner rule, 1 November 2026: "any def are a max of two words." Applied to this change: `load_pit_panel` is now `pit_panel`, the family function is
+`xs_lowvol` (its family key `xs_low_vol` in reports and the ledger is unchanged), and every test written today in the touched files has a two-word name.
+Older code was not renamed. Tests: engine lane 362 passed, 0 failed; product lane 300 passed, 0 failed, 8 skipped; harness lane 139 passed, 0 failed.
+Not verified: a real Windows Terminal split pane for `/data`. The project map was not refreshed.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

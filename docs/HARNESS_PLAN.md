@@ -61,6 +61,10 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.5: `/data` shows history downloads. `tools/update_indices.py pull` writes `data/indices/pull-progress.json` after every stock:
+done and total, loaded, failed, the stock in progress, the rate, the time left, the last 8 results and the next names. In Windows Terminal `/data` opens
+a read-only pane on the right that rereads the file every second, like `/watch`; elsewhere it prints the progress once. The pane never writes the file.
+It warns when the file has not changed for 2 minutes and shows a summary when the pull is finished. Code: `src/compertum/harness/downloads.py`.
 Harness 0.6.4: after Enter, the box is replaced by a one-line echo, `› task`. A finished box broke apart when the terminal was resized.
 Inside Windows Terminal, `/watch` opens a read-only view in a split pane on the right, and focus returns to the harness.
 The pane runs `python -m compertum.harness.pane`. It reads run records and the research store and never arms, stops or writes anything.

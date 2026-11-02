@@ -484,11 +484,25 @@ NASDAQ"; free sources; a command the owner runs; source routes 1 and 3). `tools/
   A name that fails waits 28 days before the next try (`data/indices/pull-status.json`).
 - The Russell 3000 and the Nasdaq-100 have no free point-in-time history here; their membership starts with the owner's first weekly file.
 
-Point-in-time universe `sp500-pit` in `library_multi.py` (`sweep --universe sp500-pit`): on each session it holds only the S&P 500 members of that date
+Point-in-time universe `sp500-pit` in `library_multi.py` (`sweep --universe sp500-pit`, loader `pit_panel`): on each session it holds only the S&P 500 members of that date
 that have a close that day, including members that later left. Its calendar and TRAIN and VALIDATION sessions are SPY's; every row after SPY's last
 VALIDATION session is dropped on load, so a stock that left early has no vault of its own, and nothing after the common vault date is ever scored.
 A held stock without a next close earns 0 for that session (a delisting return is not known). On the full-calendar universes the change gives the same
 weights and scores as before (all 75 settings compared on a fixture).
+
+Placeholder bars and reused tickers (1 November 2026; owner: "start with 1 and 2. Then retry the ones we couldnt get the first time").
+The evidence reader refused 21 stocks for a volume-weighted price of 0. A check of every refused stock-year (24 stock-years, 422 days) showed that each
+such day is a placeholder: volume 0, trade count 0, and open, high, low and close equal to one price, in 418 of 422 cases the previous close.
+Public sources explain them: 15 delistings after a merger, buyout or bank failure (placeholder on the day after the last trade), 3 ticker changes
+(HCP to PEAK, LB to BBWI, DOW to DWDP), and Nasdaq trading halts for FDA advisory panels (BIIB on 6 November 2020 and 9 June 2023). No stock split was
+involved. DXCM (21 July 2016), BHF (26 July 2017, when-issued period before its spin-off) and XLRE (25 January and 16 February 2016) are not explained.
+No check was changed. `pull_bars.py` now stops a company's history on its last day with trades when the company stopped trading (the request ends on
+its exit day, or the bars end before the request does); a placeholder inside a company's life is still refused. `update_indices.py` asks for a past member
+up to the session before it left the index, because Alpaca maps a ticker asked for on or after a delisting to a stub (CA, MON, LVLT). PERIODS splits
+DOW, FTI and IR into one folder per company, and `library_multi.resolve_member` picks the company by date from `data/indices/sp500/periods.json`.
+Result: 654 of the 662 S&P 500 members of TRAIN and VALIDATION load; on every session at least 97.8% of members have a close (mean 99.45%).
+Left out: BIIB, DXCM and BHF (placeholder inside their life; the owner chose not to admit volume 0), and BRCM, CNX, GMCR, PCL and PCP, members only
+until early 2016: Alpaca's bars start in 2016, so their histories stay below the loader's 50-session minimum.
 
 Ideas run side by side (31 October 2026; owner: "let's do that" on the three levers). Inside one cycle, the Researcher memo, the Director's decision and the
 Mathematician's specification of each idea run in parallel threads, and then each candidate's Engineer build and review run in parallel, each candidate in

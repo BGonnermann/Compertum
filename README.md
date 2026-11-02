@@ -21,7 +21,8 @@ The model receives no run-start tool. Read, write and edit protect fixed code, r
 Engine runs started with `/run`, `/gepa` or `/bench` get their own hidden console, so closing the tab does not end them.
 Output uses orange marks, grey detail and one blank line between blocks.
 In Windows Terminal, `/watch` opens a read-only pane on the right, so the prompt stays free.
-Harness 0.6.4: the product-environment harness lane passed 118 tests, with zero failures and zero skips.
+`/data` opens a read-only pane with a progress bar for history downloads (`data/indices/pull-progress.json`).
+Harness 0.6.5: the harness lane passed 139 tests, with zero failures and zero skips.
 `/watch` lists running and recent runs, including engine runs started with `tools\practice.ps1`, and opens a live view.
 The native lane for 0.6.2 ran four of its six tests: four passed, zero failed. The two sandbox tests were not run during the bench-4 run. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
 

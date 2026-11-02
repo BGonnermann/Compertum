@@ -9,6 +9,8 @@ from compertum.ai.engine import library_multi as lm
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.runtime.errors import RuntimeRefused
 
+NL=chr(10)
+
 
 def calendar(count,start=date(2016,1,4)):
     out=[];day=start
@@ -32,17 +34,17 @@ def markets(count=12,sessions=500,train=300,drifts=None):
     return out
 
 
-def test_the_grid_has_six_families_and_75_settings():
+def test_grid_size():
     assert len(lm.FAMILIES)==6 and lm.SETTINGS==75
 
 
-def test_the_panel_keeps_only_symbols_on_the_common_calendar():
+def test_common_calendar():
     m=markets(12);short=m['S03'];m['S03']=(short[0],short[1][:-1])
     p=lm.panel(m)
     assert p['dropped']==['S03'] and len(p['closes'])==11 and p['train']==300 and len(p['dates'])==500
 
 
-def test_every_setting_is_causal_and_long_only():
+def test_causal_settings():
     m=markets(12,sessions=420,train=250);p=lm.panel(m)
     changed={s:(t,[dict(r,close=f"{float(r['close'])*(1.4 if i>=300 else 1):.6f}") for i,r in enumerate(t+v)][len(t):]) for s,(t,v) in m.items()}
     q=lm.panel(changed);a=lm.prepare(p,sorted(p['closes']));b=lm.prepare(q,sorted(q['closes']))
@@ -53,7 +55,7 @@ def test_every_setting_is_causal_and_long_only():
             assert all(all(v>0 for v in w.values()) and sum(w.values())<=1+1e-9 for w in wa),(name,knobs)
 
 
-def test_the_score_charges_turnover_and_uses_the_equal_weight_benchmark():
+def test_score_turnover():
     m=markets(10,sessions=60,train=30);p=lm.panel(m);u=lm.prepare(p,sorted(p['closes']))
     targets=[{'S00':1.0}]*u['n'];s=lm.score(u,targets,0,u['n'])
     daily=[u['returns']['S00'][t+1]-(0.0005 if t==0 else 0.0) for t in range(u['n']-1)]
@@ -63,7 +65,7 @@ def test_the_score_charges_turnover_and_uses_the_equal_weight_benchmark():
     flat=lm.score(u,[{}]*u['n'],0,u['n']);assert flat['sharpe_status']=='UNDEFINED' and flat['beats_baseline'] is False
 
 
-def test_the_sweep_counts_every_setting_before_validation_and_uses_the_real_gate(bridge,monkeypatch):
+def test_sweep_gate(bridge,monkeypatch):
     b,_=bridge;ledger=EngineLedger(b.store);ledger.record_external_trials('earlier',50,{})
     p=lm.panel(markets(12,sessions=500,train=300));order=[]
     real_record=ledger.record_external_trials;real_safe=lm._safe
@@ -81,7 +83,7 @@ def test_the_sweep_counts_every_setting_before_validation_and_uses_the_real_gate
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): lm.sweep(lm.panel(markets(5)),ledger,run_id='library-multi-20261101-00000002',note='x')
 
 
-def test_a_planted_cross_sectional_drift_is_found_by_momentum(bridge):
+def test_planted_drift(bridge):
     b,_=bridge;ledger=EngineLedger(b.store)
     p=lm.panel(markets(20,sessions=900,train=540,drifts={0:0.003,1:0.003}))
     report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000003',note='fixture')
@@ -89,7 +91,7 @@ def test_a_planted_cross_sectional_drift_is_found_by_momentum(bridge):
     assert row['validation']['beats_baseline'] is True
 
 
-def test_the_command_refuses_without_history_or_note(tmp_path):
+def test_command_refusals(tmp_path):
     assert lm.main(['--project',str(tmp_path),'sweep','--note','x'])==2
 
 
@@ -106,7 +108,7 @@ def pit(count=14,sessions=400,train=240):
     return {'dates':days,'train':train,'closes':closes,'eligible':eligible,'dropped':[],'skipped':[]}
 
 
-def test_point_in_time_weights_use_only_members_with_a_close_and_stay_causal():
+def test_pit_weights():
     p=pit();u=lm.prepare(p,sorted(p['closes']))
     for name,(_,grid) in lm.FAMILIES.items():
         for knobs in grid:
@@ -120,7 +122,7 @@ def test_point_in_time_weights_use_only_members_with_a_close_and_stay_causal():
         for knobs in grid: assert lm.weights(u,name,knobs)[:250]==lm.weights(v,name,knobs)[:250],(name,knobs)
 
 
-def test_point_in_time_benchmark_and_score_handle_joins_and_exits():
+def test_pit_benchmark():
     p=pit();u=lm.prepare(p,sorted(p['closes']))
     t=150;expected=sum(u['returns'][s][t] for s in p['eligible'][t-1])/len(p['eligible'][t-1]);assert math.isclose(u['ew'][t],expected)
     assert 'S00' not in p['eligible'][99] and 'S00' in p['eligible'][100] and 'S01' in p['eligible'][300] and 'S01' not in p['eligible'][301]
@@ -130,12 +132,35 @@ def test_point_in_time_benchmark_and_score_handle_joins_and_exits():
     assert lm.universes(dict(p,eligible=[e[:5] for e in p['eligible']]))=={}
 
 
-def test_the_point_in_time_sweep_counts_trials_and_gates(bridge):
+def test_pit_sweep(bridge):
     b,_=bridge;ledger=EngineLedger(b.store);p=pit()
     report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000004',note='fixture')
     assert report['universes']=={'sp500-pit':14} and report['trials_recorded']==75 and ledger.total_trials()==75
     assert {r['family'] for r in report['rows']}==set(lm.FAMILIES) and all(r['universe']=='sp500-pit' for r in report['rows'])
 
 
-def test_the_point_in_time_loader_needs_spy_and_the_membership_file(tmp_path):
-    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): lm.load_pit_panel(tmp_path,['data/history/AAA/manifest.json'])
+def test_pit_refusals(tmp_path):
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): lm.pit_panel(tmp_path,['data/history/AAA/manifest.json'])
+
+
+def test_pit_periods(tmp_path,monkeypatch):
+    import json as _json
+    from compertum.ai.engine import history_market
+    days=calendar(400);names=[f'S{i:02d}' for i in range(12)]
+    idx=tmp_path/'data'/'indices'/'sp500';idx.mkdir(parents=True)
+    (idx/'history.json').write_text(_json.dumps({'dates':[days[0]],'members':[names+['DOW']],'last':days[-1]}),encoding='utf-8')
+    periods={'DOW':[{'key':'DOW-2017','until':days[100],'last':days[99]},{'key':'DOW','since':days[150]}]}
+    (idx/'periods.json').write_text(_json.dumps({'periods':periods}),encoding='utf-8')
+    rows=[{'session':d,'close':'100','return':'0'} for d in days]
+    monkeypatch.setattr(history_market,'load_history_market',lambda root,path:({'train_csv':'session,close,return'+NL+NL.join(f"{r['session']},100,0" for r in rows[:240])+NL,
+                                                                             'validation_rows':rows[240:]},[]))
+    monkeypatch.setattr(history_market,'load_history',lambda root,path:{'closes':[(d,str(100+i)) for i,d in enumerate(days)]})
+    manifests=[f'data/history/{s}/manifest.json' for s in ['SPY','DOW','DOW-2017']+names]
+    p=lm.pit_panel(tmp_path,manifests)
+    assert p['closes']['DOW-2017'][99] is not None and all(x is None for x in p['closes']['DOW-2017'][100:])
+    assert all(x is None for x in p['closes']['DOW'][:150]) and p['closes']['DOW'][150] is not None
+    assert 'DOW-2017' in p['eligible'][50] and 'DOW' not in p['eligible'][50] and not {'DOW','DOW-2017'}&set(p['eligible'][120]) and 'DOW' in p['eligible'][200]
+    (idx/'periods.json').write_text(_json.dumps({'periods':[1]}),encoding='utf-8')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): lm.pit_panel(tmp_path,manifests)
+    (idx/'periods.json').unlink()
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): lm.pit_panel(tmp_path,manifests)

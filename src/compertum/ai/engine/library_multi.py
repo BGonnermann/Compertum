@@ -8,7 +8,8 @@ The benchmark is the equal-weight portfolio of the same universe, rebalanced dai
 The point-in-time universe sp500-pit (owner, 1 November 2026) holds on each session only the S&P 500 members of that date
 (data/indices/sp500/history.json, from tools/update_indices.py) that have a close that day, including members that later left.
 Its calendar and its TRAIN and VALIDATION sessions are those of SPY; every row after SPY's last VALIDATION session is dropped on load.
-A held stock without a close on the next session earns 0 for that session.
+A held stock without a close on the next session earns 0 for that session. A ticker that two companies used is split by date with
+data/indices/sp500/periods.json, so each company keeps its own history (DOW-2017 for Dow Chemical, DOW for Dow Inc).
 Knobs are chosen on TRAIN only; the chosen setting of each family is scored once on VALIDATION. Every setting tried counts as a trial,
 recorded in the ledger before the first VALIDATION score. The gate is the real gate (option C).
 
@@ -118,7 +119,7 @@ def xs_reversal(u,t,lookback,share):
     return _top({s:_past_return(u,s,t,lookback) for s in u['eligible'][t]},share,highest=False)
 
 
-def xs_low_vol(u,t,window,share):
+def xs_lowvol(u,t,window,share):
     return _top({s:_vol(u,s,t,window) for s in u['eligible'][t]},share,highest=False)
 
 
@@ -140,7 +141,7 @@ def breadth(u,t,window,level):
 FAMILIES={
     'xs_momentum':(xs_momentum,[{'lookback':l,'skip':k,'share':q,'hold':h} for l in (20,60,120,252) for k in (0,20) for q in (0.1,0.2) for h in (5,21)]),
     'xs_reversal':(xs_reversal,[{'lookback':l,'share':q,'hold':h} for l in (1,5,10,20) for q in (0.1,0.2) for h in (1,5)]),
-    'xs_low_vol':(xs_low_vol,[{'window':w,'share':q,'hold':h} for w in (20,60,120) for q in (0.1,0.2) for h in (5,21)]),
+    'xs_low_vol':(xs_lowvol,[{'window':w,'share':q,'hold':h} for w in (20,60,120) for q in (0.1,0.2) for h in (5,21)]),
     'dual_momentum':(dual_momentum,[{'lookback':l,'share':q,'hold':21} for l in (60,120,252) for q in (0.1,0.2)]),
     'ew_trend':(ew_trend,[{'window':w,'hold':1} for w in (50,100,200)]),
     'breadth':(breadth,[{'window':w,'level':b,'hold':1} for w in (50,200) for b in (0.4,0.5,0.6)]),
@@ -234,7 +235,30 @@ def load_panel(root,manifests):
     return p
 
 
-def load_pit_panel(root,manifests,membership='data/indices/sp500/history.json',reference='SPY'):
+def _periods(value):
+    if not isinstance(value,dict): raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE')
+    for ticker,items in value.items():
+        if not isinstance(ticker,str) or not isinstance(items,list) or not items: raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE')
+        for p in items:
+            if not isinstance(p,dict) or not isinstance(p.get('key'),str) or any(not isinstance(p.get(k),(str,type(None))) for k in ('since','until','last','data_since')):
+                raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE')
+    return value
+
+
+def _window(key,periods):
+    for items in periods.values():
+        for p in items:
+            if p['key']==key: return p.get('data_since') or p.get('since'),p.get('last'),p.get('until')
+    return None,None,None
+
+
+def resolve_member(ticker,day,periods):
+    for p in periods.get(ticker,()):
+        if (p.get('since') is None or day>=p['since']) and (p.get('until') is None or day<p['until']): return p['key']
+    return None if ticker in periods else ticker
+
+
+def pit_panel(root,manifests,membership='data/indices/sp500/history.json',reference='SPY',periods_path='data/indices/sp500/periods.json'):
     import bisect
     import hashlib
     from compertum.domain import ContractError,resolve_project_path
@@ -247,20 +271,23 @@ def load_pit_panel(root,manifests,membership='data/indices/sp500/history.json',r
     except (ContractError,OSError): raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE') from None
     history=json.loads(raw);days=history['dates']
     if days[0]>dates[0] or history['last']<dates[-1]: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
-    members=[frozenset(history['members'][bisect.bisect_right(days,d)-1]) for d in dates];names=set().union(*members)
+    try: periods=_periods(json.loads(resolve_project_path(periods_path,Path(root).absolute()).read_bytes())['periods'])
+    except (ContractError,OSError,ValueError,KeyError,TypeError): raise RuntimeRefused('ENGINE_MARKET_INPUT_UNAVAILABLE') from None
+    members=[frozenset(k for k in (resolve_member(t,d,periods) for t in history['members'][bisect.bisect_right(days,d)-1]) if k) for d in dates]
+    names=set().union(*members)
     closes={};skipped=[]
     for symbol in sorted(names):
         if symbol not in paths: continue
         try: h=load_history(root,paths[symbol])
         except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
-        c=[None]*n
+        c=[None]*n;first,last,until=_window(symbol,periods)
         for day,close in h['closes']:
-            if day in where: c[where[day]]=float(close)
+            if day in where and (first is None or day>=first) and (last is None or day<=last) and (until is None or day<until): c[where[day]]=float(close)
         if sum(x is not None for x in c)>=2: closes[symbol]=c
     eligible=[[s for s in sorted(members[t]) if s in closes and closes[s][t] is not None] for t in range(n)]
     shares=[len(eligible[t])/len(members[t]) for t in range(n)]
     return {'dates':dates,'train':len(train_rows),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
-            'membership':{'path':membership,'sha256':hashlib.sha256(raw).hexdigest(),'members_in_window':len(names),
+            'membership':{'path':membership,'sha256':hashlib.sha256(raw).hexdigest(),'periods':periods,'members_in_window':len(names),
                           'with_history':len(closes),'missing':sorted(names-set(closes)-{x['symbol'] for x in skipped}),
                           'coverage_min':round(min(shares),4),'coverage_mean':round(sum(shares)/n,4),'reference':reference}}
 
@@ -287,7 +314,7 @@ def main(argv=None):
     from .ledger import EngineLedger
     lease=None;run_id=f'library-multi-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
     try:
-        p=load_pit_panel(root,manifests) if args.universe=='sp500-pit' else load_panel(root,manifests)
+        p=pit_panel(root,manifests) if args.universe=='sp500-pit' else load_panel(root,manifests)
         lease=acquire_owner(resolve_project(root),'coordinator')
         store=StorageManager(lease,load_config(config,root)).store
         report=sweep(p,EngineLedger(store),run_id=run_id,note=args.note)

@@ -37,8 +37,16 @@ class Server:
                     state['bad_auth']+=1;self.send_response(403);self.end_headers();return
                 year=int(query['start'][:4]);days=sessions_of(year);symbol=query['symbols'];page=int(query.get('page_token','0'))
                 if symbol=='RENM' and query['asof']<'2023-06-01': days=[]
+                days=[d for d in days if query['start'][:10]<=d<=query['end'][:10]]
                 bars=[{'t':datetime.combine(datetime.fromisoformat(d).date(),time(),NY).astimezone(timezone.utc).isoformat().replace('+00:00','Z'),
                        'o':100+i,'h':101+i,'l':99+i,'c':100.5+i,'v':1000,'n':5,'vw':100.25+i} for i,d in enumerate(days)]
+                idle=(symbol=='ENDS' and query['start'][:4]=='2022') and [b for b in bars if b['t'][:10]>'2022-06-15']
+                idle=idle or ([b for b in bars if b['t'][:10]=='2022-03-15'] if symbol=='HALT' else [])
+                if symbol=='STOP' and query['start'][:4]=='2022':
+                    bars=[b for b in bars if b['t'][:10]<='2022-06-30'];idle=[b for b in bars if b['t'][:10]>'2022-06-15']
+                if symbol=='STOP' and query['start'][:4]=='2023': bars=[]
+                if symbol=='YEND' and query['start'][:4]=='2022': idle=[b for b in bars if b['t'][:10]>='2022-12-20']
+                for b in idle: b.update(o=150.5,h=150.5,l=150.5,c=150.5,v=0,n=0,vw=0)
                 chunk=bars[page*100:(page+1)*100];token=str(page+1) if (page+1)*100<len(bars) else None
                 raw=json.dumps({'bars':{symbol:chunk} if days else {},'next_page_token':token}).encode()
                 self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
@@ -47,7 +55,7 @@ class Server:
     def __exit__(self,*args): self.server.shutdown();self.server.server_close()
 
 
-def test_pull_writes_one_envelope_per_year_and_a_loadable_manifest(tmp_path,monkeypatch,capsys):
+def test_pull_envelopes(tmp_path,monkeypatch,capsys):
     monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.0)
     creds=tmp_path/'env';creds.write_text(f'# owner file\nother=1\nalpaca_key="{KEY}"\nalpaca_secret={SECRET}\n',encoding='utf-8')
     out=tmp_path/'history'
@@ -72,7 +80,7 @@ def test_pull_writes_one_envelope_per_year_and_a_loadable_manifest(tmp_path,monk
     assert json.loads(capsys.readouterr().out)['symbols'][0]['years']['2023']=='would fetch' and not (tmp_path/'history2'/'QQQ'/'2023.json').exists()
 
 
-def test_asof_maps_a_renamed_symbol_and_refetch_keeps_the_empty_envelope(tmp_path,monkeypatch,capsys):
+def test_asof_mapping(tmp_path,monkeypatch,capsys):
     monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.0)
     creds=tmp_path/'env';creds.write_text(f'alpaca_key={KEY}\nalpaca_secret={SECRET}\n',encoding='utf-8');out=tmp_path/'history'
     base=['--symbols','RENM','--start','2022','--end','2022','--credentials',str(creds),'--out',str(out)]
@@ -87,3 +95,27 @@ def test_asof_maps_a_renamed_symbol_and_refetch_keeps_the_empty_envelope(tmp_pat
         assert pull_bars.bar_count((out/'RENM'/'2022.json').read_bytes())==len(sessions_of(2022))
     assert pull_bars.year_params('X',2020,'sip','split','2019-01-01')['asof']=='2020-12-31'
     assert pull_bars.main(base+['--asof','2023-13-01'])==2 and json.loads(capsys.readouterr().out)=={'refused':'ARGUMENTS'}
+
+
+def test_exit_trim(tmp_path,monkeypatch):
+    import httpx
+    monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.0);out=tmp_path/'history'
+    with Server() as (port,state), httpx.Client(base_url=f'http://127.0.0.1:{port}',headers={'APCA-API-KEY-ID':KEY,'APCA-API-SECRET-KEY':SECRET}) as client:
+        record=pull_bars.pull_symbol(client,'ENDS',[2021,2022,2023],'sip','split',out,False,'2022-07-01',until='2022-07-01',folder='ENDS-2022')
+        assert record['last_trade']=='2022-06-15' and record['years'][2023]=='after last trade' and record['folder']=='ENDS-2022'
+        envelope=json.loads((out/'ENDS-2022'/'2022.json').read_bytes());assert envelope['requests'][0]['params']['end']=='2022-06-15T23:59:59Z'
+        assert record['market']['end']=='2022-06-15' and not (out/'ENDS-2022'/'2023.json').exists()
+        assert json.loads((out/'ENDS-2022'/'manifest.json').read_bytes())['symbol']=='ENDS'
+        with pytest.raises(Exception,match='^PROVIDER_EVIDENCE_INVALID_PROVIDER_NUMBER$'): pull_bars.pull_symbol(client,'HALT',[2022],'sip','split',out,False)
+        assert not (out/'HALT'/'2022.json').exists()
+    params=pull_bars.year_params('X',2019,'sip','split','2023-12-31',None,'2019-04-02');assert params['start']=='2019-04-02T00:00:00Z' and params['asof']=='2023-12-31'
+
+
+def test_early_stop(tmp_path,monkeypatch):
+    import httpx
+    monkeypatch.setattr(pull_bars,'PAUSE_SECONDS',0.0);out=tmp_path/'history'
+    with Server() as (port,state), httpx.Client(base_url=f'http://127.0.0.1:{port}',headers={'APCA-API-KEY-ID':KEY,'APCA-API-SECRET-KEY':SECRET}) as client:
+        record=pull_bars.pull_symbol(client,'STOP',[2021,2022,2023],'sip','split',out,False)
+        assert record['last_trade']=='2022-06-15' and record['years'][2023]=='after last trade' and record['market']['end']=='2022-06-15'
+        with pytest.raises(Exception,match='^PROVIDER_EVIDENCE_INVALID_PROVIDER_NUMBER$'): pull_bars.pull_symbol(client,'YEND',[2022],'sip','split',out,False)
+        assert not (out/'YEND'/'2022.json').exists()

@@ -14,7 +14,13 @@ requires. The data folder is outside Git. See docs/ENGINE_PLAN.md, "History mark
 Alpaca reads a symbol as of the asof date and returns that company's whole history under the symbol. Without --asof each year uses
 its own last day, so a company renamed later (FB to META in 2022) has empty years before the rename. With --asof DATE each year uses
 the later of DATE and the year's last day. --refetch-empty moves an envelope without bars to SYMBOL/superseded/ and fetches it again.
-tools/update_indices.py also passes until=DATE for a stock that left the S&P 500: its last envelope ends on that day.
+tools/update_indices.py also passes until=DATE for a stock that left the S&P 500, since=DATE for a company that took over a used
+ticker, and folder=NAME when one ticker holds two companies (DOW until 2017, DOW-2017; Dow Inc from 2019, DOW).
+
+When a company stops trading, Alpaca adds placeholder bars after its last trade: volume 0, every price equal to the last close, and a
+volume-weighted price of 0, which the evidence reader refuses. If the bars of a request end in such a run and the company has stopped
+trading (the request ends on its exit day, or the bars end before the request does), the year is requested again up to the last day
+with trades, and no later year is requested. A run of zero-volume bars inside a company's life is not changed and is still refused.
 """
 import argparse
 from datetime import datetime,timezone
@@ -55,18 +61,36 @@ def credentials(path):
 def stamp(): return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
 
 
-def year_params(symbol,year,feed,adjustment,asof=None,until=None):
+def year_params(symbol,year,feed,adjustment,asof=None,until=None,since=None):
     last=until if until and until[:4]==str(year) else f'{year}-12-31'
-    return {'symbols':symbol,'start':f'{year}-01-01T00:00:00Z','end':f'{last}T23:59:59Z','timeframe':'1Day','adjustment':adjustment,
+    first=since if since and since[:4]==str(year) else f'{year}-01-01'
+    return {'symbols':symbol,'start':f'{first}T00:00:00Z','end':f'{last}T23:59:59Z','timeframe':'1Day','adjustment':adjustment,
             'feed':feed,'asof':max(last,asof or ''),'sort':'asc','currency':'USD','limit':PAGE_LIMIT}
+
+
+def last_session(day):
+    from compertum.data.calendar import session_times
+    current=datetime.strptime(day,'%Y-%m-%d').date()
+    for _ in range(10):
+        try: session_times(current.isoformat());return current.isoformat()
+        except Exception: current=current.fromordinal(current.toordinal()-1)
+    return day
+
+
+def trading_ended(pages,symbol,params):
+    bars=[b for page in pages for b in (json.loads(page['body_utf8']).get('bars') or {}).get(symbol,[])]
+    if not bars or bars[-1]['v']!=0: return None
+    traded=[b['t'][:10] for b in bars if b['v']!=0]
+    end=params['end'][:10];stopped=bars[-1]['t'][:10]<last_session(end)
+    return (traded[-1] if traded else '') if (stopped or params.get('exit')) else None
 
 
 def bar_count(raw):
     return sum(len(v) for page in json.loads(raw)['pages'] for v in (json.loads(page['body_utf8']).get('bars') or {}).values())
 
 
-def fetch_year(client,symbol,year,feed,adjustment,asof=None,until=None):
-    params=year_params(symbol,year,feed,adjustment,asof,until);request_id=f'{symbol}-{year}-1Day-{adjustment}';pages=[];token=None
+def fetch_year(client,symbol,year,feed,adjustment,asof=None,until=None,since=None,exit_year=False):
+    params=year_params(symbol,year,feed,adjustment,asof,until,since);request_id=f'{symbol}-{year}-1Day-{adjustment}';pages=[];token=None
     while True:
         sent=dict(params)
         if token is not None: sent['page_token']=token
@@ -85,27 +109,35 @@ def fetch_year(client,symbol,year,feed,adjustment,asof=None,until=None):
         except ValueError: raise RuntimeRefused('PROVIDER_RESPONSE_INVALID') from None
         if token is None: break
         if len(pages)>=MAX_PAGES: raise RuntimeRefused('PROVIDER_PAGE_BOUND')
+    ended=trading_ended(pages,symbol,dict(params,exit=exit_year))
+    if ended is not None:
+        if not ended or ended<params['start'][:10]: raise RuntimeRefused('PROVIDER_NO_TRADES')
+        raw,evidence,_=fetch_year(client,symbol,year,feed,adjustment,asof,ended,since)
+        return raw,evidence,ended
     envelope={'schema_version':'alpaca-bars-v1','host':HOST,'requests':[{'id':request_id,'path':'/v2/stocks/bars','params':params}],'pages':pages}
     raw=json.dumps(envelope,separators=(',',':')).encode('utf-8')
     try: evidence=read_bar_evidence(raw,universe=None)
     except DataError as error: raise RuntimeRefused('PROVIDER_EVIDENCE_'+error.code) from None
-    return raw,evidence
+    return raw,evidence,None
 
 
-def pull_symbol(client,symbol,years,feed,adjustment,out,dry_run,asof=None,refetch_empty=False,until=None):
-    folder=out/symbol;folder.mkdir(parents=True,exist_ok=True);record={'symbol':symbol,'years':{},'requests':0}
+def pull_symbol(client,symbol,years,feed,adjustment,out,dry_run,asof=None,refetch_empty=False,until=None,since=None,folder=None):
+    folder=out/(folder or symbol);folder.mkdir(parents=True,exist_ok=True);record={'symbol':symbol,'years':{},'requests':0}
+    if folder.name!=symbol: record['folder']=folder.name
+    ended=None
     for year in years:
+        if ended: record['years'][year]='after last trade';continue
         path=folder/f'{year}.json'
-        if path.exists() and refetch_empty and bar_count(path.read_bytes())==0:
+        aside=folder/'superseded'/f'{year}.json'
+        if path.exists() and refetch_empty and not aside.exists() and bar_count(path.read_bytes())==0:
             if dry_run: record['years'][year]='would refetch';continue
-            aside=folder/'superseded'/f'{year}.json';aside.parent.mkdir(exist_ok=True)
-            if aside.exists(): raise RuntimeRefused('SUPERSEDED_EXISTS')
-            path.replace(aside)
+            aside.parent.mkdir(exist_ok=True);path.replace(aside)
         if path.exists(): record['years'][year]='kept';continue
         if dry_run: record['years'][year]='would fetch';continue
-        raw,evidence=fetch_year(client,symbol,year,feed,adjustment,asof,until)
+        raw,evidence,ended=fetch_year(client,symbol,year,feed,adjustment,asof,until,since,exit_year=bool(until) and until[:4]==str(year))
         path.write_bytes(raw);record['requests']+=len(json.loads(raw)['pages'])
         record['years'][year]={'rows':len(evidence.rows),'missing':len(evidence.missing),'bytes':len(raw)}
+        if ended: record['years'][year]['last_trade']=ended;record['last_trade']=ended
     chunks=[]
     for year in years:
         path=folder/f'{year}.json'

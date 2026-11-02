@@ -3,7 +3,7 @@
     python tools/update_indices.py                    weekly: ingest the inbox, then pull history for names without it
     python tools/update_indices.py ingest [--as-of YYYY-MM-DD]
     python tools/update_indices.py sp500-history --source CSV [--check FOLDER]
-    python tools/update_indices.py pull [--dry-run] [--limit N]
+    python tools/update_indices.py pull [--dry-run] [--limit N] [--retry]
     python tools/update_indices.py status
 
 Route 1 (owner, 1 November 2026): each week the owner saves the fund holdings files into data/indices/inbox/: IWV (iShares Russell
@@ -16,8 +16,17 @@ With --check it compares every month with month-end IVV holdings from riazarbi/s
 
 Pull fetches 2016-2023 daily bars through tools/pull_bars.py for every snapshot name and every S&P 500 member since 2016 that has no
 history. A current name uses its snapshot date as the Alpaca asof date, so a renamed company keeps its earlier years. A past member
-uses the day it left the index, and its bars stop on that day, so a later reuse of its ticker cannot replace it. Failed names wait 28
-days before the next try.
+uses the session before the day it left the index as the asof date and the last day requested: Alpaca maps a ticker asked for on
+or after a delisting to a stub. Its bars stop on its last day with trades, so a later reuse of its ticker cannot replace it.
+Failed names wait 28 days before the next try; --retry tries them again now. PERIODS splits a ticker that two companies used, each
+company in its own folder: DOW (Dow Chemical to 31 August 2017 in DOW-2017, Dow Inc from 2 April 2019), FTI (FMC Technologies to
+13 January 2017 in FTI-2017, TechnipFMC from 17 January 2017 to 12 February 2021) and IR (Ingersoll-Rand plc to 28 February 2020 in IR-2020, then
+Ingersoll Rand Inc, formerly Gardner Denver, with its history from 12 May 2017). In a period, until and since are membership dates,
+last is the last trading day and data_since the first day pulled. The table is written to sp500/periods.json for the engine.
+ALIASES names the ticker a past member traded under when the dataset lists its later ticker (CCEP traded as CCE, WYND as WYN).
+ASOF gives a later asof date where Alpaca's mapping at the exit returns a stub (LVLT). Alpaca's daily bars start in 2016, so six
+members that left the index before March 2016 (BRCM, CNX, FOSL, GMCR, PCL, PCP) stay below the loader's 50-session minimum.
+Each pull writes data/indices/pull-progress.json after every name; the harness command /data shows it.
 Everything is written under data/indices, which is outside Git. See docs/ENGINE_PLAN.md, "Index membership".
 """
 import argparse
@@ -43,6 +52,20 @@ CLASS_SHARES={'BRKB':'BRK.B','BRKA':'BRK.A','BFB':'BF.B','BFA':'BF.A','LENB':'LE
               'GEFB':'GEF.B','CWENA':'CWEN.A','UHALB':'UHAL.B','CRDA':'CRD.A','CRDB':'CRD.B','BIOB':'BIO.B','HVTA':'HVT.A',
               'MKCV':'MKC.V','GTNA':'GTN.A','LGFA':'LGF.A','LGFB':'LGF.B','JWA':'JW.A','AKOB':'AKO.B','WSOB':'WSO.B','TAPA':'TAP.A'}
 HISTORY_START='2016-01-01';HISTORY_END='2023-12-31';FIRST_YEAR=2016;LAST_YEAR=2023;RETRY_DAYS=28
+PERIODS={'DOW':[{'key':'DOW-2017','until':'2017-09-01','last':'2017-08-31'},{'key':'DOW','since':'2019-04-02'}],
+         'FTI':[{'key':'FTI-2017','until':'2017-01-17','last':'2017-01-13'},{'key':'FTI','since':'2017-01-17','until':'2021-02-12'}],
+         'IR':[{'key':'IR-2020','until':'2020-03-03','last':'2020-02-28'},{'key':'IR','since':'2020-03-03','data_since':'2017-05-12'}]}
+ALIASES={'CCEP':'CCE','WYND':'WYN'}
+ASOF={'LVLT':'2017-12-31'}
+
+
+def session_before(day):
+    from compertum.data.calendar import session_times
+    current=date.fromisoformat(day)-timedelta(days=1)
+    for _ in range(10):
+        try: session_times(current.isoformat());return current.isoformat()
+        except Exception: current-=timedelta(days=1)
+    raise ValueError('CALENDAR')
 
 
 def stamp(): return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace('+00:00','Z')
@@ -207,46 +230,92 @@ def wanted():
     for index in FUNDS:
         snap=latest(index)
         if snap:
-            for t in snap['tickers']: out.setdefault(t,{'asof':snap['as_of'],'until':None,'why':[]})['why'].append(index)
-    history=load_history()
+            for t in snap['tickers']: out.setdefault(t,{'symbol':t,'asof':snap['as_of'],'until':None,'since':None,'why':[]})['why'].append(index)
+    history=load_history();present=set(out)
     if history:
-        for t,left in since(history,HISTORY_START).items():
-            entry=out.setdefault(t,{'asof':None,'until':None,'why':[]});entry['why'].append('sp500-history')
-            if entry['asof'] is None: entry.update(asof=left or HISTORY_END,until=left)
+        names=since(history,HISTORY_START);present|=set(names)
+        for t,left in names.items():
+            if t in PERIODS: continue
+            entry=out.setdefault(t,{'symbol':ALIASES.get(t,t),'asof':None,'until':None,'since':None,'why':[]});entry['why'].append('sp500-history')
+            if entry['asof'] is None:
+                last=session_before(left) if left else None
+                entry.update(asof=max(last or HISTORY_END,ASOF.get(t,'')),until=last,left=left)
+    for t,periods in PERIODS.items():
+        if t not in present: continue
+        for p in periods:
+            if (p.get('until') or '9999')<=HISTORY_START or (p.get('since') or '')>HISTORY_END: continue
+            listed=p['key'] in out;entry=out.setdefault(p['key'],{'symbol':t,'why':[]});last=p.get('last') or (session_before(p['until']) if p.get('until') else None)
+            if listed: entry['since']=p.get('data_since') or p.get('since')
+            else: entry.update(asof=last or HISTORY_END,until=last,since=p.get('data_since') or p.get('since'),left=p.get('until'))
+            entry['why'].append('period')
     return out
 
 
-def pull(dry_run=False,limit=None,client=None,credentials=None):
+def write_periods():
+    target=INDICES/'sp500'/'periods.json';target.parent.mkdir(parents=True,exist_ok=True)
+    target.write_text(json.dumps({'schema_version':'1','periods':PERIODS},indent=1),encoding='utf-8')
+
+
+def span(entry):
+    first=FIRST_YEAR
+    if entry.get('since'): first=max(first,int(entry['since'][:4]))
+    last=int(entry['until'][:4]) if entry['until'] else LAST_YEAR
+    return list(range(first,last+1))
+
+
+def progress(state,path=None):
+    path=path or INDICES/'pull-progress.json';state['updated_utc']=stamp()
+    text=json.dumps({k:v for k,v in state.items() if not k.startswith('_')},indent=1)
+    for attempt in range(5):
+        try:
+            path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix('.tmp')
+            tmp.write_text(text,encoding='utf-8');tmp.replace(path);return True
+        except OSError: time.sleep(0.05*(attempt+1))
+    return False
+
+
+def pull(dry_run=False,limit=None,client=None,credentials=None,retry_now=False,job='History pull'):
     sys.path.insert(0,str(ROOT/'tools'));import pull_bars
     status_path=INDICES/'pull-status.json';status=json.loads(status_path.read_text(encoding='utf-8')) if status_path.exists() else {}
     today=date.today().isoformat();retry=(date.today()-timedelta(days=RETRY_DAYS)).isoformat()
     todo=[];have=0;waiting=0
+    if not dry_run and load_history(): write_periods()
     for t,entry in sorted(wanted().items()):
-        if (HISTORY/t/'manifest.json').exists(): have+=1;continue
-        if status.get(t,{}).get('tried','')>retry: waiting+=1;continue
+        if (HISTORY/t/'manifest.json').exists() and status.get(t,{}).get('ok',True): have+=1;continue
+        if not retry_now and status.get(t,{}).get('tried','')>retry: waiting+=1;continue
         todo.append((t,entry))
     if limit is not None: todo=todo[:limit]
     report={'at':stamp(),'have':have,'waiting':waiting,'todo':len(todo),'dry_run':dry_run,'symbols':[]}
     if dry_run or not todo:
-        report['symbols']=[{'symbol':t,'asof':e['asof'],'until':e['until'],'why':e['why']} for t,e in todo];return report
+        report['symbols']=[{'symbol':t,'request':e['symbol'],'asof':e['asof'],'until':e['until'],'since':e.get('since'),'years':span(e),'why':e['why']} for t,e in todo];return report
     import httpx
-    started=time.time();years=list(range(FIRST_YEAR,LAST_YEAR+1))
+    started=time.time()
     headers=credentials if credentials is not None else pull_bars.credentials(pull_bars.DEFAULT_CREDENTIALS)
     own=client is None
+    state={'schema':'pull-progress-v1','job':job,'started_utc':stamp(),'total':len(todo),'done':0,'loaded':0,'failed':0,'current':None,
+           'rate_per_min':None,'eta_minutes':None,'finished':False,'recent':[],'pending':[t for t,_ in todo],'_started':time.time()}
+    progress(state)
     if own: client=httpx.Client(base_url=pull_bars.HOST,headers=headers,timeout=60,trust_env=False)
     try:
         for t,entry in todo:
-            span=[y for y in years if entry['until'] is None or y<=int(entry['until'][:4])]
-            try: record=pull_bars.pull_symbol(client,t,span,'sip','split',HISTORY,False,entry['asof'],until=entry['until'])
-            except Exception as error: record={'symbol':t,'refused':getattr(error,'code',type(error).__name__)}
-            record.update(asof=entry['asof'],until=entry['until'],why=entry['why']);report['symbols'].append(record)
+            years_wanted=span(entry);state['pending']=state['pending'][1:]
+            state['current']={'symbol':t,'years':f'{years_wanted[0]}-{years_wanted[-1]}'};progress(state)
+            try: record=pull_bars.pull_symbol(client,entry['symbol'],years_wanted,'sip','split',HISTORY,False,entry['asof'],True,until=entry['until'],since=entry.get('since'),folder=t)
+            except Exception as error: record={'symbol':entry['symbol'],'refused':getattr(error,'code',type(error).__name__)}
+            record.update(key=t,asof=entry['asof'],until=entry['until'],since=entry.get('since'),why=entry['why']);report['symbols'].append(record)
             ok='market' in record and 'refused' not in record['market']
-            status[t]={'tried':today,'ok':ok,'code':record.get('refused') or (record.get('market') or {}).get('refused')}
+            code=record.get('refused') or (record.get('market') or {}).get('refused')
+            status[t]={'tried':today,'ok':ok,'code':code}
             status_path.parent.mkdir(parents=True,exist_ok=True);status_path.write_text(json.dumps(status,indent=1,sort_keys=True),encoding='utf-8')
+            state['done']+=1;state['loaded' if ok else 'failed']+=1
+            state['recent']=(state['recent']+[{'symbol':t,'status':'loaded' if ok else 'failed',**({} if ok else {'code':code})}])[-8:]
+            minutes=max((time.time()-state['_started'])/60,1e-6);state['rate_per_min']=round(state['done']/minutes,2)
+            state['eta_minutes']=round((state['total']-state['done'])/state['rate_per_min'],1) if state['rate_per_min'] else None;progress(state)
     finally:
+        state['current']=None;state['finished']=True;progress(state)
         if own: client.close()
-    report['elapsed_seconds']=round(time.time()-started,1);report['loaded']=sum(1 for r in report['symbols'] if status[r['symbol']]['ok'])
-    report['failed']=sorted(r['symbol'] for r in report['symbols'] if not status[r['symbol']]['ok'])
+    report['elapsed_seconds']=round(time.time()-started,1);report['loaded']=sum(1 for r in report['symbols'] if status[r['key']]['ok'])
+    report['failed']=sorted(r['key'] for r in report['symbols'] if not status[r['key']]['ok'])
     log=INDICES/'pulls'/f'pull-{datetime.now():%Y%m%d-%H%M%S}.json';log.parent.mkdir(parents=True,exist_ok=True);log.write_text(json.dumps(report,indent=1),encoding='utf-8')
     report['log']=log.relative_to(ROOT).as_posix();report['symbols']=len(report['symbols'])
     return report
@@ -272,7 +341,7 @@ def main(argv=None):
     sub=parser.add_subparsers(dest='command')
     a=sub.add_parser('ingest');a.add_argument('--as-of')
     b=sub.add_parser('sp500-history');b.add_argument('--source',required=True);b.add_argument('--check')
-    c=sub.add_parser('pull');c.add_argument('--dry-run',action='store_true');c.add_argument('--limit',type=int)
+    c=sub.add_parser('pull');c.add_argument('--dry-run',action='store_true');c.add_argument('--limit',type=int);c.add_argument('--retry',action='store_true')
     sub.add_parser('status');w=sub.add_parser('weekly');w.add_argument('--no-pull',action='store_true')
     args=parser.parse_args(argv);command=args.command or 'weekly'
     try:
@@ -281,7 +350,7 @@ def main(argv=None):
             if args.as_of and as_of is None: print(json.dumps({'refused':'ARGUMENTS'}));return 2
             result={'ingested':ingest(as_of)}
         elif command=='sp500-history': result=import_history(args.source,args.check)
-        elif command=='pull': result=pull(args.dry_run,args.limit)
+        elif command=='pull': result=pull(args.dry_run,args.limit,retry_now=args.retry)
         elif command=='status': result=status_report()
         else:
             result={'ingested':ingest()}

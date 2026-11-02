@@ -1,4 +1,4 @@
-"""A read-only run view in a Windows Terminal pane beside the harness."""
+"""A read-only run or download view in a Windows Terminal pane beside the harness."""
 from __future__ import annotations
 
 import argparse
@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from .display import readable
+from .downloads import DownloadView
 from .editor import LiveView, enable_vt
 from .engine_watch import engine_card
 from .runs import RunError, read_card
@@ -27,11 +28,9 @@ def available(environ=os.environ, which=shutil.which):
     return bool(environ.get("WT_SESSION")) and which("wt") is not None
 
 
-def open_pane(root: Path, identity: str, spawn=subprocess.Popen, which=shutil.which):
-    if not RUN_ID.fullmatch(identity):
-        raise RunError("the run ID is not valid")
-    command = [which("wt"), "-w", "0", "split-pane", "-V", "--size", "0.4", "--title", f"Watch {identity}",
-               "-d", str(root), sys.executable, "-m", "compertum.harness.pane", "--project", str(root), identity,
+def _split(root: Path, title: str, arguments, spawn, which):
+    command = [which("wt"), "-w", "0", "split-pane", "-V", "--size", "0.4", "--title", title,
+               "-d", str(root), sys.executable, "-m", "compertum.harness.pane", "--project", str(root), *arguments,
                ";", "move-focus", "left"]
     try:
         spawn(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -40,16 +39,33 @@ def open_pane(root: Path, identity: str, spawn=subprocess.Popen, which=shutil.wh
         raise RunError("cannot open a Windows Terminal pane") from None
 
 
+def open_pane(root: Path, identity: str, spawn=subprocess.Popen, which=shutil.which):
+    if not RUN_ID.fullmatch(identity):
+        raise RunError("the run ID is not valid")
+    _split(root, f"Watch {identity}", [identity], spawn, which)
+
+
+def open_downloads(root: Path, spawn=subprocess.Popen, which=shutil.which):
+    _split(root, "History downloads", ["--downloads"], spawn, which)
+
+
 def main(argv=None, out=None, get_key=None):
-    parser = argparse.ArgumentParser(prog="compertum.harness.pane", description="Watch one run, read-only.")
+    parser = argparse.ArgumentParser(prog="compertum.harness.pane",
+                                     description="Watch one run or the history downloads, read-only.")
     parser.add_argument("--project", type=Path, default=Path("."))
-    parser.add_argument("run")
+    parser.add_argument("--downloads", action="store_true")
+    parser.add_argument("run", nargs="?")
     args = parser.parse_args(argv)
+    if args.downloads == bool(args.run):
+        parser.error("give one run ID or --downloads")
     root = args.project.resolve(strict=True)
     out = out or sys.stdout
     color = get_key is None and out.isatty() and enable_vt(out) and not os.environ.get("NO_COLOR")
-    view = LiveView(out, lambda: readable(card(root, args.run)).splitlines(), f"Watching {args.run}",
-                    get_key=get_key, color=color, hint="q closes this pane")
+    if args.downloads:
+        view = DownloadView(out, root, get_key=get_key, color=color)
+    else:
+        view = LiveView(out, lambda: readable(card(root, args.run)).splitlines(), f"Watching {args.run}",
+                        get_key=get_key, color=color, hint="q closes this pane")
     try:
         view.read()
     except KeyboardInterrupt:
