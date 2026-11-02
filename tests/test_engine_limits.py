@@ -116,7 +116,7 @@ def test_daily_summary(bridge,tmp_path):
                    'Owner approval: Owner OK: 40 requests (fixture)','2 cycles completed in this run, 40 AI requests used, 15.5 minutes elapsed',
                    '- cycle 1: Five-session momentum (h1): REJECTED_DEFLATED, DSR 0.61000000 over 13 trials','- cycle 1: Mean reversion (h2): memo rejected or not specified',
                    '- cycle 2: no hypotheses (STOPPED_AI_REQUEST_BUDGET)','- 1 beat the baseline but failed the deflation gate.','- cycle 2 stopped with AI_REQUEST_BUDGET',
-                   '- 1 sandbox jobs ended TIMED_OUT','Queue: empty.',f"Freezes: LOOPBACK_CONNECTION ({frozen['freeze_id']}).",'- director: synthetic-model at http://127.0.0.1:1234/v1'):
+                   '- 1 sandbox jobs ended TIMED_OUT','Queue: empty.','Eligible: empty.',f"Freezes: LOOPBACK_CONNECTION ({frozen['freeze_id']}).",'- director: synthetic-model at http://127.0.0.1:1234/v1'):
         assert needle in text,needle
     path=write_summary(tmp_path,run,ledger,now='2026-10-24T11:00:00+00:00')
     assert path==tmp_path/'state'/'engine'/'summary-run-20261024-0123abcd-2026-10-24.md' and path.read_text(encoding='utf-8')==text

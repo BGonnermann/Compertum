@@ -26,7 +26,7 @@ from compertum.ai.engine.limits import RunLimits  # noqa: E402
 from compertum.ai.engine.market import market_csv,split_market_tiers,synthetic_market  # noqa: E402
 from compertum.ai.engine.promotion import vault_run  # noqa: E402
 from compertum.ai.engine.run import run_bounded  # noqa: E402
-from compertum.ai.engine.vault import CandidateQueue  # noqa: E402
+from compertum.ai.engine.vault import CandidateQueue,quarter_end  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 from compertum.runtime.sandbox import verify_sandbox  # noqa: E402
 
@@ -105,8 +105,11 @@ def test_bounded_run(bridge,project,root,verification,tiers):
     folder=Path(candidate['promoted_folder']);manifest=json.loads((folder/'manifest.json').read_bytes())
     assert folder.is_relative_to(project/'state'/'engine'/'promoted') and (folder/'main.py').read_text(encoding='utf-8')==ENGINEER_CODE and manifest['candidate_id']==candidate['candidate_id']
     assert runs[0]['files']=={'main.py':ENGINEER_CODE}  # the launch record holds the code as submitted
-    queue=CandidateQueue(ledger);assert queue.queued()==[candidate['candidate_id']] and ledger.total_trials()==1 and ledger.active_freezes()==[]
-    queued_event=next(e for e in ledger.queue_events(candidate['candidate_id']) if e['event']=='QUEUED');assert queued_event['recorded_at']>=audit_step['recorded_at']
+    queue=CandidateQueue(ledger);assert queue.eligible()==[candidate['candidate_id']] and queue.queued()==[] and ledger.total_trials()==1 and ledger.active_freezes()==[]
+    eligible_event=next(e for e in ledger.queue_events(candidate['candidate_id']) if e['event']=='ELIGIBLE');assert eligible_event['recorded_at']>=audit_step['recorded_at']
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): queue.open_batch([candidate['candidate_id']],'Owner OK: too early (acceptance fixture)')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.close_quarter(eligible_event['quarter'])
+    assert queue.close_quarter(eligible_event['quarter'],day=quarter_end(eligible_event['quarter']))==[candidate['candidate_id']] and queue.queued()==[candidate['candidate_id']]
     # No vault look without the owner: the vault rows are never read outside a sealed batch.
     sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=verification,cycle_id='vault-check',train_csv=tiers['train_csv'],
                             validation_csv=tiers['validation_csv'],memory_floor_bytes=FLOOR)
@@ -125,7 +128,9 @@ def test_bounded_run(bridge,project,root,verification,tiers):
         vault_run(queue,sandbox,look['look_id'],candidate['candidate_id'],files=source['files'],entry=source['entry'],vault_rows=tiers['vault_rows'])
     assert len(ledger.runs('vault-check'))==1  # the repeat ran nothing
     summary=Path(result['summary_path']).read_text(encoding='utf-8')
-    assert '- 1 candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.' in summary and 'Queue: '+candidate['candidate_id'] in summary
+    assert '- 1 candidates passed the deflation gate and the Auditor.' in summary and '- 1 audited candidates beat the baseline, were promoted and became eligible' in summary
+    assert 'Eligible: '+candidate['candidate_id'] in summary and 'Queue: empty.' in summary
+    assert outcome['confirmation']['trials']==1 and outcome['confirmation']['status'] in ('PASS','FAIL') and outcome['confirmation']['vault']=='history-v1'
 
 
 def test_fixed_write(bridge,project,root,verification,tiers):
@@ -216,7 +221,8 @@ def test_honest_kept(bridge,project,root,verification,tiers,monkeypatch):
     assert candidate['status']=='REJECTED_DEFLATED' and candidate['deflation']['status']=='FAIL' and candidate['audit']['label']=='VERIFIED_PASS'
     assert candidate['audit']['integrity'] is True and ledger.active_freezes()==[]
     runs=ledger.runs(cycle['cycle_id']);assert [r['purpose'] for r in runs]==['engineer','audit','audit','audit','audit']
-    assert CandidateQueue(ledger).queued()==[] and not (project/'state'/'engine'/'promoted').exists()  # below the gate: never promoted or queued
+    queue=CandidateQueue(ledger);assert queue.queued()==[] and queue.eligible()==[candidate['candidate_id']] and candidate['queue']=='ELIGIBLE'
+    assert Path(candidate['promoted_folder']).is_relative_to(project/'state'/'engine'/'promoted')  # stage 1 (2 November 2026): below the gate, still eligible
     score=next(s for s in ledger.steps(cycle['cycle_id']) if s['kind']=='score')['score']
     assert candidate_level(candidate,score)==9  # beat buy-and-hold, audited, deflated Sharpe 0.80
 

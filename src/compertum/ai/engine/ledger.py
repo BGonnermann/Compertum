@@ -15,7 +15,7 @@ from .levels import lessons
 MAX_SUMMARY_CYCLES=20
 SUMMARY_BYTES=16384
 MAX_EXTERNAL_TRIALS=100000
-QUEUE_EVENTS=('QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
+QUEUE_EVENTS=('ELIGIBLE','NOT_SELECTED','QUEUED','DENIED','LOOK_COUNTED','VAULT_EVALUATED')
 RUN_ID=r'run-[0-9]{8}-[0-9a-f]{8}'
 PURPOSES=('practice','gepa','bench','holdout')
 EVALUATION_PURPOSES=frozenset({'bench','holdout'})  # cycles that measure prompts; nothing learns from them (bench.py)
@@ -149,6 +149,20 @@ class EngineLedger:
                     self.store.conn.execute('INSERT INTO engine_queue VALUES(?,?,?,?,?)',(event['event_id'],event['candidate_id'],'LOOK_COUNTED',stamp,canonical(event).decode()))
         except sqlite3.IntegrityError: raise RuntimeRefused('ENGINE_LOOK_DUPLICATE') from None
         return row
+
+    def close_queue(self,decide):
+        """One write transaction: decide(events) reads every queue event under the write lock and returns [(candidate_id, event, record)],
+        which are inserted before the lock is released. Two closes at once cannot both act on the same candidates."""
+        stamp=now()
+        with self.store._live(),self.store.conn:
+            conn=self.store.conn;conn.execute('BEGIN IMMEDIATE')
+            events=[read_json(row[0]) for row in conn.execute('SELECT record FROM engine_queue ORDER BY rowid')]
+            rows=[]
+            for cid,event,record in decide(events):
+                if event not in QUEUE_EVENTS or not isinstance(cid,str) or not 1<=len(cid)<=128: raise RuntimeRefused('ENGINE_RECORD_DENIED')
+                row={'event_id':str(uuid4()),'candidate_id':cid,'event':event,'recorded_at':stamp,**record};rows.append(row)
+                conn.execute('INSERT INTO engine_queue VALUES(?,?,?,?,?)',(row['event_id'],cid,event,stamp,canonical(row).decode()))
+        return rows
 
     def looks(self): return self._rows('SELECT record FROM engine_looks ORDER BY rowid')
     def look(self,look_id):

@@ -178,6 +178,38 @@ def validate(market,name,knobs):
     return _score(validation,positions)
 
 
+PERTURB=(1,4,8)
+
+
+def causal(market,name,knobs):
+    """The Auditor's lookahead check for library code: changing the last k VALIDATION rows must leave every earlier position unchanged."""
+    from .audit import perturbed_rows
+    train=market['train_rows'];validation=market['validation_rows'];rule=FAMILIES[name][0]
+    base=rule(series(train,validation),**knobs)
+    for k in PERTURB:
+        if not 1<=k<len(validation)-1: return False
+        cut=len(train)+len(validation)-k
+        if list(rule(series(train,perturbed_rows(validation,k)),**knobs)[:cut])!=list(base[:cut]): return False
+    return True
+
+
+def vault_score(queue,look_id,candidate_id,market,load_vault):
+    """Stage 2 for a library candidate: inside its sealed look, run the admitted rule over TRAIN, VALIDATION and the vault, and score the
+    vault part. The rule, its knobs and the market come from the ELIGIBLE event and must reproduce the admitted VALIDATION score.
+    load_vault is called only inside the look."""
+    import hashlib
+    from compertum.events import canonical
+    _,_,eligible=queue._fold(candidate_id);route=(eligible or {}).get('route') or {}
+    name,knobs=route.get('family'),route.get('knobs')
+    if route.get('kind')!='library' or route.get('symbol')!=market.get('symbol') or name not in FAMILIES or not callable(load_vault): raise RuntimeRefused('ENGINE_VAULT_DENIED')
+    if hashlib.sha256(canonical(validate(market,name,knobs))).hexdigest()!=eligible.get('score_sha256'): raise RuntimeRefused('ENGINE_VAULT_DENIED')
+    def produce():
+        vault_rows=load_vault();rows=list(market['validation_rows'])+list(vault_rows)
+        positions=FAMILIES[name][0](series(market['train_rows'],rows),**knobs)[len(market['train_rows'])+len(market['validation_rows']):]
+        return signals(vault_rows,positions),vault_rows
+    return queue.evaluate_in_vault(look_id,candidate_id,None,produce)
+
+
 def sweep(markets,ledger,*,run_id,note):
     """markets: dicts with symbol, label, train_rows and validation_rows (no vault). Trials are recorded before any VALIDATION score."""
     if not markets or len({m['symbol'] for m in markets})!=len(markets): raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -186,7 +218,8 @@ def sweep(markets,ledger,*,run_id,note):
     trials=SETTINGS*len(markets)
     ledger.record_external_trials(f'library:{run_id}',trials,{'kind':'strategy-library','run_id':run_id,'settings_per_market':SETTINGS,
                                                               'families':sorted(FAMILIES),'markets':[m['label'] for m in markets],'note':note})
-    total=ledger.total_trials();rows=[]
+    from .vault import CandidateQueue
+    total=ledger.total_trials();rows=[];queue=CandidateQueue(ledger)
     for market in markets:
         for name,choice in choices[market['symbol']].items():
             score=validate(market,name,choice['knobs']);row={'symbol':market['symbol'],'family':name,**choice}
@@ -194,7 +227,14 @@ def sweep(markets,ledger,*,run_id,note):
             inputs=score['deflation_inputs'];deflation=deflated_sharpe(inputs,total,trial_variance([],inputs)['trial_variance'])
             row.update(validation={k:score[k] for k in ('sharpe','sharpe_status','benchmark_sharpe','annual_mean_excess','beats_baseline','position_changes','positions_held','max_drawdown','sessions')},
                        deflated_sharpe=deflation['deflated_sharpe'],gate='PASS' if score['beats_baseline'] and deflation['status']=='PASS' else 'FAIL')
-            if row['gate']=='PASS': row['recomputed']=validate(market,name,choice['knobs'])==score
+            if score['beats_baseline']:
+                row['recomputed']=validate(market,name,choice['knobs'])==score;row['causal']=causal(market,name,choice['knobs'])
+                if row['recomputed'] and row['causal']:
+                    route={'kind':'library','symbol':market['symbol'],'family':name,'knobs':choice['knobs'],
+                           'checks':'recompute and lookahead (last 1, 4 and 8 VALIDATION rows changed); no sandbox Auditor run'}
+                    event=queue.admit(f"{run_id}:{market['symbol']}:{name}",score,deflation,tests_passed=True,auditor_passed=True,route=route)
+                    row['queue']={'event':event['event'],'quarter':event['quarter'],'candidate_id':event['candidate_id']}
+                else: row['queue']={'event':'NOT_ADMITTED','reason':'recompute or lookahead check failed'}
             rows.append(row)
     return {'run_id':run_id,'kind':'strategy-library','note':note,'markets':len(markets),'settings_per_market':SETTINGS,'trials_recorded':trials,
             'total_trials':total,'gate_rule':'beats buy-and-hold and deflated Sharpe >= 0.95 with the total trial count and the null variance (option C)',

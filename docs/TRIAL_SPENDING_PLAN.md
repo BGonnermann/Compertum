@@ -1,7 +1,11 @@
 # Trial spending: plan and options for the owner - 2 November 2026
 
 Status: part 1 agreed; option 1 with option 3 agreed in principle. Owner, 2 November 2026: "ok go".
-The exact option 1 rules (section "Option 1: exact rules") wait for the owner's yes before any sealed file changes.
+The exact option 1 rules (section "Option 1: exact rules"): owner, 2 November 2026, "build it as written". Built; see ENGINE_PLAN.md, "Two stages".
+Option 3 research (2 November 2026): no free source covers delisted S&P 500 members before 2016 well. Free with partial delisted coverage and a
+free sign-up: Nasdaq Data Link WIKI prices (frozen April 2018) and Tiingo's free tier (500 symbols a month). Paid and complete: Norgate US
+Platinum (about USD 630 a year, from 1990, delisted names and historical index members). Yahoo's terms forbid automated download.
+The owner chooses.
 Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
 Owner, 1 November 2026: "start the trial-spending plan". Nothing in the code or the ledger changed for this document.
 

@@ -474,7 +474,13 @@ Trial-spending plan written: `docs/TRIAL_SPENDING_PLAN.md` (proposal). Finding: 
 (the earlier "2.66" was SR0, not the pass level); more trials barely move it, a longer test does. No code, threshold or ledger row changed.
 Owner, 2 November 2026: "ok go" (part 1, and option 1 with option 3). The plan now has exact option 1 rules and a corrected vault: the
 engine vault is the last 20% of each history (SPY: 403 sessions, 2022-05-24 to 2023-12-29), not 2024 to 2025. A research agent checks free long-history sources.
-Exact next action: the owner says yes or changes the option 1 rules; ingest the holdings files when they are in the inbox.
+Owner, 2 November 2026: "build it as written". Two-stage gate built (see ENGINE_PLAN.md, "Two stages"); independent review, 9 points, fixes and tests.
+Sealed files changed (SHA-256, first 16 hex, before -> after): vault.py e1a2ac2f6db16d8e -> c4cf5c916d6e472e; cycle.py 65fda892ddfc7bf5 -> 3f7fa354652a1150;
+ledger.py 6b33151127240d8c -> a05f07c815bd8e38; limits.py 2e9d5291033b0134 -> cb72d47eb1db00ba. The Auditor acceptance tests (planted lookahead, irreproducible and
+fixed-write candidates) pass. Tests: engine lane 370 passed, 0 failed; product lane 308 passed, 0 failed, 8 skipped; harness lane 143 passed, 0 failed
+(the harness count includes uncommitted harness edits by another session, not part of this commit). No vault batch was opened.
+Owner on option 3: "im sure we dont need to pay"; a second search for free sources with delisted names is running.
+Exact next action: report the free-source search; ingest the holdings files when they are in the inbox.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

@@ -11,7 +11,10 @@ from compertum.ai.engine.deflation import (BASE_FAMILY,DSR_MIN,deflated_sharpe,e
                                            probabilistic_sharpe,trial_variance)
 from compertum.ai.engine.ledger import EngineLedger
 from compertum.ai.engine.market import market_csv,score_signals,split_market_tiers,synthetic_market
-from compertum.ai.engine.vault import CandidateQueue
+from datetime import date
+from compertum.ai.engine import ledger as ledger_module
+from compertum.ai.engine import vault as vault_module
+from compertum.ai.engine.vault import QUOTA,VAULT_BUDGET,CandidateQueue,quarter_end,quarter_of
 from compertum.runtime.errors import RuntimeRefused
 
 CANDIDATE={'observations':100,'sharpe_per_period':'0.2','sharpe_status':'DEFINED','skewness':'0','kurtosis':'3'}
@@ -118,18 +121,25 @@ def test_queue_admission(bridge):
     b,_=bridge;queue=CandidateQueue(EngineLedger(b.store));cid=f'cycle-0001-{uuid4().hex[:8]}:h1'
     score={'beats_baseline':True,'sharpe':'1.0'}
     for kwargs,reason in ((dict(score={**score,'beats_baseline':False},deflation=PASSING,tests_passed=True,auditor_passed=True),'does not beat the baseline on VALIDATION'),
-                          (dict(score=score,deflation={**PASSING,'status':'FAIL'},tests_passed=True,auditor_passed=True),'deflation gate FAIL'),
                           (dict(score=score,deflation={**PASSING,'deflated_sharpe':'0.94'},tests_passed=True,auditor_passed=True),'deflation record inconsistent'),
                           (dict(score=score,deflation={**PASSING,'minimum':'0.90'},tests_passed=True,auditor_passed=True),'deflation record inconsistent'),
                           (dict(score=score,deflation=PASSING,tests_passed=False,auditor_passed=True),'tests not passed'),
                           (dict(score=score,deflation=PASSING,tests_passed=True,auditor_passed=None),'Auditor not passed')):
         with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit(cid,**kwargs)
         assert queue.ledger.queue_events(cid)[-1]['event']=='DENIED' and queue.ledger.queue_events(cid)[-1]['reasons']==[reason]
-    assert queue.state(cid)==(None,None) and queue.queued()==[]
+    assert queue.state(cid)==(None,None) and queue.queued()==[] and queue.eligible()==[]
     row=queue.admit(cid,score,PASSING,tests_passed=True,auditor_passed=True)
-    assert row['event']=='QUEUED' and row['deflation']==PASSING and len(row['score_sha256'])==64 and queue.state(cid)==('QUEUED',None) and queue.queued()==[cid]
+    assert row['event']=='ELIGIBLE' and row['deflation']==PASSING and len(row['score_sha256'])==64 and queue.state(cid)==('ELIGIBLE',None) and queue.eligible()==[cid]
+    assert row['quarter']==quarter_of(row['recorded_at']) and queue.queued()==[]
     with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit(cid,score,PASSING,tests_passed=True,auditor_passed=True)
-    assert queue.ledger.queue_events(cid)[-1]['reasons']==['already QUEUED'] and queue.queued()==[cid]
+    assert queue.ledger.queue_events(cid)[-1]['reasons']==['already ELIGIBLE'] and queue.eligible()==[cid]
+    below=f'cycle-0001-{uuid4().hex[:8]}:h2';failing={**PASSING,'status':'FAIL','deflated_sharpe':'0.40000000'}
+    assert queue.admit(below,score,failing,tests_passed=True,auditor_passed=True)['event']=='ELIGIBLE'  # stage 1: the DSR ranks, it is not a minimum
+    rounded=f'cycle-0001-{uuid4().hex[:8]}:h3';assert queue.admit(rounded,score,{**PASSING,'status':'FAIL','deflated_sharpe':'0.95000000'},tests_passed=True,auditor_passed=True)['event']=='ELIGIBLE'
+    for bad in ({**PASSING,'status':'FAIL','deflated_sharpe':'0.96'},{**PASSING,'status':'UNDEFINED'},{**PASSING,'status':'MAYBE'}):
+        other=f'cycle-0001-{uuid4().hex[:8]}:h9'
+        with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit(other,score,bad,tests_passed=True,auditor_passed=True)
+    assert queue.admit(f'cycle-0001-{uuid4().hex[:8]}:h4',score,{**PASSING,'status':'UNDEFINED','deflated_sharpe':None},tests_passed=True,auditor_passed=True)['event']=='ELIGIBLE'
     with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit('',score,PASSING,tests_passed=True,auditor_passed=True)
 
 
@@ -138,7 +148,9 @@ def test_vault_batch(bridge):
     rows=synthetic_market(11,200);train,validation,vault=split_market_tiers(rows)
     assert (len(train),len(validation),len(vault))==(100,60,40) and vault[0]['session']==160 and vault[-1]['session']==199
     first,second,third=(f'cycle-0001-{uuid4().hex[:8]}:h{i}' for i in (1,2,3))
-    for cid in (first,second,third): queue.admit(cid,{'beats_baseline':True},PASSING,tests_passed=True,auditor_passed=True)
+    for cid,value in ((first,'0.30'),(second,'0.20'),(third,'0.10')): queue.admit(cid,{'beats_baseline':True},record_for(value),tests_passed=True,auditor_passed=True)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): queue.open_batch([first],'Owner OK: eligible is not queued')
+    name=quarter_of(date.today());assert queue.close_quarter(name,day=quarter_end(name))==[first,second,third]
     assert queue.queued()==[first,second,third] and ledger.looks()==[]
     for ids,note in (([first],''),([first],'x'*1025),([],'ok'),([first,first],'ok'),([first,'unknown'],'ok'),([f'c{i}' for i in range(17)],'ok')):
         with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): queue.open_batch(ids,note)
@@ -155,6 +167,7 @@ def test_vault_batch(bridge):
     all_ones='session,position\n'+''.join(f"{r['session']},1\n" for r in vault)
     result=queue.evaluate_in_vault(look['look_id'],first,all_ones,read_vault)
     assert result['status']=='SCORED' and result['result']['sessions']==40 and result['result']['beats_baseline'] is False and len(reads)==1
+    assert result['confirmation']['trials']==2 and result['confirmation']['status']=='FAIL' and look['vault']=='history-v1'
     assert queue.state(first)==('VAULT_EVALUATED',look['look_id'])
     with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_REPEAT$'): queue.evaluate_in_vault(look['look_id'],first,all_ones,read_vault)
     assert len(reads)==1  # the repeat never read the vault
@@ -207,3 +220,87 @@ def test_reversal_markets():
     assert all(lean(rows,i)==0==lean(mirror,i) for i in range(3))
     assert abs(abs(lean(rows,3))-Decimal('0.004'))<=Decimal('0.00000002') and abs(lean(rows,3)+lean(mirror,3))<=Decimal('0.00000002')
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): synthetic_market(31,500,planted={**reversal,'kind':'trend'})
+
+
+def record_for(sharpe,trials=50):
+    inputs={'observations':603,'sharpe_per_period':sharpe,'skewness':'0.0','kurtosis':'3.0','sharpe_status':'DEFINED'}
+    return deflated_sharpe(inputs,trials,trial_variance([],inputs)['trial_variance'])
+
+
+def legacy(monkeypatch,ledger,ids):
+    with monkeypatch.context() as m:
+        m.setattr(ledger_module,'now',lambda:'2026-11-01T12:00:00+00:00')
+        for cid in ids: ledger.record_queue_event(cid,'QUEUED',{'legacy':True})
+
+
+def test_quarter_close(bridge):
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger);score={'beats_baseline':True}
+    assert (quarter_of('2026-11-02'),quarter_of('2026-01-01T00:00:00+00:00'),quarter_of('2026-06-30'))==('2026-Q4','2026-Q1','2026-Q2')
+    assert (quarter_end('2026-Q4'),quarter_end('2026-Q1'),quarter_end('2026-Q3'))==(date(2027,1,1),date(2026,4,1),date(2026,10,1))
+    for bad in ('2026-Q5','2026Q1',None):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.close_quarter(bad,day=date(2030,1,1))
+    ledger.record_external_trials('earlier',500,{})
+    records=[record_for('0.02'),record_for('0.20'),record_for('0.10'),{'trials':50,'status':'UNDEFINED','deflated_sharpe':None,'minimum':'0.95'},record_for('0.10')]
+    ids=[f'cycle-0001-{uuid4().hex[:8]}:h{i}' for i in range(len(records))]
+    for cid,record in zip(ids,records): queue.admit(cid,score,record,tests_passed=True,auditor_passed=True)
+    name=quarter_of(date.today());end=quarter_end(name)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.close_quarter(name,day=end.fromordinal(end.toordinal()-1))
+    assert queue.close_quarter('2001-Q1',day=end)==[] and queue.eligible()==ids
+    chosen=queue.close_quarter(name,day=end)
+    assert QUOTA==3 and chosen==[ids[1],ids[2],ids[4]] and queue.queued()==chosen and queue.eligible()==[]  # highest DSR first; ties keep event order
+    assert [queue.state(c)[0] for c in ids]==['NOT_SELECTED','QUEUED','QUEUED','NOT_SELECTED','QUEUED']
+    closing={e['candidate_id']:e for e in ledger.queue_events() if e['event'] in ('QUEUED','NOT_SELECTED')}
+    assert [closing[c]['rank'] for c in ids]==[4,1,2,5,3] and closing[ids[3]]['rank_dsr'] is None and closing[ids[1]]['trials_at_close']==500
+    assert Decimal(closing[ids[1]]['rank_dsr'])!=Decimal(records[1]['deflated_sharpe'])  # recomputed with N at the close, not the N at admission
+    assert queue.close_quarter(name,day=end)==[]
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): queue.open_batch([ids[0]],'Owner OK: not selected')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit(ids[0],score,PASSING,tests_passed=True,auditor_passed=True)
+
+
+def test_quota_left(bridge,monkeypatch):
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger);score={'beats_baseline':True}
+    monkeypatch.setattr(vault_module,'today',lambda:date(2026,12,31))
+    ids=[f'cycle-0001-{uuid4().hex[:8]}:h{i}' for i in range(5)]
+    for i,cid in enumerate(ids): queue.admit(cid,score,record_for(f'0.0{i+1}'),tests_passed=True,auditor_passed=True)
+    # A close that stopped after one QUEUED row, or a clock that moved: the quarter's quota still counts the earlier QUEUED row.
+    ledger.record_queue_event(ids[4],'QUEUED',{'quarter':'2026-Q4','rank':1})
+    assert queue.close_quarter('2026-Q4',day=date(2027,1,1))==[ids[3],ids[2]] and len(queue.queued())==3
+    monkeypatch.setattr(vault_module,'today',lambda:date(2027,1,1))
+    late=f'cycle-0001-{uuid4().hex[:8]}:h9';row=queue.admit(late,score,record_for('0.09'),tests_passed=True,auditor_passed=True)
+    assert row['quarter']=='2027-Q1' and queue.close_quarter('2026-Q4',day=date(2027,1,2))==[] and queue.eligible()==[late]
+    assert row['route']=={'kind':'engine'}
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.admit('cycle-x:h1',score,record_for('0.01'),tests_passed=True,auditor_passed=True,route='bad')
+
+
+def test_legacy_rows(bridge,monkeypatch):
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    old,new=f'cycle-0001-{uuid4().hex[:8]}:h1',f'cycle-0001-{uuid4().hex[:8]}:h2'
+    legacy(monkeypatch,ledger,[old]);assert queue.queued()==[old]
+    ledger.record_queue_event(new,'QUEUED',{'legacy':True})  # a QUEUED row without ELIGIBLE after 2 November 2026 is not accepted
+    with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_CORRUPT$'): queue.state(new)
+
+
+def test_vault_budget(bridge,monkeypatch):
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    ids=[f'cycle-0001-{uuid4().hex[:8]}:h{i}' for i in range(VAULT_BUDGET+1)]
+    legacy(monkeypatch,ledger,ids);assert queue.queued()==ids and VAULT_BUDGET==12
+    ledger.record_look('look-old','a'*64,{'candidate_ids':['old-1','old-2'],'owner_note':'before vault ids'})  # a look without a vault field counts
+    first=queue.open_batch(ids[:4],'Owner OK: batch 1');second=queue.open_batch(ids[4:10],'Owner OK: batch 2')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_BUDGET$'): queue.open_batch(ids[10:12],'Owner OK: over budget')
+    assert queue.vault_trials(first['look_id'])==6 and queue.vault_trials(second['look_id'])==12 and len(ledger.looks())==3
+    with pytest.raises(RuntimeRefused,match='^ENGINE_LOOK_UNKNOWN$'): queue.vault_trials('look-none')
+
+
+def test_vault_confirmation(bridge,monkeypatch):
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    rows=synthetic_market(11,2000);_,_,vault=split_market_tiers(rows)
+    ids=[f'cycle-0001-{uuid4().hex[:8]}:h{i}' for i in range(4)];legacy(monkeypatch,ledger,ids)
+    perfect='session,position\n'+''.join(f"{r['session']},{1 if Decimal(n['return'])>0 else 0}\n" for r,n in zip(vault,vault[1:]))+f"{vault[-1]['session']},0\n"
+    look=queue.open_batch(ids[:1],'Owner OK: one candidate');one=queue.evaluate_in_vault(look['look_id'],ids[0],perfect,lambda:vault)
+    assert one['confirmation']['trials']==1 and one['confirmation']['beats_baseline'] is True and one['confirmation']['status']=='PASS'
+    assert one['confirmation']['deflation']['trials']==1 and one['confirmation']['deflation']['expected_max_sharpe']=='0.00000000'
+    later=queue.open_batch(ids[1:],'Owner OK: three more');two=queue.evaluate_in_vault(later['look_id'],ids[1],perfect,lambda:vault)
+    assert two['confirmation']['trials']==4 and Decimal(two['confirmation']['deflation']['expected_max_sharpe'])>0  # earlier batches count
+    flat='session,position\n'+''.join(f"{r['session']},0\n" for r in vault)
+    three=queue.evaluate_in_vault(later['look_id'],ids[2],flat,lambda:vault)
+    assert three['confirmation']['status']=='FAIL' and three['confirmation']['beats_baseline'] is False

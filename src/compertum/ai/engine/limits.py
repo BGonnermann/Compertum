@@ -18,7 +18,7 @@ import tomllib
 from compertum.domain import ContractError,resolve_project_path
 from compertum.runtime.errors import RuntimeRefused
 from .ledger import RUN_ID
-from .vault import CandidateQueue
+from .vault import QUOTA,CandidateQueue
 
 SETTINGS_PATH='config/engine.toml'
 MAX_SETTINGS_BYTES=16384
@@ -128,7 +128,7 @@ def summary_text(run,ledger,*,now=None):
     lines.append(f"Progress: {len(cycles)} cycles completed in this run, {run.get('requests',0)} AI requests used"
                  +(f", {elapsed/60:.1f} minutes elapsed." if isinstance(elapsed,(int,float)) else '.'))
     lines.append('');lines.append('Ideas tried:')
-    queued=beat=rejected=deflated=audit_rejected=frozen_count=failed=0;stops=[]
+    queued=eligible=beat=rejected=deflated=audit_rejected=frozen_count=failed=0;stops=[]
     for cycle in cycles:
         titles={h['id']:h['title'] for h in cycle.get('hypotheses') or [] if isinstance(h,dict)}
         if not cycle.get('candidates') and not titles: lines.append(f"- cycle {cycle['cycle_index']}: no hypotheses ({cycle['status']})")
@@ -139,6 +139,7 @@ def summary_text(run,ledger,*,now=None):
                 deflation=candidate.get('deflation') or {}
                 outcome=f"{candidate.get('status')}"+(f", DSR {deflation.get('deflated_sharpe')} over {deflation.get('trials')} trials" if deflation else '')
                 status=candidate.get('status')
+                if candidate.get('queue')=='ELIGIBLE': eligible+=1
                 if status=='QUEUED': queued+=1
                 elif status=='BEATS_BASELINE_PENDING_AUDIT': beat+=1
                 elif status=='REJECTED_AUDIT': audit_rejected+=1
@@ -152,7 +153,8 @@ def summary_text(run,ledger,*,now=None):
             stops.append(f"cycle {cycle['cycle_index']}: {fault['role']} {fault['kind']} step failed with {fault['code']} ({who}); recorded, the cycle went on")
         if cycle.get('stop_code'): stops.append(f"cycle {cycle['cycle_index']} stopped with {cycle['stop_code']}")
     lines.append('');lines.append('Results:')
-    lines.append(f'- {queued} candidates passed the deflation gate and the Auditor, were promoted and queued for a vault batch.')
+    lines.append(f'- {queued} candidates passed the deflation gate and the Auditor.')
+    lines.append(f'- {eligible} audited candidates beat the baseline, were promoted and became eligible; the quarter close queues the best {QUOTA} by DSR.')
     lines.append(f'- {audit_rejected} failed the Auditor (not reproducible or lookahead). {beat} await the audit. {frozen_count} froze the engine.')
     lines.append(f'- {deflated} beat the baseline but failed the deflation gate. {rejected} did not beat the baseline. {failed} produced no valid signals.')
     lines.append('');lines.append('Failures:')
@@ -163,8 +165,9 @@ def summary_text(run,ledger,*,now=None):
     for item in stops: lines.append('- '+item)
     for status,count in sorted(run_statuses.items()): lines.append(f'- {count} sandbox jobs ended {status}')
     if not stops and not run_statuses: lines.append('- none')
-    queue=CandidateQueue(ledger).queued()
-    lines.append('');lines.append('Queue: '+(', '.join(queue[:20])+(f' and {len(queue)-20} more' if len(queue)>20 else '') if queue else 'empty')+'.')
+    def listed(ids): return ', '.join(ids[:20])+(f' and {len(ids)-20} more' if len(ids)>20 else '') if ids else 'empty'
+    queue=CandidateQueue(ledger)
+    lines.append('');lines.append('Queue: '+listed(queue.queued())+'.');lines.append('Eligible: '+listed(queue.eligible())+'.')
     freezes=ledger.active_freezes()
     lines.append('Freezes: '+(', '.join(f"{f['reason']} ({f['freeze_id']})" for f in freezes) if freezes else 'none')+'.')
     lines.append('');lines.append('Models used (as configured and verified by the client at each request):')

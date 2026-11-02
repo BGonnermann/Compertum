@@ -500,6 +500,29 @@ monthly) 0.54, but its mean return was 1.7% a year below the benchmark, so it do
 against 0.81 on the 328 of today's large names in the survivor sweep `library-multi-20261101-57890b28`. The difference is the survivorship effect that the
 point-in-time universe removes.
 
+Two stages: screen, then confirm in the vault (2 November 2026; owner: "build it as written"; rules in `docs/TRIAL_SPENDING_PLAN.md`,
+"Option 1: exact rules"). Changed sealed files: `vault.py`, `cycle.py`, `ledger.py` (two queue event names) and `limits.py` (summary lines).
+- Stage 1. After the Auditor passes, every candidate that beat the baseline on VALIDATION is promoted and becomes ELIGIBLE, at any DSR.
+  The DSR with the global trial count is recorded and ranks it. Candidate statuses still describe the global gate (`QUEUED` only at the
+  gate, `REJECTED_DEFLATED` below it), so GEPA levels and bench reports do not change; the queue state is `candidate['queue']`.
+- Quota. `CandidateQueue.close_quarter(YYYY-Qn)` works only after the quarter ends. It queues the 3 eligible candidates with the highest DSR
+  (an UNDEFINED DSR ranks last; ties keep event order) and marks the rest NOT_SELECTED. A batch can only take QUEUED candidates.
+- Vault budget. `VAULT_ID` `history-v1` names the vault of the current histories; at most 12 candidates are ever counted in its looks
+  (`ENGINE_VAULT_BUDGET`). A new vault, for example after a longer history, needs a new `VAULT_ID`, which is a change to a sealed file.
+- Stage 2. `evaluate_in_vault` adds a confirmation record: PASS when the candidate beats the baseline in the vault and its vault DSR is at
+  least 0.95, with N the candidates counted in this vault's looks up to and including its own, and its own null variance.
+- Library route. A single-symbol library sweep admits each setting that beats buy-and-hold when a recompute gives the same score and the
+  lookahead check passes (changing the last 1, 4 or 8 VALIDATION rows leaves every earlier position unchanged). `library.vault_score`
+  scores a library candidate inside its look. The multi-stock library has no route yet: the vault scorer is single-market.
+- Unchanged: every trial counts; the owner's note opens a batch; the look is counted before a vault row is read; no repeat; legacy QUEUED rows
+  (14 in the ledger, from GEPA run `run-20261101-2a8ab591` under the old gate) stay QUEUED. No batch opens until a longer history exists (step 6).
+- Independent review (9 points); fixed with tests: the quarter close runs in one locked write transaction (`EngineLedger.close_queue`,
+  BEGIN IMMEDIATE), counts QUEUED rows the quarter already has, recomputes every DSR with the trial count at the close, and never selects an
+  undefined DSR; a QUEUED row without ELIGIBLE is accepted only before 2 November 2026; a library ELIGIBLE event records its symbol, family and
+  knobs, and `vault_score` refuses unless the market reproduces the admitted VALIDATION score, and reads the vault through a loader inside the
+  look; the library route is tagged as recompute and lookahead checks, not a sandbox Auditor run. Not changed: `promotion.vault_run` (engine
+  candidates) still takes the files and vault rows from its caller, as before this change; a binding check there is a separate decision.
+
 Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
 the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
 to `open_market`; `history_market.load_history_market` to `build_market` and `load_history_manifest` to `open_history`; `gepa_run.score_for_cycle` to

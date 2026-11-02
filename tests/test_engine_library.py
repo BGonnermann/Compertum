@@ -117,3 +117,34 @@ def test_all_manifests(tmp_path,monkeypatch,capsys):
     monkeypatch.setattr(library,'load_markets',fake)
     assert library.main(['--project',str(tmp_path),'sweep','--all','--note','x'])==2
     assert seen==['data/history/AAA/manifest.json','data/history/BRK.B/manifest.json'] and json.loads(capsys.readouterr().out)=={'refused':'ENGINE_MARKET_DENIED'}
+
+
+def test_library_queue(bridge,monkeypatch):
+    from compertum.ai.engine.vault import CandidateQueue,quarter_end
+    b,_=bridge;ledger=EngineLedger(b.store);queue=CandidateQueue(ledger)
+    data=rows(1000,5,drift=0.0);close=100.0;out=[];previous=None;rng=random.Random(9)
+    for i,r in enumerate(data):
+        close*=1+(0.004 if (i//60)%2==0 else -0.004)+rng.gauss(0,0.006);ret=0.0 if previous is None else close/previous-1;previous=close
+        out.append({'session':r['session'],'close':f'{close:.6f}','return':repr(ret)})
+    trend={'symbol':'TRD','label':'fixture trend','train_rows':out[:540],'validation_rows':out[540:900]};vault=out[900:]
+    report=library.sweep([trend],ledger,run_id='library-20261102-00000004',note='fixture')
+    beat=[r for r in report['rows'] if r['validation'].get('beats_baseline')];assert beat
+    assert all(r['causal'] and r['recomputed'] and r['queue']['event']=='ELIGIBLE' for r in beat)
+    assert all('queue' not in r for r in report['rows'] if not r['validation'].get('beats_baseline'))
+    assert queue.eligible()==[r['queue']['candidate_id'] for r in beat]
+    def peek(s,**knobs): return [1 if i+1<len(s['closes']) and s['closes'][i+1]>s['closes'][i] else 0 for i in range(len(s['closes']))]
+    monkeypatch.setitem(library.FAMILIES,'peek',(peek,[{}]))
+    assert library.causal(trend,'peek',{}) is False and library.causal(trend,beat[0]['family'],beat[0]['knobs']) is True
+    route=ledger.queue_events(beat[0]['queue']['candidate_id'])[0]['route']
+    assert route['kind']=='library' and route['symbol']=='TRD' and route['family']==beat[0]['family'] and route['knobs']==beat[0]['knobs']
+    quarter=beat[0]['queue']['quarter'];chosen=queue.close_quarter(quarter,day=quarter_end(quarter));assert 1<=len(chosen)<=3
+    cid=chosen[0];look=queue.open_batch([cid],'Owner OK: library vault fixture');reads=[]
+    def load(): reads.append(1);return vault
+    changed={**trend,'validation_rows':trend['validation_rows'][:-1]}
+    for bad in ((changed,load),({**trend,'symbol':'OTHER'},load),(trend,vault)):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): library.vault_score(queue,look['look_id'],cid,*bad)
+    assert reads==[] and queue.state(cid)[0]=='LOOK_COUNTED'
+    result=library.vault_score(queue,look['look_id'],cid,trend,load)
+    assert result['status']=='SCORED' and result['result']['sessions']==len(vault) and result['confirmation']['trials']==1 and reads==[1]
+    with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_REPEAT$'): library.vault_score(queue,look['look_id'],cid,trend,load)
+    assert reads==[1]

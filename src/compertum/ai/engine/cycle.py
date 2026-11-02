@@ -318,7 +318,8 @@ def _run_cycle(engine,cycle_index):
             if not score['beats_baseline']: continue
             # 5b (E6). The Auditor is the binding gate. Integrity failure freezes the engine; a candidate defect rejects the candidate.
             # Since 25 October 2026 (owner decision) it checks every candidate that beat buy-and-hold, at the gate or below it, so a strategy
-            # that read future data is caught at any deflated Sharpe. Only a candidate at the gate can be promoted and queued.
+            # that read future data is caught at any deflated Sharpe. Since 2 November 2026 (owner, two stages) every audited candidate that
+            # beat the baseline is promoted and becomes ELIGIBLE; its DSR ranks it at the quarter's close. Its status still reports the global gate.
             audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows)
             ledger.record_step(cycle_id,next_step(),'auditor','audit',{'phase':audit['label'],'candidate_id':cid,'audit':audit})
             candidate['audit']={'label':audit['label'],'integrity':audit['integrity'],'reasons':audit['reasons']}
@@ -326,17 +327,18 @@ def _run_cycle(engine,cycle_index):
                 ledger.freeze('AUDITOR_FAILED',{'cycle_id':cycle_id,'candidate_id':cid,'checks':audit['checks'],'reasons':audit['reasons']})
                 candidate['status']='FROZEN';raise RuntimeRefused('ENGINE_FROZEN')
             if audit['label']!='VERIFIED_PASS': candidate['status']='REJECTED_AUDIT';continue
-            if deflation['status']!='PASS': continue  # audited and honest, below the gate: stays REJECTED_DEFLATED with its audit record; never promoted
             if engine.purpose in EVALUATION_PURPOSES:
                 # A bench or holdout check measures prompts; its strategies never become templates or enter the vault queue (review, 25 October 2026).
-                candidate['status']='EVALUATION_GATE_PASS';continue
-            # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate enters the queue.
+                if deflation['status']=='PASS': candidate['status']='EVALUATION_GATE_PASS'
+                continue
+            # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate becomes ELIGIBLE (stage 1).
             source=sandbox.record_for(audit['source_run_id'])
             promoted=promote(engine.project_root,cid,source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
-            queued=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True)
-            candidate['status']='QUEUED';candidate['promoted_folder']=promoted['folder']
-            ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'PROMOTED','candidate_id':cid,'queue_event_id':queued['event_id'],
-                                                                           'folder':promoted['folder'],'files':promoted['manifest']['files']})
+            eligible=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True)
+            if deflation['status']=='PASS': candidate['status']='QUEUED'
+            candidate['queue']='ELIGIBLE';candidate['promoted_folder']=promoted['folder']
+            ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'PROMOTED','candidate_id':cid,'queue_event_id':eligible['event_id'],
+                                                                           'quarter':eligible['quarter'],'folder':promoted['folder'],'files':promoted['manifest']['files']})
         # 7. Agenda review every tenth cycle.
         if cycle_index%AGENDA_EVERY==0 and engine.purpose not in HISTORY_FREE_PURPOSES:
             agenda=attempt('director','agenda',agenda_task(brief,summary),{})
