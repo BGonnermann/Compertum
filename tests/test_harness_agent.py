@@ -117,3 +117,89 @@ def test_unexpected_errors(tmp_path):
     agent.start()
     assert agent.run_task("hello").status == "done"
     assert "The session could not save the end of this task: cannot save" in output.getvalue()
+
+
+class Scripted:
+    def __init__(self, replies):
+        self.replies, self.requests = list(replies), []
+
+    def chat(self, messages, tools, on_event=None, deadline=None):
+        self.requests.append((list(messages), tools))
+        return self.replies.pop(0)
+
+
+def test_project_rules(tmp_path):
+    from compertum.harness.agent import SYSTEM
+    from compertum.harness.packets import SECRET_LINE
+    agent = Agent(None, None, Limits(1, 1), Display(StringIO(), color=False), tmp_path)
+    agent.start()
+    assert agent.messages[0]["content"] == SYSTEM.format(workspace=tmp_path)
+    (tmp_path / "AGENTS.md").write_text("# Rules\n\nUse short sentences.\napi_key = abcdefghijklmnopqrstuvwx\n", encoding="utf-8")
+    agent.start()
+    content = agent.messages[0]["content"]
+    assert content.startswith(SYSTEM.format(workspace=tmp_path))
+    assert "Use short sentences." in content and SECRET_LINE in content and "abcdefghijklmnop" not in content
+
+
+def test_conversation_compaction(tmp_path, monkeypatch):
+    from compertum.harness import agent as module
+    from compertum.harness.model import Reply
+    from compertum.harness.sessions import SessionStore
+    monkeypatch.setattr(module, "WARN_CONVERSATION", 4000)
+    store = SessionStore(tmp_path)
+    session = store.create()
+    client = Scripted([Reply(content="The owner asked for three notes."), Reply(content="Done.")])
+    agent = Agent(client, WorkspaceTools(tmp_path, tmp_path), Limits(4, 20), Display(StringIO(), color=False),
+                  tmp_path, emit=session.append)
+    agent.start()
+    for number in range(6):
+        agent._append({"role": "user", "content": f"note {number} " + "x" * 600})
+        agent._append({"role": "assistant", "content": f"noted {number}"})
+    outcome = agent.run_task("Which notes exist?")
+    assert outcome.status == "done" and outcome.answer == "Done."
+    summary_request, summary_tools = client.requests[0]
+    assert summary_tools == [] and summary_request[-1] == {"role": "user", "content": module.SUMMARY_TASK}
+    assert summary_request[0] == agent.messages[0]
+    assert agent.messages[1] == {"role": "user", "content": module.SUMMARY_HEAD + "The owner asked for three notes."}
+    assert agent.messages[-2] == {"role": "user", "content": "Which notes exist?"}
+    assert len(agent.messages) < 15
+    assert client.requests[1][0] == agent.messages[:-1]
+    assert store.load(session.identity).messages == agent.messages
+
+
+def test_compaction_failure(tmp_path, monkeypatch):
+    from compertum.harness import agent as module
+    from compertum.harness.model import ModelError, Reply
+    monkeypatch.setattr(module, "WARN_CONVERSATION", 2000)
+
+    class Failing(Scripted):
+        def chat(self, messages, tools, on_event=None, deadline=None):
+            if not tools and messages[-1]["content"] == module.SUMMARY_TASK:
+                raise ModelError("the model server returned HTTP 500")
+            return super().chat(messages, tools, on_event, deadline)
+
+    out = StringIO()
+    client = Failing([Reply(content="Done.")])
+    agent = Agent(client, WorkspaceTools(tmp_path, tmp_path), Limits(4, 20), Display(out, color=False), tmp_path)
+    agent.start()
+    for number in range(6):
+        agent._append({"role": "user", "content": "y" * 600})
+        agent._append({"role": "assistant", "content": "ok"})
+    before = len(agent.messages)
+    outcome = agent.run_task("Go on.")
+    assert outcome.status == "done"
+    assert len(agent.messages) == before + 2
+    assert "could not be compacted" in out.getvalue() and "Use /new soon." in out.getvalue()
+
+
+def test_repeat_stop(tmp_path):
+    from compertum.harness.model import Reply
+    (tmp_path / "note.txt").write_text("hello")
+    call = {"id": "", "name": "read", "arguments": '{"path":"note.txt"}'}
+    client = Scripted([Reply(tool_calls=[{**call, "id": f"call-{n}"}]) for n in range(5)])
+    agent = Agent(client, WorkspaceTools(tmp_path, tmp_path), Limits(10, 20), Display(StringIO(), color=False), tmp_path)
+    agent.start()
+    outcome = agent.run_task("Read note.txt")
+    assert outcome.status == "repeat_limit" and outcome.steps == 3
+    assert agent.messages[-1] == {"role": "tool", "tool_call_id": "call-2", "content": "not run: the task was stopped"}
+    assert [m["content"] for m in agent.messages if m["role"] == "tool"][:2] == ["hello", "hello"]

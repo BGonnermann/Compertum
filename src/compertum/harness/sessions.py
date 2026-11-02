@@ -10,10 +10,19 @@ from .packets import MAX_CONVERSATION, encode
 
 MAX_BYTES = 16 * 1024**2
 MAX_RECORDS = 4096
+KINDS = ("message", "outcome", "compact")
 
 
 class SessionError(Exception):
     pass
+
+
+def compacted(messages, payload):
+    summary, tail = payload.get("summary"), payload.get("tail")
+    if (not isinstance(summary, dict) or summary.get("role") != "user" or not isinstance(summary.get("content"), str)
+            or not isinstance(tail, int) or isinstance(tail, bool) or not 0 < tail < len(messages)):
+        raise SessionError("the session summary is not valid")
+    return [messages[0], summary] + messages[len(messages) - tail:]
 
 
 class SessionStore:
@@ -62,7 +71,7 @@ class Session:
         self.identity, self.path, self.records = identity, path, 0
 
     def append(self, kind, payload):
-        if kind not in ("message", "outcome") or not isinstance(payload, dict):
+        if kind not in KINDS or not isinstance(payload, dict):
             raise SessionError("the session record is not valid")
         record = {"kind": kind, "payload": payload}
         try:
@@ -97,7 +106,7 @@ class Session:
                 raise SessionError("the session has too many records")
             for line in lines:
                 record = json.loads(line)
-                if not isinstance(record, dict) or record.get("kind") not in ("message", "outcome") or record.keys() != {"kind", "payload"}:
+                if not isinstance(record, dict) or record.get("kind") not in KINDS or record.keys() != {"kind", "payload"}:
                     raise SessionError("the session record is not valid")
                 payload = record["payload"]
                 if not isinstance(payload, dict):
@@ -108,6 +117,8 @@ class Session:
                     if payload.get("content") is not None and not isinstance(payload.get("content"), str):
                         raise SessionError("the session message is not valid")
                     messages.append(payload)
+                elif record["kind"] == "compact":
+                    messages = compacted(messages, payload)
                 self.records += 1
         except (ValueError, UnicodeError):
             raise SessionError("the session is not valid") from None

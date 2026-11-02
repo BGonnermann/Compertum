@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## Harness 0.6.6 project rules, compaction and repeat stop - 2 November 2026
+
+The owner asked about a post on harness design. It summarizes "Harness Engineering" (arXiv 2609.00006), a source-code study of 11 coding agents.
+A comparison with section 16 found three gaps in the harness. The owner agreed to close them. Details are in `docs/HARNESS_PLAN.md`.
+- A new session puts `AGENTS.md` into the system prompt, after the secret check. Before, the prompt only named the file.
+- At 80 percent of the 512 KiB conversation limit, the model writes a summary of the older messages, and the summary replaces them. The session file records the change.
+- A task stops with `repeat_limit` after the same tool call comes 3 times in a row.
+Changed files: `src/compertum/harness/agent.py`, `sessions.py`, `__init__.py` and `tests/test_harness_agent.py`.
+
+Verification, source, `.venv` with `PYTHONPATH=src`: harness lane `tests/test_harness_*.py`, 143 passed, 0 failed, 0 skipped. Output: `.cache/test-runs/harness-compact-20261102-01/harness-lane.txt`.
+Four new tests cover the rules, compaction with session reload, a failed summary request, and the repeat stop. No live model ran the compaction.
+The native sandbox tests were not run, because this change does not touch the sandbox.
+The project map was not refreshed. Another session had uncommitted engine changes in reviewed map sources, and a refresh would record them as reviewed.
+The next map refresh must change "Harness 0.6.5" to 0.6.6 and the harness lane count to 143.
+
+Exact next action: the owner restarts `compertum-harness` and runs a long task to see a compaction note.
+
 ## Harness 0.6.4 resize-safe echo and side-pane watching - 29 October 2026
 
 The owner reported two problems with a screenshot: finished boxes broke apart after a terminal resize, and `/watch` blocked typing.

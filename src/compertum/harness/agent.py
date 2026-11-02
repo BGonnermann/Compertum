@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from compertum.ai.manual import sanitized
 from compertum.runtime.errors import RuntimeRefused
@@ -19,6 +20,22 @@ start model servers, delete files outside the workspace, or read credentials, ke
 Use run for AI-written Python that must execute. The run tool uses the sandbox.
 Do not start research, evaluation, or GEPA runs. The owner starts those with slash commands.
 When the task is done, reply with a short answer and no tool call."""
+RULES_HEAD = "\n\nThe project rules from AGENTS.md follow.\n\n"
+MAX_RULES = 32 * 1024
+KEEP_SHARE = 0.3
+REPEAT_LIMIT = 3
+SUMMARY_TASK = ("Write a summary of the conversation above, for your own use later. Keep the owner's tasks and decisions, "
+                "the file names, the commands, the results, and the problems that are not solved. "
+                "If the conversation holds an earlier summary, merge it into the new summary. Reply with the summary only.")
+SUMMARY_HEAD = "Summary of the earlier conversation, written by the agent:\n\n"
+
+
+def project_rules(workspace):
+    try:
+        text = (Path(workspace) / "AGENTS.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ""
+    return RULES_HEAD + guard(text[:MAX_RULES]) if text.strip() else ""
 
 
 @dataclass
@@ -50,7 +67,8 @@ class Agent:
 
     def start(self, messages=None):
         self.warned = False
-        self.messages = messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)}]
+        self.messages = messages or [{"role": "system", "content": SYSTEM.format(workspace=self.workspace)
+                                      + project_rules(self.workspace)}]
         # A new session is saved with its first task, so opening and closing the console leaves no empty file.
         self._unsaved = not messages
         if messages:
@@ -77,7 +95,8 @@ class Agent:
             return Outcome("error", "", 0, 0.0, "AI_SENSITIVE_INPUT_DENIED: the task looks like it holds a secret")
         start = self.clock()
         deadline = start + self.limits.max_seconds
-        step = 0
+        step = repeats = 0
+        last = None
 
         def end(status, answer="", detail=""):
             outcome = Outcome(status, answer, step, self.clock() - start, detail)
@@ -99,7 +118,7 @@ class Agent:
                     return end("time_limit", detail="the task time limit was reached")
                 step += 1
                 size = len(encode(self.messages))
-                if size > WARN_CONVERSATION and not self.warned:
+                if size > WARN_CONVERSATION and not self.warned and not self._compact(size, deadline):
                     self.warned = True
                     self.display.note(f"The conversation holds {kib(size)} of {kib(MAX_CONVERSATION)}. Use /new soon.")
                 self.display.step(step, self.limits.max_steps, self.clock() - start)
@@ -116,6 +135,11 @@ class Agent:
                 for call in reply.tool_calls:
                     if self.clock() >= deadline:
                         raise DeadlineReached()
+                    signature = (call["name"], call["arguments"])
+                    repeats = repeats + 1 if signature == last else 1
+                    last = signature
+                    if repeats >= REPEAT_LIMIT:
+                        return end("repeat_limit", detail=f"the same tool call came {REPEAT_LIMIT} times in a row")
                     result = self._call(call, deadline)
                     self._append({"role": "tool", "tool_call_id": call["id"], "content": result})
         except KeyboardInterrupt:
@@ -127,6 +151,34 @@ class Agent:
         except Exception as exc:  # noqa: BLE001
             # Any other failure, such as a session that cannot be saved, still ends the task with an outcome.
             return end("error", detail=f"{type(exc).__name__}: {getattr(exc, 'code', exc)}")
+
+    def _compact(self, size, deadline):
+        cut = self._cut(size)
+        if cut is None:
+            return False
+        self.display.note(f"The conversation holds {kib(size)} of {kib(MAX_CONVERSATION)}. The agent writes a summary of the older part.")
+        try:
+            reply = self.client.chat(self.messages[:cut] + [{"role": "user", "content": SUMMARY_TASK}], [], None, deadline)
+        except ModelError as exc:
+            self.display.note(f"The conversation could not be compacted: {exc}")
+            return False
+        if not (reply.content or "").strip():
+            return False
+        summary = {"role": "user", "content": guard(SUMMARY_HEAD + reply.content.strip())}
+        tail = len(self.messages) - cut
+        self.messages = [self.messages[0], summary] + self.messages[cut:]
+        self.emit("compact", {"summary": summary, "tail": tail})
+        smaller = len(encode(self.messages))
+        self.display.note(f"The summary replaced {cut - 1} older messages. The conversation now holds {kib(smaller)}.")
+        return smaller <= WARN_CONVERSATION
+
+    def _cut(self, size):
+        kept = 0
+        for index in range(len(self.messages) - 1, 1, -1):
+            kept += len(encode(self.messages[index]))
+            if kept >= size * KEEP_SHARE and self.messages[index]["role"] != "tool":
+                return index
+        return None
 
     def _call(self, call, deadline):
         name = call["name"]

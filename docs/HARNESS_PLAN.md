@@ -61,6 +61,14 @@ These tests use scripted local models and fake process runners.
 The native lane passed four tests, zero failed and zero skipped. It covered real AppContainer execution, process-identity recovery,
 real console typing and paste events, and spinner removal from a real console screen.
 
+Harness 0.6.6 applies three recommendations from section 16 of "Harness Engineering", a source-code study of 11 coding agents (arXiv 2609.00006):
+- Recommendation 6: a new session puts the text of `AGENTS.md` from the workspace into the system prompt. Before, the prompt only said "Follow AGENTS.md", and the model had to read the file itself.
+  The text passes the secret check first. One line of `AGENTS.md` that names secret words is hidden, because the request check refuses it. Resumed sessions keep their saved system prompt.
+- Recommendation 7: at 80 percent of the 512 KiB limit, the model writes a summary of the older messages. The summary replaces them, and about the newest 30 percent stays word for word.
+  A later summary merges the earlier one. The session file records a `compact` record, so a resumed session loads the short form. If the summary fails, the old note to use `/new` appears.
+- Recommendation 18: a task stops with `repeat_limit` when the model sends the same tool call with the same arguments 3 times in a row. The third call does not run.
+The same section warns against agent frameworks such as LangChain and LangGraph in the agent runtime (recommendation 15). The harness uses none. The research engine roles use Deep Agents, which is built on LangGraph; that choice is unchanged.
+
 Harness 0.6.5: `/data` shows history downloads. `tools/update_indices.py pull` writes `data/indices/pull-progress.json` after every stock:
 done and total, loaded, failed, the stock in progress, the rate, the time left, the last 8 results and the next names. In Windows Terminal `/data` opens
 a read-only pane on the right that rereads the file every second, like `/watch`; elsewhere it prints the progress once. The pane never writes the file.
@@ -106,6 +114,7 @@ The owner then completed a live DeepSeek smoke task. It read the goal, wrote `ha
 The owner-started `/test` command completed with 24 passed. Its run card showed `COMPLETED` and exit code 0.
 An independent review found eight defects. The fixes are applied and regression-tested. The focused re-review found no blockers.
 Long conversations still need `/new` when they reach the model packet limit. The harness records a clean refusal instead of losing the session.
+Harness 0.6.6 compacts the conversation at 80 percent of that limit, so `/new` is now necessary only when compaction fails.
 Harness 0.5 replaces the reused 64 KiB event-record limit with a 512 KiB conversation limit, the owner's choice on 28 October 2026.
 The secret scan still checks all local text, from the system prompt, the owner and the tools, before each request.
 Every tool result, resumed message and new task passes the same rules first, so refused text cannot enter the conversation.
