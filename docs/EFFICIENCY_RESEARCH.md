@@ -56,6 +56,7 @@ Not changed, because they are product tests or product helpers with recorded fin
    Of the 16, 9 hold passed fixtures, 6 hold failed fixtures, and 1 is the interrupted M3 runtime.
    A sparse file does not help: `storage.py` charges each file at the larger of its length and its allocation.
    Options for the owner: keep everything and raise the backups limit, or allow removal from the passed fixtures only (9 GiB), which ends their byte-for-byte record.
+   Done, 2 November 2026. Owner: "raise backup to 100GB and put them in the D drive." The ceiling is 100 GiB, and 67 backup folders (20.39 GiB) moved to `D:\Compertum\backups`. No reserve was removed.
 4. Engineer task: 92% of 210 builds spent their first request on reading `/main.py` or `/spec.md`, which the task could show directly.
    Estimate: about 10% fewer requests per cycle. It changes what the firm sees, so it is a hand edit of the firm. That edit needs the bench exam, and the bench is off.
 5. Mathematician review in a practice cycle: 14 to 15% of request time, and the result is only recorded. `review: off` already exists. Section 19 and the sealed `cycle.py` name the review.

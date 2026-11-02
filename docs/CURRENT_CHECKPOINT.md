@@ -1,5 +1,29 @@
 # Current Compertum checkpoint
 
+## Backups ceiling 100 GiB; historical backups on D: - 2 November 2026
+
+Owner: "raise backup to 100GB and put them in the D drive."
+- The backups ceiling is 100 GiB (107,374,182,400 bytes), in `config/default.toml` and `src/compertum/config.py`. It was 21 GiB.
+  The total stays 200 GiB, and the free-space minimum stays 50 GiB. Frozen configurations with the 21 GiB value load with the new ceiling.
+  7,467 frozen test configurations under `.cache/test-runs` hold that value.
+- 67 backup folders moved to `D:\Compertum\backups`, with the same names: 17,802 files, 21,888,859,603 bytes, 2,851 folders and 320 links.
+  Each file was hashed with SHA-256 before and after the copy. Each link keeps its target text.
+  The C: copies were removed only after a second check of the D: copy and of the unchanged source.
+  Manifest: `D:\Compertum\backups\MOVE-MANIFEST-20261102.json`.
+- The bytes are unchanged. NTFS file and directory IDs changed, because a move between volumes copies the files.
+  The 320 old pytest links point to old `.cache/test-runs` paths, as before.
+- Reports that name `backups/<folder>` now mean `D:\Compertum\backups\<folder>`. They stay unchanged as historical records.
+- `backups/fixture-consolidation-20261015-01` (2 MB) stays on C:, because two tools name it. New product backups still go to the project's `backups/` folder.
+- Free disk: C: 103 GiB, D: 467 GiB. The C: backups category now holds about 1.2 MB.
+
+Verification, source, product environment, through `tools/run_tests.py`:
+- `test_backup_capacity_amendment.py`, `test_config.py`, `test_shared_backup_artifacts.py`, `test_storage.py`, `test_storage_check_preparation.py`: 65 passed, 0 failed, 0 skipped.
+- `test_fake_recovery.py`, `test_recovery_remote_snapshot_order.py`, `test_recovery_snapshot_closure.py`, `test_writer_allocation.py`: 38 passed, 0 failed, 0 skipped.
+Not run: the full product lane and the native lanes.
+The project map was not refreshed. It shows no backups ceiling. Its next refresh records the changed `src/compertum/config.py`.
+
+Exact next action: the owner decides whether to run the real bench baseline (`tools\practice.ps1 -Mode bench -BenchSet bench-french-1`).
+
 ## Honest scoring and the real-data bench - 2 November 2026
 
 The owner approved four changes to the judge and the bench: "yes approve all four". Details: "Honest scoring and the real-data bench" in `docs/ENGINE_PLAN.md`.

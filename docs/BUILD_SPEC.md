@@ -41,6 +41,15 @@ They change sections 1, 4, 10, 12 and 16. They add section 19.
 The judge, the Auditor, the baseline, the vault, the data tiers, the ledger, and the rules stay under owner control.
 Engine work starts after M3 acceptance and finishes before M5. Paper trading only. Live allocation stays zero.
 
+## Backups amendment - 2 November 2026
+
+The owner set the backups ceiling to 100 GiB: "raise backup to 100GB and put them in the D drive."
+The project total stays 200 GiB, scratch stays 50 GiB, and the 50 GiB free-space minimum stays. The category ceilings now total 175 GiB.
+Frozen configurations with the 21 GiB value load with the 100 GiB ceiling.
+The 67 historical backup folders moved to `D:\Compertum\backups`, with the same folder names. A manifest there records each file's SHA-256 and each link's target.
+`backups/fixture-consolidation-20261015-01` stays on C:, because `tools/fixture_archive.py` and `tools/fixture_removal.py` name it.
+New product backups still go to `backups/` in the project. The storage check counts only that folder.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

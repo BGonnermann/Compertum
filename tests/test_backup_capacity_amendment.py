@@ -1,4 +1,5 @@
-"""The owner approved 21 GiB backups (under the then 50 GiB total); on 24 October 2026 the owner set scratch 50 GiB and the project total 200 GiB."""
+"""The owner approved 21 GiB backups (under the then 50 GiB total); on 24 October 2026 the owner set scratch 50 GiB and the project total 200 GiB;
+on 2 November 2026 the owner set backups 100 GiB."""
 from pathlib import Path
 import pytest
 from compertum.config import load_config, ConfigError
@@ -10,7 +11,7 @@ def test_backup_amendment_preserves_all_other_storage_limits():
     from compertum.storage import CAPS
     value=load_config(ROOT/'config/default.toml',ROOT)
     assert dict(value.storage_categories)==dict(data=15*1024**3,models=5*1024**3,
-        scratch=50*1024**3,records=5*1024**3,backups=21*1024**3)  # scratch 50 GiB: owner decision of 24 October 2026
+        scratch=50*1024**3,records=5*1024**3,backups=100*1024**3)  # scratch 50 GiB: owner decision of 24 October 2026
     assert value.storage_categories==CAPS
     assert value.storage_total_bytes==200*1024**3  # owner decision of 24 October 2026; the 50 GiB free-space minimum below is unchanged
     assert value.execution_reserve_bytes==1024**3
@@ -54,5 +55,12 @@ def test_scratch_config_cannot_raise_the_approved_ceiling(tmp_path):
 def test_backup_config_cannot_raise_the_approved_ceiling(tmp_path):
     path=tmp_path/'config.toml'
     path.write_text((ROOT/'config/default.toml').read_text().replace(
-        'backups_bytes = 22548578304','backups_bytes = 22548578305'))
+        'backups_bytes = 107374182400','backups_bytes = 107374182401'))
     with pytest.raises(ConfigError,match='FIXED_M0_SETTING'):load_config(path,tmp_path)
+
+
+def test_frozen_backups(tmp_path):
+    """Frozen configurations hold the 21 GiB backups limit of 16 October to 2 November 2026; they load with the current 100 GiB limit."""
+    path=tmp_path/'config.toml'
+    path.write_text((ROOT/'config/default.toml').read_text().replace('backups_bytes = 107374182400','backups_bytes = 22548578304'))
+    assert load_config(path,tmp_path).storage_categories['backups']==100*1024**3
