@@ -43,8 +43,10 @@ Not changed, because they are product tests or product helpers with recorded fin
    - 21 of them are in `e8-windows-01` (28 October). That folder has no `output.txt` and no `retention.json`, and no document names it.
    - The others are in milestone evidence folders, and nine reports or plans name some of them. The `native-shared` folders may serve later native tests.
      Two M3 runtime folders hold one reserve each. M3 closed as BLOCKED, so those stay.
-   - No reserve was removed. Under `docs/TEST_RETENTION.md`, unclear results or ownership exclude files from routine cleanup.
-   - Decision needed: confirm the result of `e8-windows-01` and which evidence folders may lose their dummy reserve. About 12 GiB more free space above the 50 GiB floor would result.
+   - `e8-windows-01` is the Windows lane of 27 October: 209 passed, 126 failed, 5 errors. Its failures are unresolved and preserved.
+   - Done, 2 November 2026, owner decision "Delete fillers only (Recommended)": 22 zero-filled 1 GiB files were removed, 21 from `e8-windows-01` and 1 from `total200-targeted-20261024-230045`.
+     All other files stay. Free disk went from 61.06 GiB to 83.06 GiB. Record: `.cache/test-runs/cleanup-records/cleanup-20261102-080744-reserves.json`.
+   - The other 10 large reserves stay. Live `native-shared` runtimes need theirs. The plans pin the lineage reserve. M3 history and the known `full-monitor-repair` failure stay.
 2. Storage scan time. Each start walks the project. Measured: 15.4 s of the 30 s `storage_scan_seconds` deadline, 349,461 files, 71% under `.cache/test-runs`.
    The gap between two practice runs was 21 to 22 s. Cleaning the small files of passed old jobs could cut the scan to about 5 s (estimate).
    The large file counts are in `m5-local-economics` (36k files) and `native-accounting` (24k files). Both are evidence folders, so the owner decides.

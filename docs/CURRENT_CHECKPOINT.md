@@ -45,10 +45,17 @@ Verification, source, engine environment, through `tools/run_tests.py`. All jobs
 - `test_harness_agent.py`, `test_harness_model.py` and `test_pull_bars.py`: 18 passed, 0 failed, 0 skipped, with 12 pandas warnings from existing code.
 - Whole-suite collection: 8,002 tests, 0 errors. Before the renames, it stopped with 3 errors.
 Not run: the engine lane, the product lane and the native tests. Another session had uncommitted engine edits.
-No dummy reserve file was removed, because their results or ownership are unclear (owner item 1 in the report).
 The project map was not refreshed. These changes do not alter architecture, loops or model behavior.
 
-Exact next action: the owner decides on the owner items in `docs/EFFICIENCY_RESEARCH.md`. Storage (items 1 to 3) comes first.
+Storage cleanup, same day. The owner chose "Delete fillers only (Recommended)" for 22 dummy reserve files.
+- Removed: 21 files in `e8-windows-01` and 1 in `total200-targeted-20261024-230045`. Each was a 1 GiB `execution-reserve.bin` (23,622,320,128 bytes in all).
+- Before removal, each file was read in full and held only zero bytes. No folder above a file was a link.
+- Kept: every other file in both folders, including logs, databases, configuration and 22 small reserve files in `total200-targeted`. The 27 October Windows failures stay unresolved and preserved.
+- Kept: 10 large reserves elsewhere. Four are the reserves of live `native-shared` test runtimes. The others are a pinned lineage reserve, two M3 runtime reserves, two in `m5-local-economics`, and the known `full-monitor-repair` failure.
+- Free disk: 61.06 GiB before, 83.06 GiB after. Record: `.cache/test-runs/cleanup-records/cleanup-20261102-080744-reserves.json`.
+- File counts: `e8-windows-01` went from 3,714 to 3,693 and `total200-targeted` from 3,081 to 3,080. So the storage scan time barely changes.
+
+Exact next action: the owner decides on the remaining owner items in `docs/EFFICIENCY_RESEARCH.md`: scan time (item 2), backups (item 3), then the request cuts (items 4 to 7).
 
 ## Harness 0.6.6 project rules, compaction and repeat stop - 2 November 2026
 
