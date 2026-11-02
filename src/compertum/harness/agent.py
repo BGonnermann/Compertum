@@ -4,13 +4,13 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
 from compertum.ai.manual import sanitized
 from compertum.runtime.errors import RuntimeRefused
 
 from .model import DeadlineReached, ModelError
-from .packets import MAX_CONVERSATION, WARN_CONVERSATION, encode, guard, kib, looks_secret
+from .packets import LOCAL_ROLES, MAX_CONVERSATION, WARN_CONVERSATION, encode, guard, kib, looks_secret
+from .sessions import compacted
 
 SYSTEM = """You are Compertum's terminal agent. Work in the project workspace: {workspace}
 Use search to find code and bash with ls or find to list folders. Read only the files you need.
@@ -20,7 +20,6 @@ start model servers, delete files outside the workspace, or read credentials, ke
 Use run for AI-written Python that must execute. The run tool uses the sandbox.
 Do not start research, evaluation, or GEPA runs. The owner starts those with slash commands.
 When the task is done, reply with a short answer and no tool call."""
-RULES_HEAD = "\n\nThe project rules from AGENTS.md follow.\n\n"
 MAX_RULES = 32 * 1024
 KEEP_SHARE = 0.3
 REPEAT_LIMIT = 3
@@ -32,10 +31,17 @@ SUMMARY_HEAD = "Summary of the earlier conversation, written by the agent:\n\n"
 
 def project_rules(workspace):
     try:
-        text = (Path(workspace) / "AGENTS.md").read_text(encoding="utf-8")
+        text = (workspace / "AGENTS.md").read_text(encoding="utf-8")
     except (OSError, UnicodeError):
         return ""
-    return RULES_HEAD + guard(text[:MAX_RULES]) if text.strip() else ""
+    return "\n\nThe project rules from AGENTS.md follow.\n\n" + guard(text[:MAX_RULES]) if text.strip() else ""
+
+
+def call_key(call):
+    try:
+        return call["name"], encode(json.loads(call["arguments"] or "{}"))
+    except ValueError:
+        return call["name"], call["arguments"]
 
 
 @dataclass
@@ -73,8 +79,8 @@ class Agent:
         self._unsaved = not messages
         if messages:
             # Older sessions may hold text that the request check refuses. Clean it, so the session can resume.
-            for message in self.messages[1:]:
-                if message.get("role") in ("user", "tool") and isinstance(message.get("content"), str):
+            for message in self.messages:
+                if message.get("role") in LOCAL_ROLES and isinstance(message.get("content"), str):
                     message["content"] = guard(message["content"])
             self._close_calls()
 
@@ -97,6 +103,7 @@ class Agent:
         deadline = start + self.limits.max_seconds
         step = repeats = 0
         last = None
+        tried = False
 
         def end(status, answer="", detail=""):
             outcome = Outcome(status, answer, step, self.clock() - start, detail)
@@ -118,7 +125,9 @@ class Agent:
                     return end("time_limit", detail="the task time limit was reached")
                 step += 1
                 size = len(encode(self.messages))
-                if size > WARN_CONVERSATION and not self.warned and not self._compact(size, deadline):
+                if size > WARN_CONVERSATION and not tried and not self._compact(size, deadline):
+                    tried = True
+                if tried and not self.warned:
                     self.warned = True
                     self.display.note(f"The conversation holds {kib(size)} of {kib(MAX_CONVERSATION)}. Use /new soon.")
                 self.display.step(step, self.limits.max_steps, self.clock() - start)
@@ -135,7 +144,7 @@ class Agent:
                 for call in reply.tool_calls:
                     if self.clock() >= deadline:
                         raise DeadlineReached()
-                    signature = (call["name"], call["arguments"])
+                    signature = call_key(call)
                     repeats = repeats + 1 if signature == last else 1
                     last = signature
                     if repeats >= REPEAT_LIMIT:
@@ -158,16 +167,17 @@ class Agent:
             return False
         self.display.note(f"The conversation holds {kib(size)} of {kib(MAX_CONVERSATION)}. The agent writes a summary of the older part.")
         try:
-            reply = self.client.chat(self.messages[:cut] + [{"role": "user", "content": SUMMARY_TASK}], [], None, deadline)
+            reply = self.client.chat(self.messages[:cut] + [{"role": "user", "content": SUMMARY_TASK}],
+                                     self.tools.specs(), None, deadline)
         except ModelError as exc:
             self.display.note(f"The conversation could not be compacted: {exc}")
             return False
-        if not (reply.content or "").strip():
+        text = (reply.content or "").strip()
+        if not text:
             return False
-        summary = {"role": "user", "content": guard(SUMMARY_HEAD + reply.content.strip())}
-        tail = len(self.messages) - cut
-        self.messages = [self.messages[0], summary] + self.messages[cut:]
-        self.emit("compact", {"summary": summary, "tail": tail})
+        payload = {"summary": {"role": "user", "content": guard(SUMMARY_HEAD + text)}, "tail": len(self.messages) - cut}
+        self.messages = compacted(self.messages, payload)
+        self.emit("compact", payload)
         smaller = len(encode(self.messages))
         self.display.note(f"The summary replaced {cut - 1} older messages. The conversation now holds {kib(smaller)}.")
         return smaller <= WARN_CONVERSATION

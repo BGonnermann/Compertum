@@ -20,9 +20,9 @@ class SessionError(Exception):
 def compacted(messages, payload):
     summary, tail = payload.get("summary"), payload.get("tail")
     if (not isinstance(summary, dict) or summary.get("role") != "user" or not isinstance(summary.get("content"), str)
-            or not isinstance(tail, int) or isinstance(tail, bool) or not 0 < tail < len(messages)):
+            or type(tail) is not int or not 0 < tail < len(messages)):
         raise SessionError("the session summary is not valid")
-    return [messages[0], summary] + messages[len(messages) - tail:]
+    return [messages[0], summary] + messages[-tail:]
 
 
 class SessionStore:

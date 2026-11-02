@@ -66,7 +66,9 @@ Harness 0.6.6 applies three recommendations from section 16 of "Harness Engineer
   The text passes the secret check first. One line of `AGENTS.md` that names secret words is hidden, because the request check refuses it. Resumed sessions keep their saved system prompt.
 - Recommendation 7: at 80 percent of the 512 KiB limit, the model writes a summary of the older messages. The summary replaces them, and about the newest 30 percent stays word for word.
   A later summary merges the earlier one. The session file records a `compact` record, so a resumed session loads the short form. If the summary fails, the old note to use `/new` appears.
+  The summary request sends the same tool list as a normal step, so providers can reuse their prompt cache. After a failure, the next task tries again.
 - Recommendation 18: a task stops with `repeat_limit` when the model sends the same tool call with the same arguments 3 times in a row. The third call does not run.
+  The check compares the parsed arguments, so spaces and key order do not hide a repeat.
 The same section warns against agent frameworks such as LangChain and LangGraph in the agent runtime (recommendation 15). The harness uses none. The research engine roles use Deep Agents, which is built on LangGraph; that choice is unchanged.
 
 Harness 0.6.5: `/data` shows history downloads. `tools/update_indices.py pull` writes `data/indices/pull-progress.json` after every stock:

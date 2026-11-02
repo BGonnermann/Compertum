@@ -15,6 +15,16 @@ The native sandbox tests were not run, because this change does not touch the sa
 The project map was not refreshed. Another session had uncommitted engine changes in reviewed map sources, and a refresh would record them as reviewed.
 The next map refresh must change "Harness 0.6.5" to 0.6.6 and the harness lane count to 143.
 
+Cleanup the same day, after four read-only reviews (reuse, simplification, efficiency, altitude) of commit `1ad5f9a`:
+- The live loop and the session loader now share one `compacted` function, so a resumed session cannot differ from the live one.
+- A resumed session cleans its system message too, because that message now holds `AGENTS.md` text.
+- A failed summary no longer turns compaction off for the session. The next task tries again. The note to use `/new` still appears once.
+- The summary request sends the normal tool list, so the provider can reuse its prompt cache.
+- The repeat check compares parsed arguments. The tests share one setup helper.
+Skipped: a shared 32 KiB constant with `tools.MAX_TEXT` (different purposes), a shared message check, and a new session file after each compaction (larger change).
+Verification: harness lane 143 passed, 0 failed, 0 skipped. One attempt failed `test_full_warning`, because a change showed the `/new` note once per task. That change was replaced.
+Output: `.cache/test-runs/harness-simplify-20261102-01/harness-lane.txt`.
+
 Exact next action: the owner restarts `compertum-harness` and runs a long task to see a compaction note.
 
 ## Harness 0.6.4 resize-safe echo and side-pane watching - 29 October 2026
