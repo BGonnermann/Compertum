@@ -5,7 +5,14 @@ The exact option 1 rules (section "Option 1: exact rules"): owner, 2 November 20
 Option 3 research (2 November 2026): no free source covers delisted S&P 500 members before 2016 well. Free with partial delisted coverage and a
 free sign-up: Nasdaq Data Link WIKI prices (frozen April 2018) and Tiingo's free tier (500 symbols a month). Paid and complete: Norgate US
 Platinum (about USD 630 a year, from 1990, delisted names and historical index members). Yahoo's terms forbid automated download.
-The owner chooses.
+The owner chooses. Owner, 2 November 2026: "im sure we dont need to pay. There are plenty of free open sourced alternatives or MCPs."
+Second search (12 delisted test names: ENE, WCOM, LEH, BSC, WM, WB, MER, WYE, JAVA, EDS, CPQ, CFC):
+- GitHub Johnbrick123/sp500-data lists all 12 (S&P 500 members from 1968, about 150 MB). It has no licence (checked with the GitHub API),
+  and its dead members come from a Kaggle copy of CRSP daily data (its `fetch_crsp.py`: "the data is CRSP's; the Kaggle copy is labelled MIT").
+  CRSP is licensed, paid data; the copy is very likely unauthorized. Not used; the owner decides.
+- Tiingo's free ticker list: 1 of 12 (MER, 2006 to 2008 only). Nasdaq Data Link WIKI: needs a free key; coverage not yet checked; no mirror found.
+- MCP servers wrap the same sources (Yahoo, Stooq, Tiingo, EODHD, Alpha Vantage) with the same terms; none adds delisted history before 2016.
+- No free, openly licensed source with good delisted coverage before 2016 was found.
 Only the owner changes the gate (AGENTS.md, "Never let the engine change the judge").
 Owner, 1 November 2026: "start the trial-spending plan". Nothing in the code or the ledger changed for this document.
 
