@@ -1,5 +1,18 @@
 # Current Compertum checkpoint
 
+## Held-out test set and gpt-oss-20b baseline - 2 November 2026
+
+The owner asked for a held-out test set to measure fine-tune progress, with base gpt-oss-20b (MXFP4) as the baseline. Report: `reports/HELDOUT_BASELINE.md`. Method: `docs/BASE_MODEL_EVAL.md`.
+The set is test-only, with a canary in every file (`tools/base_eval/heldout/TEST_ONLY.md`). It has 250 items: honesty 100, study review 50, synthetic market 40, finance maths 40, coding 20.
+Baseline pass rates (95% Wilson intervals): honesty 0.55 [0.45, 0.64], study 0.74 [0.60, 0.84], market 0.40 [0.26, 0.55], finance 0.88 [0.74, 0.95], coding 0.45 [0.26, 0.66].
+Invented numbers: 234 in honesty answers and 19 entries in market answers.
+Main gaps: in-sample proof 0/20, missing data 7/20, ticker backtests 8/20, clean studies 0/8, noise markets 4/14, leak markets 2/10. All 40 data-given honesty items passed.
+The run took 100.4 minutes, with no errors, on the RTX 5070 Ti. Every tool call ran in the section 19 sandbox. There was no provider call or spending. The LM Studio server is stopped again.
+A grading parser bug (bold `**ANSWER:**` lines) marked 4 correct answers wrong. It was fixed and tested, and every item was graded again before the report.
+Verification: `tests/test_base_eval.py`, 6 passed, 0 failed, 0 skipped (engine environment). All 20 coding references pass their hidden tests in the sandbox.
+
+Exact next action: the owner writes fine-tuning data for the gaps above (new items only), fine-tunes gpt-oss-20b, and reruns `heldout_eval.py` with the same settings.
+
 ## Base-model comparison for the quant-research assistant - 2 November 2026
 
 The owner asked for a comparison of gpt-oss-20b, Gemma 4 26B-A4B and Qwen3.6-35B-A3B on the RTX 5070 Ti (16 GB), text only, before a later fine-tune.

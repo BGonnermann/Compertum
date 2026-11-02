@@ -145,7 +145,8 @@ def last_code(text):
 
 
 def last_number(text,label):
-    found=re.findall(label+r':\s*\$?\s*(-?[\d,]*\.?\d+(?:[eE]-?\d+)?)',text or '')
+    plain=(text or '').replace('*','').replace('`','')
+    found=re.findall(label+r':\s*\$?\s*(-?[\d,]*\.?\d+(?:[eE]-?\d+)?)',plain)
     if not found: return None
     try: return float(found[-1].replace(',',''))
     except ValueError: return None
