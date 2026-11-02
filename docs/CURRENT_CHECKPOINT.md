@@ -1,5 +1,15 @@
 # Current Compertum checkpoint
 
+## Real bench baseline 1 (bench-french-1, GLM) - 2 November 2026
+
+Owner: "ok lets do it." Command: `tools\practice.ps1 -Models openrouter-think -Mode bench -BenchSet bench-french-1 -CyclesPerMarket 2 -Requests 1500`.
+Run `run-20261102-8d10b89b`: 16 cycles (2 per market, 8 markets), stop reason `CYCLE_LIMIT`, 423 requests, 1,430 s.
+Result: verdict `MEASURED`, mean level 5.19. Of 47 scored candidates, all were `REJECTED`. 0 beat buy-and-hold, 0 passed the Auditor, 0 passed the bench gate.
+Record: `.cache/test-runs/practice-bench-20261102-091331-record.json`.
+Cost, from `tools/run_cost.py` (first run with the cost field): $0.1277, with all 423 calls priced. 49% of prompt tokens were cached (Engineer 60%).
+The OpenRouter balance fell from $12.0451 to $11.9260 ($0.1191), within 7% of the recorded cost.
+This is the baseline for later changes to the firm, such as the request cuts in `docs/EFFICIENCY_RESEARCH.md`.
+
 ## Backups ceiling 100 GiB; historical backups on D: - 2 November 2026
 
 Owner: "raise backup to 100GB and put them in the D drive."
