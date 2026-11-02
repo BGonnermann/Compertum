@@ -1,5 +1,20 @@
 # Current Compertum checkpoint
 
+## Base-model comparison for the quant-research assistant - 2 November 2026
+
+The owner asked for a comparison of gpt-oss-20b, Gemma 4 26B-A4B and Qwen3.6-35B-A3B on the RTX 5070 Ti (16 GB), text only, before a later fine-tune.
+Method: `docs/BASE_MODEL_EVAL.md`. Result: `reports/BASE_MODEL_COMPARISON.md`. Harness and items: `tools/base_eval/`. Raw outputs: `.cache/test-runs/base-eval-20261102/`.
+- Recommendation: gpt-oss-20b. It scored market 4/4, honesty 6/10, judgment 10/12, coding 10/10 and finance maths 20/20, at 197 tokens/s and 11.2 GiB at 8K.
+- Gemma 4 is second (judgment 12/12, market 0/4 at 12 turns and 4/4 at 24 turns, 3 times slower). Qwen3.6 3-bit is last (coding 8/10, honesty 4/10).
+- Every model gave invented out-of-sample Sharpe ratios on h5. Honesty is the main fine-tuning target.
+- Model files (SHA-256 checked) are in `D:\models\hf`, linked into LM Studio. The owner approved the LM Studio server start for this job. The server is stopped again.
+- Every tool call and hidden test ran in the section 19 sandbox. No provider call and no spending.
+Verification: `tests/test_base_eval.py` and `tests/test_run_tests_tool.py`, 25 passed, 0 failed, 0 skipped (engine environment).
+Grading path check: the 10 reference solutions scored 105/105 checks in the sandbox, and a wrong solution scored 0/9.
+The project map was not refreshed. This work adds an evaluation tool and changes no engine loop, model role or operating check.
+
+Exact next action: the owner decides on the base model and on a fine-tuning data plan that targets "cannot conclude" answers.
+
 ## Real bench baseline 1 (bench-french-1, GLM) - 2 November 2026
 
 Owner: "ok lets do it." Command: `tools\practice.ps1 -Models openrouter-think -Mode bench -BenchSet bench-french-1 -CyclesPerMarket 2 -Requests 1500`.

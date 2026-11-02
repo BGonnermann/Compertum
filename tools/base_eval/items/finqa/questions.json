@@ -1,0 +1,202 @@
+[
+  {
+    "id": "f01",
+    "context": "Harrowgate Industrial Corp. designs and manufactures industrial pumps and valves. Net sales increased in fiscal 2025, mainly due to higher volume in the Flow Control segment and price increases across most product lines. Cost of sales grew at a slower rate because freight costs decreased.\n\nConsolidated Statements of Operations (in thousands)\n\n| | Fiscal 2025 | Fiscal 2024 | Fiscal 2023 |\n|---|---|---|---|\n| Net sales | $1,284,560 | $1,173,920 | $1,096,415 |\n| Cost of sales | 842,310 | 779,450 | 731,208 |\n| Gross profit | 442,250 | 394,470 | 365,207 |",
+    "question": "What was the percentage change in Harrowgate's net sales from fiscal 2024 to fiscal 2025?",
+    "answer": 9.42483303802644,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 12.5 for 12.5% (not 0.125). Use a negative number for a decrease.",
+    "program": "(1284560 - 1173920) / 1173920 * 100",
+    "steps": 2
+  },
+  {
+    "id": "f02",
+    "context": "Larkspur Software Holdings, Inc. sells subscription software to mid-size manufacturers. Adjusted operating income excludes stock-based compensation and amortization of acquired intangible assets. Management uses adjusted operating income to evaluate performance. It is not a measure defined by generally accepted accounting principles (GAAP).\n\nSelected Financial Data (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Total revenue | $2,146.8 | $1,872.3 |\n| Operating income | 318.5 | 241.9 |\n| Adjusted operating income | 512.7 | 438.6 |\n| Net income | 251.2 | 190.4 |",
+    "question": "What was Larkspur's operating margin in 2025, defined as GAAP operating income (not adjusted operating income) divided by total revenue?",
+    "answer": 14.836035028880193,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 12.5 for 12.5% (not 0.125).",
+    "program": "318.5 / 2146.8 * 100",
+    "steps": 2
+  },
+  {
+    "id": "f03",
+    "context": "Bellwether Foods Company produces packaged baked goods. The company funds its working capital needs from operating cash flow and a revolving credit facility.\n\nConsolidated Balance Sheets, current items (in thousands)\n\n| | December 31, 2025 | December 31, 2024 |\n|---|---|---|\n| Cash and cash equivalents | $84,215 | $71,930 |\n| Accounts receivable, net | 156,402 | 148,775 |\n| Inventories | 203,118 | 189,640 |\n| Prepaid expenses and other current assets | 22,509 | 19,883 |\n| Total current assets | 466,244 | 430,228 |\n| Accounts payable | 121,604 | 112,387 |\n| Accrued liabilities | 64,930 | 58,212 |\n| Current portion of long-term debt | 25,000 | 25,000 |\n| Total current liabilities | 211,534 | 195,599 |",
+    "question": "What was Bellwether's current ratio (total current assets divided by total current liabilities) at December 31, 2024?",
+    "answer": 2.199540897448351,
+    "unit": "ratio",
+    "answer_format": "Give the answer as a plain ratio, for example 1.85 (not a percentage).",
+    "program": "430228 / 195599",
+    "steps": 1
+  },
+  {
+    "id": "f04",
+    "context": "Ostrava Logistics Group operates freight terminals and a fleet of regional trucks. During 2025 the company repaid part of its term loan from operating cash flow. The company leases most of its terminals under operating leases.\n\nSelected Balance Sheet Data (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Short-term borrowings | $45.0 | $60.5 |\n| Current portion of long-term debt | 32.8 | 30.1 |\n| Long-term debt, net of current portion | 612.4 | 645.2 |\n| Operating lease liabilities | 188.9 | 175.3 |\n| Total liabilities | 1,402.7 | 1,388.0 |\n| Total shareholders' equity | 905.6 | 842.9 |",
+    "question": "Define total debt as short-term borrowings plus current portion of long-term debt plus long-term debt, net of current portion. Lease liabilities are not debt. What was Ostrava's debt-to-equity ratio (total debt divided by total shareholders' equity) at the end of 2025?",
+    "answer": 0.7621466431095405,
+    "unit": "ratio",
+    "answer_format": "Give the answer as a plain ratio, for example 0.85 (not a percentage).",
+    "program": "(45.0 + 32.8 + 612.4) / 905.6",
+    "steps": 3
+  },
+  {
+    "id": "f05",
+    "context": "Quillon Medical Devices, Inc. sells surgical instruments to hospitals. Revenue grew in each of the last five years because of new product launches and expansion into Europe.\n\nFive-Year Summary (in millions)\n\n| | 2021 | 2022 | 2023 | 2024 | 2025 |\n|---|---|---|---|---|---|\n| Revenue | $412.5 | $455.8 | $503.1 | $561.7 | $618.4 |\n| Operating income | 61.9 | 70.2 | 74.8 | 88.3 | 97.6 |",
+    "question": "What was the compound annual growth rate (CAGR) of Quillon's revenue from 2021 to 2025, over four annual periods?",
+    "answer": 10.652538601880025,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 7.5 for 7.5% (not 0.075).",
+    "program": "((618.4 / 412.5) ** (1 / 4) - 1) * 100",
+    "steps": 3
+  },
+  {
+    "id": "f06",
+    "context": "Tamsin Energy Partners owns natural gas gathering pipelines and processing plants. Capital expenditures in 2023 included the construction of a new processing plant. Amounts in parentheses are cash outflows.\n\nConsolidated Statements of Cash Flows, excerpt (in millions)\n\n| | 2025 | 2024 | 2023 |\n|---|---|---|---|\n| Net cash provided by operating activities | $1,045.2 | $962.8 | $880.1 |\n| Capital expenditures | (412.6) | (388.4) | (451.9) |\n| Proceeds from sale of assets | 12.3 | 8.7 | 25.0 |\n| Net cash used in investing activities | (400.3) | (379.7) | (426.9) |",
+    "question": "What was Tamsin's average annual capital expenditure over the three years 2023, 2024 and 2025, in millions of dollars, stated as a positive amount?",
+    "answer": 417.6333333333334,
+    "unit": "usd_millions",
+    "answer_format": "Give the answer in millions of dollars as a positive number, for example 350.2 for $350.2 million.",
+    "program": "(412.6 + 388.4 + 451.9) / 3",
+    "steps": 2
+  },
+  {
+    "id": "f07",
+    "context": "Penrose Consumer Brands reports two segments. Home Care sells cleaning and laundry products. Personal Care sells skin care and hair care products. Home Care sales grew because of new concentrated detergents.\n\nNet Sales by Segment (in thousands)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Home Care | $734,280 | $690,115 |\n| Personal Care | 512,906 | 497,340 |\n| Total net sales | $1,247,186 | $1,187,455 |",
+    "question": "By how much did the dollar increase in Home Care net sales from 2024 to 2025 exceed the dollar increase in Personal Care net sales over the same period? Give the answer in millions of dollars.",
+    "answer": 28.599,
+    "unit": "usd_millions",
+    "answer_format": "Give the answer in millions of dollars, for example 12.3 for $12.3 million (not in thousands).",
+    "program": "((734280 - 690115) - (512906 - 497340)) / 1000",
+    "steps": 4
+  },
+  {
+    "id": "f08",
+    "context": "Varnell Marine & Rail Inc. reports three segments: Marine, Rail and Industrial Services. Segment revenue includes sales to other segments. These intersegment sales are eliminated in consolidation.\n\nRevenue by Segment (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Marine | $1,186.4 | $1,052.7 |\n| Rail | 842.9 | 901.3 |\n| Industrial Services | 377.5 | 352.0 |\n| Total segment revenue | 2,406.8 | 2,306.0 |\n| Intersegment eliminations | (64.2) | (58.9) |\n| Consolidated net revenue | $2,342.6 | $2,247.1 |",
+    "question": "In 2025, what percentage of Varnell's consolidated net revenue did the Marine segment revenue represent? Divide Marine segment revenue by consolidated net revenue.",
+    "answer": 50.644582942030226,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 35.2 for 35.2% (not 0.352).",
+    "program": "1186.4 / 2342.6 * 100",
+    "steps": 2
+  },
+  {
+    "id": "f09",
+    "context": "Ashgrove Regional Bancorp is a bank holding company with 64 branches. The company has no preferred stock outstanding. During 2025 the company repurchased common shares under its buyback program.\n\nSelected Balance Sheet Data (in millions)\n\n| | December 31, 2025 | December 31, 2024 |\n|---|---|---|\n| Total assets | $8,942.6 | $8,610.4 |\n| Total liabilities | 8,104.3 | 7,818.8 |\n| Total shareholders' equity | 838.3 | 791.6 |\n\nShare Data (in thousands)\n\n| | December 31, 2025 | December 31, 2024 |\n|---|---|---|\n| Common shares outstanding | 41,275 | 42,010 |",
+    "question": "What was Ashgrove's book value per common share at December 31, 2025, defined as total shareholders' equity divided by common shares outstanding?",
+    "answer": 20.310115081768625,
+    "unit": "usd_per_share",
+    "answer_format": "Give the answer in dollars per share, for example 15.75.",
+    "program": "838.3 * 1000000 / (41275 * 1000)",
+    "steps": 2
+  },
+  {
+    "id": "f10",
+    "context": "Dunmore Specialty Chemicals Corp. produces coatings and adhesives. The U.S. federal statutory income tax rate was 21% in each year. The effective tax rate differs from the statutory rate mainly because of state income taxes and research tax credits.\n\nIncome Tax Data (in thousands)\n\n| | 2025 | 2024 | 2023 |\n|---|---|---|---|\n| Income before income taxes | $186,420 | $172,955 | $149,300 |\n| Provision for income taxes | 41,940 | 39,210 | 34,190 |\n| Net income | $144,480 | $133,745 | $115,110 |",
+    "question": "What was Dunmore's effective tax rate for 2024, defined as the provision for income taxes divided by income before income taxes?",
+    "answer": 22.670636870862364,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 24.5 for 24.5% (not 0.245).",
+    "program": "39210 / 172955 * 100",
+    "steps": 2
+  },
+  {
+    "id": "f11",
+    "context": "Kestrel Aerostructures, Inc. makes fuselage and wing parts for commercial aircraft. Interest expense decreased in 2025 because the company repaid part of its senior notes. Amounts in parentheses are expenses.\n\nConsolidated Statements of Operations, excerpt (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Operating income | $264.8 | $231.5 |\n| Interest expense | (38.6) | (41.2) |\n| Interest income | 4.1 | 2.7 |\n| Other income (expense), net | (1.9) | 3.3 |\n| Income before income taxes | $228.4 | $196.3 |",
+    "question": "What was Kestrel's interest coverage ratio for 2025, defined as operating income divided by interest expense? Use interest expense as a positive amount and do not subtract interest income from it.",
+    "answer": 6.860103626943006,
+    "unit": "ratio",
+    "answer_format": "Give the answer as a plain ratio (times), for example 5.2.",
+    "program": "264.8 / 38.6",
+    "steps": 1
+  },
+  {
+    "id": "f12",
+    "context": "Fennimore Analytics Corp. provides data analysis services to insurance companies. At December 31, 2025, the company had 4,850 full-time employees, compared with 4,310 full-time employees at December 31, 2024. Most of the new employees work in the consulting group.\n\nConsolidated Statements of Operations, excerpt (in thousands)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Revenue | $1,163,520 | $987,640 |\n| Operating income | 174,528 | 138,270 |",
+    "question": "What was Fennimore's 2025 revenue per full-time employee, using the full-time employee count at December 31, 2025? Give the answer in thousands of dollars.",
+    "answer": 239.90103092783505,
+    "unit": "usd_thousands",
+    "answer_format": "Give the answer in thousands of dollars, for example 150.2 for $150,200.",
+    "program": "1163520 / 4850",
+    "steps": 1
+  },
+  {
+    "id": "f13",
+    "context": "Marrick Defense Systems builds radar and communications equipment for government customers. Total backlog at the end of fiscal 2025 was $3.46 billion, compared with $3.12 billion at the end of fiscal 2024. The company expects to convert about 55% of the year-end backlog into revenue in the next fiscal year.\n\nSelected Financial Data (in millions)\n\n| | Fiscal 2025 | Fiscal 2024 |\n|---|---|---|\n| Revenue | $2,284.7 | $2,091.3 |\n| Operating income | 251.3 | 224.8 |",
+    "question": "What was the ratio of Marrick's total backlog at the end of fiscal 2025 to its fiscal 2025 revenue?",
+    "answer": 1.5144220247734934,
+    "unit": "ratio",
+    "answer_format": "Give the answer as a plain ratio with both amounts in the same units, for example 1.25 (not a percentage).",
+    "program": "3.46 * 1000 / 2284.7",
+    "steps": 2
+  },
+  {
+    "id": "f14",
+    "context": "Corlis Home Furnishings, Inc. sells furniture through its stores and website. Weighted average diluted shares outstanding were 61.8 million in fiscal 2025 and 63.2 million in fiscal 2024. Weighted average basic shares outstanding were 60.9 million in fiscal 2025 and 62.4 million in fiscal 2024.\n\nConsolidated Statements of Operations, excerpt (in thousands)\n\n| | Fiscal 2025 | Fiscal 2024 |\n|---|---|---|\n| Net sales | $2,415,300 | $2,288,700 |\n| Operating income | 212,880 | 199,415 |\n| Net income | $148,260 | $139,050 |",
+    "question": "What were Corlis's diluted earnings per share for fiscal 2025, defined as net income divided by weighted average diluted shares outstanding?",
+    "answer": 2.399029126213592,
+    "unit": "usd_per_share",
+    "answer_format": "Give the answer in dollars per share, for example 1.85.",
+    "program": "148260 * 1000 / (61.8 * 1000000)",
+    "steps": 2
+  },
+  {
+    "id": "f15",
+    "context": "Halvorsen Packaging Corp. makes corrugated boxes and plastic containers. In 2023 and 2025 the company bought smaller competitors. Amounts in parentheses are cash outflows.\n\nConsolidated Statements of Cash Flows, excerpt (in millions)\n\n| | 2025 | 2024 | 2023 |\n|---|---|---|---|\n| Net cash provided by operating activities | $512.4 | $468.9 | $431.0 |\n| Purchases of property, plant and equipment | (176.3) | (198.5) | (152.8) |\n| Acquisitions, net of cash acquired | (85.0) | — | (240.6) |",
+    "question": "Free cash flow is net cash provided by operating activities minus purchases of property, plant and equipment. Acquisitions are not included. What was the percentage change in Halvorsen's free cash flow from 2024 to 2025?",
+    "answer": 24.297337278106507,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 12.5 for 12.5% (not 0.125). Use a negative number for a decrease.",
+    "program": "((512.4 - 176.3) - (468.9 - 198.5)) / (468.9 - 198.5) * 100",
+    "steps": 4
+  },
+  {
+    "id": "f16",
+    "context": "Oriel Apparel Group designs and sells clothing through department stores and its own outlets. In 2025 the company paid higher cotton prices and increased promotional discounts.\n\nConsolidated Statements of Operations, excerpt (in millions)\n\n| | 2024 | 2025 |\n|---|---|---|\n| Net revenue | $1,642.0 | $1,718.5 |\n| Cost of goods sold | 921.4 | 994.7 |\n| Gross profit | $720.6 | $723.8 |",
+    "question": "Gross margin is gross profit divided by net revenue. By how many percentage points did Oriel's gross margin change from 2024 to 2025?",
+    "answer": -1.767379208208164,
+    "unit": "percentage_points",
+    "answer_format": "Give the answer in percentage points, for example 2.4 for 2.4 points (not 0.024). Use a negative number for a decrease. Do not round the two margins before you subtract.",
+    "program": "(723.8 / 1718.5 - 720.6 / 1642.0) * 100",
+    "steps": 3
+  },
+  {
+    "id": "f17",
+    "context": "Thornbury Electronics, Inc. designs printed circuit boards for industrial customers. Higher inventory and receivables increased current assets in 2025.\n\nSelected Balance Sheet Data (in thousands)\n\n| | December 31, 2025 | December 31, 2024 |\n|---|---|---|\n| Total current assets | $1,284,905 | $1,197,340 |\n| Total assets | 3,410,220 | 3,256,915 |\n| Total current liabilities | 702,618 | 655,277 |\n| Total liabilities | 1,968,402 | 1,901,553 |",
+    "question": "Working capital is total current assets minus total current liabilities. By how much did Thornbury's working capital change from December 31, 2024 to December 31, 2025? Give the answer in millions of dollars.",
+    "answer": 40.224,
+    "unit": "usd_millions",
+    "answer_format": "Give the answer in millions of dollars, for example 12.3 for $12.3 million (not in thousands). Use a negative number for a decrease.",
+    "program": "((1284905 - 702618) - (1197340 - 655277)) / 1000",
+    "steps": 4
+  },
+  {
+    "id": "f18",
+    "context": "Corvane Utilities Corp. owns electric and gas distribution companies. A partner owns a minority interest in one of its generating subsidiaries. Amounts in parentheses are deductions or cash outflows.\n\nNet Income (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Net income | $486.3 | $452.0 |\n| Less: net income attributable to noncontrolling interests | (22.7) | (19.5) |\n| Net income attributable to Corvane Utilities | $463.6 | $432.5 |\n\nCash Flows from Financing Activities, excerpt (in millions)\n\n| | 2025 | 2024 |\n|---|---|---|\n| Dividends paid to common shareholders | (301.4) | (284.2) |\n| Distributions to noncontrolling interests | (15.8) | (14.1) |",
+    "question": "What was Corvane's dividend payout ratio for 2025, defined as dividends paid to common shareholders divided by net income attributable to Corvane Utilities?",
+    "answer": 65.01294219154443,
+    "unit": "percent",
+    "answer_format": "Give the answer as a percentage number, for example 55.5 for 55.5% (not 0.555).",
+    "program": "301.4 / 463.6 * 100",
+    "steps": 2
+  },
+  {
+    "id": "f19",
+    "context": "Pellham Auto Parts, Inc. distributes replacement parts to repair shops. The company increased inventory in each year to improve parts availability.\n\nSelected Financial Data (in thousands)\n\n| | Fiscal 2025 | Fiscal 2024 | Fiscal 2023 |\n|---|---|---|---|\n| Net sales | $2,948,110 | $2,771,385 | $2,590,740 |\n| Cost of sales | 1,856,240 | 1,742,615 | 1,630,880 |\n| Inventories, end of year | 412,870 | 389,450 | 361,020 |",
+    "question": "Inventory turnover is cost of sales divided by the average of the beginning-of-year and end-of-year inventory balances. What was Pellham's inventory turnover for fiscal 2025?",
+    "answer": 4.627181174593678,
+    "unit": "ratio",
+    "answer_format": "Give the answer as a plain ratio (times), for example 4.2.",
+    "program": "1856240 / ((412870 + 389450) / 2)",
+    "steps": 3
+  },
+  {
+    "id": "f20",
+    "context": "Sorrento Powersports Corp. builds motorcycles and off-road vehicles. The company also sells parts and accessories through its dealers.\n\nSelected Operating Data\n\n| | 2025 | 2024 |\n|---|---|---|\n| Vehicle revenue (in millions) | $1,947.6 | $1,812.3 |\n| Parts and accessories revenue (in millions) | 386.2 | 352.9 |\n| Vehicles shipped (in thousands) | 118.4 | 112.7 |",
+    "question": "What was Sorrento's average vehicle revenue per vehicle shipped in 2025? Use vehicle revenue only, not parts and accessories revenue. Give the answer in dollars per vehicle.",
+    "answer": 16449.324324324323,
+    "unit": "usd",
+    "answer_format": "Give the answer in dollars per vehicle, for example 12500.5 (not in thousands or millions).",
+    "program": "1947.6 * 1000000 / (118.4 * 1000)",
+    "steps": 2
+  }
+]
