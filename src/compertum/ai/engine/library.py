@@ -225,7 +225,7 @@ def sweep(markets,ledger,*,run_id,note):
             score=validate(market,name,choice['knobs']);row={'symbol':market['symbol'],'family':name,**choice}
             if 'refused' in score: row.update(validation=score,gate='UNDEFINED');rows.append(row);continue
             inputs=score['deflation_inputs'];deflation=deflated_sharpe(inputs,total,trial_variance([],inputs)['trial_variance'])
-            row.update(validation={k:score[k] for k in ('sharpe','sharpe_status','benchmark_sharpe','annual_mean_excess','beats_baseline','position_changes','positions_held','max_drawdown','sessions')},
+            row.update(validation={k:score[k] for k in ('sharpe','sharpe_status','benchmark_sharpe','annual_mean_excess','beats_baseline','lag_check','position_changes','positions_held','max_drawdown','sessions')},
                        deflated_sharpe=deflation['deflated_sharpe'],gate='PASS' if score['beats_baseline'] and deflation['status']=='PASS' else 'FAIL')
             if score['beats_baseline']:
                 row['recomputed']=validate(market,name,choice['knobs'])==score;row['causal']=causal(market,name,choice['knobs'])
@@ -260,7 +260,7 @@ def load_markets(root,manifests):
         symbol=Path(path).parent.name
         try: market,_vault=open_market(root,str(path))
         except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
-        out.append({'symbol':symbol,'label':market['label'],'train_rows':_rows(market['train_csv']),'validation_rows':market['validation_rows'],'vault':market.get('vault','history-v1')})
+        out.append({'symbol':symbol,'label':market['label'],'train_rows':market.get('train_rows') or _rows(market['train_csv']),'validation_rows':market['validation_rows'],'vault':market.get('vault','history-v1')})
     return out,skipped
 
 

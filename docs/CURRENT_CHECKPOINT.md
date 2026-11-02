@@ -1,5 +1,26 @@
 # Current Compertum checkpoint
 
+## Honest scoring and the real-data bench - 2 November 2026
+
+The owner approved four changes to the judge and the bench: "yes approve all four". Details: "Honest scoring and the real-data bench" in `docs/ENGINE_PLAN.md`.
+- The deflated Sharpe ratio tests active returns (strategy minus benchmark), not raw returns.
+- Cash earns the daily one-month T-bill rate from the French monthly factors file. Sharpe ratios are above that rate.
+- Costs by era (1.00% one way before May 1975, down to 0.05% from 2010). Drift turnover is charged. A lag check applies on real markets.
+- A real-data bench, `bench-french-1`: 8 markets from French TRAIN rows (1926 to 1973), each with an inner train and an inner test.
+- The market brief no longer calls real markets "synthetic and closed".
+Sealed files changed with this approval: `market.py` fc66f7eb to a059ea9c, `run.py` 3f90c681 to 976d9629. The other sealed files are unchanged.
+The lanes below ran on `market.py` 085082e3. Then a two-line code comment was removed (a059ea9c); the scoring, validator and audit tests passed again: 27 passed, 0 failed.
+New data outside Git: `data/french/raw/F-F_Research_Data_Factors_CSV.zip` (SHA-256 b03d39e4..., 13,078 bytes) and `data/french/rates.json`.
+
+Verification, source, through `tools/run_tests.py`. All jobs passed, and their working files were removed:
+- Engine lane plus `test_engine_scoring.py` and `test_run_cost_tool.py`: 388 passed, 0 failed, 0 skipped. Output: `.cache/test-runs/engine-lane-honest-final2-20261102-065601`.
+- Product lane: 309 passed, 0 failed, 8 skipped. Output: `.cache/test-runs/product-lane-honest-final-20261102-065352`.
+- Harness lane: 143 passed, 0 failed, 0 skipped. Output: `.cache/test-runs/harness-lane-honest-final-20261102-065544`.
+An earlier engine lane had 2 failures in `test_run_tests_tool.py`: another session committed 90e6b0e (a `run_tests.py` change) during that run. The rerun passed.
+Recorded synthetic calibrations changed with the stricter test; the tests record the new values (see the plan entry).
+
+Exact next action: a new french49 sweep under the new rules. The earlier sweep report cannot be admitted, because its scores no longer reproduce.
+
 ## Efficiency research and low-risk changes - 2 November 2026
 
 The owner asked for a research cycle on efficiency, then approved the low-risk changes. Findings and owner items are in `docs/EFFICIENCY_RESEARCH.md`.

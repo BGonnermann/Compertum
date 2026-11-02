@@ -644,6 +644,7 @@ def test_parallel_ideas(bridge,root,verification,market,project):
             assert sorted({s['step_index'] for s in steps})==list(range(1,result['steps']+1))  # one index per step, none shared between threads
             assert result['runs']==len(engine.ledger.runs(result['cycle_id'])) and result['total_trials']==(3 if parallel else 6)
             assert all(r.get('cycle_id')==result['cycle_id'] for r in ledger.entries if str(r.get('purpose','')).startswith('engine:'))
-    assert [cand['status'] for cand in results[True]['candidates']]==[cand['status'] for cand in results[False]['candidates']]
+    # The gate status may differ: the sequential run has 6 trials, the parallel run 3. The scores must not.
+    assert results[True]['scores']==results[False]['scores']
     assert results[True]['specifications'].keys()==results[False]['specifications'].keys()=={'h1','h2','h3'}
     assert timings[True]<timings[False]*0.75,timings

@@ -16,6 +16,14 @@ Rules (owner agreement, 25 October 2026):
 - Two markets have no pattern. An audited strategy that passes the bench-local gate there is a false discovery. One false discovery
   says that the harness is broken, however good the other markets look.
 
+Real-data bench (owner, 2 November 2026: "yes approve all four", item 4). REAL_SETS hold markets cut from French library TRAIN rows only
+(before VALIDATION_START, 1973-02-26); no VALIDATION or vault row is read. Each market is one series in one fixed block of years, split 70/30
+into an inner train (train.csv) and an inner test (validation.csv); the rows carry the cash rate. The series were fixed before any bench run:
+Mkt in each block, then the industries at file columns 0, 10, 20, 30 and 40, each moved to the next column when its series starts after
+1926-07-02 (Hlth and MedEq), in blocks A, B, C, A, B. A real market has no planted pattern and no reference rule: the report gives levels,
+beats over buy-and-hold, Auditor passes and bench-gate passes, and no found pattern or false discovery. Practice runs on French manifests see
+these years as TRAIN, so a bench result after French practice is not independent of it.
+
 This module imports no engine library, so the product environment can build the markets and the report.
 """
 from collections import Counter
@@ -25,7 +33,7 @@ import hashlib
 from compertum.runtime.errors import RuntimeRefused
 from .deflation import deflated_sharpe,trial_variance
 from .levels import AUDIT_STATUSES,audited,candidate_level
-from .market import market_csv,regime_at,score_signals,split_market_tiers,synthetic_market
+from .market import market_csv,regime_at,score_signals,split_market,split_market_tiers,synthetic_market
 
 SESSIONS=500
 CALIBRATED_SESSIONS=4096
@@ -84,6 +92,9 @@ REGIME_SETS={
 WEAK_STRENGTH=STRENGTH/2
 STRENGTHS={seed:WEAK_STRENGTH for seed in (115,116,117,118,131,132,133,134,910,911,912,913)}
 SET_SESSIONS={'bench-4':CALIBRATED_SESSIONS,'holdout-2':CALIBRATED_SESSIONS}
+BLOCKS={'A':('1926-07-01','1943-01-01'),'B':('1943-01-01','1958-01-01'),'C':('1958-01-01','1973-02-26')}
+REAL_SETS={'bench-french-1':(('Mkt','A'),('Mkt','B'),('Mkt','C'),('Agric','A'),('Drugs','B'),('Mach','C'),('Util','A'),('Trans','B'))}
+INNER_TRAIN=0.7
 BENCH_SET='bench-1'
 HOLDOUT_SET='holdout-2'
 
@@ -101,16 +112,33 @@ def fingerprint(train_csv,validation_csv):
 
 
 @lru_cache(maxsize=None)
-def set_fingerprints(name):
-    return frozenset(fingerprint(m['train_csv'],m['validation_csv']) for m in set_markets(name))
+def set_fingerprints(name,root=None):
+    return frozenset(fingerprint(m['train_csv'],m['validation_csv']) for m in set_markets(name,root))
 
 
 def reserved_fingerprints():
     return frozenset().union(*(set_fingerprints(name) for name in SETS))
 
 
-def set_markets(name):
-    """The markets of one set, in a fixed order. Each market carries its set, kind and window for the report."""
+def real_markets(name,root):
+    """The markets of a real set from the French files under root: TRAIN rows of one series in one block, inner train and inner test."""
+    from .french_market import VALIDATION_START,load_french,rates_for
+    if root is None: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    out=[]
+    for series,block in REAL_SETS[name]:
+        start,end=BLOCKS[block];end=min(end,VALIDATION_START);history=load_french(root,f'data/french/{series}/manifest.json')
+        rows=[{'session':day,'close':close,'return':history['returns'][day]} for day,close in history['closes'][1:] if start<=day<end]
+        for row,rate in zip(rows,rates_for(root,[r['session'] for r in rows])): row['rate']=rate
+        train,test=split_market(rows,INNER_TRAIN)
+        out.append({'train_csv':market_csv(train),'validation_csv':market_csv(test),'validation_rows':test,'train_rows':train,'set':name,'kind':'real',
+                    'label':f"{name}: French {series} block {block}, {rows[0]['session']} to {rows[-1]['session']}, {len(train)} inner train and {len(test)} inner test sessions",
+                    'window':None,'seed':None,'strength':None,'regimes':None,'vault_sessions':0,'vault':'french-v1','series':series,'block':block})
+    return out
+
+
+def set_markets(name,root=None):
+    """The markets of one set, in a fixed order. Each market carries its set, kind and window for the report. A real set needs the project root."""
+    if name in REAL_SETS: return real_markets(name,root)
     if name not in SETS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     out=[];sessions=SET_SESSIONS.get(name,SESSIONS)
     for kind,window,seed in SETS[name]:
@@ -205,11 +233,11 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
     Counts and levels only come from the cycles' own records; no number depends on the ledger's global trial count."""
     by_label={m['label']:m for m in markets};rows=[];trials=trials_for(cycles_per_market,len(markets))
     for market in markets:
-        mine=[c for c in cycles if c.get('market')==market['label']]
-        reference=reference_score(market);patterned=market['kind'] is not None
+        mine=[c for c in cycles if c.get('market')==market['label']];real=market['kind']=='real'
+        reference=None if real else reference_score(market);patterned=None if real else market['kind'] is not None
         row={'market':market['label'],'pattern':patterned,'cycles':len(mine),'cycles_stopped':sum(1 for c in mine if c.get('stop_code') is not None),
              'levels':[bench_cycle(c,trials) for c in mine],'candidates':0,'scored':0,'beat_buy_and_hold':0,'audit_passed':0,'bench_gate_passed':0,
-             'best_capture':None,'reference':{'sharpe':reference['sharpe'],'benchmark_sharpe':reference['benchmark_sharpe'],'beats_baseline':reference['beats_baseline'],
+             'best_capture':None,'reference':None if real else {'sharpe':reference['sharpe'],'benchmark_sharpe':reference['benchmark_sharpe'],'beats_baseline':reference['beats_baseline'],
                                               'bench_deflated_sharpe':bench_deflation(reference,trials)['deflated_sharpe']},
              'statuses':{}}
         if patterned: row['found']=0
@@ -236,17 +264,20 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
         row['statuses']=dict(sorted(statuses.items()))
         known=[Decimal(c) for c in captures if c is not None]
         row['best_capture']=format(max(known),'f') if known else None
-        if not patterned: row['false_discoveries']=row['bench_gate_passed']
+        if patterned is False: row['false_discoveries']=row['bench_gate_passed']
         rows.append(row)
     unknown=sorted({c.get('market') for c in cycles}-set(by_label))
-    patterned=[r for r in rows if r['pattern']];empty=[r for r in rows if not r['pattern']]
+    patterned=[r for r in rows if r['pattern']];empty=[r for r in rows if r['pattern'] is False]
     levels=[level for r in rows for level in r['levels']]
     return {'markets':rows,'unknown_markets':unknown,'bench_trials':trials,'cycles_per_market':cycles_per_market,'candidates_total':sum(r['candidates'] for r in rows),
             'patterns_found':sum(1 for r in patterned if r['found']>0),'patterned_markets':len(patterned),'found_capture':str(FOUND_CAPTURE),
-            'false_discoveries':sum(r['false_discoveries'] for r in empty),'empty_markets':len(empty),
+            'false_discoveries':sum(r['false_discoveries'] for r in empty),'empty_markets':len(empty),'real_markets':sum(1 for r in rows if r['pattern'] is None),
+            'real_beat_buy_and_hold':sum(r['beat_buy_and_hold'] for r in rows if r['pattern'] is None),
+            'real_bench_gate_passed':sum(r['bench_gate_passed'] for r in rows if r['pattern'] is None),
             'mean_level':format((Decimal(sum(levels))/len(levels)).quantize(Decimal('0.01')),'f') if levels else None,
             'verdict':('BROKEN: a strategy passed on a market with no pattern' if any(r['false_discoveries'] for r in empty) else
                        'INCOMPLETE: a market has no finished cycle' if any(r['cycles']==0 for r in rows) else 'MEASURED'),
             'rule':'capture: (candidate Sharpe - buy-and-hold Sharpe) / (reference Sharpe - buy-and-hold Sharpe), for audited candidates that beat buy-and-hold. '
                    'pattern found: capture >= found_capture. false discovery: on a market with no pattern, an audited candidate that passed the bench-local gate '
-                   '(deflated Sharpe >= 0.95 with the fixed bench trial count) or the real gate. Levels use the bench-local gate. Compare runs only at the same cycles_per_market.'}
+                   '(deflated Sharpe >= 0.95 with the fixed bench trial count) or the real gate. Levels use the bench-local gate. Compare runs only at the same cycles_per_market. '
+                   'A real market (French TRAIN years) has no pattern to find: it reports levels, beats, Auditor passes and bench-gate passes only.'}

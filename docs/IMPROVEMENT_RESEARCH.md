@@ -5,6 +5,9 @@ A read-only research agent studied the code, documents and results, and publishe
 or provider call, and opened no price data and no ledger. Items marked "owner" change the judge, the gate, the scorer, the vault, the data
 tiers or spending, and need the owner's approval.
 
+Owner, 2 November 2026: "yes approve all four" (items 1, 2, 3 and 7). Built the same day; see "Honest scoring and the real-data bench" in
+`docs/ENGINE_PLAN.md`. Item 5 was done in part: the brief is fixed, and real dates stay visible. Tradability before 1998 (item 3) is not modelled.
+
 ## Ranked findings
 
 1. Test against the benchmark, not against zero (owner). `deflation.py` deflates the raw strategy Sharpe ratio against 0; "beats the

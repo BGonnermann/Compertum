@@ -7,6 +7,7 @@ import hashlib
 import json
 import pytest
 from test_provider_snapshot import build,encode,envelopes  # noqa: F401  (fixture)
+from french_rates import rates_file
 from compertum.ai.engine import history_market,real_market
 from compertum.ai.engine.history_market import MIN_HISTORY_SESSIONS
 from compertum.ai.engine.market import MAX_SESSIONS
@@ -67,7 +68,9 @@ def test_any_ticker(history_days):
 def test_history_manifest(tmp_path,history_days):
     days,closes=history_days
     root,path=project(tmp_path,[envelope(SYMBOL,days[:60],closes[:60]),envelope(SYMBOL,days[60:],closes[60:])])
-    market,vault=real_market.open_market(root,path)
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): real_market.open_market(root,path)  # no cash rate file
+    rates_file(root,days);market,vault=real_market.open_market(root,path)
+    assert all(r['rate'] for r in market['train_rows']+market['validation_rows']+vault) and 'rate' not in market['train_csv']
     assert market['provenance']['symbol']==SYMBOL and market['provenance']['sessions_available']==119 and market['provenance']['financial_accepted'] is False
     assert market['provenance']['market_start']==days[1] and market['provenance']['market_end']==days[-1] and len(market['provenance']['chunks_sha256'])==2
     assert market['label'].startswith(f'history alpaca/sip {SYMBOL}, {days[1]} to {days[-1]}, 119 sessions') and market['vault_sessions']==len(vault)

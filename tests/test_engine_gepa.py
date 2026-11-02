@@ -110,10 +110,10 @@ def test_level_trials():
     late={**early,'deflation':{'deflated_sharpe':'0.01','trials':5000}}
     assert GEPA_TRIALS==bench.BENCH_TRIALS==60
     assert candidate_level(early,rule)==8 and candidate_level(late,rule)==7
-    assert gepa_level(early,rule)==gepa_level(late,rule)==8
+    assert gepa_level(early,rule)==gepa_level(late,rule)==7  # bench-local deflation of active returns
     assert gepa_level(late,s['winner'])==10 and gepa_level({**late,'audit':None},s['winner'])==6
     patterned={'status':'COMPLETED','stop_code':None,'candidates':[late],'scores':{'h1':rule}}
-    assert gepa_cycle(patterned)==8 and cycle_score(patterned)==0.8
+    assert gepa_cycle(patterned)==7 and cycle_score(patterned)==0.7
     assert gepa_level(late,rule,empty=True)==6 and cycle_score(patterned,empty=True)==0.6
     found={**late,'hypothesis_id':'h2'}
     both={'status':'COMPLETED','stop_code':None,'candidates':[late,found],'scores':{'h1':rule,'h2':s['winner']}}
@@ -125,7 +125,7 @@ def test_level_trials():
     nothing={'status':'COMPLETED','stop_code':None,'candidates':[]}
     assert cycle_score(nothing,empty=True)==0.1>cycle_score(both,empty=True)
     text=feedback_for(patterned)
-    assert text.startswith('Cycle level 8 of 10') and f'The level uses a fixed 60 trials: deflated Sharpe {bench.bench_deflation(rule,60)["deflated_sharpe"]}.' in text
+    assert text.startswith('Cycle level 7 of 10') and f'The level uses a fixed 60 trials: deflated Sharpe {bench.bench_deflation(rule,60)["deflated_sharpe"]}.' in text
     capped=feedback_for(patterned,empty=True)
     assert capped.startswith('Cycle level 6 of 10') and 'This market has no pattern.' in capped and 'no Auditor pass' not in capped
     false=feedback_for(both,empty=True)

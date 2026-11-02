@@ -2,8 +2,11 @@
 
 Each symbol is loaded with the engine's own history loader, so the vault is cut off before this module sees any row. A universe is the set of
 symbols whose TRAIN and VALIDATION sessions match the common calendar exactly. Weights chosen at the close of session t earn the returns of t+1.
-Every family uses only closes up to t. Turnover costs 0.0005 of NAV per unit of weight changed, the single-market cost.
-The benchmark is the equal-weight portfolio of the same universe, rebalanced daily at no cost.
+Every family uses only closes up to t. The benchmark is the equal-weight portfolio of the same universe, rebalanced daily at no cost.
+Honest scoring (owner, 2 November 2026, fixes 1 to 3; see market.py): cash earns the daily risk-free rate; Sharpe ratios are above the rate;
+the deflated Sharpe ratio tests active returns; turnover pays the era cost of market.cost_at per unit of weight traded. Weights drift with
+returns between trades, so a trade back to target pays for the drift. A family trades only on its rebalance sessions: a session whose target
+is the same object as the session before is held. beats_baseline also needs the same weights one session later to beat the benchmark.
 
 The point-in-time universe sp500-pit (owner, 1 November 2026) holds on each session only the S&P 500 members of that date
 (data/indices/sp500/history.json, from tools/update_indices.py) that have a close that day, including members that later left.
@@ -29,7 +32,7 @@ from compertum.data.errors import DataError
 from compertum.runtime.errors import RuntimeRefused
 from compertum.simulation.metrics import metrics
 from .deflation import deflated_sharpe,moments,trial_variance
-from .market import COST
+from .market import cost_at,dated,verdict
 
 NOTE_LIMIT=500
 MIN_UNIVERSE=10
@@ -62,7 +65,9 @@ def prepare(p,symbols):
         eligible=[list(symbols)]*n;ew=[sum(returns[s][t] for s in symbols)/len(symbols) for t in range(n)]
     index=[1.0]
     for t in range(1,n): index.append(index[-1]*(1+ew[t]))
-    return {'symbols':list(symbols),'eligible':eligible,'closes':closes,'returns':returns,'ew':ew,'index':index,'n':n,'cache':{}}
+    rates=[float(x) for x in p['rates']] if 'rates' in p else [0.0]*n
+    return {'symbols':list(symbols),'eligible':eligible,'closes':closes,'returns':returns,'ew':ew,'index':index,'n':n,'cache':{},
+            'rates':rates,'costs':[float(cost_at(d)) for d in p['dates']],'dates':p['dates']}
 
 
 def _past_return(u,s,t,lookback,skip=0):
@@ -159,29 +164,44 @@ def weights(u,name,knobs):
     return out
 
 
-def score(u,targets,start,end,cost=float(COST)):
-    """NAV over sessions start..end-1: weights chosen at t earn the returns of t+1, minus cost for the weight changed at t."""
-    navs=[Decimal(1)];bench=[Decimal(1)];nav=1.0;b=1.0;previous={}
+def run_navs(u,targets,start,end,cost):
+    """NAV paths over sessions start..end-1: weights chosen at t earn the returns of t+1, cash earns the rate of t+1, and a trade at t
+    pays the cost of t for the weight changed against the drifted weights. Also the benchmark, both above the rate, and active returns."""
+    one=Decimal(1);navs=[one];bench=[one];above=[one];bench_above=[one];active=[];nav=b=na=ba=1.0;held={};turnover_total=0.0
     for t in range(start,end-1):
-        w=targets[t];turnover=sum(abs(w.get(s,0.0)-previous.get(s,0.0)) for s in set(w)|set(previous));previous=w
-        gross=sum(weight*(u['returns'][s][t+1] or 0.0) for s,weight in w.items())
-        nav*=1+gross-cost*turnover;b*=1+u['ew'][t+1]
-        if nav<=0: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
-        navs.append(Decimal(repr(nav)));bench.append(Decimal(repr(b)))
-    try: scored=metrics(navs,bench);baseline=metrics(bench,bench)
-    except DataError as error: raise RuntimeRefused(error.reason) from None
-    excess=Decimal(scored['annual_mean_excess']) if scored['annual_mean_excess'] is not None else None
-    sharpe=Decimal(scored['sharpe']) if scored['sharpe'] is not None else None
-    base=Decimal(baseline['sharpe']) if baseline['sharpe'] is not None else None
-    beats=scored['sharpe_status']=='DEFINED' and excess is not None and excess>0 and (base is None or (sharpe is not None and sharpe>base))
+        w=targets[t];rf=u['rates'][t+1];market=u['ew'][t+1]
+        if t==start or w is not targets[t-1]:
+            turnover=sum(abs(w.get(s,0.0)-held.get(s,0.0)) for s in set(w)|set(held));held=dict(w);turnover_total+=turnover
+        else: turnover=0.0
+        r={s:(u['returns'][s][t+1] or 0.0) for s in held}
+        gross=sum(x*r[s] for s,x in held.items())+(1.0-sum(held.values()))*rf;step=gross-(u['costs'][t] if cost is None else cost)*turnover
+        nav*=1+step;b*=1+market;na*=1+step-rf;ba*=1+market-rf;active.append(step-market)
+        if min(nav,na,ba)<=0 or 1+gross<=0: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        held={s:x*(1+r[s])/(1+gross) for s,x in held.items()}
+        navs.append(Decimal(repr(nav)));bench.append(Decimal(repr(b)));above.append(Decimal(repr(na)));bench_above.append(Decimal(repr(ba)))
+    return navs,bench,above,bench_above,active,turnover_total
+
+
+def score(u,targets,start,end,cost=None,lag=True):
+    """The score of weights over sessions start..end-1 against the equal-weight universe. cost None charges the era cost of each session."""
+    def measure(chosen):
+        navs,bench,above,bench_above,active,turnover=run_navs(u,chosen,start,end,cost)
+        try: return metrics(navs,bench),metrics(above,bench_above),metrics(bench_above,bench_above),active,turnover
+        except DataError as error: raise RuntimeRefused(error.reason) from None
+    scored,sharpe,baseline,active,turnover=measure(targets);beats=verdict(scored,sharpe,baseline);lag_check=None
+    if lag and all(dated(d) for d in u['dates'][start:end]):
+        lagged=[{}]+list(targets[:-1]);lag_scored,lag_sharpe,_,_,_=measure(lagged);ok=verdict(lag_scored,lag_sharpe,baseline)
+        lag_check={'sharpe':lag_sharpe['sharpe'],'annual_mean_excess':lag_scored['annual_mean_excess'],'beats':ok};beats=beats and ok
     held=sum(1 for t in range(start,end-1) if targets[t])
-    return {'sessions':end-start,'sessions_invested':held,'sharpe':scored['sharpe'],'sharpe_status':scored['sharpe_status'],'benchmark_sharpe':baseline['sharpe'],
-            'annual_mean_excess':scored['annual_mean_excess'],'max_drawdown':scored['max_drawdown'],'beats_baseline':bool(beats),
-            'deflation_inputs':moments(scored['returns'])}
+    return {'sessions':end-start,'sessions_invested':held,'sharpe':sharpe['sharpe'],'sharpe_status':sharpe['sharpe_status'],'benchmark_sharpe':baseline['sharpe'],
+            'annual_mean_excess':scored['annual_mean_excess'],'max_drawdown':scored['max_drawdown'],'beats_baseline':bool(beats),'lag_check':lag_check,
+            'turnover_per_year':format(Decimal(repr(turnover*252/max(end-start-1,1))).quantize(Decimal('0.0001')),'f'),
+            'cash_rate':'session rate' if any(u['rates'][start:end]) else '0','cost_per_change':'by era (market.cost_at)' if cost is None else repr(cost),
+            'deflation_inputs':moments([repr(a) for a in active])}
 
 
-def _safe(u,targets,start,end):
-    try: return score(u,targets,start,end)
+def _safe(u,targets,start,end,lag=True):
+    try: return score(u,targets,start,end,lag=lag)
     except RuntimeRefused as error: return {'refused':error.code}
 
 
@@ -190,7 +210,7 @@ def choose(u,train):
     for name,(_,grid) in FAMILIES.items():
         best=None
         for knobs in grid:
-            s=_safe(u,weights(u,name,knobs),0,train);value=Decimal(s['sharpe']) if s.get('sharpe_status')=='DEFINED' else None
+            s=_safe(u,weights(u,name,knobs),0,train,lag=False);value=Decimal(s['sharpe']) if s.get('sharpe_status')=='DEFINED' else None
             if best is None or (value is not None and (best[0] is None or value>best[0])): best=(value,knobs,s)
         chosen[name]={'knobs':best[1],'train_sharpe':None if best[0] is None else str(best[0]),'train_beats':bool(best[2].get('beats_baseline'))}
     return chosen
@@ -233,7 +253,8 @@ def load_panel(root,manifests):
         try: market,_vault=build_market(root,path)
         except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
         markets[Path(path).parent.name]=(_rows(market['train_csv']),market['validation_rows'])
-    p=panel(markets);p['skipped']=skipped
+    from .french_market import rates_for
+    p=panel(markets);p['skipped']=skipped;p['rates']=rates_for(root,p['dates'])
     return p
 
 
@@ -264,17 +285,17 @@ def french_panel(root,manifests,with_vault=False):
     """The 49 French industry portfolios on their own calendar: TRAIN before VALIDATION_START, VALIDATION before VAULT_START; vault rows are
     never loaded, except with_vault=True, which only the stage-2 vault scorer passes inside a counted look. An industry is eligible on a
     session when it has a close; it joins on the day after its last missing value."""
-    from .french_market import VALIDATION_START,VAULT_START,load_french
+    from .french_market import VALIDATION_START,VAULT_START,load_french,rates_for
     series={};skipped=[]
     for path in manifests:
         try: history=load_french(root,path)
         except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
-        if history['symbol']!='Mkt': series[history['symbol']]=dict(history['closes'])
+        if history['symbol'] not in ('Mkt','RF'): series[history['symbol']]=dict(history['closes'])
     dates=sorted({d for c in series.values() for d in c if with_vault or d<VAULT_START})
     if not dates: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     closes={s:[float(c[d]) if d in c else None for d in dates] for s,c in series.items()}
     eligible=[[s for s in sorted(closes) if closes[s][t] is not None] for t in range(len(dates))]
-    return {'dates':dates,'train':sum(1 for d in dates if d<VALIDATION_START),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
+    return {'dates':dates,'train':sum(1 for d in dates if d<VALIDATION_START),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,'rates':rates_for(root,dates),
             'universe':'french49','vault':'french-v1','membership':{'source':'Kenneth French Data Library, 49 industry portfolios, value weighted, daily','industries':len(closes),
             'validation_start':VALIDATION_START,'vault_start':VAULT_START,'smallest_universe':min(len(e) for e in eligible)}}
 
@@ -377,7 +398,8 @@ def pit_panel(root,manifests,membership='data/indices/sp500/history.json',refere
         if sum(x is not None for x in c)>=2: closes[symbol]=c
     eligible=[[s for s in sorted(members[t]) if s in closes and closes[s][t] is not None] for t in range(n)]
     shares=[len(eligible[t])/len(members[t]) for t in range(n)]
-    return {'dates':dates,'train':len(train_rows),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
+    from .french_market import rates_for
+    return {'dates':dates,'train':len(train_rows),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,'rates':rates_for(root,dates),
             'membership':{'path':membership,'sha256':hashlib.sha256(raw).hexdigest(),'periods':periods,'members_in_window':len(names),
                           'with_history':len(closes),'missing':sorted(names-set(closes)-{x['symbol'] for x in skipped}),
                           'coverage_min':round(min(shares),4),'coverage_mean':round(sum(shares)/n,4),'reference':reference}}

@@ -7,6 +7,7 @@ import json
 import zipfile
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
+from french_rates import rates_file
 from compertum.ai.engine import french_market as fm
 from compertum.ai.engine import history_market
 from compertum.ai.engine import library_multi as lm
@@ -54,7 +55,7 @@ def library(tmp_path,monkeypatch):
     sha=zipped(tmp_path/'data'/'french'/'raw'/'ind.zip','49_Industry_Portfolios_Daily.csv',industries_csv(names,rows,equal))
     fsha=zipped(tmp_path/'data'/'french'/'raw'/'ff.zip','F-F_Research_Data_Factors_daily.csv',factors_csv([(d,1.0,0.01) for d in DAYS]))
     paths={n:manifest(tmp_path,n,'data/french/raw/ind.zip',sha) for n in names}
-    paths['Mkt']=manifest(tmp_path,'Mkt','data/french/raw/ff.zip',fsha,table=None)
+    paths['Mkt']=manifest(tmp_path,'Mkt','data/french/raw/ff.zip',fsha,table=None);rates_file(tmp_path,DAYS)
     return tmp_path,paths,rows
 
 
@@ -165,7 +166,7 @@ def drift(tmp_path,monkeypatch):
     rng=random.Random(7);names=[f'D{i:02d}' for i in range(20)]
     rows=[(d,[round(rng.gauss(0.3 if i<2 else 0.0,1.0),2) for i in range(20)]) for d in days]
     sha=zipped(tmp_path/'data'/'french'/'raw'/'drift.zip','49_Industry_Portfolios_Daily.csv',industries_csv(names,rows))
-    paths=[manifest(tmp_path,n,'data/french/raw/drift.zip',sha) for n in names]
+    paths=[manifest(tmp_path,n,'data/french/raw/drift.zip',sha) for n in names];rates_file(tmp_path,days)
     return tmp_path,paths
 
 
@@ -209,3 +210,29 @@ def test_multi_admit(bridge,drift,monkeypatch):
     with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): lm.admit_report(stored,p,ledger)  # already ELIGIBLE
     from compertum.ai.engine.control import queue_state
     state=queue_state(b.store);assert state['vaults']['french-v1']['eligible']==[a['candidate_id'] for a in admitted] and state['vaults']['history-v1']['budget_used']==0
+
+
+def test_real_bench(drift,monkeypatch):
+    """Owner, 2 November 2026 (item 4): bench markets cut from French TRAIN rows only, inner train and inner test, with the cash rate."""
+    from types import SimpleNamespace
+    from compertum.ai.engine import bench
+    from compertum.ai.engine.tasks import market_brief
+    root,paths=drift
+    monkeypatch.setattr(bench,'REAL_SETS',{'bench-french-t':(('D00','A'),('D01','B'))})
+    monkeypatch.setattr(bench,'BLOCKS',{'A':('1950-01-01','1951-01-01'),'B':('1951-01-01','1999-01-01')})
+    with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): bench.set_markets('bench-french-t')  # a real set needs the project root
+    markets=bench.set_markets('bench-french-t',root)
+    assert [m['kind'] for m in markets]==['real','real'] and all(m['vault_sessions']==0 for m in markets)
+    for m in markets:
+        rows=m['train_rows']+m['validation_rows']
+        assert rows[-1]['session']<fm.VALIDATION_START and all(r['rate'] for r in rows) and 'rate' not in m['validation_csv']
+        assert len(m['train_rows'])==int(len(rows)*bench.INNER_TRAIN)
+    assert markets[0]['validation_rows'][-1]['session']<'1951-01-01'<=markets[1]['train_rows'][0]['session']
+    assert len(bench.set_fingerprints('bench-french-t',root))==2
+    report=bench.report([],markets,cycles_per_market=1)
+    assert report['real_markets']==2 and report['patterned_markets']==0 and report['empty_markets']==0
+    assert all(r['pattern'] is None and r['reference'] is None and 'found' not in r and 'false_discoveries' not in r for r in report['markets'])
+    brief=market_brief(SimpleNamespace(train_csv=markets[0]['train_csv'],validation_rows=markets[0]['validation_rows']))
+    assert 'real market history' in brief and 'cash (T-bill) rate' in brief and 'one session later' in brief and '0.0100' in brief
+    generated=market_brief(SimpleNamespace(train_csv='session,close,return\n',validation_rows=synthetic_market(3,60)))
+    assert 'synthetic and closed' in generated and 'cash' not in generated.split('Sharpe ratio above the cash rate')[0]

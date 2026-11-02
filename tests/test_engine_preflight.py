@@ -36,13 +36,14 @@ def test_checked_builders():
 
 def test_pinned_text():
     """The move from cycle.py to tasks.py kept every task byte-identical. A change to any task text changes this hash on purpose only.
-    Changed on purpose on 26 October 2026: the review task gained REVIEW_LENGTH_RULE (bench baseline 1)."""
+    Changed on purpose on 26 October 2026: the review task gained REVIEW_LENGTH_RULE (bench baseline 1).
+    Changed on purpose on 2 November 2026: the market brief states the honest scoring rules (Sharpe above the cash rate, the final gate)."""
     m=practice.practice_market(12,500,0.004)[0];e=SimpleNamespace(train_csv=m['train_csv'],validation_rows=m['validation_rows'],max_hypotheses=3)
     b=tasks.market_brief(e);s={'a':1}
     parts=[b,tasks.pick_task(3,7,b,s),tasks.memo_task(b,{'id':'h1','title':'T','idea':'I'}),tasks.approve_task('h1','M'),tasks.specify_task(b,'M'),
            tasks.review_task('S',{'/main.py':'x'}),tasks.agenda_task(b,s),tasks.retry_task('T','E','R'),tasks.engineer_task(e,'S')[0],
            tasks.engineer_task(e,'S',previous_reply='R')[0],tasks.STARTER_MAIN]
-    assert hashlib.sha256('\x00'.join(parts).encode()).hexdigest()=='a1f31a4497218ea81b6e5dd35a4e1df6f24390bb812a849f095efacb20b029f6'
+    assert hashlib.sha256('\x00'.join(parts).encode()).hexdigest()=='2a7190fd9408e5ba2f20da43ff15410a9d2da5774e3debba650f33ece70dd4d7'
 
 
 def failed(monkeypatch,name,replacement):

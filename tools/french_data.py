@@ -1,7 +1,8 @@
 """Kenneth French Data Library files for the engine: fetch the two daily zips and write one manifest per series. Owner-started, $0.
 
-    python tools/french_data.py fetch        # download into data/french/raw/ (an existing file is never replaced) and record the retrieval
-    python tools/french_data.py manifests    # data/french/SERIES/manifest.json for the 49 value-weighted industries and Mkt
+    python tools/french_data.py fetch        # download the three zips into data/french/raw/ (an existing file is never replaced) and record the retrieval
+    python tools/french_data.py manifests    # data/french/SERIES/manifest.json for the 49 value-weighted industries and Mkt,
+                                             # and data/french/rates.json: the monthly RF (one-month T-bill) and the daily calendar
 
 Owner, 2 November 2026: "go ahead with all three". The files keep the library's copyright ("Copyright Eugene F. Fama and Kenneth R. French");
 they stay outside Git and are used for private research only. See src/compertum/ai/engine/french_market.py and docs/ENGINE_PLAN.md.
@@ -19,6 +20,7 @@ FOLDER=ROOT/'data'/'french'
 BASE='https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/'
 INDUSTRIES='49_Industry_Portfolios_daily_CSV.zip'
 FACTORS='F-F_Research_Data_Factors_daily_CSV.zip'
+MONTHLY='F-F_Research_Data_Factors_CSV.zip'
 TABLE='Average Value Weighted Returns -- Daily'
 
 
@@ -30,7 +32,7 @@ def fetch(folder=FOLDER,client=None):
     record=json.loads(record_path.read_text(encoding='utf-8')) if record_path.exists() else {}
     own=client is None;client=client or httpx.Client(timeout=120,trust_env=False,follow_redirects=False)
     try:
-        for name in (INDUSTRIES,FACTORS):
+        for name in (INDUSTRIES,FACTORS,MONTHLY):
             path=raw/name
             if not path.exists():
                 reply=client.get(BASE+name)
@@ -55,6 +57,11 @@ def manifests(folder=FOLDER,root=ROOT):
             body={'schema_version':'1','kind':'french','series':key,'table':table,'file':item,
                   'source':'Kenneth French Data Library, Copyright Eugene F. Fama and Kenneth R. French'}
             (target/'manifest.json').write_text(json.dumps(body,indent=1),encoding='utf-8');written.append(key)
+    monthly={'path':(raw/MONTHLY).relative_to(root).as_posix(),'sha256':hashlib.sha256((raw/MONTHLY).read_bytes()).hexdigest()}
+    daily={'path':(raw/FACTORS).relative_to(root).as_posix(),'sha256':hashlib.sha256((raw/FACTORS).read_bytes()).hexdigest()}
+    body={'schema_version':'1','kind':'french-rates','monthly':monthly,'calendar':daily,
+          'source':'Kenneth French Data Library, Copyright Eugene F. Fama and Kenneth R. French'}
+    (folder/'rates.json').write_text(json.dumps(body,indent=1),encoding='utf-8');written.append('rates')
     return written
 
 

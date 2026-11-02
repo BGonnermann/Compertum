@@ -561,6 +561,42 @@ recomputes the admitted score, refuses other files, then reads the vault inside 
 the equal-weight industries (`evaluate_in_vault(..., score=...)`). Owner commands: `control queue`, `control close-quarter --quarter`,
 `control open-batch --vault --candidate --note`. A quarter can be closed only after it ends: 2026-Q4 candidates can be queued from 2027-01-01.
 
+Honest scoring and the real-data bench (2 November 2026; owner: "yes approve all four"; items 1, 2, 3 and 7 of `docs/IMPROVEMENT_RESEARCH.md`).
+These change the judge, so the sealed files `market.py` (fc66f7eb to a059ea9c) and `run.py` (3f90c681 to 976d9629) changed with this approval.
+- Benchmark-relative test (fix 1). The deflated Sharpe ratio now tests active returns, the daily strategy return minus the benchmark return,
+  in `score_signals` and `library_multi.score`. `deflation.py` is unchanged. A strategy now passes only when its daily gain over the benchmark
+  is too large to be luck among all trials. Before, it passed when its raw return was, so a benchmark with a Sharpe ratio of 0.85 did most of the work.
+- Cash rate (fix 2). Every real market row carries `rate`, the daily one-month T-bill return. A flat position or the uninvested part of a
+  portfolio earns it. Sharpe ratios, and the Sharpe comparison with the benchmark, use returns above the rate. The rate comes from the French
+  monthly factors file (`F-F_Research_Data_Factors_CSV.zip`, fetched on 2 November 2026 under the accepted terms), spread over each month's
+  sessions of the daily factors calendar: daily = (1 + monthly)^(1/sessions) - 1. The daily file was not used: it rounds RF to 0.01% a day,
+  about 1.3% a year, and shows 0 in 2003. `data/french/rates.json` names both files with their SHA-256. A real market without it is refused.
+  Generated markets have no rate and earn 0. `market_csv` leaves the rate out of the files the Engineer reads.
+- Costs by era (fix 3). `market.cost_at` charges a one-way cost per unit traded: 1.00% before 1975-05-01 (fixed commissions), 0.50% to 1990,
+  0.25% to 2001-04-08 (decimal prices), 0.10% to 2009, then 0.05%. These are conservative estimates of commission plus half-spread, based on the
+  history in Jones (2002); they were not measured on these portfolios. Generated markets and the 2016-2023 Alpaca markets keep 0.05%.
+- Drift turnover (fix 3). Between trades, portfolio weights drift with returns; a trade back to target pays for the drift. A family trades
+  only on its rebalance sessions (a target that is the same object as the session before is held). `turnover_per_year` is in the score.
+- Lag check (fix 3). On dated (real) sessions, beats_baseline also needs the same positions, executed one session later, to beat the
+  benchmark. Daily rules on industry portfolios can profit from stale closing prices that no one could trade. Generated markets skip the check:
+  they have no stale prices, and their planted pattern lasts one session.
+- Market brief. `tasks.market_brief` said "synthetic and closed" on real markets. It now says "real market history" for dated sessions, names
+  the cash rate, the era cost range and the lag check, and says that the final gate tests the gain over buy-and-hold. The pinned task hash
+  changed on purpose. Real dates are still visible to the roles; era costs and the lag check need them. A vault pass by an AI-written rule
+  therefore cannot rule out that the model remembers the history (research item 5).
+- Real-data bench (item 7). `bench.REAL_SETS['bench-french-1']`: 8 markets from French TRAIN rows only (1926-07-02 to 1973-02-23); no
+  VALIDATION or vault row is read. Mkt in three blocks (A 1926-1942, B 1943-1957, C 1958-1973), then Agric (A), Drugs (B), Mach (C), Util (A)
+  and Trans (B): the industries at file columns 0, 10, 20, 30 and 40, moved past Hlth and MedEq, which start late. The series were fixed before any
+  bench run. Each market splits 70/30 into an inner train and an inner test: 3,449/1,479, 2,874/1,233 and 2,652/1,137 sessions for A, B and C.
+  There is no planted pattern or reference rule, so the report gives levels, beats, Auditor passes and bench-gate passes, not found patterns or
+  false discoveries. `practice.ps1 -Mode bench` now accepts only `-BenchSet bench-french-1` (the default); the generated sets and the holdout stay off.
+  Practice runs on French manifests see these years as TRAIN, so a bench result after French practice is not independent of it.
+- Recorded synthetic calibrations changed with the stricter test, and the tests now record the new values. The exact planted rule passes the
+  bench-local gate on 6 of 10 patterned bench-4 markets (was 8) and 8 of 10 holdout-2 markets (unchanged count, different markets).
+  Of the 6 bench-1 and holdout-1 patterned markets, it passes on 1 (was 2).
+- Not changed: the DSR minimum 0.95, the trial count, the vault, the data tiers, the Auditor and the ledger. Earlier sweep reports cannot be
+  admitted with `library_multi admit`, because their recorded scores no longer reproduce.
+
 Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
 the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
 to `open_market`; `history_market.load_history_market` to `build_market` and `load_history_manifest` to `open_history`; `gepa_run.score_for_cycle` to

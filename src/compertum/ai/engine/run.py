@@ -6,6 +6,7 @@ refusal stops it, then writes an END row with the reason. The daily summary is r
 """
 from datetime import datetime,timezone
 import hashlib
+from pathlib import Path
 import os
 import threading
 import time
@@ -14,7 +15,7 @@ from compertum.runtime.errors import RuntimeRefused
 from compertum.ai.manual import sanitized
 from compertum.ai.models import ModelClient,StoreLedger
 from .audit import check_request_invariant
-from .bench import HOLDOUT_USES,SETS,fingerprint,report as bench_report,reserved_fingerprints,set_fingerprints
+from .bench import HOLDOUT_USES,REAL_SETS,SETS,fingerprint,report as bench_report,reserved_fingerprints,set_fingerprints
 from .cycle import Engine,run_cycle
 from .ledger import EVALUATION_PURPOSES,PURPOSES,EngineLedger
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
@@ -36,6 +37,15 @@ class CycleCounter:
     def next(self):
         with self.lock: value=self.value;self.value+=1
         return value
+
+
+def real_bench(prints,project_root):
+    """True when every market is a market of one real bench set; a set whose files cannot be read matches nothing."""
+    for name in REAL_SETS:
+        try:
+            if prints<=set_fingerprints(name,Path(project_root).absolute()): return True
+        except RuntimeRefused: continue
+    return False
 
 
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market=None,memory_floor_bytes,limits,owner_approval,
@@ -69,7 +79,7 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     prints={fingerprint(m['train_csv'],m['validation_csv']) for m in schedule}
     if purpose=='practice': allowed=not prints&reserved_fingerprints()
     elif purpose=='holdout': allowed=prints<=set_fingerprints(holdout_set)
-    else: allowed=prints<=frozenset().union(*(set_fingerprints(n) for n in SETS if n.startswith('bench-')))
+    else: allowed=prints<=frozenset().union(*(set_fingerprints(n) for n in SETS if n.startswith('bench-'))) or real_bench(prints,project_root)
     if not allowed: raise RuntimeRefused('ENGINE_MARKET_RESERVED')
     ledger=EngineLedger(store);ledger.require_unfrozen()
     gate=RunGate(store,ledger,project_root=project_root,hour_limit=bounds['hour_limit'],clock=clock)

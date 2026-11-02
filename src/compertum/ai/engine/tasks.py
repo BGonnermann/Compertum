@@ -5,7 +5,7 @@ No engine library is imported here, so the product environment can check tasks t
 is byte-identical to the one the cycle built before.
 """
 import json
-from .market import COST
+from .market import COST,cost_at,dated
 
 TRANSCRIPT_BYTES=8192
 RETRY_REPLY_BYTES=2048  # how much of an unusable reply a retry task shows the model
@@ -47,12 +47,19 @@ def market_brief(engine):
     """The fixed description of the market and the scoring rule that every idea task carries. Code, not a prompt: GEPA cannot remove it.
     Practice run 1 (24 October 2026) showed a real model inventing software hypotheses when the task held only the ledger summary."""
     train=max(engine.train_csv.count('\n')-1,0);validation=len(engine.validation_rows)
+    real=bool(engine.validation_rows) and all(dated(r.get('session')) for r in engine.validation_rows)
+    costs=sorted({cost_at(r.get('session')) for r in engine.validation_rows}) or [COST]
+    cost=str(costs[0]) if len(costs)==1 else f'{costs[0]} to {costs[-1]} by era (older sessions cost more)'
     return ('MARKET\n'
-            f'One asset, daily sessions, synthetic and closed. Two files: train.csv ({train} sessions) and validation.csv ({validation} sessions), '
+            f"One asset, daily sessions, {'real market history' if real else 'synthetic and closed'}. "
+            f'Two files: train.csv ({train} sessions) and validation.csv ({validation} sessions), '
             'columns session, close, return (return is the fractional change of close from the previous session). '
             'A hypothesis is a rule that sets a position of 0 (flat) or 1 (long) for every validation session from data up to that session. '
-            f'Score: the position at session t earns the return of session t+1, minus a cost of {COST} of NAV for each position change. '
-            'A strategy beats the baseline when its Sharpe ratio is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s. '
+            f'Score: the position at session t earns the return of session t+1, minus a cost of {cost} of NAV for each position change. '
+            +('A flat position earns the daily cash (T-bill) rate. ' if real else '')+
+            'A strategy beats the baseline when its Sharpe ratio above the cash rate is defined, its annual mean excess over buy-and-hold is positive, and its Sharpe is above buy-and-hold\'s'
+            +(', and all three still hold when every position is executed one session later. ' if real else '. ')+
+            'The final gate asks whether the daily gain over buy-and-hold is too large to be luck among all ideas tried. '
             'Only these two files exist; propose nothing that needs other data.')
 
 

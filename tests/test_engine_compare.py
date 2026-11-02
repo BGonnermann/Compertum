@@ -28,8 +28,8 @@ def test_equal_comparison(bridge):
     assert left['report']['patterns_found']==0 and right['report']['patterns_found']==3
     result=compare.compare_summaries(left,right)
     assert result['delta']['patterns_found']==3 and result['delta']['false_discoveries']==0
-    assert result['mean_level_delta']=='3.60' and len(result['markets'])==5
-    assert result['markets'][0]['right_levels']==[10] and 'does not establish' in result['warning']
+    assert result['mean_level_delta']=='3.40' and len(result['markets'])==5
+    assert result['markets'][0]['right_levels']==[9] and 'does not establish' in result['warning']
 
 
 def test_incompatible_runs(bridge,tmp_path):

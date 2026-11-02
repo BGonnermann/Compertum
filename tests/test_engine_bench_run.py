@@ -56,7 +56,7 @@ def test_bench_isolation(bridge,project,root,verification,market,bench_name):
     # The scripted Engineer always trades five-session momentum: it finds momentum markets, not reversals or empty markets.
     if bench_name=='bench-1':
         assert [(r['statuses'],r['levels'],r.get('found'),r.get('false_discoveries')) for r in report['markets']]==[
-            ({'EVALUATION_GATE_PASS':1},[10],1,None),({'EVALUATION_GATE_PASS':1},[10],1,None),({'REJECTED':1},[5],0,None),({'REJECTED':1},[5],None,0),({'REJECTED_DEFLATED':1},[7],None,0)]
+            ({'EVALUATION_GATE_PASS':1},[9],1,None),({'EVALUATION_GATE_PASS':1},[9],1,None),({'REJECTED':1},[5],0,None),({'REJECTED':1},[5],None,0),({'REJECTED_DEFLATED':1},[7],None,0)]
         assert report['patterns_found']==2
     else:
         assert report['patterns_found']==1 and report['markets'][0]['found']==1

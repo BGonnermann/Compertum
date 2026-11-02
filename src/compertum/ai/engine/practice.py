@@ -206,9 +206,9 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
             else: markets=[market]
         else:
             if type(cycles_per_market) is not int or not 1<=cycles_per_market<=bench.MAX_CYCLES_PER_MARKET: raise RuntimeRefused('ENGINE_RUN_LIMITS_DENIED')
-            if bench_set not in bench.SETS or not bench_set.startswith('bench-'): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+            if (bench_set not in bench.SETS and bench_set not in bench.REAL_SETS) or not bench_set.startswith('bench-'): raise RuntimeRefused('ENGINE_MARKET_DENIED')
             holdout_set=bench.HOLDOUT_SET if purpose=='holdout' else None
-            markets=bench.set_markets(bench_set if purpose=='bench' else bench.HOLDOUT_SET)
+            markets=bench.set_markets(bench_set if purpose=='bench' else bench.HOLDOUT_SET,root)
             schedule=markets*cycles_per_market;cycles=len(schedule)  # interleaved: an early stop leaves every market with about the same number of cycles
     # The preflight content check (25 October 2026): every role task of every market is built and checked before the lease and before any request.
     checked=preflight(root,markets+(validation_markets or []),prompts=prompts)

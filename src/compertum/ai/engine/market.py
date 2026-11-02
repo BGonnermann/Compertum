@@ -4,6 +4,13 @@ The market is closed and deterministic: one asset, one return per session, from 
 TRAIN and VALIDATION are session ranges of the same market. There is no vault in stage E3.
 The adapter scores with the existing `simulation.metrics.metrics`. It defines no new threshold. The connection to the
 real walk-forward Validator and the deflated Sharpe ratio is stage E4 work.
+
+Honest scoring (owner, 2 November 2026: "yes approve all four"; docs/IMPROVEMENT_RESEARCH.md items 1 to 3):
+- A row may carry 'rate', the daily risk-free return of that session. Cash earns it; rows without it earn 0 (generated markets).
+- Sharpe ratios are of returns above the rate. The deflated Sharpe ratio tests active returns (strategy minus benchmark), not the raw return.
+- A row whose session is a date pays the cost of its era (ERA_COSTS); other rows pay COST.
+- On dated (real) sessions, beats_baseline also needs the same positions executed one session later to beat the benchmark (the lag check).
+  The check targets stale closing prices of real portfolios. A generated market has no stale prices; its planted pattern is one session long.
 """
 import csv
 from decimal import Decimal
@@ -20,6 +27,7 @@ SIGNALS_BYTES=1024*1024
 # Reversal added 25 October 2026 for varied GEPA markets (owner decision); momentum and unplanted markets are unchanged byte for byte.
 PLANTED_KINDS=('momentum','reversal')
 COST=Decimal('0.0005')  # fixed cost for each position change, as a fraction of NAV
+ERA_COSTS=(('1975-05-01',Decimal('0.0100')),('1991-01-01',Decimal('0.0050')),('2001-04-09',Decimal('0.0025')),('2010-01-01',Decimal('0.0010')))
 
 
 def synthetic_market(seed,sessions,*,planted=None,regimes=None):
@@ -69,7 +77,7 @@ def regime_at(regimes,index):
 
 
 def market_csv(rows):
-    out=io.StringIO();writer=csv.DictWriter(out,fieldnames=['session','close','return'],lineterminator='\n')
+    out=io.StringIO();writer=csv.DictWriter(out,fieldnames=['session','close','return'],lineterminator='\n',extrasaction='ignore')
     writer.writeheader()
     for row in rows: writer.writerow(row)
     return out.getvalue()
@@ -106,27 +114,63 @@ def parse_signals(text,validation_rows):
     return positions
 
 
-def score_signals(text,validation_rows,*,cost=COST):
-    """Score positions against buy and hold on the validation sessions. The position chosen at session t earns the return of t+1."""
-    positions=parse_signals(text,validation_rows)
-    returns=[Decimal(row['return']) for row in validation_rows]
-    navs=[Decimal(1)];benchmark=[Decimal(1)];previous=0
+def dated(session):
+    return isinstance(session,str) and len(session)==10 and session[4]=='-' and session[7]=='-'
+
+
+def cost_at(session):
+    """The one-way cost of a change at this session: by era for a dated session, COST otherwise."""
+    if not dated(session): return COST
+    for until,cost in ERA_COSTS:
+        if session<until: return cost
+    return COST
+
+
+def nav_paths(positions,returns,rates,costs):
+    """NAV, benchmark, both above the rate, and active returns. The position chosen at t earns the return of t+1; cash earns the rate."""
+    one=Decimal(1);navs=[one];benchmark=[one];above=[one];bench_above=[one];active=[];previous=0
     for index in range(1,len(returns)):
-        held=positions[index-1];change=abs(held-previous);previous=held
-        navs.append(navs[-1]*(1+held*returns[index]-cost*change));benchmark.append(benchmark[-1]*(1+returns[index]))
-    if any(nav<=0 for nav in navs): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
-    try: scored=metrics(navs,benchmark);baseline=metrics(benchmark,benchmark)
-    except DataError as error: raise RuntimeRefused(error.reason) from None
+        held=positions[index-1];change=abs(held-previous);previous=held;r=returns[index];rf=rates[index]
+        step=held*r+(1-held)*rf-costs[index-1]*change
+        navs.append(navs[-1]*(1+step));benchmark.append(benchmark[-1]*(1+r));above.append(above[-1]*(1+step-rf));bench_above.append(bench_above[-1]*(1+r-rf))
+        active.append(step-r)
+    if any(nav<=0 for nav in navs+above+bench_above): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    return navs,benchmark,above,bench_above,active
+
+
+def verdict(scored,sharpe,baseline):
+    """Sharpe defined, annual mean excess over the benchmark above 0, and Sharpe above the benchmark Sharpe (both above the rate)."""
+    excess=_decimal(scored['annual_mean_excess']);own=_decimal(sharpe['sharpe']);base=_decimal(baseline['sharpe'])
+    return bool(sharpe['sharpe_status']=='DEFINED' and excess is not None and excess>0
+                and (baseline['sharpe_status']!='DEFINED' or (own is not None and base is not None and own>base)))
+
+
+def score_signals(text,validation_rows,*,cost=None):
+    """Score positions against buy and hold on the validation sessions. The position chosen at session t earns the return of t+1.
+    cost None charges each session's era cost (cost_at); a Decimal charges that cost on every session."""
+    positions=parse_signals(text,validation_rows)
+    returns=[Decimal(row['return']) for row in validation_rows];rates=[Decimal(row.get('rate','0')) for row in validation_rows]
+    costs=[cost_at(row['session']) if cost is None else cost for row in validation_rows]
+    def measure(held):
+        navs,benchmark,above,bench_above,active=nav_paths(held,returns,rates,costs)
+        try: return navs,benchmark,metrics(navs,benchmark),metrics(above,bench_above),metrics(bench_above,bench_above),active
+        except DataError as error: raise RuntimeRefused(error.reason) from None
+    navs,benchmark,scored,sharpe,baseline,active=measure(positions)
     # metrics() reports numbers as decimal strings and an undefined Sharpe ratio as None. Compare as decimals, record as given.
-    excess=_decimal(scored['annual_mean_excess']);sharpe=_decimal(scored['sharpe']);baseline_sharpe=_decimal(baseline['sharpe'])
-    beats=(scored['sharpe_status']=='DEFINED' and excess is not None and excess>0
-           and (baseline['sharpe_status']!='DEFINED' or (sharpe is not None and baseline_sharpe is not None and sharpe>baseline_sharpe)))
+    beats=verdict(scored,sharpe,baseline);lag_check=None
+    if all(dated(row['session']) for row in validation_rows):
+        _,_,lag_scored,lag_sharpe,_,_=measure([0]+positions[:-1]);lagged=verdict(lag_scored,lag_sharpe,baseline);beats=beats and lagged
+        lag_check={'sharpe':lag_sharpe['sharpe'],'annual_mean_excess':lag_scored['annual_mean_excess'],'beats':lagged}
     return {'sessions':len(returns),'positions_held':sum(positions),'position_changes':sum(abs(a-b) for a,b in zip(positions,[0]+positions[:-1])),
             'final_nav':str(navs[-1].quantize(Decimal('0.00000001'))),'benchmark_final_nav':str(benchmark[-1].quantize(Decimal('0.00000001'))),
-            'annual_mean_excess':scored['annual_mean_excess'],'sharpe':scored['sharpe'],'sharpe_status':scored['sharpe_status'],'max_drawdown':scored['max_drawdown'],
-            'benchmark_sharpe':baseline['sharpe'],'benchmark_sharpe_status':baseline['sharpe_status'],'beats_baseline':bool(beats),
-            'cost_per_change':str(cost),'rule':'beats_baseline: Sharpe defined, annual mean excess > 0, Sharpe above the benchmark Sharpe',
-            'deflation_inputs':moments(scored['returns'])}
+            'annual_mean_excess':scored['annual_mean_excess'],'sharpe':sharpe['sharpe'],'sharpe_status':sharpe['sharpe_status'],'max_drawdown':scored['max_drawdown'],
+            'benchmark_sharpe':baseline['sharpe'],'benchmark_sharpe_status':baseline['sharpe_status'],'beats_baseline':beats,
+            'lag_check':lag_check,
+            'cost_per_change':str(cost) if cost is not None else 'by era: '+', '.join(f'{c} before {d}' for d,c in ERA_COSTS)+f', then {COST}',
+            'cash_rate':'session rate' if any(rates) else '0',
+            'rule':'beats_baseline: Sharpe above the rate defined, annual mean excess > 0, Sharpe above the benchmark Sharpe; '
+                   'on dated sessions the same holds with every position one session later. Deflation tests active returns (strategy minus benchmark).',
+            'deflation_inputs':moments([format(a,'f') for a in active])}
 
 
 def _decimal(value):

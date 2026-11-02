@@ -80,7 +80,7 @@ def history_market(history,sessions=None):
 
 def build_market(project_root,manifest_path,*,sessions=None):
     value=_json(_read(Path(project_root).absolute(),manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
-    if isinstance(value,dict) and value.get('kind')=='french':
-        from .french_market import build_french
-        return build_french(project_root,manifest_path,sessions=sessions)
-    return history_market(load_history(project_root,manifest_path),sessions)
+    from .french_market import attach_rates,build_french
+    if isinstance(value,dict) and value.get('kind')=='french': market,vault=build_french(project_root,manifest_path,sessions=sessions)
+    else: market,vault=history_market(load_history(project_root,manifest_path),sessions)
+    return attach_rates(project_root,market,vault)

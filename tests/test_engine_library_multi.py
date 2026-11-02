@@ -57,8 +57,8 @@ def test_causal_settings():
 
 def test_score_turnover():
     m=markets(10,sessions=60,train=30);p=lm.panel(m);u=lm.prepare(p,sorted(p['closes']))
-    targets=[{'S00':1.0}]*u['n'];s=lm.score(u,targets,0,u['n'])
-    daily=[u['returns']['S00'][t+1]-(0.0005 if t==0 else 0.0) for t in range(u['n']-1)]
+    targets=[{'S00':1.0}]*u['n'];s=lm.score(u,targets,0,u['n'])  # one target object: bought once, then held
+    daily=[u['returns']['S00'][t+1]-(0.0005 if t==0 else 0.0)-u['ew'][t+1] for t in range(u['n']-1)]  # active returns
     mean=sum(daily)/len(daily);std=math.sqrt(sum((x-mean)**2 for x in daily)/(len(daily)-1))
     assert math.isclose(float(s['deflation_inputs']['sharpe_per_period']),mean/std,rel_tol=1e-6)
     assert s['sessions']==60 and s['sessions_invested']==59 and s['benchmark_sharpe'] is not None
@@ -71,8 +71,8 @@ def test_sweep_gate(bridge,monkeypatch):
     real_record=ledger.record_external_trials;real_safe=lm._safe
     monkeypatch.setattr(ledger,'record_external_trials',lambda *a,**k:(order.append('trials'),real_record(*a,**k))[1])
     calls=[]
-    def safe(u,targets,start,end):
-        calls.append(start);return real_safe(u,targets,start,end)
+    def safe(u,targets,start,end,**k):
+        calls.append(start);return real_safe(u,targets,start,end,**k)
     monkeypatch.setattr(lm,'_safe',safe)
     report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000001',note='fixture')
     assert report['universes']=={'stocks':12} and report['trials_recorded']==75 and report['total_trials']==125==ledger.total_trials()
@@ -152,6 +152,8 @@ def test_pit_periods(tmp_path,monkeypatch):
     periods={'DOW':[{'key':'DOW-2017','until':days[100],'last':days[99]},{'key':'DOW','since':days[150]}]}
     (idx/'periods.json').write_text(_json.dumps({'periods':periods}),encoding='utf-8')
     rows=[{'session':d,'close':'100','return':'0'} for d in days]
+    from french_rates import rates_file
+    rates_file(tmp_path,days)
     monkeypatch.setattr(history_market,'build_market',lambda root,path:({'train_csv':'session,close,return'+NL+NL.join(f"{r['session']},100,0" for r in rows[:240])+NL,
                                                                              'validation_rows':rows[240:]},[]))
     monkeypatch.setattr(history_market,'load_history',lambda root,path:{'closes':[(d,str(100+i)) for i,d in enumerate(days)]})

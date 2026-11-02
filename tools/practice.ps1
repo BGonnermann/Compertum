@@ -31,6 +31,7 @@ tools\practice.ps1 -Mode holdout -Requests 450 -PromptsRun run-20261026-0123abcd
 tools\practice.ps1 -Models deepseek -Model deepseek-v4-pro -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "DeepSeek bench baseline 1"
 tools\practice.ps1 -Pick -Mode bench -CyclesPerMarket 4 -Requests 450 -Note "bench run"
 tools\practice.ps1 -Models deepseek -Model deepseek-flash -Mode bench -BenchSet bench-3 -CyclesPerMarket 4 -Requests 2000 -Note "bench-3 flash baseline"
+tools\practice.ps1 -Models openrouter-think -Mode bench -BenchSet bench-french-1 -CyclesPerMarket 2 -Requests 1500 -Note "real bench baseline"
 tools\practice.ps1 -Models openrouter -Model "deepseek/deepseek-v4.1-flash,anthropic/claude-haiku-5.5" -Mode bench -BenchSet bench-4 -CyclesPerMarket 1 -Requests 600 -Note "two models at once"
 
 .NOTES
@@ -49,7 +50,7 @@ param(
     [ValidateSet('run','gepa','bench','holdout')][string]$Mode='run',
     [int]$Cycles=1,
     [int]$CyclesPerMarket=4,
-    [ValidateSet('bench-1','bench-2','bench-3','bench-4')][string]$BenchSet='bench-1',
+    [ValidateSet('bench-french-1','bench-1','bench-2','bench-3','bench-4')][string]$BenchSet='bench-french-1',
     [string[]]$MarketManifest=@(),
     [int]$Seed=12,
     [string]$PromptsRun='',
@@ -85,8 +86,9 @@ if (-not $evaluationMode -and ($PSBoundParameters.ContainsKey('CyclesPerMarket')
 if ($Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')) { Fail '-BenchSet applies to bench only; the holdout cannot be moved' }
 if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest applies to run and gepa only; bench and holdout stay fixed' }
 if ($Mode -ne 'run' -and $PSBoundParameters.ContainsKey('Seed')) { Fail '-Seed applies to run only; GEPA, bench and holdout markets are fixed' }
-if ($evaluationMode) { Fail 'real market data only (owner, 1 November 2026): bench and holdout use generated markets and are off until real-data sets exist' }
-if ($MarketManifest.Count -eq 0) { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json' }
+if ($Mode -eq 'holdout') { Fail 'real market data only (owner, 1 November 2026): the holdout uses generated markets and is off until a real holdout exists' }
+if ($Mode -eq 'bench' -and $BenchSet -notlike 'bench-french-*') { Fail 'real market data only (owner, 1 November 2026): the generated bench sets are off; use -BenchSet bench-french-1' }
+if (-not $evaluationMode -and $MarketManifest.Count -eq 0) { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }

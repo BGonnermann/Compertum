@@ -11,6 +11,11 @@ and no later row decides the start; a missing value from VALIDATION_START on ref
 Mkt-RF plus RF from the factors file: the total return of all NYSE, AMEX and NASDAQ stocks. Portfolio returns include dividends.
 Every French series uses the same calendar tiers, so no year is VALIDATION in one series and vault in another: TRAIN before VALIDATION_START,
 VALIDATION before VAULT_START, and the vault up to CUTOFF. The dates are the 50/30/20 split of the Mkt series (25,648 sessions).
+
+Risk-free rate (owner, 2 November 2026, fix 2): every real market row carries 'rate', the daily one-month T-bill return. The daily factors
+file rounds RF to 0.01% a day (about 1.3% a year), so RATES names the monthly factors file instead (0.01% a month). A month's rate is spread
+over that month's sessions in the daily factors calendar: daily = (1 + monthly)^(1/sessions) - 1, as the library builds its daily column.
+A date in a month without a monthly rate refuses the market.
 """
 from datetime import date
 from decimal import Decimal
@@ -31,6 +36,8 @@ MISSING=(Decimal('-99.99'),Decimal('-999'))
 START=Decimal(100)
 PLACES=Decimal('1e-10')
 MIN_SESSIONS=50
+RATES='data/french/rates.json'
+RATE_PLACES=Decimal('1e-12')
 
 
 def read_table(text,table):
@@ -93,6 +100,52 @@ def load_french(project_root,manifest_path):
     returns={day:format(r/100,'f') for day,r in values}
     return {'symbol':manifest['series'],'provider':'french','feed':Path(manifest['file']['path']).name,'adjustment':'total return',
             'chunks_sha256':[manifest['file']['sha256']],'table':manifest['table'],'closes':closes,'returns':returns,'vault':VAULT}
+
+
+def monthly_table(text):
+    """{YYYY-MM: RF percent} from the first table of the monthly factors file."""
+    lines=text.splitlines()
+    try: header=next(i for i,line in enumerate(lines) if line.startswith(','))
+    except StopIteration: raise RuntimeRefused('ENGINE_MARKET_INPUT_INVALID') from None
+    columns=[c.strip() for c in lines[header].split(',')[1:]]
+    if 'RF' not in columns: raise RuntimeRefused('ENGINE_MARKET_MANIFEST_INVALID')
+    out={};column=columns.index('RF')+1
+    for line in lines[header+1:]:
+        if not line.strip(): break
+        cells=[c.strip() for c in line.split(',')]
+        if len(cells)!=len(columns)+1 or len(cells[0])!=6 or not cells[0].isdigit(): raise RuntimeRefused('ENGINE_MARKET_INPUT_INVALID')
+        try: out[f'{cells[0][:4]}-{cells[0][4:]}']=Decimal(cells[column])
+        except ArithmeticError: raise RuntimeRefused('ENGINE_MARKET_INPUT_INVALID') from None
+    if not out or any(v in MISSING for v in out.values()): raise RuntimeRefused('ENGINE_MARKET_INPUT_INVALID')
+    return out
+
+
+def rates_for(project_root,dates):
+    """The daily risk-free return of each date, as decimal strings, from the RATES file."""
+    from collections import Counter
+    from decimal import localcontext
+    root=Path(project_root).absolute()
+    manifest=_json(_read(root,RATES,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
+    if not isinstance(manifest,dict) or manifest.get('kind')!='french-rates' or manifest.get('schema_version')!='1': raise RuntimeRefused('ENGINE_MARKET_MANIFEST_INVALID')
+    monthly=monthly_table(open_file(root,manifest.get('monthly')))
+    columns,rows=read_table(open_file(root,manifest.get('calendar')),None)
+    sessions=Counter(day[:7] for day,_ in rows);out=[];cache={}
+    for day in dates:
+        month=day[:7]
+        if month not in cache:
+            if month not in monthly or not sessions.get(month) or day>=CUTOFF: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
+            with localcontext() as ctx:
+                ctx.prec=28;cache[month]=format(((1+monthly[month]/100)**(Decimal(1)/sessions[month])-1).quantize(RATE_PLACES),'f')
+        out.append(cache[month])
+    return out
+
+
+def attach_rates(project_root,market,vault):
+    """Give every TRAIN, VALIDATION and vault row its rate; the market keeps its TRAIN rows. The CSV files the Engineer reads are unchanged."""
+    import csv
+    train=list(csv.DictReader(io.StringIO(market['train_csv'])));rows=train+list(market['validation_rows'])+list(vault)
+    for row,rate in zip(rows,rates_for(project_root,[r['session'] for r in rows])): row['rate']=rate
+    return {**market,'train_rows':train},vault
 
 
 def build_french(project_root,manifest_path,*,sessions=None):

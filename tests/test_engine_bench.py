@@ -114,7 +114,8 @@ def test_bench4_seeds():
 
 def test_holdout2_seeds():
     """Owner, 1 November 2026: a calibrated holdout before the next holdout use. Seeds 906 to 921 in order, not chosen by result.
-    The planted rule passes the gate on 8 of 10 patterned markets (bench-4: 8 of 10), and a simple search passes on no empty market."""
+    The planted rule passes the gate on 8 of 10 patterned markets (bench-4: 8 of 10), and a simple search passes on no empty market.
+    Since the deflated Sharpe tests active returns (owner, 2 November 2026), the planted rule passes on 8 of 10 here and 6 of 10 on bench-4."""
     markets=bench.set_markets('holdout-2');trials=bench.trials_for(4,len(markets))
     assert bench.HOLDOUT_SET=='holdout-2' and [m['seed'] for m in markets]==list(range(906,922)) and all(bench.reserved_seed(m['seed']) for m in markets)
     assert [(k,w) for k,w,_ in bench.SETS['holdout-2']]==[(k,w) for k,w,_ in bench.SETS['bench-4']]
@@ -127,7 +128,7 @@ def test_holdout2_seeds():
     digest=hashlib.sha256('\n'.join(m['label']+'\0'+m['train_csv']+'\0'+m['validation_csv'] for m in markets).encode()).hexdigest()
     assert digest=='dbb3196bcee3b608fd72aa2effbb03cda885b0d892d3d2f35d48232e7765ada0'
     statuses=[bench.bench_deflation(bench.reference_score(m),trials)['status'] for m in markets]
-    assert statuses==['PASS']*7+['FAIL','PASS']+['FAIL']*7
+    assert statuses==['PASS']*6+['FAIL','FAIL','PASS','PASS']+['FAIL']*6
     for market in markets:
         if market['kind'] is not None: continue
         for name,positions in simple_rules(market['train_rows'],market['validation_rows']).items():
@@ -137,10 +138,11 @@ def test_holdout2_seeds():
 
 def test_bench4_calibration():
     """Calibration of 29 October 2026: on 500 sessions the exact planted rule passed the bench gate on 7 of 64 calibration markets.
-    At 4096 sessions every strong pattern passes; the weak reversal markets stay out of reach, and the report says so for each market."""
+    At 4096 sessions every strong pattern passes; the weak reversal markets stay out of reach, and the report says so for each market.
+    Active-return deflation (2 November 2026): one weak momentum market and one regime market also stay out of reach."""
     markets=bench.set_markets('bench-4');trials=bench.trials_for(4,len(markets))
     statuses=[bench.bench_deflation(bench.reference_score(m),trials)['status'] for m in markets]
-    assert statuses==['PASS']*6+['FAIL','FAIL','PASS','PASS']+['FAIL']*6
+    assert statuses==['PASS']*5+['FAIL']*3+['PASS']+['FAIL']*7
     for market in markets:
         if market['kind'] is not None: continue
         for name,positions in simple_rules(market['train_rows'],market['validation_rows']).items():
@@ -181,9 +183,10 @@ def test_regime_bounds():
 
 def test_planted_gate():
     """The finding of 25 October 2026 that set the found rule: perfect knowledge of the pattern passes the bench-local gate (60 trials)
-    on 2 of 6 patterned markets. The real gate uses the global count, above 100, so it is stricter still. Found therefore uses capture."""
+    on 2 of 6 patterned markets (1 of 6 since the test uses active returns, 2 November 2026). The real gate uses the global count, above 100,
+    so it is stricter still. Found therefore uses capture."""
     statuses={m['label']:bench.bench_deflation(bench.reference_score(m))['status'] for name in ('bench-1','holdout-1') for m in bench.set_markets(name) if m['kind']}
-    assert sorted(statuses.values())==['FAIL','FAIL','FAIL','FAIL','PASS','PASS']
+    assert sorted(statuses.values())==['FAIL']*5+['PASS']
 
 
 def test_bench_measure():
@@ -215,10 +218,10 @@ def test_bench_report():
     assert report['verdict']=='MEASURED' and report['patterns_found']==3 and report['patterned_markets']==3
     assert report['false_discoveries']==0 and report['empty_markets']==2 and report['bench_trials']==60
     assert [r['best_capture'] for r in report['markets'][:3]]==['1.000','1.000','1.000']
-    # The global gate said FAIL (deflated Sharpe 0.10); the bench level uses the bench-local value, so 10 or 9, not 7.
+    # The global gate said FAIL (deflated Sharpe 0.10); the bench level uses the bench-local value, so 8 or 9, not 7.
     assert [r['found'] for r in report['markets'][:3]]==[1,1,1] and report['found_capture']=='0.5'
-    assert [r['bench_gate_passed'] for r in report['markets'][:3]]==[1,0,0]  # the reference itself fails the gate on two markets
-    assert [r['levels'] for r in report['markets']]==[[10],[9],[9],[4],[4]] and report['mean_level']=='7.20'
+    assert [r['bench_gate_passed'] for r in report['markets'][:3]]==[0,0,0]  # on active returns the reference itself fails the gate on all three
+    assert [r['levels'] for r in report['markets']]==[[8],[9],[9],[4],[4]] and report['mean_level']=='6.80'
     # The same strategy without an Auditor pass counts as beating buy-and-hold, not as a found pattern.
     unaudited=bench.report([candidate_cycle(markets[0],bench.reference_positions(markets[0]['train_rows'],markets[0]['validation_rows'],'momentum',5),audit='VERIFIED_FAIL')],markets)
     row=unaudited['markets'][0];assert row['beat_buy_and_hold']==1 and row['audit_passed']==0 and row['found']==0 and row['levels']==[6] and unaudited['patterns_found']==0
@@ -253,7 +256,7 @@ def test_failure_levels():
     assert bench.bench_level({'status':'REJECTED_AUDIT','audit':{'label':'VERIFIED_FAIL'}},{'beats_baseline':True})==3
     assert bench.bench_level({'status':'BUILD_FAILED'},None)==2
     cycle=candidate_cycle(market,bench.reference_positions(market['train_rows'],market['validation_rows'],'momentum',5))
-    assert bench.bench_cycle(cycle)==10 and bench.bench_cycle({'candidates':[]})==1
+    assert bench.bench_cycle(cycle)==8 and bench.bench_cycle({'candidates':[]})==1
 
 
 def write_end(ledger,index,purpose,title):
