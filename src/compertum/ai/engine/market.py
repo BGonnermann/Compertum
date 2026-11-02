@@ -14,7 +14,7 @@ from compertum.runtime.errors import RuntimeRefused
 from compertum.simulation.metrics import metrics
 from .deflation import moments
 
-MIN_SESSIONS,MAX_SESSIONS=40,4096
+MIN_SESSIONS,MAX_SESSIONS=40,32768
 SIGNALS_BYTES=1024*1024
 # Planted patterns: the next return leans with the sign of the last `window` returns (momentum) or against it (reversal).
 # Reversal added 25 October 2026 for varied GEPA markets (owner decision); momentum and unplanted markets are unchanged byte for byte.

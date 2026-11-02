@@ -107,6 +107,7 @@ def test_bounded_run(bridge,project,root,verification,tiers):
     assert runs[0]['files']=={'main.py':ENGINEER_CODE}  # the launch record holds the code as submitted
     queue=CandidateQueue(ledger);assert queue.eligible()==[candidate['candidate_id']] and queue.queued()==[] and ledger.total_trials()==1 and ledger.active_freezes()==[]
     eligible_event=next(e for e in ledger.queue_events(candidate['candidate_id']) if e['event']=='ELIGIBLE');assert eligible_event['recorded_at']>=audit_step['recorded_at']
+    assert eligible_event['vault']=='history-v1'
     with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_DENIED$'): queue.open_batch([candidate['candidate_id']],'Owner OK: too early (acceptance fixture)')
     with pytest.raises(RuntimeRefused,match='^ENGINE_QUEUE_DENIED$'): queue.close_quarter(eligible_event['quarter'])
     assert queue.close_quarter(eligible_event['quarter'],day=quarter_end(eligible_event['quarter']))==[candidate['candidate_id']] and queue.queued()==[candidate['candidate_id']]

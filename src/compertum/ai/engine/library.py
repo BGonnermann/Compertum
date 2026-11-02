@@ -207,7 +207,7 @@ def vault_score(queue,look_id,candidate_id,market,load_vault):
         vault_rows=load_vault();rows=list(market['validation_rows'])+list(vault_rows)
         positions=FAMILIES[name][0](series(market['train_rows'],rows),**knobs)[len(market['train_rows'])+len(market['validation_rows']):]
         return signals(vault_rows,positions),vault_rows
-    return queue.evaluate_in_vault(look_id,candidate_id,None,produce)
+    return queue.evaluate_in_vault(look_id,candidate_id,None,produce,vault=market.get('vault','history-v1'))
 
 
 def sweep(markets,ledger,*,run_id,note):
@@ -232,7 +232,7 @@ def sweep(markets,ledger,*,run_id,note):
                 if row['recomputed'] and row['causal']:
                     route={'kind':'library','symbol':market['symbol'],'family':name,'knobs':choice['knobs'],
                            'checks':'recompute and lookahead (last 1, 4 and 8 VALIDATION rows changed); no sandbox Auditor run'}
-                    event=queue.admit(f"{run_id}:{market['symbol']}:{name}",score,deflation,tests_passed=True,auditor_passed=True,route=route)
+                    event=queue.admit(f"{run_id}:{market['symbol']}:{name}",score,deflation,tests_passed=True,auditor_passed=True,route=route,vault=market.get('vault','history-v1'))
                     row['queue']={'event':event['event'],'quarter':event['quarter'],'candidate_id':event['candidate_id']}
                 else: row['queue']={'event':'NOT_ADMITTED','reason':'recompute or lookahead check failed'}
             rows.append(row)
@@ -260,7 +260,7 @@ def load_markets(root,manifests):
         symbol=Path(path).parent.name
         try: market,_vault=open_market(root,str(path))
         except RuntimeRefused as error: skipped.append({'symbol':symbol,'code':error.code});continue
-        out.append({'symbol':symbol,'label':market['label'],'train_rows':_rows(market['train_csv']),'validation_rows':market['validation_rows']})
+        out.append({'symbol':symbol,'label':market['label'],'train_rows':_rows(market['train_csv']),'validation_rows':market['validation_rows'],'vault':market.get('vault','history-v1')})
     return out,skipped
 
 

@@ -523,6 +523,34 @@ Two stages: screen, then confirm in the vault (2 November 2026; owner: "build it
   look; the library route is tagged as recompute and lookahead checks, not a sandbox Auditor run. Not changed: `promotion.vault_run` (engine
   candidates) still takes the files and vault rows from its caller, as before this change; a binding check there is a separate decision.
 
+French library markets (2 November 2026; owner: "go ahead with all three": accept the library's terms for private research, raise the
+session cap, add the 49 daily industry portfolios with their own vault). Source: Kenneth French Data Library, "Copyright Eugene F. Fama and
+Kenneth R. French", no licence stated; built from CRSP; survivorship-free (each portfolio holds every NYSE, AMEX and NASDAQ stock of its time).
+- `tools/french_data.py fetch` keeps `49_Industry_Portfolios_daily_CSV.zip` (4,177,116 bytes, SHA-256 b9d36d57...) and
+  `F-F_Research_Data_Factors_daily_CSV.zip` (178,326 bytes, 96c23b88...) unchanged in `data/french/raw/` with `retrieval.json`;
+  `manifests` writes `data/french/SERIES/manifest.json` (kind `french`) for the 49 value-weighted industries and `Mkt` (Mkt-RF plus RF).
+- `french_market.py`: percent returns become closes from 100 (Decimal, 10 places); rows from 2024-01-01 on are never loaded (the
+  product's protected period); a series starts the day after its last missing value before VALIDATION_START, so no gap is filled and no
+  later row decides the start; a missing value from VALIDATION_START on refuses the series (none exists after 1971). Returns are the
+  library's own percentages divided by 100. Later starts: Books 1927-05-18,
+  PerSv 1931-04-21, MedEq 1933-08-07, Paper 1935-11-19, Toys 1941-07-14, LabEq 1945-06-30, Rubbr 1945-09-15, Soda, FabPr, Guns and Gold
+  1963-07-01, Hlth 1969-07-01, Softw 1971-03-12; the other 36 series and Mkt start 1926-07-02.
+- Fixed calendar tiers for every French series, the 50/30/20 split of Mkt: TRAIN 1926-07-02 to 1973-02-23 (12,824 sessions), VALIDATION
+  1973-02-26 to 2003-08-13 (7,694), vault 2003-08-14 to 2023-12-29 (5,130). One calendar keeps a vault year from being VALIDATION elsewhere.
+- `market.MAX_SESSIONS` 4,096 to 32,768 (sealed file). Bench and holdout keep their calibrated 4,096 sessions; Alpaca histories keep
+  `history_market.HISTORY_SESSIONS` 4,096, so their tier boundaries cannot move.
+- `library_multi --universe french49`: 49 industries, an industry joins on its first close; the panel never loads vault rows.
+- Own vault: `vault.VAULTS` = `history-v1`, `french-v1`. A candidate records its vault when it becomes ELIGIBLE; a batch takes one vault;
+  quota (3 a quarter), budget and N count per vault. `run.py` and `gepa_run.py` pass each market's vault to the Engine, which refuses an
+  unknown vault (sealed files `vault.py`, `cycle.py`, `run.py`). `evaluate_in_vault`, `promotion.vault_run` and `library.vault_score` name the
+  vault of the rows they read; a mismatch with the look is refused before any read.
+- Independent review (9 points). Fixed with tests: GEPA engines lost the vault; vault rows were not tied to the look's vault; vault-period
+  gaps could decide a series' start; the quarterly quota was shared by both vaults; the higher cap could move Alpaca tiers for histories over
+  4,096 sessions; returns were recomputed from rounded closes; an unknown vault was found only after promotion. Noted, not changed: the
+  sandbox job deadline (120 seconds) may stop slow Engineer code more often on 12,824 TRAIN rows.
+- Bars at these lengths (DSR 0.95, normal returns): VALIDATION 7,694 sessions, N = 1: about 0.30 annual Sharpe, N = 28,165: about 1.05;
+  vault 5,130 sessions, 1 candidate: about 0.37, 12: about 0.74.
+
 Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
 the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
 to `open_market`; `history_market.load_history_market` to `build_market` and `load_history_manifest` to `open_history`; `gepa_run.score_for_cycle` to

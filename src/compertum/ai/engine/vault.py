@@ -9,6 +9,9 @@ Owner, 2 November 2026: "build it as written" (docs/TRIAL_SPENDING_PLAN.md, "Opt
   before any vault data is read. At most VAULT_BUDGET candidates are ever evaluated in one vault. A candidate passes when it beats the
   baseline in the vault and its vault DSR is at least the fixed minimum, with N the number of candidates counted in this vault's looks
   up to and including its own, and the null variance of its own estimate (option C).
+- Each data source has its own vault (VAULTS): history-v1 for the Alpaca histories, french-v1 for the French library (owner, 2 November 2026).
+  A candidate records its vault when it becomes ELIGIBLE; a batch takes candidates of one vault, and the quota, the budget and N count that
+  vault only. A vault evaluation names the vault of the rows it reads; a mismatch with the look is refused before any read.
 - No candidate is evaluated in the vault more than once. A second attempt is ENGINE_VAULT_REPEAT. A failed vault test is final.
 QUEUED events written before 2 November 2026 passed the old rule (DSR at the minimum); they stay QUEUED. A QUEUED event without an
 earlier ELIGIBLE event is accepted only with a time before LEGACY_BEFORE.
@@ -31,6 +34,7 @@ NOTE_LIMIT=1024
 QUOTA=3
 VAULT_BUDGET=12
 VAULT_ID='history-v1'
+VAULTS=('history-v1','french-v1')
 LEGACY_BEFORE='2026-11-02'
 INPUTS=('observations','sharpe_per_period','skewness','kurtosis')
 QUARTER=re.compile(r'([0-9]{4})-Q([1-4])')
@@ -96,7 +100,10 @@ class CandidateQueue:
             return (status=='PASS' and Decimal(value)>=DSR_MIN) or (status=='FAIL' and Decimal(value)<=DSR_MIN)
         except (InvalidOperation,TypeError,ValueError): return False
 
-    def admit(self,candidate_id,score,deflation,*,tests_passed,auditor_passed,route=None):
+    def vault_of(self,candidate_id):
+        _,_,eligible=self._fold(candidate_id);return (eligible or {}).get('vault',VAULT_ID)
+
+    def admit(self,candidate_id,score,deflation,*,tests_passed,auditor_passed,route=None,vault=VAULT_ID):
         """Stage 1: make one candidate ELIGIBLE, or record why not and refuse. The score and deflation records come from the Validator."""
         if not isinstance(candidate_id,str) or not 1<=len(candidate_id)<=128 or not isinstance(score,dict) or not isinstance(deflation,dict): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
         reasons=[]
@@ -109,8 +116,8 @@ class CandidateQueue:
         record={'score_sha256':hashlib.sha256(canonical(score)).hexdigest(),'deflation':deflation,'tests_passed':tests_passed is True,'auditor_passed':auditor_passed is True}
         if reasons:
             self.ledger.record_queue_event(candidate_id,'DENIED',{**record,'reasons':reasons});raise RuntimeRefused('ENGINE_QUEUE_DENIED')
-        if route is not None and not isinstance(route,dict): raise RuntimeRefused('ENGINE_QUEUE_DENIED')
-        return self.ledger.record_queue_event(candidate_id,'ELIGIBLE',{**record,'quarter':quarter_of(today()),'route':route or {'kind':'engine'}})
+        if (route is not None and not isinstance(route,dict)) or vault not in VAULTS: raise RuntimeRefused('ENGINE_QUEUE_DENIED')
+        return self.ledger.record_queue_event(candidate_id,'ELIGIBLE',{**record,'quarter':quarter_of(today()),'route':route or {'kind':'engine'},'vault':vault})
 
     def eligible(self,quarter=None):
         """Candidate ids still ELIGIBLE, in event order, optionally for one quarter."""
@@ -130,17 +137,20 @@ class CandidateQueue:
         def decide(events):
             by={}
             for event in events: by.setdefault(event['candidate_id'],[]).append(event)
-            done=sum(1 for rows in by.values() for e in rows if e.get('event')=='QUEUED' and e.get('quarter')==quarter)
-            ranked=[]
-            for order,(cid,rows) in enumerate(by.items()):
-                state,_,eligible=fold(rows)
-                if state!='ELIGIBLE' or eligible.get('quarter')!=quarter: continue
-                value=rank_value(eligible.get('deflation'),trials)
-                ranked.append((value is None,-(value if value is not None else Decimal(0)),order,cid,value))
-            ranked.sort();room=max(QUOTA-done,0)
-            chosen=[r[3] for r in ranked if r[4] is not None][:room]
-            return [(cid,'QUEUED' if cid in chosen else 'NOT_SELECTED',{'quarter':quarter,'rank':rank,'quota':QUOTA,'trials_at_close':trials,
-                     'rank_dsr':None if value is None else str(value)}) for rank,(*_,cid,value) in enumerate(ranked,1)]
+            def vault_of(rows): return (fold(rows)[2] or {}).get('vault',VAULT_ID)
+            out=[]
+            for vault in VAULTS:
+                done=sum(1 for rows in by.values() for e in rows if e.get('event')=='QUEUED' and e.get('quarter')==quarter and vault_of(rows)==vault)
+                ranked=[]
+                for order,(cid,rows) in enumerate(by.items()):
+                    state,_,eligible=fold(rows)
+                    if state!='ELIGIBLE' or eligible.get('quarter')!=quarter or eligible.get('vault',VAULT_ID)!=vault: continue
+                    value=rank_value(eligible.get('deflation'),trials)
+                    ranked.append((value is None,-(value if value is not None else Decimal(0)),order,cid,value))
+                ranked.sort();chosen=[r[3] for r in ranked if r[4] is not None][:max(QUOTA-done,0)]
+                out+=[(cid,'QUEUED' if cid in chosen else 'NOT_SELECTED',{'quarter':quarter,'vault':vault,'rank':rank,'quota':QUOTA,'trials_at_close':trials,
+                       'rank_dsr':None if value is None else str(value)}) for rank,(*_,cid,value) in enumerate(ranked,1)]
+            return out
         return [row['candidate_id'] for row in self.ledger.close_queue(decide) if row['event']=='QUEUED']
 
     def _candidates(self):
@@ -153,18 +163,19 @@ class CandidateQueue:
     def queued(self):
         return [cid for cid in self._candidates() if self.state(cid)[0]=='QUEUED']
 
-    def _vault_looks(self):
-        return [look for look in self.ledger.looks() if look.get('vault',VAULT_ID)==VAULT_ID]
+    def _vault_looks(self,vault):
+        return [look for look in self.ledger.looks() if look.get('vault',VAULT_ID)==vault]
 
-    def open_batch(self,candidate_ids,owner_note):
+    def open_batch(self,candidate_ids,owner_note,vault=VAULT_ID):
         """Seal one batch and count the look. Every candidate must be QUEUED and the vault budget must hold. The owner's note is the OK."""
         if not isinstance(owner_note,str) or not 1<=len(owner_note)<=NOTE_LIMIT: raise RuntimeRefused('ENGINE_VAULT_DENIED')
         if not isinstance(candidate_ids,(list,tuple)) or not 1<=len(candidate_ids)<=MAX_BATCH or len(set(candidate_ids))!=len(candidate_ids): raise RuntimeRefused('ENGINE_VAULT_DENIED')
+        if vault not in VAULTS: raise RuntimeRefused('ENGINE_VAULT_DENIED')
         for cid in candidate_ids:
-            if self.state(cid)[0]!='QUEUED': raise RuntimeRefused('ENGINE_VAULT_DENIED')
-        if sum(len(look['candidate_ids']) for look in self._vault_looks())+len(candidate_ids)>VAULT_BUDGET: raise RuntimeRefused('ENGINE_VAULT_BUDGET')
+            if self.state(cid)[0]!='QUEUED' or self.vault_of(cid)!=vault: raise RuntimeRefused('ENGINE_VAULT_DENIED')
+        if sum(len(look['candidate_ids']) for look in self._vault_looks(vault))+len(candidate_ids)>VAULT_BUDGET: raise RuntimeRefused('ENGINE_VAULT_BUDGET')
         look_id=f'look-{uuid4().hex}'
-        body={'look_id':look_id,'candidate_ids':list(candidate_ids),'owner_note':owner_note,'count_before_open':len(self.ledger.looks())+1,'vault':VAULT_ID}
+        body={'look_id':look_id,'candidate_ids':list(candidate_ids),'owner_note':owner_note,'count_before_open':len(self.ledger.looks())+1,'vault':vault}
         seal=hashlib.sha256(canonical(body)).hexdigest()
         # One transaction: the look row and every LOOK_COUNTED event, or nothing.
         return self.ledger.record_look(look_id,seal,{**body,'seal_sha256':seal},counted=[(cid,{'look_id':look_id,'seal_sha256':seal}) for cid in candidate_ids])
@@ -172,12 +183,12 @@ class CandidateQueue:
     def vault_trials(self,look_id):
         """N for stage 2: the candidates counted in this vault's looks up to and including this look."""
         total=0
-        for look in self._vault_looks():
+        for look in self._vault_looks(self.ledger.look(look_id).get('vault',VAULT_ID)):
             total+=len(look['candidate_ids'])
             if look['look_id']==look_id: return total
         raise RuntimeRefused('ENGINE_LOOK_UNKNOWN')
 
-    def evaluate_in_vault(self,look_id,candidate_id,signals_text,read_vault):
+    def evaluate_in_vault(self,look_id,candidate_id,signals_text,read_vault,*,vault=VAULT_ID):
         """Score one candidate on the vault rows, once, inside its sealed look, and decide stage 2.
 
         read_vault is a callable with no arguments. It is called only after the look and the candidate's state pass, so a
@@ -186,7 +197,7 @@ class CandidateQueue:
         """
         if not callable(read_vault): raise RuntimeRefused('ENGINE_VAULT_DENIED')
         look=self.ledger.look(look_id)
-        if candidate_id not in look['candidate_ids']: raise RuntimeRefused('ENGINE_VAULT_DENIED')
+        if candidate_id not in look['candidate_ids'] or look.get('vault',VAULT_ID)!=vault: raise RuntimeRefused('ENGINE_VAULT_DENIED')
         state,counted=self.state(candidate_id)
         if state=='VAULT_EVALUATED': raise RuntimeRefused('ENGINE_VAULT_REPEAT')
         if state!='LOOK_COUNTED' or counted!=look_id: raise RuntimeRefused('ENGINE_VAULT_DENIED')

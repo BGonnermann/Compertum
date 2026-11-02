@@ -98,7 +98,8 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         if item.get('label') in engines: continue
         engines[item.get('label')]=Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
                                           train_csv=item['train_csv'],validation_csv=item['validation_csv'],validation_rows=item['validation_rows'],
-                                          memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose=purpose)
+                                          memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose=purpose,
+                                          vault=item.get('vault','history-v1'))
     state={'run_id':run_id,'purpose':purpose,'started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':[],'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None}
     start={'limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,

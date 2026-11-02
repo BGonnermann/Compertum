@@ -41,7 +41,7 @@ def promote(project_root,candidate_id,files,*,audit,score,deflation,source_job_f
     return {'folder':str(folder),'manifest':manifest}
 
 
-def vault_run(queue,sandbox,look_id,candidate_id,*,files,entry,vault_rows):
+def vault_run(queue,sandbox,look_id,candidate_id,*,files,entry,vault_rows,vault='history-v1'):
     """The Validator's vault evaluation: inside the sealed look, rerun the frozen code with the vault as validation.csv and score it.
 
     The queue checks the look and the candidate's state before `produce` runs, so nothing reads the vault on a repeat or
@@ -53,4 +53,4 @@ def vault_run(queue,sandbox,look_id,candidate_id,*,files,entry,vault_rows):
         if record.get('job_folder'): remove_data_tiers(record['job_folder'])
         if record['status']!='COMPLETED' or record.get('signals') is None: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
         return record['signals'],vault_rows
-    return queue.evaluate_in_vault(look_id,candidate_id,None,produce)
+    return queue.evaluate_in_vault(look_id,candidate_id,None,produce,vault=vault)

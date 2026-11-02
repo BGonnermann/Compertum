@@ -197,7 +197,7 @@ def choose(u,train):
 
 def universes(p):
     if 'eligible' in p:
-        return {'sp500-pit':sorted(p['closes'])} if p['eligible'] and min(len(e) for e in p['eligible'])>=MIN_UNIVERSE else {}
+        return {p.get('universe','sp500-pit'):sorted(p['closes'])} if p['eligible'] and min(len(e) for e in p['eligible'])>=MIN_UNIVERSE else {}
     stocks=[s for s in p['closes'] if s not in ETFS];etfs=[s for s in p['closes'] if s in ETFS]
     return {name:members for name,members in (('stocks',stocks),('etfs',etfs)) if len(members)>=MIN_UNIVERSE}
 
@@ -258,6 +258,24 @@ def resolve_member(ticker,day,periods):
     return None if ticker in periods else ticker
 
 
+def french_panel(root,manifests):
+    """The 49 French industry portfolios on their own calendar: TRAIN before VALIDATION_START, VALIDATION before VAULT_START; vault rows are
+    never loaded. An industry is eligible on a session when it has a close; it joins on the day after its last missing value."""
+    from .french_market import VALIDATION_START,VAULT_START,load_french
+    series={};skipped=[]
+    for path in manifests:
+        try: history=load_french(root,path)
+        except RuntimeRefused as error: skipped.append({'symbol':Path(path).parent.name,'code':error.code});continue
+        if history['symbol']!='Mkt': series[history['symbol']]=dict(history['closes'])
+    dates=sorted({d for c in series.values() for d in c if d<VAULT_START})
+    if not dates: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    closes={s:[float(c[d]) if d in c else None for d in dates] for s,c in series.items()}
+    eligible=[[s for s in sorted(closes) if closes[s][t] is not None] for t in range(len(dates))]
+    return {'dates':dates,'train':sum(1 for d in dates if d<VALIDATION_START),'closes':closes,'eligible':eligible,'dropped':[],'skipped':skipped,
+            'universe':'french49','membership':{'source':'Kenneth French Data Library, 49 industry portfolios, value weighted, daily','industries':len(closes),
+            'validation_start':VALIDATION_START,'vault_start':VAULT_START,'smallest_universe':min(len(e) for e in eligible)}}
+
+
 def pit_panel(root,manifests,membership='data/indices/sp500/history.json',reference='SPY',periods_path='data/indices/sp500/periods.json'):
     import bisect
     import hashlib
@@ -301,10 +319,11 @@ def main(argv=None):
     parser=argparse.ArgumentParser(prog='compertum.ai.engine.library_multi',description='Sweep the multi-stock library over every real history market.')
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     commands=parser.add_subparsers(dest='command',required=True);run=commands.add_parser('sweep');run.add_argument('--note',required=True)
-    run.add_argument('--universe',choices=('all','sp500-pit'),default='all')
+    run.add_argument('--universe',choices=('all','sp500-pit','french49'),default='all')
     args=parser.parse_args(argv)
     root=args.project.resolve();config=args.config if args.config.is_absolute() else root/args.config
-    manifests=[p.relative_to(root).as_posix() for p in sorted((root/'data'/'history').glob('*/manifest.json'))]
+    folder='french' if args.universe=='french49' else 'history'
+    manifests=[p.relative_to(root).as_posix() for p in sorted((root/'data'/folder).glob('*/manifest.json'))]
     if not manifests or not args.note.strip() or len(args.note)>NOTE_LIMIT: print(json.dumps({'refused':'ENGINE_RUN_LIMITS_DENIED'}));return 2
     from compertum.config import ConfigError,load_config
     from compertum.domain import ContractError
@@ -314,7 +333,7 @@ def main(argv=None):
     from .ledger import EngineLedger
     lease=None;run_id=f'library-multi-{datetime.now(timezone.utc):%Y%m%d}-{uuid4().hex[:8]}'
     try:
-        p=pit_panel(root,manifests) if args.universe=='sp500-pit' else load_panel(root,manifests)
+        p=pit_panel(root,manifests) if args.universe=='sp500-pit' else french_panel(root,manifests) if args.universe=='french49' else load_panel(root,manifests)
         lease=acquire_owner(resolve_project(root),'coordinator')
         store=StorageManager(lease,load_config(config,root)).store
         report=sweep(p,EngineLedger(store),run_id=run_id,note=args.note)

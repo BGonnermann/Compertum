@@ -30,7 +30,7 @@ from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,
 from .roles import ROLES,build_role_agent,load_prompt
 from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
                     market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
-from .vault import CandidateQueue
+from .vault import VAULTS,CandidateQueue
 
 MAX_HYPOTHESES=3
 REPLY_BYTES=65536
@@ -98,6 +98,10 @@ class Engine:
     prompts:Any=None  # E7: role prompts for this cycle (GEPA candidate), and optionally its 'routing' text; None reads config/engine_prompts
     purpose:str='practice'  # 'gepa', 'bench' or 'holdout': no history in, no lessons out, no agenda step; bench and holdout also never promote
     parallel_ideas:bool=True
+    vault:str='history-v1'
+
+    def __post_init__(self):
+        if self.vault not in VAULTS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
 
 
 def market_sha256(engine):
@@ -334,7 +338,7 @@ def _run_cycle(engine,cycle_index):
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate becomes ELIGIBLE (stage 1).
             source=sandbox.record_for(audit['source_run_id'])
             promoted=promote(engine.project_root,cid,source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
-            eligible=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True)
+            eligible=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True,vault=engine.vault)
             if deflation['status']=='PASS': candidate['status']='QUEUED'
             candidate['queue']='ELIGIBLE';candidate['promoted_folder']=promoted['folder']
             ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'PROMOTED','candidate_id':cid,'queue_event_id':eligible['event_id'],

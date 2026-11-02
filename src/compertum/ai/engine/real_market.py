@@ -97,7 +97,7 @@ def open_market(project_root,manifest_path,*,sessions=None):
     snapshot manifest keeps its 500-session default."""
     root=Path(project_root).absolute()
     value=_json(_read(root,manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
-    if isinstance(value,dict) and value.get('kind')=='history':
+    if isinstance(value,dict) and value.get('kind') in ('history','french'):
         from .history_market import build_market
         return build_market(root,manifest_path,sessions=sessions)
     snapshot,symbol=load_snapshot(root,manifest_path)

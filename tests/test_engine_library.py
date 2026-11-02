@@ -147,4 +147,7 @@ def test_library_queue(bridge,monkeypatch):
     result=library.vault_score(queue,look['look_id'],cid,trend,load)
     assert result['status']=='SCORED' and result['result']['sessions']==len(vault) and result['confirmation']['trials']==1 and reads==[1]
     with pytest.raises(RuntimeRefused,match='^ENGINE_VAULT_REPEAT$'): library.vault_score(queue,look['look_id'],cid,trend,load)
-    assert reads==[1]
+    assert reads==[1] and queue.vault_of(cid)=='history-v1'
+    french={**trend,'symbol':'TRF','vault':'french-v1'};again=library.sweep([french],ledger,run_id='library-20261102-00000005',note='fixture')
+    ids=[r['queue']['candidate_id'] for r in again['rows'] if (r.get('queue') or {}).get('event')=='ELIGIBLE'];assert ids and all(queue.vault_of(i)=='french-v1' for i in ids)
+    peeked=next(r for r in again['rows'] if r['family']=='peek');assert peeked['causal'] is False and peeked['queue']['event']=='NOT_ADMITTED'

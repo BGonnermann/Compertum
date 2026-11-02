@@ -480,7 +480,13 @@ ledger.py 6b33151127240d8c -> a05f07c815bd8e38; limits.py 2e9d5291033b0134 -> cb
 fixed-write candidates) pass. Tests: engine lane 370 passed, 0 failed; product lane 308 passed, 0 failed, 8 skipped; harness lane 143 passed, 0 failed
 (the harness count includes uncommitted harness edits by another session, not part of this commit). No vault batch was opened.
 Owner on option 3: "im sure we dont need to pay"; a second search for free sources with delisted names is running.
-Exact next action: report the free-source search; ingest the holdings files when they are in the inbox.
+Owner, 2 November 2026, after three free-source searches: "go ahead with all three" (French library terms accepted for private research; session cap
+raised; 49 daily industry portfolios as a universe with its own vault). Built; see ENGINE_PLAN.md, "French library markets". Independent review,
+9 points, fixed with tests. Sealed files changed (SHA-256, first 16 hex, before -> after): market.py 5156205aae8b9515 -> fc66f7eba872e26a;
+run.py 8d548d1029c31c70 -> 3f90c681609ccb1d; vault.py c4cf5c916d6e472e -> dd0e7094ac377a35; cycle.py 3f7fa354652a1150 -> db97a0f65fc1fa1b.
+Tests: engine lane (with tests/test_engine_french.py) 376 passed, 0 failed; product lane 308 passed, 0 failed, 8 skipped; harness lane 143 passed, 0 failed.
+No vault batch was opened; no French vault row was scored.
+Exact next action: the owner-requested french49 sweep; then refresh the project map.
 Owner, 23:05 EDT: "fix the mathematician." Cause found: the thinking budget held (about 1,000 tokens in every reply); after it, Ornith at temperature 0
 repeated one sentence until the limit (a replay of a failed request: 843 of 1,088 lines repeated, 88 seconds). At 0.6, the model card's value, the same request
 finished in 13 seconds with a clean 46-line specification. Fix: a model file may set `temperature` per role (0 to 2), like `max_tokens`; the settings slot's

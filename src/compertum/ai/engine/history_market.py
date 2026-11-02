@@ -19,6 +19,7 @@ from compertum.runtime.errors import RuntimeRefused
 from .market import MAX_SESSIONS,market_csv,split_market_tiers
 
 MIN_HISTORY_SESSIONS=50
+HISTORY_SESSIONS=4096
 from .real_market import MANIFEST_BYTES,_json,_read
 
 
@@ -59,7 +60,7 @@ def load_history(project_root,manifest_path):
 
 
 def history_market(history,sessions=None):
-    closes=history['closes'];available=min(len(closes)-1,MAX_SESSIONS)
+    closes=history['closes'];available=min(len(closes)-1,HISTORY_SESSIONS)
     if sessions is None: sessions=available
     if type(sessions) is not int or sessions<MIN_HISTORY_SESSIONS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
     if sessions>available: raise RuntimeRefused('ENGINE_MARKET_COVERAGE_INCOMPLETE')
@@ -69,11 +70,17 @@ def history_market(history,sessions=None):
         if before<=0 or close<=0: raise RuntimeRefused('ENGINE_MARKET_DENIED')
         rows.append({'session':day,'close':format(close,'f'),'return':format(close/before-Decimal(1),'f')})
     train,validation,vault=split_market_tiers(rows)
-    provenance={'provider':'alpaca','feed':history['feed'],'symbol':history['symbol'],'adjustment':history['adjustment'],'chunks_sha256':history['chunks_sha256'],
+    provider=history.get('provider','alpaca')
+    provenance={'provider':provider,'feed':history['feed'],'symbol':history['symbol'],'adjustment':history['adjustment'],'chunks_sha256':history['chunks_sha256'],
                 'financial_accepted':False,'sessions_available':available,'market_start':rows[0]['session'],'market_end':rows[-1]['session']}
-    label=f"history alpaca/{history['feed']} {history['symbol']}, {rows[0]['session']} to {rows[-1]['session']}, {sessions} sessions, development only"
-    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':label,'provenance':provenance,'vault_sessions':len(vault)},vault
+    label=f"history {provider}/{history['feed']} {history['symbol']}, {rows[0]['session']} to {rows[-1]['session']}, {sessions} sessions, development only"
+    return {'train_csv':market_csv(train),'validation_csv':market_csv(validation),'validation_rows':validation,'label':label,'provenance':provenance,'vault_sessions':len(vault),
+            'vault':history.get('vault','history-v1')},vault
 
 
 def build_market(project_root,manifest_path,*,sessions=None):
+    value=_json(_read(Path(project_root).absolute(),manifest_path,MANIFEST_BYTES),'ENGINE_MARKET_MANIFEST_INVALID')
+    if isinstance(value,dict) and value.get('kind')=='french':
+        from .french_market import build_french
+        return build_french(project_root,manifest_path,sessions=sessions)
     return history_market(load_history(project_root,manifest_path),sessions)

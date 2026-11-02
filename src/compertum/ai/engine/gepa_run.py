@@ -474,7 +474,8 @@ def run_gepa(*,store,lease,project_root,sandbox_root,verification,roles,markets,
     def build_engine(prompts,market):
         return Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
                       train_csv=market['train_csv'],validation_csv=market['validation_csv'],validation_rows=market['validation_rows'],
-                      memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose='gepa')
+                      memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose='gepa',
+                      vault=market.get('vault','history-v1'))
     adapter=PromptAdapter(build_engine=build_engine,run_cycle=run_cycle,client=client,ledger=ledger,run_id=run_id,next_index=first,cycle_limit=bounds['cycle_limit'],
                           goal=goal,speed_weight=speed_weight)
     logger=QuietLogger();started=utc_now()
