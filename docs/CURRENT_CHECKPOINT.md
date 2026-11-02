@@ -19,7 +19,13 @@ Verification, source, through `tools/run_tests.py`. All jobs passed, and their w
 An earlier engine lane had 2 failures in `test_run_tests_tool.py`: another session committed 90e6b0e (a `run_tests.py` change) during that run. The rerun passed.
 Recorded synthetic calibrations changed with the stricter test; the tests record the new values (see the plan entry).
 
-Exact next action: a new french49 sweep under the new rules. The earlier sweep report cannot be admitted, because its scores no longer reproduce.
+Re-scored french49 sweep, `library-multi-20261102-c1d7704d`: 75 trials (total 28,315); no family passes the gate. xs_momentum (Sharpe 0.58 against 0.42,
++3.5% a year, deflated Sharpe 0.075) and dual_momentum (0.47, +3.2%, 0.002) beat the industries and pass the lag check. Both are stage-1 ELIGIBLE
+in `french-v1` for 2026-Q4. ew_trend, the earlier pass, now loses (-2.6% a year; -4.6% one session late). Details: `docs/ENGINE_PLAN.md`.
+The project map was refreshed: pages 1 and 2 were inspected; 9 pages, 81 links, 0 without a target.
+
+Exact next action: the owner chooses whether to run the real bench (`tools\practice.ps1 -Mode bench -BenchSet bench-french-1`) with the GLM baseline.
+On 2027-01-01 or later, `control close-quarter --quarter 2026-Q4` can queue the eligible french49 rules; a vault test needs the owner's OK.
 
 ## Efficiency research and low-risk changes - 2 November 2026
 

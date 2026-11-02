@@ -596,6 +596,14 @@ These change the judge, so the sealed files `market.py` (fc66f7eb to a059ea9c) a
   Of the 6 bench-1 and holdout-1 patterned markets, it passes on 1 (was 2).
 - Not changed: the DSR minimum 0.95, the trial count, the vault, the data tiers, the Auditor and the ledger. Earlier sweep reports cannot be
   admitted with `library_multi admit`, because their recorded scores no longer reproduce.
+- Re-scored french49 sweep, `library-multi-20261102-c1d7704d` (88 s, 75 trials recorded first; total 28,315). TRAIN 1926-07-01 to 1973-02-25,
+  VALIDATION 1973-02-26 to 2003-08-13. No family passes the gate. The equal-weight industries have a Sharpe ratio of 0.42 above the T-bill rate.
+  xs_momentum (252-session lookback, top 20%, monthly): Sharpe 0.58, +3.46% a year over the industries, +3.72% one session late, turnover 5.3 a
+  year, deflated Sharpe 0.075. dual_momentum (252, top 20%, monthly): Sharpe 0.47, +3.19% a year, deflated Sharpe 0.002. Both are stage-1
+  ELIGIBLE in `french-v1` for 2026-Q4 (recompute and lookahead checks passed). ew_trend, the earlier pass, now chooses a 200-session window on
+  TRAIN and loses: -2.64% a year, and -4.59% one session late. Its earlier result depended on costs that were too low and on same-day prices.
+  xs_reversal (-20.3% a year at 38 turns a year), xs_low_vol and breadth lose too. The earlier report `library-multi-20261102-6f0f36f0` stays
+  as history; it was never admitted.
 
 Code names (1 November 2026; owner rule: "any def are a max of two words"; scope chosen by the owner: engine, harness and tools, not the sealed files,
 the milestone product code or the product tests). Older entries in this plan keep the names of their time. Renamed: `real_market.load_market_manifest`
