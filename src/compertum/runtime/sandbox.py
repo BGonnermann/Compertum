@@ -7,11 +7,13 @@ Each job creates the container profile and deletes it when the job ends, so no f
 value in the container's own package storage survives from one job to the next. Each of the SLOTS
 sandbox slots has a fixed profile name (slot_profile), and Windows derives the container identity
 (SID) from the name, so every job in one slot has the same identity, and the slots have different
-identities (owner, 2 November 2026: a few small jobs at once). A firewall rule must therefore name
-all SLOTS identities. The grant on a job folder goes to the slot's identity only and is revoked
+identities (owner, 2 November 2026: a few small jobs at once). Any filter that names the sandbox
+identity must therefore name all SLOTS identities. The grant on a job folder goes to the slot's identity only and is revoked
 when the job ends, so no job can reach an earlier job folder or a folder of another slot.
 Measured on 2 November 2026: a job in one slot can reach a listener of a job in another slot over
-loopback (TCP and UDP). The engine therefore runs tool, Auditor and vault jobs alone (execution.py).
+loopback (TCP and UDP). Windows Firewall rules do not filter loopback; only a WFP filter (administrator
+rights, native code) could, and the owner declined that on 23 October 2026. The engine therefore runs
+tool, Auditor and vault jobs alone (execution.py).
 remove_stale_profile accepts the fixed slot names; call it only when no run is open.
 
 The Job Object keeps the section 6 limits: process and job memory, one process, one CPU,

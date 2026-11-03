@@ -11,10 +11,10 @@ Owner: step 3, "few small jobs at once". The sandbox has 3 slots (`SLOTS` in `ru
 - Measured: 3 jobs of 2 s each took 2.42 s together (6.8 s before the lock change).
   A job in one slot cannot read another slot's folder (PermissionError while both run).
   A job in one slot CAN reach a listener in another slot over loopback (TCP and UDP). That is why tool, Auditor and vault jobs run alone.
-  A per-SID firewall rule would close it, but it needs administrator rights, so it is an owner decision.
+  Windows Firewall rules do not filter loopback. Only a WFP filter could close it, which needs administrator rights and native code. The owner declined that option on 23 October 2026.
 - Independent review: no blocker; 6 findings. All 6 are fixed: the loopback channel (alone rule), freeze recheck, owner check for every job, merged observations, memory floor, and CPU spacing.
   The stale documentation is corrected (`sandbox.py` docstring, `docs/ENGINE_PLAN.md`, `execution.py`).
-Sealed files changed with the owner's approval of step 3: `runtime/sandbox.py` 6dab7467 to 6fd90ea5, `ai/engine/execution.py` 09d0acf6 to f89579a9, and `docs/BUILD_SPEC.md` (the sandbox slots amendment).
+Sealed files changed with the owner's approval of step 3: `runtime/sandbox.py` 6dab7467 to a834c93a (docstring corrected after the first commit), `ai/engine/execution.py` 09d0acf6 to f89579a9, and `docs/BUILD_SPEC.md` (the sandbox slots amendment).
 Verification, engine environment:
 - engine lane plus `tests/windows/test_harness_sandbox.py`: 281 passed, 0 failed, 0 skipped;
 - harness lane: 143 passed, 0 failed, 0 skipped;
