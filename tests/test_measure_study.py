@@ -70,3 +70,21 @@ def test_usable_sample(bridge):
 def test_empty_store(tmp_path):
     result=ms.run(tmp_path)
     assert result['candidates']==0 and result['vault']['n']==0 and 'No measured candidate has a vault result yet.' in ms.report_text(result)
+
+
+def test_book_test(bridge):
+    """Only candidates of alternate runs enter the paired test; they split by what their cycle showed; the gap has an interval."""
+    b,root=bridge;ledger=EngineLedger(b.store)
+    for run,mode in (('run-20261103-0000aaaa','alternate'),('run-20261103-0000bbbb','shown')):
+        ledger.record_run_phase(run,'START',{'book':mode})
+    for i in range(9):
+        cycle=f'cycle-{i:04d}-aaaaaaaa';shown=i%2==0;run='run-20261103-0000bbbb' if i==8 else 'run-20261103-0000aaaa'
+        ledger.record_cycle(cycle,i+1,'START',{'run_id':run,'show_book':shown})
+        record=measured(i,0.0,root);record['book']={'status':'MEASURED','combined_sharpe_gain':0.1*shown+0.01*i,'max_correlation':0.5}
+        ledger.record_step(cycle,3,'validator','score',{'phase':'SCORED','candidate_id':f'{cycle}:h1','measures':record})
+    test=ms.run(root)['book_test'];rows={r['measure']:r for r in test['table']}
+    assert test['shown']==4 and test['hidden']==4 and test['label']==ms.SMALL
+    gain=rows['book.combined_sharpe_gain'];assert gain['shown_n']==gain['hidden_n']==4
+    assert gain['difference']==pytest.approx((0.1+0.01*(0+2+4+6)/4)-0.01*(1+3+5+7)/4) and gain['interval'][0]<=gain['difference']<=gain['interval'][1]
+    assert rows['book.max_correlation']['difference']==pytest.approx(0.0) and rows['book.residual_sharpe']['difference'] is None
+    assert '## Book numbers shown or hidden' in ms.report_text(ms.run(root))

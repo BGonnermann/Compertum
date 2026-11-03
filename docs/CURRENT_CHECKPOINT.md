@@ -1,5 +1,19 @@
 # Current Compertum checkpoint
 
+## Alternating test of the book numbers - 3 November 2026
+
+- Owner, 3 November 2026: "build the alternating version". `-Book shown|hidden|alternate` replaces `-HideBook` (b2d5aef) in `tools\practice.ps1`; `--book` in `practice.py`.
+  alternate hides the book numbers in cycles 1, 4, 5, 8, 9, ... and shows them in cycles 2, 3, 6, 7, ... of one run (`levels.book_shown`), so both arms share one history.
+  The run START row records the mode, each cycle START row and each cycle entry record `show_book`. Other purposes refuse any mode but shown, before the START row.
+- `tools/measure_study.py` has a new section, "Book numbers shown or hidden": candidates of alternate runs only, the mean per arm, and the difference with a 95% bootstrap interval.
+- Sealed file: `run.py` 986ed9e5 to 62ab3500. `cycle.py` is unchanged (64729cb4).
+- Tests: `test_book_order`, `test_book_mode`, `test_book_alternate` (a run of 5 stand-in cycles), `test_book_test`, and the native `test_book_switch`. 30 passed.
+- To run the test (costs model credit; the owner decides when): `tools\practice.ps1 -Panel french49 -Book alternate -Cycles N -Requests R -Note "..."`.
+  About 30 candidates in each arm make the comparison usable.
+- Full check, source: engine 331 passed; product 379 passed, 8 skipped; harness 143 passed; tools 45 passed; 0 failed. PASS in 6.3 min.
+- Owner: "yes add it". The harness `/watch` engine card now shows the share of the cycle limit, for example `cycles: 7 of 20 (35%)` (`engine_watch._share`).
+  Harness lane after this change: 144 passed. New test `test_cycle_share`.
+
 ## Switch for the paired test of the book numbers - 3 November 2026
 
 - Owner, 3 November 2026: "build the switch". `tools\practice.ps1 -HideBook` (run mode only) hides the book numbers from the Director's lessons table.

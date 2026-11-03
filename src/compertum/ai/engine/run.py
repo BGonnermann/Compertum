@@ -18,6 +18,7 @@ from .audit import check_request_invariant
 from .bench import HOLDOUT_USES,REAL_SETS,SETS,fingerprint,report as bench_report,reserved_fingerprints,set_fingerprints
 from .cycle import Engine,run_cycle
 from .ledger import EVALUATION_PURPOSES,PURPOSES,EngineLedger
+from .levels import BOOK_MODES,book_shown
 from .limits import NOTE_LIMIT,RunGate,check_limits,load_run_settings,stop_reason,utc_now,write_summary
 from .prompts import COMPONENTS,load_component
 from .transcripts import TranscriptWriter
@@ -50,7 +51,7 @@ def real_bench(prints,project_root):
 
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market=None,memory_floor_bytes,limits,owner_approval,
                 available_memory=None,clock=time.monotonic,recursion_limit=40,summary=True,schedule=None,purpose='practice',prompts=None,holdout_set=None,
-                transcript_training_allowed=None,run_group=None,cycle_counter=None,show_book=True):
+                transcript_training_allowed=None,run_group=None,cycle_counter=None,book='shown'):
     """Run cycles until a limit. Returns the run state. Refusals before the START row leave no run record.
     schedule: for a bench or holdout run (bench.py), the market of each cycle in order; the cycle limit must not exceed its length.
     prompts: role prompts to measure (a GEPA candidate); None uses config/engine_prompts.
@@ -103,6 +104,8 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
     first=counter.peek()
     started=utc_now()
     # Everything that can refuse is built before the START row, so a refusal leaves no open run.
+    # The book mode (paired test of decision D1) applies to practice cycles only: other cycles see no lessons table.
+    if book not in BOOK_MODES or (book!='shown' and purpose!='practice'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     engines={}
     for item in schedule:
         if item.get('label') in engines: continue
@@ -114,11 +117,11 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         engines[item.get('label')]=Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
                                           train_csv=item['train_csv'],validation_csv=item['validation_csv'],validation_rows=item['validation_rows'],
                                           memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose=purpose,
-                                          vault=item.get('vault','history-v1'),market=item.get('panel'),show_book=show_book)
+                                          vault=item.get('vault','history-v1'),market=item.get('panel'),show_book=book!='hidden')
     state={'run_id':run_id,'purpose':purpose,'started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':[],'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None}
     start={'limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
-           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file),'show_book':show_book,**({'run_group':run_group} if run_group is not None else {})}
+           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file),'book':book,**({'run_group':run_group} if run_group is not None else {})}
     if purpose!='practice':
         # The committed prompts are hashed too (26 October 2026), so every evaluation run records the exact prompts it measured.
         measured=prompts if prompts is not None else {name:load_component(project_root,name) for name in COMPONENTS}
@@ -133,8 +136,9 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
             try: gate()
             except RuntimeRefused as error: state['reason']=stop_reason(error.code);break
             item=schedule[len(state['cycles'])%len(schedule)];index=counter.next()
-            result=run_cycle(engines[item.get('label')],index)
-            entry={'cycle_index':index,**{k:result.get(k) for k in CYCLE_KEYS}}
+            engine=engines[item.get('label')];engine.show_book=book_shown(book,len(state['cycles'])+1)
+            result=run_cycle(engine,index)
+            entry={'cycle_index':index,**{k:result.get(k) for k in CYCLE_KEYS},'show_book':engine.show_book}
             if purpose!='practice': entry.update(market=item.get('label'),scores=result.get('scores'))  # the bench report needs the scores
             state['cycles'].append(entry)
             state['requests']=client.requests

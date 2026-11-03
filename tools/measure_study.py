@@ -9,6 +9,7 @@ uses only the vault results that evaluate_in_vault already recorded.
   last third, with a 95% bootstrap interval, for each market and for all markets together. One combined least-squares model on the early
   measures gives a cross-validated R squared, to compare with Quantopian's 17%.
 - Vault study: the same table, with the full VALIDATION measures against the vault's active Sharpe ratio.
+- Book test: in -Book alternate runs, the candidates of shown and hidden cycles compared on their book numbers and their score.
 - Every table states its sample size. Below MIN_SAMPLE candidates, every result is labeled too small to use.
 """
 import argparse
@@ -37,6 +38,7 @@ OVERLAP=('exposure','turnover_per_year','concentration.effective_assets','concen
          'book.residual_sharpe')
 FULL=tuple(name.replace('early.','full.') for name in EARLY)+OVERLAP
 SMALL='too small to use'
+BOOK_OUTCOMES=('book.combined_sharpe_gain','book.max_correlation','book.residual_sharpe','full.active_sharpe')
 
 
 def read_ledger(root=ROOT):
@@ -48,6 +50,8 @@ def read_ledger(root=ROOT):
         def rows(sql): return [json.loads(r[0]) for r in connection.execute(sql)]
         try:
             ends={c['cycle_id']:c for c in rows("SELECT record FROM engine_cycles WHERE phase='END'")}
+            starts={c['cycle_id']:c for c in rows("SELECT record FROM engine_cycles WHERE phase='START'")}
+            modes={r['run_id']:r.get('book') for r in rows("SELECT record FROM engine_bounded_runs WHERE phase='START'")}
             steps=rows("SELECT record FROM engine_steps WHERE role='validator' AND kind='score'")
             events=rows("SELECT record FROM engine_queue WHERE event='VAULT_EVALUATED'")
         except sqlite3.OperationalError as error:
@@ -58,9 +62,9 @@ def read_ledger(root=ROOT):
     for step in steps:
         measured=step.get('measures')
         if step.get('phase')!='SCORED' or not isinstance(measured,dict) or measured.get('status')!='MEASURED': continue
-        end=ends.get(step['cycle_id']) or {}
+        end=ends.get(step['cycle_id']) or {};begin=starts.get(step['cycle_id']) or {}
         candidates.append({'candidate_id':step['candidate_id'],'purpose':end.get('purpose','unknown'),'market':measured.get('market_sha256') or end.get('market_sha256') or 'unknown',
-                           'measures':measured})
+                           'measures':measured,'show_book':begin.get('show_book'),'book_mode':modes.get(begin.get('run_id'))})
     vault={}
     for event in events:
         sharpe=((event.get('result') or {}).get('deflation_inputs') or {}).get('sharpe_per_period')
@@ -128,6 +132,23 @@ def study(records,names,target,rng,model_names):
             'combined':{'measures':usable,'r_squared':r2}}
 
 
+def arms(candidates,rng):
+    """The paired test of decision D1: candidates of alternate runs only, split by what their cycle's Director saw. For each outcome, the mean
+    in each arm and the difference shown minus hidden, with a 95% bootstrap interval. Below MIN_SAMPLE in either arm, too small to use."""
+    paired=[c for c in candidates if c.get('book_mode')=='alternate' and c.get('show_book') in (True,False)]
+    split={arm:[c['measures'] for c in paired if c['show_book'] is arm] for arm in (True,False)}
+    label=SMALL if min(len(v) for v in split.values())<MIN_SAMPLE else 'usable';out=[]
+    for name in BOOK_OUTCOMES:
+        a=np.asarray([v for v in (value(m,name) for m in split[True]) if v is not None]);b=np.asarray([v for v in (value(m,name) for m in split[False]) if v is not None])
+        gap=None;ci=None
+        if a.size and b.size:
+            gap=float(a.mean()-b.mean());draws=[rng.choice(a,a.size).mean()-rng.choice(b,b.size).mean() for _ in range(BOOTSTRAP)]
+            ci=(float(np.percentile(draws,2.5)),float(np.percentile(draws,97.5)))
+        out.append({'measure':name,'shown_n':int(a.size),'hidden_n':int(b.size),'shown_mean':float(a.mean()) if a.size else None,
+                    'hidden_mean':float(b.mean()) if b.size else None,'difference':gap,'interval':ci})
+    return {'shown':len(split[True]),'hidden':len(split[False]),'label':label,'table':out}
+
+
 def series_check(root,candidates):
     bad=[]
     for c in candidates:
@@ -148,7 +169,7 @@ def run(root=ROOT):
     return {'date':date.today().isoformat(),'candidates':len(candidates),'purposes':purposes,'series_problems':series_check(root,candidates),
             'proxy':{'all':proxy(candidates),**{m:proxy(g) for m,g in sorted(markets.items(),key=lambda kv:-len(kv[1]))}},
             'vault':study([c['measures'] for c in joined],FULL,[vault[c['candidate_id']] for c in joined],rng,tuple(n.replace('early.','full.') for n in EARLY)),
-            'vault_results':len(vault)}
+            'vault_results':len(vault),'book_test':arms(candidates,rng)}
 
 
 def number(v,places=2): return '-' if v is None else f'{v:.{places}f}'
@@ -175,6 +196,14 @@ def report_text(result):
         lines+=[f"### {'All markets' if name=='all' else 'Market '+name[:12]}",'']+table_text(part)+['']
     lines+=['## Vault study','',f"Vault results recorded: {result['vault_results']}. Joined with measured candidates: {result['vault']['n']}.",'']
     lines+=table_text(result['vault']) if result['vault']['n'] else ['No measured candidate has a vault result yet.']
+    test=result['book_test']
+    lines+=['','## Book numbers shown or hidden','','Candidates of `-Book alternate` runs only, split by what the Director saw in their cycle. Both arms share one history.',
+            f"Shown: {test['shown']} candidates. Hidden: {test['hidden']} candidates ({test['label']}).",'',
+            '| Outcome | Shown n | Shown mean | Hidden n | Hidden mean | Shown minus hidden | 95% interval |','|---|---|---|---|---|---|---|']
+    for row in test['table']:
+        ci=row['interval']
+        lines.append(f"| `{row['measure']}` | {row['shown_n']} | {number(row['shown_mean'])} | {row['hidden_n']} | {number(row['hidden_mean'])} | {number(row['difference'])} | "
+                     f"{'-' if ci is None else number(ci[0])+' to '+number(ci[1])} |")
     return '\n'.join(lines)+'\n'
 
 

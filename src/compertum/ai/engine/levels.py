@@ -26,6 +26,7 @@ NOT_BUILT_REJECTED='Not built: the Director rejected the memo.'
 NOT_BUILT_OTHER='Not built: a step failed or the cycle stopped before a candidate existed.'
 MAX_LESSONS=40
 BOOK_KEYS=('max_correlation','combined_sharpe_gain')
+BOOK_MODES=('shown','hidden','alternate')
 IDEA_CHARS=120
 
 
@@ -71,6 +72,13 @@ def cycle_level(result):
     scores=result.get('scores') or {}
     levels=[candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in result.get('candidates') or []]
     return max(levels) if levels else 1
+
+
+def book_shown(mode,position):
+    """Whether cycle number position (1, 2, ...) of a run shows the book numbers. alternate (owner, 3 November 2026: "build the alternating
+    version") runs hidden, shown, shown, hidden, and again: both arms share one history, and the order cancels a steady trend across the run."""
+    if mode not in BOOK_MODES or type(position) is not int or position<1: raise ValueError('book mode')
+    return (position-1)%4 in (1,2) if mode=='alternate' else mode=='shown'
 
 
 def without_book(summary):

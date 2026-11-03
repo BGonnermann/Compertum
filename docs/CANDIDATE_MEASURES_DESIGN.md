@@ -111,10 +111,13 @@ As built (3 November 2026): `.cache/engine-env/Scripts/python.exe tools/measure_
   As built: the roles see the two numbers in the Director's lessons table, as "book" on the row of an idea, from that idea's best candidate, rounded to 2 places. The Director prompt has one sentence that explains them.
   Finding, 3 November 2026: a bench cycle starts with no history and no lessons table (`ledger.blank_summary`). A bench exam therefore cannot show the numbers to the roles, and it cannot test them.
   The test needs paired practice runs on one real market instead: the same cycle count with and without the numbers. That needs a switch for the run, which is not built, and the owner's OK.
-  Switch built 3 November 2026 (owner: "build the switch"): `tools\practice.ps1 -HideBook` (`--hide-book`, run mode only) removes "book" from every lessons row that the roles see.
-  The measures are still recorded. The run's START row and each cycle's START row record `show_book`. GEPA, bench and holdout runs refuse the switch.
-  Limits of the test: today only the french49 panel has a non-empty book, so the test can run only there. Both arms then share that market's lessons table,
-  so a later arm sees the ideas of an earlier arm. A cleaner test would alternate shown and hidden cycles inside one run; that is not built.
+  Switch built 3 November 2026 (owner: "build the switch", then "build the alternating version"): `tools\practice.ps1 -Book shown|hidden|alternate` (`--book`, run mode only, default shown).
+  hidden removes "book" from every lessons row that the roles see. alternate hides the numbers in cycles 1, 4, 5, 8, 9, ... of the run and shows them in cycles 2, 3, 6, 7, ...
+  (`levels.book_shown`). Both arms then share one history, and this order cancels a steady trend across the run.
+  The measures are always recorded. The run's START row records the mode, and each cycle's START row records `show_book`. GEPA, bench and holdout runs refuse any mode but shown.
+  `tools/measure_study.py` compares the two arms of alternate runs: the mean of each outcome per arm, and the difference with a 95% bootstrap interval.
+  The outcomes are `book.combined_sharpe_gain`, `book.max_correlation`, `book.residual_sharpe` and `full.active_sharpe`. Below 30 candidates in either arm, the result is too small to use.
+  Limit: today only the french49 panel has a non-empty book, so the test can run only there (`-Panel french49 -Book alternate`).
 - D2. The book: stage-1 candidates and library stage-1 results on the same market. Recommendation: yes.
 - D3. Series storage for every scored candidate, or only for candidates that beat the baseline. Recommendation: every scored candidate. The study needs the weak and failed candidates too.
 - D4. The early proxy (first two thirds against the last third of VALIDATION). Recommendation: yes, reported as a proxy and never as vault evidence.

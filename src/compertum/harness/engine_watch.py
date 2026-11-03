@@ -36,6 +36,13 @@ def _when(text):
         return None
 
 
+def _share(done, limit):
+    """'7 of 20 (35%)'; without a cycle limit (an hour-limited run) no share can be known (owner, 3 November 2026: "yes add it")."""
+    if type(limit) is not int or limit < 1:
+        return f"{done} of {limit if limit is not None else '?'}"
+    return f"{done} of {limit} ({min(100, 100 * done // limit)}%)"
+
+
 def _summary(con, start, end, now):
     run_id = start["run_id"]
     limits = start.get("limits") or {}
@@ -56,7 +63,7 @@ def _summary(con, start, end, now):
         requests = cycles[-1].get("requests_after") if cycles else 0
     director = ((start.get("models") or {}).get("director") or {}).get("model", "")
     return {"run": run_id, "type": start.get("kind") or "engine", "model": director, "status": status,
-            "cycles": f"{len(cycles)} of {limits.get('cycle_limit', '?')}",
+            "cycles": _share(len(cycles), limits.get("cycle_limit")),
             "requests": f"{requests} of {limits.get('request_limit', '?')}",
             "elapsed": duration(elapsed) if isinstance(elapsed, (int, float)) else "unknown",
             "hour_limit": limits.get("hour_limit") or "none"}, cycles

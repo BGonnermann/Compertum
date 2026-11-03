@@ -146,15 +146,15 @@ def test_speed_weight(tmp_path,monkeypatch):
         practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,goal=goal)
 
 
-def test_hide_book(tmp_path,monkeypatch):
-    """--hide-book reaches the run as show_book=False; GEPA, bench and holdout runs refuse it, because their cycles see no lessons table."""
-    for options in ({'gepa':True},{'purpose':'bench'},{'purpose':'holdout'},{}):
+def test_book_mode(tmp_path,monkeypatch):
+    """--book reaches the run; GEPA, bench and holdout runs refuse any mode but shown, because their cycles see no lessons table."""
+    for book,options in (('hidden',{'gepa':True}),('alternate',{'purpose':'bench'}),('hidden',{'purpose':'holdout'}),('sometimes',{})):
         with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
-            practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=5,note='x',show_book=False if options else 'no',**options)
+            practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=5,note='x',book=book,**options)
     seen={}
     monkeypatch.setattr(practice,'run_practice',lambda *a,**k:seen.update(k) or {})
-    assert practice.main(['--project',str(tmp_path),'run','--requests','5','--note','x','--panel','french49','--hide-book'])==0 and seen['show_book'] is False
-    assert practice.main(['--project',str(tmp_path),'run','--requests','5','--note','x','--panel','french49'])==0 and seen['show_book'] is True
+    for argv,book in ((['--book','alternate'],'alternate'),(['--book','hidden'],'hidden'),([],'shown')):
+        assert practice.main(['--project',str(tmp_path),'run','--requests','5','--note','x','--panel','french49',*argv])==0 and seen['book']==book
 
 
 def test_several_models(tmp_path,capsys):

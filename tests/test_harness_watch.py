@@ -55,7 +55,7 @@ def test_running_first(tmp_path):
     store(root, [("run-old", "bench", 300, True, 4), ("run-live", "gepa", 42, False, 3)])
     runs = engine_runs(root)
     assert [item["run"] for item in runs] == ["run-live", "run-old"]
-    assert runs[0]["status"] == "RUNNING" and runs[0]["cycles"] == "3 of 100" and runs[0]["requests"] == "30 of 1000"
+    assert runs[0]["status"] == "RUNNING" and runs[0]["cycles"] == "3 of 100 (3%)" and runs[0]["requests"] == "30 of 1000"
     assert runs[1]["status"] == "ENDED (CYCLE_LIMIT)" and runs[1]["elapsed"] == "1:02:05"
     card = engine_card(root, "run-live")
     assert card["recent_cycles"][0] == "cycle 1 · COMPLETED · beats buy-and-hold · deflation FAIL · VERIFIED_PASS · idea 1"
@@ -80,9 +80,9 @@ def test_outside_run(tmp_path):
     steps = iter(["/watch", "/runs", "/exit"])
     main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
          pick_run=pick_run, watch=watch)
-    assert shown[0][0].startswith("run-live  gepa  RUNNING  cycles 2 of 100")
+    assert shown[0][0].startswith("run-live  gepa  RUNNING  cycles 2 of 100 (2%)")
     title, lines = watched[0]
-    assert title == "Watching run-live" and "status: RUNNING" in lines and "cycles: 2 of 100" in lines
+    assert title == "Watching run-live" and "status: RUNNING" in lines and "cycles: 2 of 100 (2%)" in lines
     text = output.getvalue()
     assert '"run": "run-live"' in text and '"engine_runs": [' in text
 
@@ -153,7 +153,7 @@ def test_pane_readonly(tmp_path):
     keys = iter(["", "q"])
     assert pane.main(["--project", str(root), "run-live"], out=out, get_key=lambda: next(keys)) == 0
     assert "Watching run-live" in out.getvalue() and "q closes this pane" in out.getvalue()
-    assert "cycles: 2 of 100" in out.getvalue()
+    assert "cycles: 2 of 100 (2%)" in out.getvalue()
     folder = root / "state" / "harness" / "runs"
     folder.mkdir(parents=True)
     record = {"id": "test-1", "kind": "test", "pid": os.getpid(), "started_wall": 1.0, "deadline": 60, "log": "test-1.log"}
@@ -169,3 +169,9 @@ def test_pane_readonly(tmp_path):
     assert not (root / "state" / "engine" / "STOP").exists()
     with pytest.raises(RunError, match="not found"):
         pane.card(root, "run-missing")
+
+
+def test_cycle_share():
+    from compertum.harness.engine_watch import _share
+    assert _share(7, 20) == "7 of 20 (35%)" and _share(0, 20) == "0 of 20 (0%)" and _share(25, 20) == "25 of 20 (100%)"
+    assert _share(3, None) == "3 of ?" and _share(3, "x") == "3 of x"

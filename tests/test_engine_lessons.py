@@ -2,10 +2,11 @@
 
 These tests need no engine library; they run in the product environment.
 """
+import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from compertum.events import canonical
 from compertum.ai.engine.ledger import SUMMARY_BYTES,EngineLedger
-from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,lessons,without_book
+from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,book_shown,lessons,without_book
 
 MARKET='a'*64
 OTHER='b'*64
@@ -48,6 +49,13 @@ def test_book_shown():
     assert rows[0]['book']=={'max_correlation':0.42,'combined_sharpe_gain':-0.03} and 'book' not in rows[1]
     ends.append(end(4,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_CLOSE}))
     assert 'book' not in lessons(ends,MARKET)[-1]
+
+
+def test_book_order():
+    assert [book_shown('alternate',i) for i in range(1,10)]==[False,True,True,False,False,True,True,False,False]
+    assert book_shown('shown',3) is True and book_shown('hidden',2) is False
+    for mode,position in (('sometimes',1),('alternate',0),('shown','1')):
+        with pytest.raises(ValueError): book_shown(mode,position)
 
 
 def test_without_book():

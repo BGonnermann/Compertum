@@ -21,8 +21,9 @@ belong to a provider in config\providers.toml; the engine reads the provider's k
 refuses at step 5 if it is missing. The key is never printed. Example: -Models deepseek (authorized 26 October 2026).
 -ReflectModels NAME and -ReflectModel ID (gepa only) send GEPA's reflection calls to another model file, for example -ReflectModels deepseek
 -ReflectModel deepseek-flash while the four roles run on the local model. The reflection requests count against the same request limit.
--HideBook (run only; 3 November 2026) hides the book numbers from the Director's lessons table, for the paired test of decision D1
-in docs\CANDIDATE_MEASURES_DESIGN.md. The measures are still recorded, and the run's START row records show_book.
+-Book shown|hidden|alternate (run only; 3 November 2026) shows or hides the book numbers in the Director's lessons table, for the paired test
+of decision D1 in docs\CANDIDATE_MEASURES_DESIGN.md. alternate hides them in cycles 1, 4, 5, 8, 9, ... and shows them in cycles 2, 3, 6, 7, ...
+The measures are always recorded. The run's START row records the mode, and each cycle's START row records show_book.
 The kill switch is unchanged: New-Item state\engine\STOP in a second window.
 
 .EXAMPLE
@@ -55,7 +56,7 @@ param(
     [ValidateSet('bench-french-1','bench-1','bench-2','bench-3','bench-4')][string]$BenchSet='bench-french-1',
     [string[]]$MarketManifest=@(),
     [ValidateSet('','french49')][string]$Panel='',
-    [switch]$HideBook,
+    [ValidateSet('shown','hidden','alternate')][string]$Book='shown',
     [int]$Seed=12,
     [string]$PromptsRun='',
     [int]$PromptsCandidate=-1,
@@ -92,7 +93,7 @@ if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest ap
 if ($Mode -ne 'run' -and $PSBoundParameters.ContainsKey('Seed')) { Fail '-Seed applies to run only; GEPA, bench and holdout markets are fixed' }
 if ($Mode -eq 'holdout') { Fail 'real market data only (owner, 1 November 2026): the holdout uses generated markets and is off until a real holdout exists' }
 if ($Mode -eq 'bench' -and $BenchSet -notlike 'bench-french-*') { Fail 'real market data only (owner, 1 November 2026): the generated bench sets are off; use -BenchSet bench-french-1' }
-if ($HideBook -and $Mode -ne 'run') { Fail '-HideBook applies to -Mode run only: GEPA, bench and holdout cycles see no lessons table' }
+if ($Book -ne 'shown' -and $Mode -ne 'run') { Fail '-Book applies to -Mode run only: GEPA, bench and holdout cycles see no lessons table' }
 if ($Panel -ne '' -and ($Mode -ne 'run' -or $MarketManifest.Count -gt 0)) { Fail '-Panel applies to -Mode run only, without -MarketManifest (one market kind per run)' }
 if (-not $evaluationMode -and $MarketManifest.Count -eq 0 -and $Panel -eq '') { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json, or -Panel french49' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
@@ -248,7 +249,7 @@ try {
         if ($Mode -eq 'run' -and $PSBoundParameters.ContainsKey('Seed')) { $arguments+=@('--seed',"$Seed") }
         foreach ($manifest in $MarketManifest) { $arguments+=@('--market-manifest',$manifest) }
         if ($Panel -ne '') { $arguments+=@('--panel',$Panel) }
-        if ($HideBook) { $arguments+=@('--hide-book') }
+        if ($Book -ne 'shown') { $arguments+=@('--book',$Book) }
         if ($ReflectModels -ne '' -or $ReflectModel -ne '') {
             if ($Mode -ne 'gepa') { Fail '-ReflectModels and -ReflectModel apply to -Mode gepa only' }
             if ($ReflectModels -eq '') { $ReflectModels='local' }

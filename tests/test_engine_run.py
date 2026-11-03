@@ -38,6 +38,23 @@ def start(bridge,project,root,verification,market,port,limits,**extra):
                        memory_floor_bytes=FLOOR,limits=limits,owner_approval='Owner OK for this fixture run',available_memory=extra.pop('available_memory',lambda:FLOOR+1),**extra)
 
 
+def test_book_alternate(bridge,project,root,verification,market,monkeypatch):
+    """--book alternate: cycles 1, 4 and 5 hide the book numbers and cycles 2 and 3 show them; the START row records the mode.
+    Other modes and other purposes are refused before the START row."""
+    from compertum.ai.engine import run as run_module
+    b,_=bridge;set_state(b.store,'RUNNING');seen=[]
+    def fake(engine,index):
+        seen.append(engine.show_book);return {'cycle_id':f'cycle-{index:04d}-0000aaaa','status':'COMPLETED','stop_code':None}
+    monkeypatch.setattr(run_module,'run_cycle',fake)
+    with role_server() as (port,_):
+        result=start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=5),book='alternate')
+        for book,purpose in (('sometimes','practice'),('hidden','bench')):
+            with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
+                start(bridge,project,root,verification,market,port,RunLimits(request_limit=10,cycle_limit=1),book=book,purpose=purpose)
+    assert seen==[False,True,True,False,False] and [c['show_book'] for c in result['cycles']]==seen
+    rows=EngineLedger(b.store).run_rows(result['run_id']);assert rows[0]['book']=='alternate' and EngineLedger(b.store).open_runs()==[]
+
+
 def test_cycle_limit(bridge,project,root,verification,market):
     b,_=bridge;set_state(b.store,'RUNNING')
     with role_server() as (port,state):
