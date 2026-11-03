@@ -1,5 +1,15 @@
 # Current Compertum checkpoint
 
+## Candidate measures, the mandate and the overseer - 2 November 2026
+
+- Design `docs/CANDIDATE_MEASURES_DESIGN.md`: the owner approved D2 to D4 and the middle path for D1. Nothing is built. Next: part 1, the measures and the series files.
+- Draft `docs/FIRM_MANDATE.md`, for the owner to edit. It is not in force.
+- Owner idea: a third role that sees all data except the vault and warns the others when the firm drifts from the mandate.
+  Proposal: an advisor with fixed message types that can pause the engine and ask the owner. It does not reject candidates. A design follows after the mandate.
+- Open M5 item: the live loop. The roles watch live results, discuss them and adjust (owner: "if we place a trade and they see it not going well then it can talk to one another and adjust").
+  Proposed rules: cut risk quickly, add risk only through the gate, compare against the expected range, count every change as a trial, and record the reasons.
+  Paper and live orders each need the owner's explicit authority.
+
 ## Lean cycle kept; one check command - 2 November 2026
 
 Lean cycle (owner: "keep the two steps off"). The committed `config/engine_prompts/routing.md` now holds `approve: skip` and `review: off` (commit a2afead).
