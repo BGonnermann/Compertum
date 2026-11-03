@@ -20,7 +20,20 @@ Verification, engine environment:
 - engine lane plus `tests/windows/test_harness_sandbox.py`: 307 passed, 0 failed, 0 skipped, including the native end-to-end panel cycle with the Auditor's 3 panel reruns;
 - harness lane: 143 passed, 0 failed, 0 skipped.
 
-Exact next action: the first panel practice run on GLM 5.3 flash.
+First panel practice run, `run-20261103-b24b6116` (GLM 5.3 flash, 2 cycles, `CYCLE_LIMIT`): 39 requests, 148 s, $0.0117.
+| Candidate | Sharpe | Equal-weight Sharpe | Excess per year | Beats (lag check too) | Auditor |
+|---|---|---|---|---|---|
+| cycle 1 h1 | - | - | - | `ENGINE_SIGNALS_INVALID` (weights.csv refused) | - |
+| cycle 1 h2 | 0.462 | 0.421 | 0.35% | yes | VERIFIED_FAIL: weights before the changed tail moved (cut at k=106) |
+| cycle 1 h3 | 0.377 | 0.421 | -3.33% | no | - |
+| cycle 2 h1 | 0.437 | 0.421 | 0.90% | yes | VERIFIED_PASS, NOT_QUEUED |
+| cycle 2 h2 | 0.534 | 0.421 | 0.44% | yes | VERIFIED_PASS, NOT_QUEUED |
+| cycle 2 h3 | 0.427 | 0.421 | 0.05% | yes | VERIFIED_PASS, NOT_QUEUED |
+Every deflated Sharpe ratio is far below the gate (at most 0.0021 against 0.95), with about 28,000 trials counted.
+4 of 5 scored panel candidates beat the equal-weight benchmark, against 0 of about 95 single-asset candidates on the real bench today. The rebalance-cut Auditor caught one candidate that used future data.
+Run starts: the storage scan refused this run once with `STORAGE_SCAN_DEADLINE`, right after an engine test lane. That is 4 refusals today (3 after test lanes, 1 while a game used the CPU). The scan measured 18 to 25 s against its 30 s limit.
+
+Exact next action: the owner decides whether to clean up disposable test files under `.cache/test-runs` (about 250,000 files) for storage-scan headroom. Step 4 is open.
 
 ## Efficiency path step 3: three sandbox slots - 2 November 2026
 
