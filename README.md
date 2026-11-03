@@ -22,9 +22,11 @@ Engine runs started with `/run`, `/gepa` or `/bench` get their own hidden consol
 Output uses orange marks, grey detail and one blank line between blocks.
 In Windows Terminal, `/watch` opens a read-only pane on the right, so the prompt stays free.
 `/data` opens a read-only pane with a progress bar for history downloads (`data/indices/pull-progress.json`).
-Harness 0.6.6: the harness lane passed 143 tests, with zero failures and zero skips.
+Harness 0.6.6: the harness lane passed 147 tests, with zero failures and zero skips (3 November 2026).
 A new session receives the `AGENTS.md` rules in its system prompt. A long conversation is compacted into a summary at 80 percent of its limit, and a task stops when the model repeats one tool call 3 times.
 `/watch` lists running and recent runs, including engine runs started with `tools\practice.ps1`, and opens a live view.
+The first choice, `newest` (also `/watch newest`), follows the newest engine run. A run that starts later replaces it at the next refresh.
+The view fits the pane height. It removes the oldest list rows first, so the newest activity stays visible.
 The native lane for 0.6.2 ran four of its six tests: four passed, zero failed. The two sandbox tests were not run during the bench-4 run. The owner's live DeepSeek sandbox smoke task also passed. See [the harness plan](docs/HARNESS_PLAN.md).
 
 ## M3 engineering accepted; 19 October work committed - 23 October 2026

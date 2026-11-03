@@ -14,7 +14,7 @@ from .commands import EXAMPLES, USAGES, help_text
 from .config import known_models, load, model_files, remember, remember_models, remembered
 from .display import Display, readable
 from .editor import LineEditor, LiveView, Picker, enable_vt
-from .engine_watch import engine_card, engine_runs
+from .engine_watch import NEWEST, engine_card, engine_runs, follow_card
 from .downloads import painted, progress_lines, read_progress
 from .pane import available as pane_available, open_downloads, open_pane
 from .endpoint import parse
@@ -190,6 +190,8 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
 
     def run_card(identity):
         """Return a harness run card with its last log lines, or an engine run's progress."""
+        if identity == NEWEST:
+            return follow_card(root)
         if identity in runs.active:
             card = runs.report(identity)
             card["log_tail"] = "\n".join(card.get("log_tail", "").splitlines()[-10:])
@@ -312,10 +314,11 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
                 if identity is None:
                     choices = watch_choices()
                     if not choices:
-                        output.note("No runs yet.")
+                        output.note("No runs yet. /watch newest shows the next engine run when it starts.")
                     elif pick_run is None:
                         identity = choices[0][0]  # Scripted input: the newest running run, else the newest run.
                     else:
+                        choices.insert(0, (NEWEST, "newest  follows the newest engine run, and each new run when it starts"))
                         picked = pick_run([label for _, label in choices])
                         identity = None if picked is None else choices[picked][0]
                 if identity is not None:
@@ -326,7 +329,8 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
                         output.note(f"Watching {identity} in the pane on the right. Press q there to close it.")
                         continue
                     if watch is not None:
-                        watch(f"Watching {identity}", lambda: readable(fetch()).splitlines())
+                        title = "Watching the newest engine run" if identity == NEWEST else f"Watching {identity}"
+                        watch(title, lambda: readable(fetch()).splitlines())
                     output.json(fetch())  # The last snapshot stays on screen after the live view closes.
             elif text == "/data" or text.startswith("/data "):
                 if text != "/data":

@@ -12,13 +12,15 @@ from pathlib import Path
 from .display import readable
 from .downloads import DownloadView
 from .editor import LiveView, enable_vt
-from .engine_watch import engine_card
+from .engine_watch import NEWEST, engine_card, follow_card
 from .runs import RunError, read_card
 
 RUN_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
 
 
 def card(root: Path, identity: str):
+    if identity == NEWEST:
+        return follow_card(root)
     if (root / "state" / "harness" / "runs" / f"{identity}.json").is_file():
         return read_card(root, identity)
     return engine_card(root, identity)
@@ -42,7 +44,7 @@ def _split(root: Path, title: str, arguments, spawn, which):
 def open_pane(root: Path, identity: str, spawn=subprocess.Popen, which=shutil.which):
     if not RUN_ID.fullmatch(identity):
         raise RunError("the run ID is not valid")
-    _split(root, f"Watch {identity}", [identity], spawn, which)
+    _split(root, "Watch the newest run" if identity == NEWEST else f"Watch {identity}", [identity], spawn, which)
 
 
 def open_downloads(root: Path, spawn=subprocess.Popen, which=shutil.which):
@@ -64,7 +66,8 @@ def main(argv=None, out=None, get_key=None):
     if args.downloads:
         view = DownloadView(out, root, get_key=get_key, color=color)
     else:
-        view = LiveView(out, lambda: readable(card(root, args.run)).splitlines(), f"Watching {args.run}",
+        title = "Watching the newest engine run" if args.run == NEWEST else f"Watching {args.run}"
+        view = LiveView(out, lambda: readable(card(root, args.run)).splitlines(), title,
                         get_key=get_key, color=color, hint="q closes this pane")
     try:
         view.read()

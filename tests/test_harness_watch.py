@@ -71,7 +71,7 @@ def test_outside_run(tmp_path):
 
     def pick_run(options):
         shown.append(options)
-        return 0
+        return 1
 
     def watch(title, fetch):
         watched.append((title, fetch()))
@@ -80,7 +80,8 @@ def test_outside_run(tmp_path):
     steps = iter(["/watch", "/runs", "/exit"])
     main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
          pick_run=pick_run, watch=watch)
-    assert shown[0][0].startswith("run-live  gepa  RUNNING  cycles 2 of 100 (2%)")
+    assert shown[0][0].startswith("newest  follows the newest engine run")
+    assert shown[0][1].startswith("run-live  gepa  RUNNING  cycles 2 of 100 (2%)")
     title, lines = watched[0]
     assert title == "Watching run-live" and "status: RUNNING" in lines and "cycles: 2 of 100 (2%)" in lines
     text = output.getvalue()
@@ -193,3 +194,46 @@ def test_recent_activity(tmp_path):
     assert lines[-2] == "cycle 7 · engineer · write_file /main.py, run_job main.py"
     assert lines[-1].startswith("cycle 7 · director · 1. Pick Momentum on ") and "\x1b" not in lines[-1] and lines[-1].endswith(" · FAILED")
     assert activity(tmp_path, "run-20261103-0000bbbb") == ["no transcript yet"] and activity(tmp_path, "../../etc") == ["no transcript"]
+
+
+def test_follow_newest(tmp_path):
+    """/watch newest shows the newest engine run, and a run that starts later replaces it at the next refresh."""
+    from compertum.harness import pane
+    from compertum.harness.engine_watch import follow_card, newest_run
+    root = project(tmp_path)
+    assert newest_run(root) is None and follow_card(root)["status"] == "WAITING"
+    store(root, [("run-old", "bench", 300, True, 1)])
+    assert follow_card(root)["run"] == "run-old"
+    (root / "state" / "research.sqlite").unlink()
+    store(root, [("run-old", "bench", 300, True, 1), ("run-new", "gepa", 1, False, 2)])
+    assert newest_run(root) == "run-new" and follow_card(root)["cycles"] == "2 of 100 (2%)"
+    watched = []
+    output = StringIO()
+    steps = iter(["/watch", "/watch newest", "/exit"])
+    main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
+         pick_run=lambda options: 0, watch=lambda title, fetch: watched.append((title, fetch())))
+    assert [title for title, _ in watched] == ["Watching the newest engine run"] * 2
+    assert "run: run-new" in watched[0][1] and "/watch [RUN_ID|newest]" in main.__globals__["help_text"]()
+    out = StringIO()
+    keys = iter(["", "q"])
+    assert pane.main(["--project", str(root), "newest"], out=out, get_key=lambda: next(keys)) == 0
+    assert "Watching the newest engine run" in out.getvalue() and "run: run-new" in out.getvalue()
+    commands = []
+    pane.open_pane(root, "newest", spawn=lambda command, **kwargs: commands.append(command), which=lambda name: "wt.exe")
+    assert "Watch the newest run" in commands[0] and commands[0][-4] == "newest"
+
+
+def test_view_fits():
+    """A card taller than the pane keeps every label and the newest list rows; the oldest rows of the last list go first."""
+    from compertum.harness.editor import fit
+    rows = ["run: x", "recent cycles:", "  - c1", "  - c2", "recent activity:", *(f"  - a{i}" for i in range(6))]
+    assert fit(rows, 20) == rows
+    assert fit(rows, 8) == ["run: x", "recent cycles:", "  - c1", "  - c2", "recent activity:", "  - a3", "  - a4", "  - a5"]
+    assert fit(rows, 5) == ["run: x", "recent cycles:", "  - c2", "recent activity:", "  - a5"]
+    assert fit(rows, 3) == ["run: x", "recent cycles:", "↓ 3 more rows; a taller pane shows them"]
+    assert fit(["a", "b"], 0) == ["↓ 2 more rows; a taller pane shows them"]
+    output = StringIO()
+    keys = iter(["q"])
+    view = LiveView(output, lambda: rows, "Watching run-x", get_key=lambda: next(keys), width=80, height=10)
+    view.read()
+    assert "a5" in output.getvalue() and "a2" not in output.getvalue() and "c1" in output.getvalue()

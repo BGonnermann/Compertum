@@ -15,7 +15,7 @@ COMMANDS = (
     ("/bench", "/bench CYCLES REQUESTS HOURS NOTE", "start a bounded bench run"),
     ("/limits", "/limits [STEPS MINUTES]", "show or change the task step and time limits"),
     ("/runs", "/runs", "show uniform run cards"),
-    ("/watch", "/watch [RUN_ID]", "show the newest run card, or one run"),
+    ("/watch", "/watch [RUN_ID|newest]", "watch a run; newest follows each new engine run"),
     ("/data", "/data", "watch history downloads"),
     ("/stop", "/stop RUN_ID", "stop a run you started"),
     ("/clear", "/clear RUN_ID", "dismiss a terminal or unverifiable run"),

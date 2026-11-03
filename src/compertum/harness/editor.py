@@ -446,19 +446,40 @@ class Picker(LineEditor):
             self._finish()
 
 
+def fit(rows, room):
+    """Fit rows to the screen. The oldest rows of each indented list go first, last list first, so the newest rows stay."""
+    rows = list(rows)
+    room = max(1, room)
+    blocks, start = [], None
+    for index, row in enumerate([*rows, ""]):
+        if row.startswith(" ") and start is None:
+            start = index
+        elif not row.startswith(" ") and start is not None:
+            blocks.append([start, index])
+            start = None
+    for block in reversed(blocks):
+        drop = min(len(rows) - room, block[1] - block[0] - 1)
+        if drop > 0:
+            del rows[block[0]:block[0] + drop]
+    if len(rows) > room:
+        rows = rows[:room - 1] + [f"↓ {len(rows) - room + 1} more rows; a taller pane shows them"]
+    return rows
+
+
 class LiveView(Picker):
     """A plain-text view that refreshes until Esc, Enter or q. Watching never changes the run."""
 
     def __init__(self, out, fetch, title, get_key=None, width=None, every=2.0, clock=time.monotonic, color=False,
-                 hint="Esc returns to the prompt"):
+                 hint="Esc returns to the prompt", height=None):
         super().__init__(out, [], get_key=get_key, width=width, title=title, color=color)
         self.fetch, self.every, self.clock, self.rows, self.fetched = fetch, every, clock, ["loading"], None
-        self.hint = hint
+        self.hint, self.height = hint, height
 
     def _lines(self):
         width = self._size()
         heading = f"{self.title} · refreshes every {self.every:g} s · {self.hint}"
-        rows = [row[:width] for row in self.rows] or [""]
+        height = self.height or (None if self.width else shutil.get_terminal_size((100, 24)).lines)
+        rows = [row[:width] for row in (fit(self.rows, height - 3) if height else self.rows)] or [""]
         return heading[:width], "", rows[0], rows[1:], 1
 
     def _paint(self, index, line):

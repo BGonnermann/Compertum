@@ -1,5 +1,26 @@
 # Current Compertum checkpoint
 
+## /watch follows the newest run and fits the pane - 3 November 2026
+
+- Owner, 3 November 2026: "figure out how /watch can populate automatically with the newest information" and work "without error or bugs".
+- What was wrong before:
+  - The view refreshed every 2 s, but it stayed on one run ID. A new run appeared only after a new `/watch`.
+  - A harness `/run` gets a `practice-...` ID. The engine makes its own `run-...` ID, so the harness card could not show cycles or activity.
+  - The live view moves the cursor by relative rows. A frame taller than the pane scrolled the terminal, and later refreshes drew on the wrong rows.
+    The engine card with "recent activity" has about 31 rows, more than a typical 40% split pane.
+- Changes:
+  - New watch target `newest` (`engine_watch.newest_run`, `follow_card`). Each refresh shows the engine run with the newest START row.
+    It covers runs from `tools\practice.ps1` and from the harness. Before the first run it shows `WAITING`.
+  - `/watch` with no ID lists `newest` first. `/watch newest` and the side pane (`pane.py newest`) also work.
+  - `editor.fit`: `LiveView` fits rows to the terminal height. It removes the oldest rows of the last indented list first, keeping one row per list.
+    If the rows still do not fit, the view cuts the end and shows a "more rows" line.
+  - `_step_line` accepts a transcript line whose `tool_calls` is not a list.
+- Native trial on master's store: follow card 0.078 s; the 31-row card for `run-20261103-134ce184` fit a 24-row view in 23 rows.
+- Tests: new `test_follow_newest` and `test_view_fits`; `test_outside_run` now expects `newest` as the first picker row.
+- Check, source: harness 147 passed; tools 45 passed; 0 failed, 0 skipped. PASS in 0.3 min.
+  The engine and product lanes were not rerun: no file that they test changed, and another session's uncommitted import cleanup is in the same tree.
+- Limits: a harness `/run` appears in `newest` only after the engine writes its START row. A harness `/test` run is not an engine run, so `newest` does not show it.
+
 ## First book test, /watch activity and five research reports - 3 November 2026
 
 - Owner: "run the alternate test with 20 cycles". Run `run-20261103-134ce184` (`-Panel french49 -Book alternate`, GLM 5.3 flash): 20 cycles, 381 requests, 1,439 s, $0.165, CYCLE_LIMIT.

@@ -16,6 +16,7 @@ ACTIVITY = 15
 TAIL_BYTES = 2 * 1024 * 1024
 LINE_CHARS = 140
 RUN_ID = re.compile(r"run-[0-9]{8}-[0-9a-f]{8}")
+NEWEST = "newest"
 
 
 def _connect(root: Path):
@@ -132,6 +133,29 @@ def engine_card(root: Path, run_id: str, recent: int = 6):
     return card
 
 
+def newest_run(root: Path):
+    """The engine run with the newest START row, or None."""
+    con = _connect(root)
+    if con is None:
+        return None
+    try:
+        row = con.execute("select run_id from engine_bounded_runs where phase = 'START' "
+                          "order by recorded_at desc limit 1").fetchone()
+    except sqlite3.Error:
+        raise RunError("the research store cannot be read now") from None
+    finally:
+        con.close()
+    return row[0] if row else None
+
+
+def follow_card(root: Path):
+    """The newest engine run's card. Each refresh looks again, so a new run replaces the old one once its START row exists."""
+    run_id = newest_run(root)
+    if run_id is None:
+        return {"status": "WAITING", "note": "no engine run yet; the next run shows here when it starts"}
+    return engine_card(root, run_id)
+
+
 def activity(root: Path, run_id: str, count: int = ACTIVITY):
     """The last steps of the run's transcript, oldest first, one line each (owner, 3 November 2026: "so I can see the firm working").
     Only the end of the file is read, so a long run stays quick to watch."""
@@ -166,7 +190,8 @@ def _plain(text):
 def _step_line(entry):
     cycle = re.match(r"cycle-0*(\d+)", str(entry.get("cycle_id") or ""))
     parts = [f"cycle {cycle.group(1)}" if cycle else "tool", _plain(entry.get("role") or "?")]
-    calls = [c for c in entry.get("tool_calls") or [] if isinstance(c, dict)]
+    calls = entry.get("tool_calls")
+    calls = [c for c in calls if isinstance(c, dict)] if isinstance(calls, list) else []
     if calls:
         named = []
         for call in calls[:3]:
