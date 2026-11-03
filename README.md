@@ -14,7 +14,7 @@ Tool steps show as short lines such as `● Edit src/x.py`. Edits and writes sho
 A spinner shows the step and elapsed time while the model or a tool works. The Windows Terminal tab shows a busy ring.
 The harness starts with the last `/model` choice, also after `/resume`. The box title shows the active model.
 Type `/model` and press Enter to pick a model with the arrow keys. Engine runs refuse Kimi, whose subscription is interactive-only.
-Each task may use 100 steps and 60 minutes. `/limits STEPS MINUTES` changes this for the open console. `/model kimi` selects Kimi's default. `/model deepseek deepseek-flash` selects an exact model.
+Each task may run without a step limit, up to 60 minutes. `/limits none 60` sets this; `/limits STEPS MINUTES` sets a step cap for the open console. `/model kimi` selects Kimi's default. `/model deepseek deepseek-flash` selects an exact model.
 `/models [NAME]` lists model IDs without a completion or a selection change. Selection preserves the conversation and future run defaults.
 Type `/help` for commands. Engine commands require cycle, request and hour limits.
 The model receives no run-start tool. Read, write and edit protect fixed code, rules, credentials and runtime state. Bash relies on the system prompt.
