@@ -1,6 +1,6 @@
 # Design: portfolio-weight candidates from the AI firm (efficiency path, step 6)
 
-Status: design for owner review. No code is written yet. Owner, 2 November 2026: step 6 "agreed, approved"; "write the design ill review it and we go from there."
+Status: approved by the owner on 2 November 2026 ("approved"), with D1 to D4 as recommended: anonymous names and session numbers, long only with cash, one market kind per run, the vault route later. No code is written yet. Owner, 2 November 2026: step 6 "agreed, approved"; "write the design ill review it and we go from there."
 Source: `docs/EFFICIENCY_RESEARCH.md` (second cycle, step 7) and `docs/IMPROVEMENT_RESEARCH.md` item 4.
 
 ## Why
