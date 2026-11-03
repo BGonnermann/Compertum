@@ -58,6 +58,15 @@ Each job keeps its own deadline, memory, process and disk limits. A run starts o
 While any engine job runs, the engine holds the project's one heavy-job slot. Other heavy jobs, such as campaigns, still wait or refuse as before.
 In section 19, "Only one heavy job runs at a time" now means one heavy job outside the engine sandbox, plus at most 3 engine sandbox jobs.
 
+## Lean cycle amendment - 2 November 2026
+
+The owner chose to keep two cycle steps off: "keep the two steps off". The committed routing (`config/engine_prompts/routing.md`) sets `approve: skip` and `review: off`.
+- The Director no longer approves or rejects each memo. Code approves every memo and records the skip. In bench runs and in a record of 641 approvals out of 647 memos, the step changed almost nothing.
+- The Mathematician no longer reviews the code. In practice runs that review was only recorded.
+- Measured on bench-french-1 with GLM 5.3 flash: 27% fewer requests and 34% less wall time. The mean Sharpe gap was -0.655 (0.118) against -0.630 (0.120), within noise.
+- Both steps stay available as routing values (`approve: yes`, `review: advice` or `rebuild`), and GEPA may propose them.
+Section 19, cycle steps 2 and 4, read with this amendment.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

@@ -153,6 +153,7 @@ def market():
 def project(tmp_path):
     """A project folder with the real role prompts. Promotions (E6) land under its state/engine, never under master's."""
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    (tmp_path/'config'/'engine_prompts'/'routing.md').write_text(routing_text(dict(ROUTING_DEFAULT,specify_sees_tool='yes')),encoding='utf-8',newline='\n')
     return tmp_path
 
 

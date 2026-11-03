@@ -329,6 +329,7 @@ def record_hashes(run_folder,index):
 
 def test_apply_prompts(tmp_path):
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    (tmp_path/'config'/'engine_prompts'/'routing.md').write_text(routing_text(dict(ROUTING_DEFAULT,specify_sees_tool='yes')),encoding='utf-8',newline='\n')
     run_id='run-20261024-0123abcd';folder=tmp_path/PROMPTS_DIR/run_id/'candidate-1';folder.mkdir(parents=True)
     for role in ROLES: (folder/f'{role}.md').write_text(f'ROLE: {role}\nImproved prompt for the {role} role. Keep every output format rule of the original.\n',encoding='utf-8')
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_UNAVAILABLE$'): apply_prompts(tmp_path,run_id,1)  # no result.json
@@ -470,7 +471,7 @@ def test_slot_shapes(tmp_path):
     for name in ('routing','settings','tool','starter'):
         committed=load_component(PROJECT,name);assert check_prompt(name,committed)==committed and load_component(tmp_path,name)==default_component(name)
     assert parse_settings(load_component(PROJECT,'settings'))==SETTINGS_DEFAULT and default_component('starter')==STARTER_MAIN
-    assert parse_routing(load_component(PROJECT,'routing'))==dict(ROUTING_DEFAULT,specify_sees_tool='yes')  # the committed firm sends the tool's report to the Mathematician
+    assert parse_routing(load_component(PROJECT,'routing'))==dict(ROUTING_DEFAULT,specify_sees_tool='yes',review='off',approve='skip')  # the committed firm sends the tool's report to the Mathematician; lean cycle since 2 November 2026
     for name,bad,code in (('settings','SETTINGS\nhypotheses: 4\n','ENGINE_SETTINGS_INVALID'),('settings',options_text('settings',SETTINGS_DEFAULT).replace('model','32768',1),'ENGINE_SETTINGS_INVALID'),
                           ('tool','print(1\n','ENGINE_TOOL_INVALID'),('tool','x'*70000,'ENGINE_TOOL_INVALID'),('starter','   \n','ENGINE_STARTER_INVALID')):
         with pytest.raises(RuntimeRefused,match=f'^{code}$'): check_prompt(name,bad)
@@ -490,7 +491,7 @@ def test_slot_shapes(tmp_path):
 
 def test_routing_component(bridge,tmp_path):
     """Routing (owner direction, 26 October 2026): GEPA chooses routes, code reads only the listed keys and values, and the defaults keep the old cycle."""
-    committed=load_component(PROJECT,'routing');assert parse_routing(committed)['review']=='advice'
+    committed=load_component(PROJECT,'routing');assert parse_routing(committed)['review']=='off' and parse_routing(committed)['approve']=='skip'
     assert load_component(tmp_path,'routing')==routing_text(ROUTING_DEFAULT)  # no file: the default routes
     assert check_prompt('routing',committed)==committed
     for bad in ('',"review: advice\n",routing_text(ROUTING_DEFAULT).replace('advice','always'),routing_text(ROUTING_DEFAULT)+'review: off\n',

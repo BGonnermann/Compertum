@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 import pytest
+from compertum.ai.engine.prompts import ROUTING_DEFAULT,routing_text  # noqa: E402
 deepagents=pytest.importorskip('deepagents')
 from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
 from test_ai_models_interface import FLOOR,roles  # noqa: E402
@@ -26,6 +27,7 @@ PROJECT=Path(__file__).resolve().parents[1]
 def project(tmp_path):
     """A project folder with the real role prompts and an owner-set hard maximum of 200. Summaries go under its state/engine."""
     shutil.copytree(PROJECT/'config'/'engine_prompts',tmp_path/'config'/'engine_prompts')
+    (tmp_path/'config'/'engine_prompts'/'routing.md').write_text(routing_text(dict(ROUTING_DEFAULT,specify_sees_tool='yes')),encoding='utf-8',newline='\n')
     (tmp_path/'config'/'engine.toml').write_text('[run]\nrequest_hard_maximum = 200\n',encoding='utf-8')
     return tmp_path
 
