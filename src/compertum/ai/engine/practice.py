@@ -32,7 +32,7 @@ from compertum.runtime.errors import RuntimeRefused
 from compertum.runtime.identity import resolve_project
 from compertum.runtime.jobs import available_physical_memory
 from compertum.runtime.owners import acquire_owner,release_owner
-from compertum.runtime.sandbox import verify_sandbox
+from compertum.runtime.sandbox import verify_slots
 from compertum.storage import StorageManager
 from compertum.ai.models import MODEL_LIST_BYTES,auth_headers,checked_spec,load_models,model_id,model_ids
 from .audit import engine_fixed_targets
@@ -221,7 +221,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         store=StorageManager(lease,load_config(config_path,root)).store
         sandbox_root=root/'.cache'/'test-runs'/f'engine-practice-{date.today():%Y%m%d}-{uuid4().hex[:8]}';sandbox_root.mkdir(parents=True)
         pipe=r'\\.\pipe\compertum-practice-'+uuid4().hex[:8];listener=Listener(pipe,'AF_PIPE')
-        try: verification=verify_sandbox(sandbox_root,memory_floor_bytes=START_FLOOR,fixed_targets=engine_fixed_targets(root),pipe=pipe)
+        try: verification=verify_slots(sandbox_root,memory_floor_bytes=START_FLOOR,fixed_targets=engine_fixed_targets(root),pipe=pipe)
         finally: listener.close()
         previous=research_state(store);set_state(store,'RUNNING')
         try:

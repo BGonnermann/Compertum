@@ -50,6 +50,14 @@ The 67 historical backup folders moved to `D:\Compertum\backups`, with the same 
 `backups/fixture-consolidation-20261015-01` stays on C:, because `tools/fixture_archive.py` and `tools/fixture_removal.py` name it.
 New product backups still go to `backups/` in the project. The storage check counts only that folder.
 
+## Sandbox slots amendment - 2 November 2026
+
+The owner approved running "a few small jobs at once" in the section 19 sandbox (efficiency path, step 3).
+The sandbox now has 3 slots (`SLOTS` in `src/compertum/runtime/sandbox.py`). Each slot has its own AppContainer profile and its own CPU. Slot 0 keeps the original profile name.
+Each job keeps its own deadline, memory, process and disk limits. A run starts only after every slot passes the probe (`verify_slots`).
+While any engine job runs, the engine holds the project's one heavy-job slot. Other heavy jobs, such as campaigns, still wait or refuse as before.
+In section 19, "Only one heavy job runs at a time" now means one heavy job outside the engine sandbox, plus at most 3 engine sandbox jobs.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

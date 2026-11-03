@@ -1,5 +1,28 @@
 # Current Compertum checkpoint
 
+## Efficiency path step 3: three sandbox slots - 2 November 2026
+
+Owner: step 3, "few small jobs at once". The sandbox has 3 slots (`SLOTS` in `runtime/sandbox.py`). Each slot has its own AppContainer profile and SID (slot 0 keeps `Compertum.Engine.Sandbox`) and its own CPU (every other logical CPU).
+- `execution.engine_slot` replaces the single lock. Up to 3 Engineer jobs run at once. Tool, Auditor and vault jobs run alone.
+- The engine holds the project's one heavy-job slot while any job runs. The owner lease is checked for every job, and another lease is refused.
+- The freeze is checked again after a job has its slot. The memory floor for each job adds room for the other 2 slots (2 x 512 MiB).
+- `verify_slots` probes every slot at run start (`practice.py`). A control holds only if it holds in every slot. Observations are merged, and each slot's are kept.
+- `run_sandboxed` held the process-wide `_INHERIT_LOCK` for each job's whole run, so jobs could never overlap. The lock now covers only handle inheritance and process creation (the process starts suspended).
+- Measured: 3 jobs of 2 s each took 2.42 s together (6.8 s before the lock change).
+  A job in one slot cannot read another slot's folder (PermissionError while both run).
+  A job in one slot CAN reach a listener in another slot over loopback (TCP and UDP). That is why tool, Auditor and vault jobs run alone.
+  A per-SID firewall rule would close it, but it needs administrator rights, so it is an owner decision.
+- Independent review: no blocker; 6 findings. All 6 are fixed: the loopback channel (alone rule), freeze recheck, owner check for every job, merged observations, memory floor, and CPU spacing.
+  The stale documentation is corrected (`sandbox.py` docstring, `docs/ENGINE_PLAN.md`, `execution.py`).
+Sealed files changed with the owner's approval of step 3: `runtime/sandbox.py` 6dab7467 to 6fd90ea5, `ai/engine/execution.py` 09d0acf6 to f89579a9, and `docs/BUILD_SPEC.md` (the sandbox slots amendment).
+Verification, engine environment:
+- engine lane plus `tests/windows/test_harness_sandbox.py`: 281 passed, 0 failed, 0 skipped;
+- harness lane: 143 passed, 0 failed, 0 skipped;
+- sandbox file alone: 29 passed, including the native concurrent-slot test.
+No bench run used the slots yet.
+
+Exact next action: a bench check with the slots, against the step 1 run (`run-20261102-c0ddd213`). Then step 6, phase 1.
+
 ## Efficiency path steps 1 and 5 - 2 November 2026
 
 The owner approved the path from the second efficiency research cycle (`docs/EFFICIENCY_RESEARCH.md`): "Lets do it", step 3 "few small jobs at once", step 5 "Yes", step 6 "agreed, approved". Step 4 is open; step 2 was not chosen.

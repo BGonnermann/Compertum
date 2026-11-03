@@ -1,18 +1,70 @@
 """The Engineer's only way to run code: `run_job` copies the agent's in-memory files into a fresh job folder and runs them in the E2 sandbox.
 
-Before each run: the sandbox verification must hold, no freeze row may exist, and the one heavy-job slot must be free.
+Before each run: the sandbox verification must hold, no freeze row may exist (checked again once the job has its sandbox slot), and the
+project's one heavy-job slot must be free or already held by the engine. Up to SLOTS Engineer jobs run at once; tool, Auditor and vault jobs run alone.
 During each run the loopback watcher samples the sandbox process's TCP table. A loopback connection freezes the engine.
 Every run, including every refusal, leaves one row in `engine_runs` before the result returns to the agent.
 """
+from contextlib import ExitStack,contextmanager
 import json
 from pathlib import Path
 from uuid import uuid4
 from compertum.runtime.errors import RuntimeRefused
 import threading
 from compertum.runtime.jobs import hold_job_slot
-from compertum.runtime.sandbox import LoopbackWatcher,REPARSE_POINT,require_verified,run_sandboxed
+from compertum.runtime.owners import require_live_owner
+from compertum.runtime.sandbox import SLOTS,LoopbackWatcher,REPARSE_POINT,require_verified,run_sandboxed
 
-SANDBOX_LOCK=threading.Lock()
+EXCLUSIVE_PURPOSES=frozenset({'tool','audit','vault'})
+POOL=threading.Condition()
+FREE=list(range(SLOTS))
+WAITING=[0]
+ALONE=[False]
+HOLD_LOCK=threading.Lock()
+HOLDS={}
+
+
+def take_slots(exclusive):
+    with POOL:
+        if exclusive:
+            WAITING[0]+=1
+            try:
+                while ALONE[0] or len(FREE)<SLOTS: POOL.wait()
+            finally: WAITING[0]-=1
+            ALONE[0]=True;taken=list(FREE);FREE.clear()
+        else:
+            while ALONE[0] or WAITING[0] or not FREE: POOL.wait()
+            taken=[FREE.pop(0)]
+        return taken
+
+
+def give_slots(taken,exclusive):
+    with POOL:
+        FREE.extend(taken);FREE.sort()
+        if exclusive: ALONE[0]=False
+        POOL.notify_all()
+
+
+@contextmanager
+def engine_slot(lease,purpose):
+    """A sandbox slot (owner, 2 November 2026: a few small jobs at once). Up to SLOTS Engineer jobs run together. Tool, Auditor and vault
+    jobs run alone: two sandbox slots can reach each other over loopback (measured 2 November 2026), and those jobs see different data tiers.
+    While any engine job runs, the engine holds the project's one heavy-job slot, so every other heavy job still sees it busy."""
+    exclusive=purpose in EXCLUSIVE_PURPOSES;taken=take_slots(exclusive)
+    try:
+        require_live_owner(lease,'coordinator')
+        with HOLD_LOCK:
+            entry=HOLDS.get(lease.project_id)
+            if entry is not None and entry[2] is not lease: raise RuntimeRefused('JOB_SLOT_BUSY')
+            if entry is None:
+                stack=ExitStack();stack.enter_context(hold_job_slot(lease,f'engine-{purpose}-job'));entry=HOLDS[lease.project_id]=[0,stack,lease]
+            entry[0]+=1
+        try: yield taken[0]
+        finally:
+            with HOLD_LOCK:
+                entry[0]-=1
+                if entry[0]==0: HOLDS.pop(lease.project_id,None);entry[1].close()
+    finally: give_slots(taken,exclusive)
 
 MAX_FILES,MAX_FILE_BYTES,MAX_TOTAL_BYTES=32,262144,262144
 OUTPUT_HEAD=8192
@@ -138,8 +190,10 @@ class EngineerSandbox:
                 target=job/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content,encoding='utf-8',newline='\n')
             (job/'train.csv').write_text(self.train_csv,encoding='utf-8');(job/'validation.csv').write_text(validation_csv,encoding='utf-8')
             watcher=LoopbackWatcher()
-            with SANDBOX_LOCK,hold_job_slot(self.lease,f'engine-{purpose}-job'):
-                result=run_sandboxed(self.root,job,[entry],seconds=self.seconds,memory_bytes=self.memory_bytes,memory_floor_bytes=self.memory_floor_bytes,watcher=watcher)
+            with engine_slot(self.lease,purpose) as slot:
+                self.ledger.require_unfrozen()
+                result=run_sandboxed(self.root,job,[entry],seconds=self.seconds,memory_bytes=self.memory_bytes,
+                                     memory_floor_bytes=self.memory_floor_bytes+(SLOTS-1)*self.memory_bytes,watcher=watcher,slot=slot)
             watched=watcher.record()
             record.update(result=result.record(),watcher=watched,stdout=head(result.stdout),stderr=head(result.stderr))
             # A seen connection freezes first, even if the watcher later failed. An unverified watcher without evidence is not a clean run.

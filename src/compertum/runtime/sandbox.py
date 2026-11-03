@@ -4,11 +4,15 @@ The AppContainer is the operating-system boundary. The process can read and writ
 folder this module grants to its own container identity. Windows gives every container
 read access to Program Files, so the system interpreter runs without a grant.
 Each job creates the container profile and deletes it when the job ends, so no file or registry
-value in the container's own package storage survives from one job to the next. The profile name
-is fixed, and Windows derives the container identity (SID) from the name, so the identity is the
-same for every job. A firewall rule for that identity therefore covers every job. Because the
-identity is the same, the grant on the job folder is revoked when the job ends, so a later job
-cannot reach an earlier job folder.
+value in the container's own package storage survives from one job to the next. Each of the SLOTS
+sandbox slots has a fixed profile name (slot_profile), and Windows derives the container identity
+(SID) from the name, so every job in one slot has the same identity, and the slots have different
+identities (owner, 2 November 2026: a few small jobs at once). A firewall rule must therefore name
+all SLOTS identities. The grant on a job folder goes to the slot's identity only and is revoked
+when the job ends, so no job can reach an earlier job folder or a folder of another slot.
+Measured on 2 November 2026: a job in one slot can reach a listener of a job in another slot over
+loopback (TCP and UDP). The engine therefore runs tool, Auditor and vault jobs alone (execution.py).
+remove_stale_profile accepts the fixed slot names; call it only when no run is open.
 
 The Job Object keeps the section 6 limits: process and job memory, one process, one CPU,
 and the deadline. The environment holds three Windows variables and nothing else.
@@ -34,6 +38,7 @@ from .jobs import ExtendedLimits,JobAPI,ProcessInfo,SIZE,Startup,available_physi
 
 PROFILE_PREFIX='Compertum.Engine.Sandbox'
 PROFILE_NAME=PROFILE_PREFIX
+SLOTS=3
 ENVIRONMENT=('SYSTEMROOT','WINDIR','LOCALAPPDATA')
 OUTPUT_BYTES=65536
 MIN_SECONDS,MAX_SECONDS=1,3600
@@ -141,9 +146,24 @@ def stale_profiles():
     return sorted(p.name.lower() for p in folder.iterdir() if p.is_dir() and p.name.lower().startswith(prefix)) if folder.is_dir() else []
 
 
+def slot_profile(slot):
+    """The AppContainer profile of one sandbox slot (owner, 2 November 2026: a few small jobs at once). Slot 0 keeps the original name."""
+    if type(slot) is not int or not 0<=slot<SLOTS: raise RuntimeRefused('SANDBOX_SLOT_DENIED')
+    return PROFILE_NAME if slot==0 else f'{PROFILE_NAME}.s{slot}'
+
+
+def slot_core(mask,slot):
+    """The one CPU of a slot: every other CPU of the process affinity mask, so that two slots do not share the hyperthread pair of one
+    core when the mask holds both. Slot 0 keeps the lowest CPU. With fewer CPUs than needed, slots wrap and share."""
+    bits=[1<<i for i in range(mask.bit_length()) if mask>>i&1]
+    if not bits: raise RuntimeRefused('JOB_LIMITS_UNVERIFIED')
+    return bits[(2*slot)%len(bits)]
+
+
 def remove_stale_profile(api,name):
-    """Remove one stale profile by name. The fixed name is always allowed, because a registry entry can outlive its folder."""
-    if type(name) is not str or (name.lower() not in stale_profiles() and name.lower()!=PROFILE_NAME.lower()): raise RuntimeRefused('SANDBOX_PROFILE_UNKNOWN')
+    """Remove one stale profile by name. The fixed slot names are always allowed, because a registry entry can outlive its folder."""
+    fixed={slot_profile(s).lower() for s in range(SLOTS)}
+    if type(name) is not str or (name.lower() not in stale_profiles() and name.lower() not in fixed): raise RuntimeRefused('SANDBOX_PROFILE_UNKNOWN')
     had_folder=(packages_folder()/name).exists()
     result=api.DeleteAppContainerProfile(name)
     if result<0 and not had_folder: raise RuntimeRefused('SANDBOX_PROFILE_UNKNOWN')
@@ -297,7 +317,7 @@ class LoopbackWatcher:
                 'verified':self.error is None and self.samples>=1}
 
 
-def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None,watcher=None):
+def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None,watcher=None,slot=0):
     """Run the system Python in a fresh AppContainer inside job_dir. Return a SandboxResult after the process ends.
 
     argv names a .py file in job_dir and its arguments; the interpreter runs with -I -B. Any refusal happens before the process exists.
@@ -305,6 +325,7 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
     watcher: an optional LoopbackWatcher. It starts when the process resumes and stops when the process has ended.
     """
     if watcher is not None and not isinstance(watcher,LoopbackWatcher): raise RuntimeRefused('SANDBOX_WATCHER_DENIED')
+    name=slot_profile(slot)
     job=_job_folder(root,job_dir);argv=_argv(job,argv)
     seconds=_bounded(seconds,MIN_SECONDS,MAX_SECONDS,'SANDBOX_DEADLINE_DENIED');memory_bytes=_bounded(memory_bytes,MIN_MEMORY,MAX_MEMORY,'SANDBOX_MEMORY_DENIED')
     disk_bytes=_bounded(disk_bytes,1,MAX_DISK,'SANDBOX_DISK_DENIED');_bounded(memory_floor_bytes,1,2**62,'SANDBOX_FLOOR_DENIED')
@@ -321,12 +342,12 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
     profile=process=thread=None;job_object=api._handle(api.CreateJobObjectW(None,None),'CreateSandboxJob')
     stdout_path=job/'stdout.txt';stderr_path=job/'stderr.txt'
     try:
-        profile=Profile(api,PROFILE_NAME)
+        profile=Profile(api,name)
         # The entry is on disk before grant() verifies it, so the finally block revokes whenever the profile exists.
         profile.grant(job)
         affinity=SIZE();system=SIZE();api.checked(api.GetProcessAffinityMask(HANDLE(-1),c.byref(affinity),c.byref(system)),'GetProcessAffinityMask')
         limits=ExtendedLimits();limits.basic.flags=0x2000|0x100|0x200|0x10|0x8|0x400
-        limits.basic.affinity=affinity.value&-affinity.value;limits.basic.active_limit=1;limits.process_memory=limits.job_memory=memory_bytes
+        limits.basic.affinity=slot_core(affinity.value,slot);limits.basic.active_limit=1;limits.process_memory=limits.job_memory=memory_bytes
         api.checked(api.SetInformationJobObject(job_object.get(),9,c.byref(limits),c.sizeof(limits)),'SetSandboxLimits')
         actual=api.limits(job_object)
         if (actual.basic.flags!=limits.basic.flags or actual.basic.affinity!=limits.basic.affinity or actual.basic.active_limit!=1
@@ -339,23 +360,24 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
         import msvcrt
         from .bootstrap import _INHERIT_LOCK
         started=time.monotonic()
-        with open(stdout_path,'wb') as out,open(stderr_path,'wb') as err,_INHERIT_LOCK:
+        with open(stdout_path,'wb') as out,open(stderr_path,'wb') as err:
             borrowed=[OwnedHandle(api,msvcrt.get_osfhandle(stream.fileno())) for stream in (out,err)]
-            try:
-                for handle in borrowed: api.set_inheritable(handle,True)
-                handles=(HANDLE*2)(*(h.value for h in borrowed))
-                api.checked(api.UpdateProcThreadAttribute(attributes,0,0x20002,handles,c.sizeof(handles),None,None),'ExplicitHandleList')
-                capabilities=SECURITY_CAPABILITIES(profile.sid,None,0,0)
-                api.checked(api.UpdateProcThreadAttribute(attributes,0,0x20009,c.byref(capabilities),c.sizeof(capabilities),None,None),'SecurityCapabilities')
-                startup=StartupEx();startup.base.size=c.sizeof(startup);startup.attributes=c.cast(attributes,HANDLE)
-                startup.base.flags=0x100;startup.base.stdout=borrowed[0].value;startup.base.stderr=borrowed[1].value
-                info=ProcessInfo()
-                api.checked(api.CreateProcessW(runtime,command,None,None,True,0x4|0x400|0x08000000|0x80000,block,str(job),
-                    c.cast(c.byref(startup),c.POINTER(Startup)),c.byref(info)),'CreateSandboxProcess')
-                process=OwnedHandle(api,info.process);thread=OwnedHandle(api,info.thread)
-            finally:
-                api.DeleteProcThreadAttributeList(attributes)
-                for handle in borrowed: api.set_inheritable(handle,False)
+            with _INHERIT_LOCK:
+                try:
+                    for handle in borrowed: api.set_inheritable(handle,True)
+                    handles=(HANDLE*2)(*(h.value for h in borrowed))
+                    api.checked(api.UpdateProcThreadAttribute(attributes,0,0x20002,handles,c.sizeof(handles),None,None),'ExplicitHandleList')
+                    capabilities=SECURITY_CAPABILITIES(profile.sid,None,0,0)
+                    api.checked(api.UpdateProcThreadAttribute(attributes,0,0x20009,c.byref(capabilities),c.sizeof(capabilities),None,None),'SecurityCapabilities')
+                    startup=StartupEx();startup.base.size=c.sizeof(startup);startup.attributes=c.cast(attributes,HANDLE)
+                    startup.base.flags=0x100;startup.base.stdout=borrowed[0].value;startup.base.stderr=borrowed[1].value
+                    info=ProcessInfo()
+                    api.checked(api.CreateProcessW(runtime,command,None,None,True,0x4|0x400|0x08000000|0x80000,block,str(job),
+                        c.cast(c.byref(startup),c.POINTER(Startup)),c.byref(info)),'CreateSandboxProcess')
+                    process=OwnedHandle(api,info.process);thread=OwnedHandle(api,info.thread)
+                finally:
+                    api.DeleteProcThreadAttributeList(attributes)
+                    for handle in borrowed: api.set_inheritable(handle,False)
             api.assign(job_object,process)
             if watcher is not None: watcher.start(info.pid)
             try:
@@ -480,7 +502,17 @@ def fixed_target_paths(targets):
     return paths
 
 
-def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None,fixed_targets=(),pipe=None):
+def verify_slots(root,*,memory_floor_bytes,fixed_targets=(),pipe=None,api=None):
+    """Verify every sandbox slot and merge the results: a control holds only when it holds in every slot; failures name their slot."""
+    results=[verify_sandbox(root,memory_floor_bytes=memory_floor_bytes,fixed_targets=fixed_targets,pipe=pipe,api=api,slot=s) for s in range(SLOTS)]
+    controls={k:all(r['controls'][k] is True for r in results) for k in CONTROLS}
+    failed=sorted(set(k for r in results for k in r['failed'])|{k for k,v in controls.items() if not v})
+    observations={k:any(r['observations'].get(k) for r in results) for k in results[0]['observations']}
+    return {**results[0],'controls':controls,'failed':failed,'observations':observations,
+            'slots':[{'slot':s,'profile':slot_profile(s),'failed':r['failed'],'observations':r['observations'],'result':r['result']} for s,r in enumerate(results)]}
+
+
+def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None,fixed_targets=(),pipe=None,slot=0):
     """Run a first job, then the fixed probe in a second job, and return a verification dict. The caller uses require_verified.
 
     fixed_targets: real fixed-part files (ledger, rules, config) that the probe must fail to read. pipe: a named pipe path
@@ -491,7 +523,7 @@ def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2
     if pipe is not None and (not isinstance(pipe,str) or not pipe.startswith('\\\\.\\pipe\\') or not 10<len(pipe)<=256): raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
     previous=root/f'previous-{token}';previous.mkdir()
     (previous/'main.py').write_text("open('inside.txt','w',encoding='utf-8').write('earlier job')\n",encoding='utf-8')
-    first=run_sandboxed(root,previous,['main.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api)
+    first=run_sandboxed(root,previous,['main.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api,slot=slot)
     if first.exit_code!=0 or not (previous/'inside.txt').is_file(): raise RuntimeRefused('SANDBOX_UNVERIFIED:previous_job_failed')
     job=root/f'probe-{token}';job.mkdir()
     (job/'probe.py').write_text(PROBE,encoding='utf-8')
@@ -505,7 +537,7 @@ def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2
                                                 'previous':str(previous/'inside.txt'),'megabytes':memory_bytes//1024**2+256,
                                                 'fixed_reads':fixed,'pipe':pipe}),encoding='utf-8')
     try:
-        result=run_sandboxed(root,job,['probe.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api)
+        result=run_sandboxed(root,job,['probe.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api,slot=slot)
     finally:
         listener.close();waiter.join(timeout=2)
     report=json.loads(read_head(job/'probe.json')) if (job/'probe.json').is_file() else {}

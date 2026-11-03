@@ -330,3 +330,137 @@ def test_heavy_slot(tmp_path):
         except KeyError: pass
         assert job_slot_busy(lease) is False
     finally: release_owner(lease)
+
+
+def test_slot_names():
+    """Slot 0 keeps the original profile name; each slot gets its own profile and its own CPU from the affinity mask."""
+    from compertum.runtime.sandbox import SLOTS,slot_core,slot_profile
+    assert SLOTS==3 and slot_profile(0)==PROFILE_NAME and slot_profile(1)==PROFILE_NAME+'.s1' and slot_profile(2)==PROFILE_NAME+'.s2'
+    for bad in (-1,3,'0',None,True):
+        with pytest.raises(RuntimeRefused,match='^SANDBOX_SLOT_DENIED$'): slot_profile(bad)
+    assert [slot_core(0b1011,s) for s in range(3)]==[0b1,0b1000,0b10] and [slot_core(0b110,s) for s in range(3)]==[0b10,0b10,0b10]
+    assert [slot_core((1<<16)-1,s) for s in range(3)]==[0b1,0b100,0b10000]
+    with pytest.raises(RuntimeRefused,match='^JOB_LIMITS_UNVERIFIED$'): slot_core(0,0)
+
+
+SLOT_JOB='''import ctypes,json,os,time
+with open('targets.json',encoding='utf-8') as f: others=json.load(f)
+time.sleep(2)
+reads=[]
+for path in others:
+    try:
+        with open(path,encoding='utf-8') as f: reads.append(f.read())
+    except OSError as error: reads.append(type(error).__name__)
+mask=ctypes.c_size_t();system=ctypes.c_size_t();kernel=ctypes.windll.kernel32
+kernel.GetProcessAffinityMask.argtypes=[ctypes.c_void_p,ctypes.POINTER(ctypes.c_size_t),ctypes.POINTER(ctypes.c_size_t)]
+kernel.GetProcessAffinityMask(ctypes.c_void_p(-1),ctypes.byref(mask),ctypes.byref(system))
+with open('report.json','w',encoding='utf-8') as f: json.dump({'reads':reads,'local':os.environ['LOCALAPPDATA'],'mask':mask.value},f)
+'''
+
+
+def test_concurrent_slots(root):
+    """Three jobs run at the same time in three slots: each finishes, each has its own profile and CPU, and none can read another's folder."""
+    import threading,time
+    from compertum.runtime.sandbox import SLOTS,slot_profile
+    folders=[job(root,SLOT_JOB) for _ in range(SLOTS)]
+    for folder in folders: (folder/'secret.txt').write_text('secret of '+folder.name,encoding='utf-8')
+    for i,folder in enumerate(folders): (folder/'targets.json').write_text(json.dumps([str(f/'secret.txt') for j,f in enumerate(folders) if j!=i]),encoding='utf-8')
+    results=[None]*SLOTS
+    def work(i): results[i]=run(root,folders[i],seconds=30,slot=i)
+    started=time.monotonic();threads=[threading.Thread(target=work,args=(i,)) for i in range(SLOTS)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    elapsed=time.monotonic()-started
+    assert all(r is not None and r.exit_code==0 and not r.timed_out for r in results),[None if r is None else r.stderr for r in results]
+    assert elapsed<5.5,elapsed
+    reports=[json.loads((f/'report.json').read_text(encoding='utf-8')) for f in folders]
+    assert all(read=='PermissionError' for r in reports for read in r['reads']),reports
+    assert [r['local'].lower().endswith('packages\\%s\\ac'%slot_profile(i).lower()) for i,r in enumerate(reports)]==[True]*SLOTS,reports
+    assert len({r['mask'] for r in reports})==SLOTS and all(bin(r['mask']).count('1')==1 for r in reports)
+    assert not any(slot_profile(i).lower() in stale_profiles() for i in range(SLOTS))
+
+
+def test_verify_slots(root):
+    """Every slot is verified at run start; the merged result fails when any slot fails."""
+    from compertum.runtime.sandbox import SLOTS,verify_slots
+    pipe=r'\\.\pipe\compertum-slots-'+uuid4().hex[:8];listener=Listener(pipe,'AF_PIPE')
+    try: merged=verify_slots(root,memory_floor_bytes=FLOOR,fixed_targets=FIXED_TARGETS,pipe=pipe)
+    finally: listener.close()
+    assert merged['failed']==[] and set(merged['controls'])==set(CONTROLS) and all(merged['controls'].values()),merged['failed']
+    assert [s['slot'] for s in merged['slots']]==list(range(SLOTS)) and all(s['failed']==[] for s in merged['slots'])
+    require_verified(merged)
+
+
+def test_engine_slots(tmp_path,monkeypatch):
+    """Up to SLOTS Engineer jobs at once; tool, Auditor and vault jobs alone; the engine holds the one heavy-job slot while any job runs;
+    an outside holder or another lease is refused, and every refusal returns the slot."""
+    import threading,time
+    from compertum.ai.engine import execution
+    from compertum.ai.engine.execution import engine_slot
+    from compertum.runtime.identity import resolve_project
+    from compertum.runtime.jobs import hold_job_slot,job_slot_busy
+    from compertum.runtime.owners import acquire_owner,release_owner
+    from compertum.runtime.sandbox import SLOTS
+    def until(check,seconds=5):
+        end=time.monotonic()+seconds
+        while not check():
+            assert time.monotonic()<end,'timed out'
+            time.sleep(0.01)
+    lease=acquire_owner(resolve_project(tmp_path),'coordinator')
+    try:
+        assert execution.FREE==list(range(SLOTS)) and job_slot_busy(lease) is False
+        gate=threading.Event();taken=[];events=[]
+        def engineer():
+            with engine_slot(lease,'engineer') as slot:
+                taken.append(slot);gate.wait(5)
+        def alone(name):
+            with engine_slot(lease,'audit') as slot: events.append((name,slot,len(execution.FREE)))
+        threads=[threading.Thread(target=engineer) for _ in range(SLOTS)]
+        for thread in threads: thread.start()
+        until(lambda:len(taken)==SLOTS)
+        assert sorted(taken)==list(range(SLOTS)) and execution.FREE==[] and job_slot_busy(lease) is True
+        audit=threading.Thread(target=alone,args=('audit',));audit.start()
+        time.sleep(0.2);assert events==[]
+        gate.set()
+        for thread in threads: thread.join(5)
+        audit.join(5);assert events==[('audit',0,0)]
+        assert execution.FREE==list(range(SLOTS)) and job_slot_busy(lease) is False
+        hold=threading.Event();release=threading.Event();late=[]
+        def tool():
+            with engine_slot(lease,'tool'): hold.set();release.wait(5)
+        first=threading.Thread(target=tool);first.start();until(hold.is_set)
+        def engineer_late():
+            with engine_slot(lease,'engineer'): late.append(True)
+        second=threading.Thread(target=engineer_late);second.start()
+        time.sleep(0.2);assert late==[]
+        release.set();first.join(5);second.join(5);assert late==[True]
+        with hold_job_slot(lease,'campaign'):
+            with pytest.raises(RuntimeRefused,match='^JOB_SLOT_BUSY$'):
+                with engine_slot(lease,'engineer'): pass
+        assert execution.FREE==list(range(SLOTS)) and job_slot_busy(lease) is False
+        busy=threading.Event();stop=threading.Event()
+        def keep():
+            with engine_slot(lease,'engineer'): busy.set();stop.wait(5)
+        holder=threading.Thread(target=keep);holder.start();until(busy.is_set)
+        stranger=type('Lease',(),{'project_id':lease.project_id})()
+        monkeypatch.setattr(execution,'require_live_owner',lambda lease,role=None: None)
+        with pytest.raises(RuntimeRefused,match='^JOB_SLOT_BUSY$'):
+            with engine_slot(stranger,'engineer'): pass
+        monkeypatch.undo()
+        stop.set();holder.join(5)
+        assert execution.FREE==list(range(SLOTS)) and job_slot_busy(lease) is False
+    finally: release_owner(lease)
+
+
+def test_slot_merge(monkeypatch):
+    """The merged verification fails when any one slot fails, and keeps each slot's observations."""
+    from compertum.runtime import sandbox
+    def fake(root,*,slot=0,**kw):
+        controls={k:not(slot==2 and k=='outside_read_denied') for k in CONTROLS}
+        return {'controls':controls,'failed':[k for k,v in controls.items() if not v],'observations':{k:slot==1 for k in OBSERVATIONS},'report':{},'result':{'slot':slot}}
+    monkeypatch.setattr(sandbox,'verify_sandbox',fake)
+    merged=sandbox.verify_slots('.',memory_floor_bytes=1)
+    assert merged['failed']==['outside_read_denied'] and merged['controls']['outside_read_denied'] is False
+    assert merged['slots'][2]['failed']==['outside_read_denied'] and merged['slots'][0]['failed']==[]
+    assert all(merged['observations'].values()) and merged['slots'][1]['observations']==dict.fromkeys(OBSERVATIONS,True)
+    with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:outside_read_denied$'): require_verified(merged)
