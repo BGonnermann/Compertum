@@ -1,5 +1,6 @@
 """Candidate measures, part 1 (docs/CANDIDATE_MEASURES_DESIGN.md). Expected values come from short series worked by hand or by plain loops."""
 import copy
+import hashlib
 import math
 from pathlib import Path
 import statistics
@@ -8,7 +9,10 @@ import pytest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from compertum.ai.engine import measures,panel  # noqa: E402
+from test_ai_manual import bridge  # noqa: E402,F401  (fixture)
+from compertum.events import canonical  # noqa: E402
+from compertum.ai.engine import library_multi as lm,measures,panel  # noqa: E402
+from compertum.ai.engine.ledger import EngineLedger  # noqa: E402
 from compertum.ai.engine.market import score_signals,split_market,synthetic_market  # noqa: E402
 from test_engine_panel import SYMBOLS,rows_for,synthetic  # noqa: E402
 
@@ -99,3 +103,76 @@ def test_panel_measures(tmp_path):
     assert measures.load_series(tmp_path,record['series'])==pytest.approx(expected)
     assert record['concentration']['max_weight']==pytest.approx(0.6) and 1<record['concentration']['effective_assets']<len(SYMBOLS)
     assert record['turnover_per_year']==pytest.approx(float(score['turnover_per_year'])) and record['full']['sessions']==n-start-1
+
+
+def test_book_measures():
+    """Correlation, the gain of the equal-weight mix and the residual Sharpe ratio agree with plain formulas; a member of another length is left out."""
+    b1=[math.sin(i*0.9)*0.01 for i in range(60)];b2=[math.cos(i*1.3)*0.01+0.0005 for i in range(60)]
+    c=[0.5*x+math.sin(i*2.1)*0.004+0.0003 for i,x in enumerate(b1)]
+    members=[{'id':'m1','kind':'engine','sha256':'a','series':b1},{'id':'m2','kind':'engine','sha256':'b','series':b2},{'id':'m3','kind':'engine','sha256':'c','series':b1[:30]}]
+    out=measures.book_measures(c,members)
+    corr=[statistics.correlation(c,b1),statistics.correlation(c,b2)]
+    assert out['status']=='MEASURED' and [m['id'] for m in out['members']]==['m1','m2'] and out['length_mismatch']==['m3']
+    assert [m['correlation'] for m in out['members']]==pytest.approx(corr) and out['max_correlation']==pytest.approx(max(corr)) and out['mean_correlation']==pytest.approx(sum(corr)/2)
+    mix=[(x+y)/2 for x,y in zip(b1,b2)];both=[(x+y+z)/3 for x,y,z in zip(b1,b2,c)]
+    assert out['book_sharpe']==pytest.approx(measures.active_sharpe(mix)) and out['combined_sharpe_gain']==pytest.approx(measures.active_sharpe(both)-measures.active_sharpe(mix))
+    one=measures.book_measures(c,members[:1]);beta=statistics.covariance(c,b1)/statistics.variance(b1)
+    assert one['residual_sharpe']==pytest.approx(measures.active_sharpe([x-beta*y for x,y in zip(c,b1)]))
+    assert measures.book_measures(c,members[2:])=={'status':'BOOK_EMPTY','members':[],'length_mismatch':['m3']}
+
+
+def engine_member(ledger,root,cid,series,market):
+    cycle=cid.rsplit(':',1)[0]
+    record={'status':'MEASURED','market_sha256':market,'series':measures.save_series(root,cid,series)}
+    ledger.record_step(cycle,5,'validator','score',{'phase':'SCORED','candidate_id':cid,'measures':record})
+    ledger.record_queue_event(cid,'ELIGIBLE',{'route':{'kind':'engine'},'score_sha256':'x'})
+
+
+def test_book_members(bridge):
+    """The book holds only candidates that passed stage 1 on the same market; a changed series file is skipped with its reason."""
+    b,root=bridge;ledger=EngineLedger(b.store);s=[0.001*i for i in range(20)]
+    engine_member(ledger,root,'cycle-0001-aaaaaaaa:h1',s,'m'*64)
+    engine_member(ledger,root,'cycle-0002-bbbbbbbb:h1',s,'n'*64)
+    engine_member(ledger,root,'cycle-0003-cccccccc:h1',s,'m'*64)
+    ledger.record_queue_event('cycle-0004-dddddddd:h1','DENIED',{'reasons':['x']})
+    (root/measures.SERIES_DIR/'cycle-0003-cccccccc_h1.json.gz').write_bytes(b'changed')
+    members,skipped=measures.book_members(ledger,root,'m'*64)
+    assert [m['id'] for m in members]==['cycle-0001-aaaaaaaa:h1'] and members[0]['series']==pytest.approx(s) and members[0]['kind']=='engine'
+    assert skipped==[{'id':'cycle-0003-cccccccc:h1','reason':'ENGINE_MEASURES_CHANGED'}]
+
+
+def library_member(ledger,p,family='xs_momentum',sha=None):
+    knobs=lm.FAMILIES[family][1][0];members=sorted(p['closes']);u=lm.prepare(p,members);s=lm.score(u,lm.weights(u,family,knobs),p['train'],u['n'])
+    cid=f'library-multi-20261102-0000000a:french49:{family}'
+    ledger.record_queue_event(cid,'ELIGIBLE',{'route':{'kind':'library-multi','universe':'french49','family':family,'knobs':knobs,'members':len(members)},
+                                              'score_sha256':sha or hashlib.sha256(canonical(s)).hexdigest()})
+    return cid,lm.run_navs(u,lm.weights(u,family,knobs),p['train'],u['n'],None)[4]
+
+
+def test_library_book(bridge):
+    """A library rule joins the book on its own panel universe, rebuilt from its family and settings and stored once; a changed score is refused."""
+    b,root=bridge;ledger=EngineLedger(b.store);p=synthetic();market=panel.PanelMarket(p)
+    cid,expected=library_member(ledger,p)
+    assert measures.book_members(ledger,root,'m'*64)==([],[])
+    members,skipped=measures.book_members(ledger,root,'m'*64,market)
+    assert skipped==[] and [m['id'] for m in members]==[cid] and members[0]['kind']=='library-multi' and members[0]['series']==pytest.approx(expected)
+    stored=list((root/measures.SERIES_DIR).iterdir());assert len(stored)==1 and stored[0].name.startswith('library_library-multi')
+    again,_=measures.book_members(ledger,root,'m'*64,market);assert again[0]['sha256']==members[0]['sha256']
+    library_member(ledger,p,'ew_trend',sha='0'*64)
+    _,skipped=measures.book_members(ledger,root,'m'*64,market)
+    assert skipped==[{'id':'library-multi-20261102-0000000a:french49:ew_trend','reason':'ENGINE_BOOK_CHANGED'}]
+
+
+def test_candidate_book(bridge):
+    """A panel candidate gets its book record and the two numbers that the roles see; a broken ledger gives book UNDEFINED and keeps the rest."""
+    b,root=bridge;ledger=EngineLedger(b.store);p=synthetic();market=panel.PanelMarket(p);aliases=market.aliases;start=p['train'];n=len(p['dates'])
+    library_member(ledger,p)
+    targets={t:{s:1/len(p['eligible'][t]) for s in p['eligible'][t][:3]} for t in range(n)}
+    text=rows_for(p,aliases,targets,range(start-1,n));score=market.score(text)
+    record=measures.candidate_measures(project_root=root,candidate_id='panel-1',signals=text,score=score,market=market,ledger=ledger,market_sha256='m'*64)
+    book=record['book'];assert record['status']=='MEASURED' and record['market_sha256']=='m'*64 and book['status']=='MEASURED' and len(book['members'])==1
+    assert measures.book_view(record)=={'max_correlation':round(book['max_correlation'],2),'combined_sharpe_gain':round(book['combined_sharpe_gain'],2)}
+    class Broken:
+        def queue_events(self): raise RuntimeError('store gone')
+    other=measures.candidate_measures(project_root=root,candidate_id='panel-2',signals=text,score=score,market=market,ledger=Broken(),market_sha256='m'*64)
+    assert other['status']=='MEASURED' and other['book']=={'status':'UNDEFINED','reason':'RuntimeError: store gone'} and measures.book_view(other) is None

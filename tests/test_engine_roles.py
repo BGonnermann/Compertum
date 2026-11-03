@@ -394,6 +394,7 @@ def test_supervised_cycle(bridge,root,verification,market,project):
         scored=[s for s in steps if s['kind']=='score'][0];assert scored['phase']=='SCORED' and scored['deflation']['trials']==1 and scored['trial_variance']['trial_sharpes']==0
         measured=scored['measures'];assert measured['status']=='MEASURED' and measured['engineer_runs']==1 and measured['full']['sessions']==len(market['validation_rows'])-1
         assert (project/measured['series']['path']).is_file() and 'measures' not in score and 'measures' not in candidate
+        assert measured['market_sha256']==cycles[1]['market_sha256'] and measured['book']['status']=='BOOK_EMPTY' and 'book' not in cycles[1]['candidates'][0]
         assert not any('tail_ratio' in m['content'] or 'block_sharpes' in m['content'] for p in state['posts'] for m in p['messages'])
         # Option C (owner, 1 November 2026): the real gate uses the null variance of the candidate's own estimate, not the spread of recorded trials.
         assert scored['trial_variance']['sample_variance'] is None and scored['trial_variance']['trial_variance']==scored['trial_variance']['floor_variance']

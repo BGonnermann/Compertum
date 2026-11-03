@@ -1,6 +1,6 @@
 # Design: candidate measures and contribution to the book
 
-Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Part 1 is built (see the checkpoint). Parts 2 and 3 are not built.
+Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Parts 1 and 2 are built (see the checkpoint). Part 3 is not built.
 Owner's aim, 2 November 2026: "I want the firm to be able to think for itself and produce real results." Live results should let the roles talk and adjust.
 Owner, 2 November 2026: "ok write the design for those two", after the firm-precedents research.
 Source: the precedents report (Quantopian's 888-strategy study, WorldQuant's 101 alphas, Numerai's meta-model contribution) and `docs/MATH_RESEARCH.md`.
@@ -71,6 +71,15 @@ Measures against the book, on VALIDATION active returns:
 The book is read when the candidate is scored. The record names the book members and their series hashes, so the number can be recomputed later.
 The book changes over time. Two candidates scored on different days can therefore have different books. The record keeps the book that was used.
 
+As built (3 November 2026):
+- "Same market" means the same fingerprint of the two files that the cycle sees (`cycle.market_sha256`). Each measures record now holds that fingerprint.
+  An engine candidate joins the book only when its own measures record has the same fingerprint. Candidates scored before part 1 have no record, so they stay out.
+- A library rule joins the book on its own panel universe (today only french49). Its series is made only when a recompute gives the score hash of its ELIGIBLE event.
+  Otherwise it is skipped with `ENGINE_BOOK_CHANGED`. The series file name holds the market fingerprint, so the series is made once for each market. On the real french49 panel this takes about 0.5 s for each rule.
+- Engine panel candidates are not admitted to stage 1 yet (panel design, phase 4). On french49 the book is therefore the library rules only.
+- `residual_sharpe` keeps the intercept: the residual is the candidate's active return minus the least-squares slopes times the members' active returns.
+- A member skipped for a reason is listed under `skipped` (at most 20, with the count). A failed book records `UNDEFINED` with the reason, and the other measures stay.
+
 ## Part 3: the study
 
 A report tool, `tools/measure_study.py`, reads the ledger and the series files. It changes nothing.
@@ -92,6 +101,9 @@ A report tool, `tools/measure_study.py`, reads the ledger and the series files. 
   They can reveal which parts of VALIDATION work, and tuning to them adds trials that the count does not record.
   The roles see the contribution measures of their own earlier candidates: the largest correlation with the book and the combined Sharpe gain.
   A bench exam with the contribution measures shown, against one without them, decides whether they stay. That exam needs the owner's OK, because it costs OpenRouter credit.
+  As built: the roles see the two numbers in the Director's lessons table, as "book" on the row of an idea, from that idea's best candidate, rounded to 2 places. The Director prompt has one sentence that explains them.
+  Finding, 3 November 2026: a bench cycle starts with no history and no lessons table (`ledger.blank_summary`). A bench exam therefore cannot show the numbers to the roles, and it cannot test them.
+  The test needs paired practice runs on one real market instead: the same cycle count with and without the numbers. That needs a switch for the run, which is not built, and the owner's OK.
 - D2. The book: stage-1 candidates and library stage-1 results on the same market. Recommendation: yes.
 - D3. Series storage for every scored candidate, or only for candidates that beat the baseline. Recommendation: every scored candidate. The study needs the weak and failed candidates too.
 - D4. The early proxy (first two thirds against the last third of VALIDATION). Recommendation: yes, reported as a proxy and never as vault evidence.

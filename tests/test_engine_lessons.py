@@ -38,6 +38,18 @@ def test_no_numbers():
     assert LEVELS[8] in text and 'best_level' not in text and 'Level 8' not in text and '1.23456' not in text and '0.6123' not in text and '0.90' not in text and 'IGNORE' not in text
 
 
+def test_book_shown():
+    """Decision D1, middle path: a row shows the two book numbers of its best candidate, and only those two."""
+    book={'max_correlation':0.42,'combined_sharpe_gain':-0.03,'residual_sharpe':1.5}
+    ends=[end(1,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED','book':book}],scores={'h1':SCORE_WORSE}),
+          end(2,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED','book':{'max_correlation':0.9,'combined_sharpe_gain':0.1}}],scores={'h1':SCORE_WORSE}),
+          end(3,[('h2','Reversal')],candidates=[{'hypothesis_id':'h2','status':'REJECTED'}],scores={'h2':SCORE_CLOSE})]
+    rows=lessons(ends,MARKET)
+    assert rows[0]['book']=={'max_correlation':0.42,'combined_sharpe_gain':-0.03} and 'book' not in rows[1]
+    ends.append(end(4,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_CLOSE}))
+    assert 'book' not in lessons(ends,MARKET)[-1]
+
+
 def test_other_markets():
     ends=[end(1,[('h1','Momentum')],market=OTHER),end(2,[('h1','Momentum')],market=None),end(3,[('h1','Reversal')])]
     assert [r['idea'] for r in lessons(ends,MARKET)]==['Reversal'] and lessons(ends,'c'*64)==[]

@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## Candidate measures part 2: contribution to the book - 3 November 2026
+
+- Owner, 3 November 2026: "yes go ahead with part 2". Built as `docs/CANDIDATE_MEASURES_DESIGN.md` part 2 (see "As built" there).
+  - `measures.py` (970defaf to 8be33b43) now records, for every scored candidate, the market fingerprint and a `book` record:
+    each member's correlation, `max_correlation`, `mean_correlation`, `book_sharpe`, `combined_sharpe_gain` and `residual_sharpe`, with member ids and series hashes.
+  - The book: engine candidates that reached ELIGIBLE or later with a measures record on the same market files, and library rules on their own panel universe.
+    A library rule's series is made once per market, only when a recompute matches its admitted score hash. On french49 the book is the library rules only.
+  - `cycle.py` (5f24bb36 to d9c83583) passes the ledger and the market fingerprint, and copies the two shown numbers into the candidate's END record.
+  - Decision D1, middle path: the Director's lessons table (`levels.py`) shows "book" (largest correlation and combined Sharpe gain, 2 places) for the idea's best candidate.
+    `config/engine_prompts/director.md` has one new sentence that explains the field. The stability measures stay hidden.
+  - Finding: bench cycles see no history, so the planned bench exam cannot test the shown numbers. Paired practice runs on one real market can; they need a run switch (not built) and the owner's OK.
+  - Tests: 4 new tests in `tests/test_engine_measures.py`, 1 in `tests/test_engine_lessons.py`, and a book check in the native `test_supervised_cycle`.
+  - Full check, source: product 368 passed, 8 skipped; harness 143 passed; tools 37 passed. Engine: first run 1 failed, 325 passed.
+    The failure was `test_engine_practice.py::test_speed_weight`, `SANDBOX_PROFILE_EXISTS`: the slot 0 profile folder still existed when the second practice start probed it.
+    The test passed 3 of 3 runs alone, no profile was left over, and the engine lane rerun passed (326 passed). Open finding: a possible race in profile removal. The test is unchanged.
+  - Next: part 3, `tools/measure_study.py`.
+
 ## Candidate measures, the mandate and the overseer - 2 November 2026
 
 - Design `docs/CANDIDATE_MEASURES_DESIGN.md`: the owner approved D2 to D4 and the middle path for D1. Part 1 is built (owner: "ok go ahead with part 1").

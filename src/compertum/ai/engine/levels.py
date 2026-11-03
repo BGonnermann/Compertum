@@ -25,6 +25,7 @@ AUDIT_STATUSES=frozenset({'REJECTED_AUDIT','FROZEN'})
 NOT_BUILT_REJECTED='Not built: the Director rejected the memo.'
 NOT_BUILT_OTHER='Not built: a step failed or the cycle stopped before a candidate existed.'
 MAX_LESSONS=40
+BOOK_KEYS=('max_correlation','combined_sharpe_gain')
 IDEA_CHARS=120
 
 
@@ -80,6 +81,8 @@ def lessons(cycle_ends,market_sha256):
     learns what failed and why, not which numbers to chase. Cycles on another market, or recorded before cycles carried a market
     fingerprint (25 October 2026), are left out: an idea that failed on one market says nothing about another.
     Ideas match by normalized title, so a reworded idea is a new row.
+    Exception (owner decision D1, middle path, 2 November 2026): a row also holds "book" when the candidate of its best outcome has one: its largest
+    correlation with the strategies that passed stage 1 on this market and the combined Sharpe gain (measures.book_view), rounded to 2 places.
     A cycle that stopped (stop_code set) contributes only the candidates that reached a status and the Director's own rejects: its other ideas were never tested.
     A reject that the cycle code wrote after a failed step (source 'code') is a fault, not the Director's verdict."""
     rows={}
@@ -88,8 +91,9 @@ def lessons(cycle_ends,market_sha256):
         scores=cycle.get('scores');decisions=cycle.get('decisions');candidates=cycle.get('candidates');hypotheses=cycle.get('hypotheses')
         scores=scores if isinstance(scores,dict) else {};decisions=decisions if isinstance(decisions,dict) else {}
         stopped=cycle.get('stop_code') is not None
-        built={c.get('hypothesis_id'):candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in (candidates if isinstance(candidates,list) else [])
-               if isinstance(c,dict) and (c.get('status') or not stopped)}
+        kept=[c for c in (candidates if isinstance(candidates,list) else []) if isinstance(c,dict) and (c.get('status') or not stopped)]
+        built={c.get('hypothesis_id'):candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in kept}
+        books={c.get('hypothesis_id'):c['book'] for c in kept if isinstance(c.get('book'),dict)}
         for hypothesis in hypotheses if isinstance(hypotheses,list) else []:
             if not isinstance(hypothesis,dict) or not hypothesis.get('title'): continue
             hid=hypothesis.get('id');level=built.get(hid);decision=decisions.get(hid)
@@ -100,6 +104,8 @@ def lessons(cycle_ends,market_sha256):
             key=norm_title(hypothesis['title']);row=rows.pop(key,None)  # pop and reinsert: the dict stays in order of last use
             if row is None: row={'idea':str(hypothesis['title'])[:IDEA_CHARS],'tries':0,'best_level':None,'best_outcome':outcome}
             row['tries']+=1;row['last_cycle']=cycle.get('cycle_index')
-            if level is not None and (row['best_level'] is None or level>row['best_level']): row['best_level']=level;row['best_outcome']=outcome
+            if level is not None and (row['best_level'] is None or level>row['best_level']):
+                row['best_level']=level;row['best_outcome']=outcome;row.pop('book',None)
+                if hid in books: row['book']={k:books[hid].get(k) for k in BOOK_KEYS}
             rows[key]=row
     return [{k:v for k,v in row.items() if k!='best_level'} for row in list(rows.values())[-MAX_LESSONS:]]
