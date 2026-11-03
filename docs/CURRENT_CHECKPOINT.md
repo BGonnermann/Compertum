@@ -1,5 +1,24 @@
 # Current Compertum checkpoint
 
+## Lean cycle kept; one check command - 2 November 2026
+
+Lean cycle (owner: "keep the two steps off"). The committed `config/engine_prompts/routing.md` now holds `approve: skip` and `review: off` (commit a2afead).
+`docs/BUILD_SPEC.md` section 19 records the amendment. The tests pin the old full-cycle routing, so the approval and review paths stay tested.
+This replaces the statement below that the committed routing is unchanged.
+
+One check command (owner: "make one program that runs the tests all at once and produces a yes/no answer"; "yes build it").
+`tools/check.py` runs the engine, product, harness and tools lanes one after another and prints `CHECK: PASS` or `CHECK: FAIL`.
+A passing lane keeps one line in `.cache/test-runs/check-history.jsonl`. A failing lane keeps its folder until a later pass of the same lane removes it.
+Rules: `docs/TEST_RETENTION.md`, section "One check command". Tests: `tests/test_check_tool.py` (3 passed).
+
+First full check, source: engine 308 passed; product 2 failed, 231 passed, 8 skipped; harness 143 passed; tools 37 passed. Answer: FAIL.
+- `test_engine_french.py::test_vault_separation` failed with `ModuleNotFoundError: langchain_core`. The first product lane took every engine file. The lane now uses the established product file list.
+- `test_engine_sandbox.py::test_loopback_watcher` failed once in the product lane: the job printed CONNECTED, but the watcher saw no connection in 18 samples. It passed 3 of 3 runs alone.
+  This is an open finding. Under load, the watcher can miss a short loopback connection. The watcher is the control that compensates for open loopback, so the test stays unchanged.
+Repeat after the fix: tools 37 passed; product 351 passed, 0 failed, 8 skipped. Answer: PASS. The pass removed the failed product folder. The failure line stays in the history file.
+
+Next: NumPy for sandbox jobs (owner: "Use NumPy and other robust packages where able").
+
 ## Step 4 bench test and the scan-headroom cleanup - 2 November 2026
 
 Step 4 (owner: "Yes try and test that"). The routing key `approve` (yes|skip) was added (commit dba452b). The bench test ran with a temporary `routing.md`: `review: off` and `approve: skip`. The file was then restored to the committed version.

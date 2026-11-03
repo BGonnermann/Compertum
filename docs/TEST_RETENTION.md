@@ -62,6 +62,36 @@ Run tests with `tools/run_tests.py`:
 
 Tests: `tests/test_run_tests_tool.py`.
 
+## One check command, 2 November 2026
+
+The owner asked for one program that runs all the tests and gives a yes or no answer.
+The owner also said: "We dont keep pointless information."
+The owner approved the build ("yes build it").
+
+Run all routine test lanes with one command:
+
+    .cache/engine-env/Scripts/python.exe tools/check.py [--lanes engine,product,harness,tools]
+
+- The command runs the lanes one after another, so only one heavy job runs at a time.
+- The `engine` lane runs `tests/test_engine_*.py` and `tests/windows/test_harness_sandbox.py` in `.cache/engine-env`.
+- The `product` lane runs the established product file list in `.cache/clean-env-m0` (`PRODUCT_TESTS`, `PRODUCT_EXTRA` and the tool tests in `tools/check.py`).
+  `tests/test_engine_french.py` and `tests/test_engine_scoring.py` are not on the list, because they need packages that only the engine environment has.
+- The `harness` lane runs `tests/test_harness_*.py`. The `tools` lane runs the tests of the test and cost tools and of `tools/base_eval`.
+- The last line is `CHECK: PASS` or `CHECK: FAIL`, with the counts of each lane. Exit code 0 means PASS.
+- The command refuses to start below the memory floor or while an engine run is open.
+
+Retention for this command replaces the job-folder rules above:
+
+- A passing lane keeps one line in `.cache/test-runs/check-history.jsonl` and nothing else.
+  The line records the run name, time, lane, counts, seconds, exit code and output hash.
+- A failing lane keeps its folder `check-<lane>-<date>-<time>` with `output.txt`, the pytest working files and `failed.json`.
+- When a lane passes later, the command removes the folders of earlier failed runs of that lane.
+  The pass is the resolution. The history line of the failure stays as the permanent failure record.
+- The command never removes folders that `tools/run_tests.py` made, or failed folders of other lanes.
+
+Use `tools/run_tests.py` for single test files and investigations. Use `tools/check.py` before each commit.
+Tests: `tests/test_check_tool.py`.
+
 ## Completion rule
 
 Clean eligible temporary files during test-job completion or before the next admitted test batch.
