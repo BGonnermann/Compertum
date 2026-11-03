@@ -47,6 +47,11 @@ MIN_SECONDS,MAX_SECONDS=1,3600
 MIN_MEMORY,MAX_MEMORY=64*1024**2,8*1024**3
 MAX_DISK=1024**3
 FILE_MODIFY=0x1301BF  # generic read, write, execute and delete; no WRITE_DAC or WRITE_OWNER
+FILE_READ_EXECUTE=0x1200A9
+THREAD_LIMITS={'OPENBLAS_NUM_THREADS':'1','OMP_NUM_THREADS':'1','MKL_NUM_THREADS':'1'}
+LAUNCHER="import runpy,sys;sys.path.append(sys.argv.pop(1));sys.argv.pop(0);runpy.run_path(sys.argv[0],run_name='__main__')"
+LIBRARY_CONTROLS=('library_import_allowed','library_write_denied','library_threads_single')
+_LIBRARY_LOCK=threading.Lock()
 REPARSE_POINT=0x400
 OUT_OF_MEMORY_EXITS=(0xC0000017,0xC000012D)
 CONTROLS=('appcontainer_token','low_integrity','external_network_denied',
@@ -227,6 +232,16 @@ def _job_folder(root,job_dir):
     return job
 
 
+def _library(job,library):
+    if library is None: return None
+    if not isinstance(library,(str,Path)): raise RuntimeRefused('SANDBOX_LIBRARY_DENIED')
+    path=Path(library)
+    if not path.is_absolute() or path.is_symlink() or path.is_junction() or not path.is_dir(): raise RuntimeRefused('SANDBOX_LIBRARY_DENIED')
+    path=path.resolve(strict=True)
+    if path==job or job in path.parents or path in job.parents: raise RuntimeRefused('SANDBOX_LIBRARY_DENIED')
+    return path
+
+
 def _argv(job,argv):
     """The first argument names one .py file in the job folder. No argument is absolute or climbs out."""
     if (type(argv) is not list or not 1<=len(argv)<=64 or any(type(a) is not str or not 1<=len(a)<=1024 or '\0' in a for a in argv)
@@ -319,16 +334,18 @@ class LoopbackWatcher:
                 'verified':self.error is None and self.samples>=1}
 
 
-def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None,watcher=None,slot=0):
+def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,memory_floor_bytes,available_memory=available_physical_memory,api=None,watcher=None,slot=0,library=None):
     """Run the system Python in a fresh AppContainer inside job_dir. Return a SandboxResult after the process ends.
 
     argv names a .py file in job_dir and its arguments; the interpreter runs with -I -B. Any refusal happens before the process exists.
     The caller holds the one heavy-job slot. This function does not check the slot.
     watcher: an optional LoopbackWatcher. It starts when the process resumes and stops when the process has ended.
+    library: an optional folder of read-only packages. The slot gets read and execute rights on it for this job only, the folder
+    joins sys.path through LAUNCHER, and THREAD_LIMITS keep numerical libraries on one thread, so reruns give the same output.
     """
     if watcher is not None and not isinstance(watcher,LoopbackWatcher): raise RuntimeRefused('SANDBOX_WATCHER_DENIED')
     name=slot_profile(slot)
-    job=_job_folder(root,job_dir);argv=_argv(job,argv)
+    job=_job_folder(root,job_dir);argv=_argv(job,argv);library=_library(job,library)
     seconds=_bounded(seconds,MIN_SECONDS,MAX_SECONDS,'SANDBOX_DEADLINE_DENIED');memory_bytes=_bounded(memory_bytes,MIN_MEMORY,MAX_MEMORY,'SANDBOX_MEMORY_DENIED')
     disk_bytes=_bounded(disk_bytes,1,MAX_DISK,'SANDBOX_DISK_DENIED');_bounded(memory_floor_bytes,1,2**62,'SANDBOX_FLOOR_DENIED')
     environment={}
@@ -341,12 +358,15 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
     available=available_memory()
     if type(available) is not int or available<memory_floor_bytes: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     api=api or SandboxAPI();job_id=str(uuid4())
-    profile=process=thread=None;job_object=api._handle(api.CreateJobObjectW(None,None),'CreateSandboxJob')
+    profile=process=thread=None;shared=False;job_object=api._handle(api.CreateJobObjectW(None,None),'CreateSandboxJob')
     stdout_path=job/'stdout.txt';stderr_path=job/'stderr.txt'
     try:
         profile=Profile(api,name)
         # The entry is on disk before grant() verifies it, so the finally block revokes whenever the profile exists.
         profile.grant(job)
+        if library is not None:
+            with _LIBRARY_LOCK:
+                shared=True;profile.grant(library,FILE_READ_EXECUTE)
         affinity=SIZE();system=SIZE();api.checked(api.GetProcessAffinityMask(HANDLE(-1),c.byref(affinity),c.byref(system)),'GetProcessAffinityMask')
         limits=ExtendedLimits();limits.basic.flags=0x2000|0x100|0x200|0x10|0x8|0x400
         limits.basic.affinity=slot_core(affinity.value,slot);limits.basic.active_limit=1;limits.process_memory=limits.job_memory=memory_bytes
@@ -355,8 +375,9 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
         if (actual.basic.flags!=limits.basic.flags or actual.basic.affinity!=limits.basic.affinity or actual.basic.active_limit!=1
                 or actual.process_memory!=memory_bytes or actual.job_memory!=memory_bytes): raise RuntimeRefused('JOB_LIMITS_UNVERIFIED')
         environment.update(TEMP=str(job),TMP=str(job),PYTHONDONTWRITEBYTECODE='1',PYTHONNOUSERSITE='1',PYTHONIOENCODING='utf-8')
+        if library is not None: environment.update(THREAD_LIMITS)
         block=c.create_unicode_buffer('\0'.join(f'{k}={v}' for k,v in sorted(environment.items()))+'\0\0')
-        command=c.create_unicode_buffer(subprocess.list2cmdline([runtime,'-I','-B',*argv]))
+        command=c.create_unicode_buffer(subprocess.list2cmdline([runtime,'-I','-B',*argv] if library is None else [runtime,'-I','-B','-c',LAUNCHER,str(library),*argv]))
         size=SIZE();api.InitializeProcThreadAttributeList(None,2,0,c.byref(size));attributes=c.create_string_buffer(size.value)
         api.checked(api.InitializeProcThreadAttributeList(attributes,2,0,c.byref(size)),'InitializeProcThreadAttributeList')
         import msvcrt
@@ -411,6 +432,10 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
             if handle is not None:
                 try: handle.close()
                 except BaseException as error: errors.append(error)
+        if shared:
+            try:
+                with _LIBRARY_LOCK: profile.revoke(library)
+            except BaseException as error: errors.append(error)
         if profile is not None:
             try: profile.revoke(job)
             except BaseException as error: errors.append(error)
@@ -504,14 +529,50 @@ def fixed_target_paths(targets):
     return paths
 
 
-def verify_slots(root,*,memory_floor_bytes,fixed_targets=(),pipe=None,api=None):
+LIBRARY_PROBE=r'''
+import json, os
+with open('targets.json', encoding='utf-8') as stream: targets = json.load(stream)
+out = {}
+def attempt(name, fn):
+    try: out[name] = {'ok': True, 'value': fn()}
+    except BaseException as error: out[name] = {'ok': False, 'error': type(error).__name__, 'detail': str(error)[:200]}
+    with open('probe.json', 'w', encoding='utf-8') as stream: json.dump(out, stream)
+attempt('import', lambda: __import__(targets['module']).__version__)
+attempt('compute', lambda: float(__import__('numpy').linalg.inv(__import__('numpy').eye(3) * 2.0).sum()))
+attempt('write', lambda: open(os.path.join(targets['library'], targets['escape']), 'w', encoding='utf-8').write('escaped'))
+attempt('threads', lambda: [os.environ.get(k) for k in targets['threads']])
+'''
+
+
+def verify_library(root,*,library,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None,slot=0,module='numpy',version=None):
+    """Run a probe that must import module from library, compute with it, keep THREAD_LIMITS and fail to write into library."""
+    root=Path(root).resolve(strict=True);token=str(uuid4())[:8];job=root/f'library-{token}';job.mkdir()
+    path=_library(job,library);escape=f'escape-{token}.txt'
+    (job/'probe.py').write_text(LIBRARY_PROBE,encoding='utf-8')
+    (job/'targets.json').write_text(json.dumps({'module':module,'library':str(path),'escape':escape,'threads':sorted(THREAD_LIMITS)}),encoding='utf-8')
+    result=run_sandboxed(root,job,['probe.py'],seconds=seconds,memory_bytes=memory_bytes,memory_floor_bytes=memory_floor_bytes,api=api,slot=slot,library=path)
+    report=json.loads(read_head(job/'probe.json')) if (job/'probe.json').is_file() else {}
+    loaded=report.get('import',{});write=report.get('write',{})
+    controls={'library_import_allowed':loaded.get('ok') is True and (version is None or loaded.get('value')==version) and report.get('compute',{}).get('value')==1.5,
+              'library_write_denied':write.get('ok') is False and write.get('error')=='PermissionError' and not (path/escape).exists(),
+              'library_threads_single':report.get('threads',{}).get('value')==['1']*len(THREAD_LIMITS)}
+    return {'controls':controls,'failed':sorted(k for k,v in controls.items() if not v),'report':report,'result':result.record(),'job_folder':str(job)}
+
+
+def verify_slots(root,*,memory_floor_bytes,fixed_targets=(),pipe=None,api=None,library=None,library_version=None):
     """Verify every sandbox slot and merge the results: a control holds only when it holds in every slot; failures name their slot."""
     results=[verify_sandbox(root,memory_floor_bytes=memory_floor_bytes,fixed_targets=fixed_targets,pipe=pipe,api=api,slot=s) for s in range(SLOTS)]
     controls={k:all(r['controls'][k] is True for r in results) for k in CONTROLS}
     failed=sorted(set(k for r in results for k in r['failed'])|{k for k,v in controls.items() if not v})
     observations={k:any(r['observations'].get(k) for r in results) for k in results[0]['observations']}
-    return {**results[0],'controls':controls,'failed':failed,'observations':observations,
+    merged={**results[0],'controls':controls,'failed':failed,'observations':observations,
             'slots':[{'slot':s,'profile':slot_profile(s),'failed':r['failed'],'observations':r['observations'],'result':r['result']} for s,r in enumerate(results)]}
+    if library is not None:
+        checks=[verify_library(root,library=library,memory_floor_bytes=memory_floor_bytes,api=api,slot=s,version=library_version) for s in range(SLOTS)]
+        held={k:all(r['controls'][k] is True for r in checks) for k in LIBRARY_CONTROLS}
+        merged['library']={'path':str(Path(library).resolve(strict=True)),'controls':held,'slots':[{'slot':s,'failed':r['failed'],'result':r['result']} for s,r in enumerate(checks)]}
+        merged['failed']=sorted(set(failed)|{k for k,v in held.items() if not v})
+    return merged
 
 
 def verify_sandbox(root,*,memory_floor_bytes,seconds=60,memory_bytes=256*1024**2,api=None,fixed_targets=(),pipe=None,slot=0):

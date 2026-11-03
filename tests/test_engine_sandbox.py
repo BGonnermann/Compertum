@@ -464,3 +464,63 @@ def test_slot_merge(monkeypatch):
     assert merged['slots'][2]['failed']==['outside_read_denied'] and merged['slots'][0]['failed']==[]
     assert all(merged['observations'].values()) and merged['slots'][1]['observations']==dict.fromkeys(OBSERVATIONS,True)
     with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED:outside_read_denied$'): require_verified(merged)
+
+
+ENGINE_SITE=PROJECT/'.cache'/'engine-env'/'Lib'/'site-packages'
+
+
+@pytest.fixture(scope='module')
+def library(root):
+    from compertum.ai.engine.libraries import build_library,check_library,library_folder
+    base=root/f'library-root-{uuid4().hex[:8]}';base.mkdir()
+    build_library(base,ENGINE_SITE);check_library(base)
+    return library_folder(base)
+
+
+def container_entries(folder):
+    import subprocess
+    return [line for line in subprocess.run(['icacls',str(folder)],capture_output=True,text=True).stdout.splitlines() if 'S-1-15-2-' in line]
+
+
+def test_library_job(root,library):
+    """A job imports NumPy from the read-only library, keeps its own argv, runs on one BLAS thread, and cannot write into the library.
+    The read grant ends with the job."""
+    source=('import json,os,sys\nimport numpy as np\nout={"argv":sys.argv,"version":np.__version__,"sum":float(np.linalg.solve(np.eye(2)*4,np.ones(2)).sum()),'
+            '"threads":os.environ.get("OPENBLAS_NUM_THREADS")}\n'
+            'try:\n    open(os.path.join(open("lib.txt").read(),"escape.txt"),"w").write("x");out["write"]="ok"\nexcept PermissionError: out["write"]="denied"\n'
+            'open("out.json","w").write(json.dumps(out))\n')
+    folder=job(root,source,**{'lib.txt':str(library)})
+    result=run_sandboxed(root,folder,['main.py','x'],seconds=60,memory_bytes=256*MIB,memory_floor_bytes=FLOOR,library=library)
+    assert result.exit_code==0,result.stderr
+    out=json.loads((folder/'out.json').read_text())
+    assert out=={'argv':['main.py','x'],'version':'2.5.4','sum':0.5,'threads':'1','write':'denied'}
+    assert not (library/'escape.txt').exists() and container_entries(library)==[] and container_entries(library/'numpy'/'__init__.py')==[]
+    plain=job(root,'import numpy\n');result=run(root,plain)
+    assert result.exit_code!=0 and b'ModuleNotFoundError' in result.stderr
+
+
+def test_library_denied(root,library,tmp_path):
+    """The library must be an existing, absolute, real folder outside the job folder; refusals happen before any process exists."""
+    import subprocess
+    folder=job(root,'print(1)\n');link=root/f'link-{uuid4().hex[:8]}'
+    subprocess.run(['cmd','/c','mklink','/J',str(link),str(library)],capture_output=True,check=True)
+    try:
+        for bad in ('relative',library/'numpy'/'__init__.py',folder,root,link,tmp_path/'absent',7):
+            with pytest.raises(RuntimeRefused,match='^SANDBOX_LIBRARY_DENIED$'): run(root,folder,library=bad)
+    finally: link.rmdir()
+    assert container_entries(library)==[]
+
+
+def test_library_slots(root,library):
+    """Slot verification with a library adds three controls in every slot; a wrong version or an empty folder fails the import control."""
+    from compertum.runtime.sandbox import LIBRARY_CONTROLS,SLOTS,verify_library,verify_slots
+    pipe=r'\\.\pipe\compertum-libslots-'+uuid4().hex[:8];listener=Listener(pipe,'AF_PIPE')
+    try: merged=verify_slots(root,memory_floor_bytes=FLOOR,fixed_targets=FIXED_TARGETS,pipe=pipe,library=library,library_version='2.5.4')
+    finally: listener.close()
+    assert merged['failed']==[] and merged['library']['path']==str(library) and set(merged['library']['controls'])==set(LIBRARY_CONTROLS)
+    assert all(merged['library']['controls'].values()) and [s['slot'] for s in merged['library']['slots']]==list(range(SLOTS))
+    require_verified(merged)
+    wrong=verify_library(root,library=library,memory_floor_bytes=FLOOR,version='9.9.9')
+    assert wrong['failed']==['library_import_allowed']
+    empty=root/f'empty-lib-{uuid4().hex[:8]}';empty.mkdir()
+    assert verify_library(root,library=empty,memory_floor_bytes=FLOOR)['failed']==['library_import_allowed']

@@ -80,7 +80,7 @@ SLOT_INSTRUCTIONS={
                 'and wastes the call; a cap that is too large costs time. More hypotheses give more chances but more trials, and every trial raises the gate.'),
     'tool':('Improve the analysis tool of a research firm. It is a Python program that runs in a sandbox with train.csv (columns session, close, '
             'return) in its folder, and validation.csv with the header only. It prints a report; the routing sends the report to some roles. '
-            'Use the Python standard library only. No network, no other files. Keep the report short and exact: numbers that help the roles '
+            'Use the Python standard library and NumPy 2.5.4 (import numpy) only. No network, no other files. Keep the report short and exact: numbers that help the roles '
             'tell a real, repeatable pattern from noise. The records show what the tool printed, or why it failed, and the outcome of each cycle. '
             'Reply with the complete Python program only.'),
     'starter':('Improve the starter program of a research firm\'s Engineer. The Engineer edits decide() in this program to build each specification, '

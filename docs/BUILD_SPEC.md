@@ -67,6 +67,17 @@ The owner chose to keep two cycle steps off: "keep the two steps off". The commi
 - Both steps stay available as routing values (`approve: yes`, `review: advice` or `rebuild`), and GEPA may propose them.
 Section 19, cycle steps 2 and 4, read with this amendment.
 
+## Sandbox NumPy amendment - 2 November 2026
+
+The owner directed: "Use NumPy and other robust packages where able."
+- Sandbox jobs may import NumPy 2.5.4 from a read-only library folder, `.cache/sandbox-libs/cp314`, next to the engine code.
+- `python -m compertum.ai.engine.libraries` builds the folder from `.cache/engine-env`. It checks every file against the hash in the wheel's `RECORD` file and writes a manifest.
+- A practice run refuses to start unless the folder matches its manifest (`check_library`). Every slot must then pass three more probe controls: import allowed, write denied, and one BLAS thread.
+- For each job, the slot identity gets read and execute rights on the folder. The rights end with the job. The job has no write right on the folder.
+- Jobs run with `OPENBLAS_NUM_THREADS`, `OMP_NUM_THREADS` and `MKL_NUM_THREADS` set to 1, so the Auditor's reruns give the same output.
+- The roles' prompts now say "the Python standard library and NumPy 2.5.4". Other packages need the same build, probe and test path before jobs can use them.
+Section 19 sandbox rules are unchanged otherwise. The judge, the Auditor checks and the vault do not change.
+
 ## 1. Requirement status and scope
 
 Use these labels throughout implementation receipts:

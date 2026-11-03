@@ -325,6 +325,21 @@ def test_sandbox_tool(bridge,root,verification,market):
     assert job_files({'/a/b.py':'x'})=={'a/b.py':'x'}
 
 
+def test_numpy_jobs(bridge,root,verification,market):
+    """With a verified library, Engineer jobs and the Auditor's reruns import NumPy; without one, the import fails."""
+    from compertum.ai.engine.libraries import build_library,library_folder
+    b,_=bridge;ledger=EngineLedger(b.store);base=root/f'library-{uuid4().hex[:8]}';base.mkdir()
+    build_library(base,PROJECT/'.cache'/'engine-env'/'Lib'/'site-packages')
+    code={'/main.py':'import numpy\nprint(numpy.__version__)\n'}
+    for library,status in ((library_folder(base),'COMPLETED'),(None,'FAILED')):
+        checked=dict(verification,library={'path':str(library)}) if library is not None else verification
+        sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=checked,cycle_id=f'cycle-numpy-{status}',
+                                train_csv=market['train_csv'],validation_csv=market['validation_csv'],memory_floor_bytes=FLOOR,max_runs=2)
+        first=sandbox.run(code,'main.py');again=sandbox.rerun_frozen(sandbox.runs[-1]['files'],'main.py',purpose='audit')
+        assert first['status']==again['status']==status
+        if library is not None: assert first['stdout'].startswith('2.5.4') and again['stdout'].startswith('2.5.4')
+
+
 def test_engineer_runs(bridge,root,verification,market):
     # Practice run 11: one count for the whole cycle left later candidates with no run at all.
     b,_=bridge;ledger=EngineLedger(b.store)

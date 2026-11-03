@@ -16,7 +16,7 @@ HISTORY='check-history.jsonl'
 PREFIX='check-'
 FAILED='failed.json'
 PRODUCT_TESTS=('acceptance','audit','bench','bench_run','compare','gepa','gepa_run','history_market','lessons','limits','practice','practice_run','preflight',
-               'real_market','roles','run','sandbox','tail','transcripts','validator','library','library_multi','panel')
+               'real_market','roles','run','sandbox','tail','transcripts','validator','library','library_multi','panel','libraries')
 PRODUCT_EXTRA=('tests/test_ai_models_interface.py','tests/test_pull_bars.py','tests/test_route_search.py','tests/test_update_indices.py')
 TOOL_TESTS=('tests/test_run_tests_tool.py','tests/test_run_cost_tool.py','tests/test_base_eval.py','tests/test_clean_test_runs.py','tests/test_check_tool.py')
 

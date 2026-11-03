@@ -37,6 +37,7 @@ from compertum.storage import StorageManager
 from compertum.ai.models import MODEL_LIST_BYTES,auth_headers,checked_spec,load_models,model_id,model_ids
 from .audit import engine_fixed_targets
 from . import bench
+from .libraries import CODE_ROOT,PACKAGES,check_library,library_folder
 from .limits import RunLimits
 from .preflight import preflight
 from .market import market_csv,split_market_tiers,synthetic_market
@@ -231,8 +232,11 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         store=StorageManager(lease,load_config(config_path,root)).store
         sandbox_root=root/'.cache'/'test-runs'/f'engine-practice-{date.today():%Y%m%d}-{uuid4().hex[:8]}';sandbox_root.mkdir(parents=True)
         pipe=r'\\.\pipe\compertum-practice-'+uuid4().hex[:8];listener=Listener(pipe,'AF_PIPE')
-        try: verification=verify_slots(sandbox_root,memory_floor_bytes=START_FLOOR,fixed_targets=engine_fixed_targets(root),pipe=pipe)
+        manifest=check_library(CODE_ROOT)
+        try: verification=verify_slots(sandbox_root,memory_floor_bytes=START_FLOOR,fixed_targets=engine_fixed_targets(root),pipe=pipe,
+                                       library=library_folder(CODE_ROOT),library_version=PACKAGES['numpy'])
         finally: listener.close()
+        verification['library']['manifest']=manifest
         previous=research_state(store);set_state(store,'RUNNING')
         try:
             limits=RunLimits(request_limit=requests,cycle_limit=cycles,hour_limit=hours)

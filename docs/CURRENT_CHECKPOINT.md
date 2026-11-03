@@ -17,7 +17,26 @@ First full check, source: engine 308 passed; product 2 failed, 231 passed, 8 ski
   This is an open finding. Under load, the watcher can miss a short loopback connection. The watcher is the control that compensates for open loopback, so the test stays unchanged.
 Repeat after the fix: tools 37 passed; product 351 passed, 0 failed, 8 skipped. Answer: PASS. The pass removed the failed product folder. The failure line stays in the history file.
 
-Next: NumPy for sandbox jobs (owner: "Use NumPy and other robust packages where able").
+## NumPy in sandbox jobs - 2 November 2026
+
+Owner: "Use NumPy and other robust packages where able." Spec: `docs/BUILD_SPEC.md`, "Sandbox NumPy amendment".
+- New `src/compertum/ai/engine/libraries.py` builds `.cache/sandbox-libs/cp314` from `.cache/engine-env`: NumPy 2.5.4, 947 files, about 42 MB.
+  Every file matched its wheel `RECORD` hash. Tree SHA-256 `680e55e19011...`. The build took 3.5 s, and the check takes about 1.3 s at run start.
+- Sealed `sandbox.py`: `run_sandboxed(..., library=)` grants the slot read and execute rights for one job and revokes them at the end. A lock serializes the rights changes of the 3 slots.
+  The job starts through a fixed launcher that adds the folder to `sys.path`, and the job keeps its own `sys.argv`. New `verify_library` and `LIBRARY_CONTROLS`. `verify_slots(..., library=)` merges them.
+- Sealed `execution.py`: `EngineerSandbox` passes the verified library to every job, including the Auditor's reruns and the analysis tool.
+- `practice.py` checks the library and verifies it in every slot before a run. The prompts and the panel brief name NumPy 2.5.4.
+Native measurements: a NumPy probe job took 0.7 to 1.1 s, and the grant and revoke added about 0.6 s. After the jobs, `icacls` showed no container entry on the folder.
+Sealed files changed under the owner's NumPy direction: `runtime/sandbox.py` aa46388f to 794593b7, `ai/engine/execution.py` ee104933 to f5de4fa7.
+Tests: `tests/test_engine_libraries.py` (build, hash refusal, changed and added files); `test_library_job`, `test_library_denied` and `test_library_slots` in `tests/test_engine_sandbox.py` (native); `test_numpy_jobs` in `tests/test_engine_roles.py` (Engineer job and Auditor rerun).
+First full check: FAIL. Engine 13 failed and product 10 failed, all with `SANDBOX_LIBRARY_MISSING`, because the practice tests use temporary project folders.
+Fix: the library belongs to the code checkout (`CODE_ROOT`), like `.cache/engine-env`, not to the run's project folder.
+Full check after the fix, source: engine 314 passed; product 356 passed, 8 skipped; harness 143 passed; tools 37 passed; 0 failed. Answer: PASS.
+The engine lane took 9 min 8 s, against 6 min 43 s before, because every practice test now also runs the 3 library probes.
+Not done: SciPy and pandas. Each needs the same build, probe and tests, plus a memory check. No bench exam has run with NumPy yet.
+Next: a bench exam with NumPy (bench-french-1, GLM 5.3 flash) to measure the effect on quality, requests and time. It uses OpenRouter credit and needs the owner's OK to start.
+The project map was not refreshed. It is behind on the sandbox slots, the panel candidates, the lean cycle, the check command and NumPy.
+A refresh under `docs/PROJECT_MAP_REFRESH.md` is pending.
 
 ## Step 4 bench test and the scan-headroom cleanup - 2 November 2026
 

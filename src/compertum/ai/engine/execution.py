@@ -147,7 +147,7 @@ class EngineerSandbox:
         if not isinstance(train_csv,str) or not isinstance(validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         self.train_csv=train_csv;self.validation_csv=validation_csv
         self.memory_floor_bytes=memory_floor_bytes;self.seconds=seconds;self.memory_bytes=memory_bytes;self.max_runs=max_runs
-        self.runs=[];self._candidate_start=0
+        self.runs=[];self._candidate_start=0;self.library=(verification.get('library') or {}).get('path')
 
     def begin_candidate(self):
         """A new candidate starts: it gets its own `max_runs` Engineer runs. Practice run 11 (25 October 2026) showed that one count for the whole cycle let
@@ -196,7 +196,7 @@ class EngineerSandbox:
             with engine_slot(self.lease,purpose) as slot:
                 self.ledger.require_unfrozen()
                 result=run_sandboxed(self.root,job,[entry],seconds=self.seconds,memory_bytes=self.memory_bytes,
-                                     memory_floor_bytes=self.memory_floor_bytes+(SLOTS-1)*self.memory_bytes,watcher=watcher,slot=slot)
+                                     memory_floor_bytes=self.memory_floor_bytes+(SLOTS-1)*self.memory_bytes,watcher=watcher,slot=slot,library=self.library)
             watched=watcher.record()
             record.update(result=result.record(),watcher=watched,stdout=head(result.stdout),stderr=head(result.stderr))
             # A seen connection freezes first, even if the watcher later failed. An unverified watcher without evidence is not a clean run.

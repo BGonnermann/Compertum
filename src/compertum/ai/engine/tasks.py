@@ -84,7 +84,7 @@ def panel_brief(train_sessions,validation_dates,assets):
             'A strategy beats the baseline when its Sharpe ratio above the cash rate is defined, its annual mean excess over the benchmark is positive, '
             'its Sharpe is above the benchmark\'s, and all three still hold when every rebalance is executed one session later. '
             'The final gate asks whether the daily gain over the benchmark is too large to be luck among all ideas tried. '
-            f'The program runs with the Python standard library only, on one CPU, with 120 seconds per run, on {train_sessions+len(validation_dates)} sessions and {assets} assets. '
+            f'The program runs with the Python standard library and NumPy 2.5.4 only, on one CPU, with 120 seconds per run, on {train_sessions+len(validation_dates)} sessions and {assets} assets. '
             'Only these two files exist; propose nothing that needs other data.')
 
 
