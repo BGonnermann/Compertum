@@ -131,6 +131,22 @@ class Profile:
         """Remove every entry for this container from folder. The identity is shared by all jobs, so this must hold."""
         if self._apply(folder,0,4)!=0: raise RuntimeRefused('SANDBOX_REVOKE_UNVERIFIED')
 
+    def rights(self,folder):
+        api=self.api;acl=HANDLE();descriptor=HANDLE()
+        api.status(api.GetNamedSecurityInfoW(str(folder),1,4,None,None,c.byref(acl),None,c.byref(descriptor)),'GetNamedSecurityInfoW')
+        try:
+            rights=DWORD();api.status(api.GetEffectiveRightsFromAclW(acl,c.byref(TRUSTEE(None,0,0,0,self.sid)),c.byref(rights)),'GetEffectiveRightsFromAclW')
+            return rights.value
+        finally: api.LocalFree(descriptor)
+
+    def share(self,folder):
+        """Give this slot's identity lasting read and execute rights on a library folder (owner, 3 November 2026: "ok" to a shorter check).
+        The slot's SID comes from its fixed profile name, so the entry is set once and later jobs only read it. Any other right is refused."""
+        held=self.rights(folder)
+        if held==FILE_READ_EXECUTE: return
+        if held!=0: raise RuntimeRefused('SANDBOX_LIBRARY_DENIED')
+        if self._apply(folder,FILE_READ_EXECUTE,1)!=FILE_READ_EXECUTE: raise RuntimeRefused('SANDBOX_GRANT_UNVERIFIED')
+
     def close(self):
         """Delete the profile and its package folder. A retained folder is refused, never ignored."""
         if self.sid is not None: self.api.FreeSid(self.sid);self.sid=None
@@ -340,7 +356,7 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
     argv names a .py file in job_dir and its arguments; the interpreter runs with -I -B. Any refusal happens before the process exists.
     The caller holds the one heavy-job slot. This function does not check the slot.
     watcher: an optional LoopbackWatcher. It starts when the process resumes and stops when the process has ended.
-    library: an optional folder of read-only packages. The slot gets read and execute rights on it for this job only, the folder
+    library: an optional folder of read-only packages. The slot's identity holds lasting read and execute rights on it (Profile.share), the folder
     joins sys.path through LAUNCHER, and THREAD_LIMITS keep numerical libraries on one thread, so reruns give the same output.
     """
     if watcher is not None and not isinstance(watcher,LoopbackWatcher): raise RuntimeRefused('SANDBOX_WATCHER_DENIED')
@@ -358,15 +374,14 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
     available=available_memory()
     if type(available) is not int or available<memory_floor_bytes: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     api=api or SandboxAPI();job_id=str(uuid4())
-    profile=process=thread=None;shared=False;job_object=api._handle(api.CreateJobObjectW(None,None),'CreateSandboxJob')
+    profile=process=thread=None;job_object=api._handle(api.CreateJobObjectW(None,None),'CreateSandboxJob')
     stdout_path=job/'stdout.txt';stderr_path=job/'stderr.txt'
     try:
         profile=Profile(api,name)
         # The entry is on disk before grant() verifies it, so the finally block revokes whenever the profile exists.
         profile.grant(job)
         if library is not None:
-            with _LIBRARY_LOCK:
-                shared=True;profile.grant(library,FILE_READ_EXECUTE)
+            with _LIBRARY_LOCK: profile.share(library)
         affinity=SIZE();system=SIZE();api.checked(api.GetProcessAffinityMask(HANDLE(-1),c.byref(affinity),c.byref(system)),'GetProcessAffinityMask')
         limits=ExtendedLimits();limits.basic.flags=0x2000|0x100|0x200|0x10|0x8|0x400
         limits.basic.affinity=slot_core(affinity.value,slot);limits.basic.active_limit=1;limits.process_memory=limits.job_memory=memory_bytes
@@ -432,10 +447,6 @@ def run_sandboxed(root,job_dir,argv,*,seconds,memory_bytes,disk_bytes=MAX_DISK,m
             if handle is not None:
                 try: handle.close()
                 except BaseException as error: errors.append(error)
-        if shared:
-            try:
-                with _LIBRARY_LOCK: profile.revoke(library)
-            except BaseException as error: errors.append(error)
         if profile is not None:
             try: profile.revoke(job)
             except BaseException as error: errors.append(error)

@@ -484,7 +484,7 @@ def container_entries(folder):
 
 def test_library_job(root,library):
     """A job imports NumPy from the read-only library, keeps its own argv, runs on one BLAS thread, and cannot write into the library.
-    The read grant ends with the job."""
+    The slot keeps one lasting read and execute entry on the library (owner, 3 November 2026), and a second job adds no entry."""
     source=('import json,os,sys\nimport numpy as np\nout={"argv":sys.argv,"version":np.__version__,"sum":float(np.linalg.solve(np.eye(2)*4,np.ones(2)).sum()),'
             '"threads":os.environ.get("OPENBLAS_NUM_THREADS")}\n'
             'try:\n    open(os.path.join(open("lib.txt").read(),"escape.txt"),"w").write("x");out["write"]="ok"\nexcept PermissionError: out["write"]="denied"\n'
@@ -494,7 +494,10 @@ def test_library_job(root,library):
     assert result.exit_code==0,result.stderr
     out=json.loads((folder/'out.json').read_text())
     assert out=={'argv':['main.py','x'],'version':'2.5.4','sum':0.5,'threads':'1','write':'denied'}
-    assert not (library/'escape.txt').exists() and container_entries(library)==[] and container_entries(library/'numpy'/'__init__.py')==[]
+    entries=container_entries(library);inherited=container_entries(library/'numpy'/'__init__.py')
+    assert not (library/'escape.txt').exists() and len(entries)==1 and entries[0].endswith('(OI)(CI)(RX)') and len(inherited)==1 and inherited[0].endswith('(I)(RX)')
+    again=job(root,'import numpy\n');assert run_sandboxed(root,again,['main.py'],seconds=60,memory_bytes=256*MIB,memory_floor_bytes=FLOOR,library=library).exit_code==0
+    assert container_entries(library)==entries
     plain=job(root,'import numpy\n');result=run(root,plain)
     assert result.exit_code!=0 and b'ModuleNotFoundError' in result.stderr
 
@@ -502,13 +505,13 @@ def test_library_job(root,library):
 def test_library_denied(root,library,tmp_path):
     """The library must be an existing, absolute, real folder outside the job folder; refusals happen before any process exists."""
     import subprocess
-    folder=job(root,'print(1)\n');link=root/f'link-{uuid4().hex[:8]}'
+    folder=job(root,'print(1)\n');link=root/f'link-{uuid4().hex[:8]}';before=container_entries(library)
     subprocess.run(['cmd','/c','mklink','/J',str(link),str(library)],capture_output=True,check=True)
     try:
         for bad in ('relative',library/'numpy'/'__init__.py',folder,root,link,tmp_path/'absent',7):
             with pytest.raises(RuntimeRefused,match='^SANDBOX_LIBRARY_DENIED$'): run(root,folder,library=bad)
     finally: link.rmdir()
-    assert container_entries(library)==[]
+    assert container_entries(library)==before
 
 
 def test_library_slots(root,library):
@@ -519,6 +522,7 @@ def test_library_slots(root,library):
     finally: listener.close()
     assert merged['failed']==[] and merged['library']['path']==str(library) and set(merged['library']['controls'])==set(LIBRARY_CONTROLS)
     assert all(merged['library']['controls'].values()) and [s['slot'] for s in merged['library']['slots']]==list(range(SLOTS))
+    entries=container_entries(library);assert len(entries)==SLOTS and all(e.endswith('(OI)(CI)(RX)') for e in entries)
     require_verified(merged)
     wrong=verify_library(root,library=library,memory_floor_bytes=FLOOR,version='9.9.9')
     assert wrong['failed']==['library_import_allowed']

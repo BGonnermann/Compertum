@@ -1,5 +1,22 @@
 # Current Compertum checkpoint
 
+## A shorter check - 3 November 2026
+
+- Owner asked for a shorter check ("yes, make it shorter after part 2"), then answered "ok" to the recommendation: options 1 and 3.
+- Measured first (source, native):
+  - The full check took 7.5 min on 3 November, not about 20 min. The same 326 engine tests took from 5 min 5 s to 8 min 46 s, depending on other load on the host.
+  - Each lane starts 12 practice runs with the library. A slot check took 1.5 to 1.7 s without the library and 5.6 to 5.8 s with it, plus 0.9 s for `check_library`.
+  - The cost was the per-job read grant: it set and removed the rights of 947 files, under one lock. Slots side by side therefore saved nothing; that trial was reverted.
+- Option 1: each slot identity keeps one lasting read and execute entry on the NumPy library (`Profile.share`). `sandbox.py` 794593b7 to ca1832ef.
+  The library check per start fell from 5.6 s to 1.6 s. The library holds exactly 3 container entries, all `(OI)(CI)(RX)`. The probe controls are unchanged. `docs/BUILD_SPEC.md` amendment updated.
+- Option 3: `tools/check.py` runs the harness and tools lanes beside the engine and product lanes, which still run one at a time. New test `test_light_beside`.
+- Owner: "ok add the progress line". In a terminal, `tools/check.py` now shows one live line for the running sandbox lane, for example `engine: 147/326 tests (45%), 1 failed, 2:10 elapsed`.
+  pytest runs with `console_output_style=count` and unbuffered output. The total appears after the first 72 tests. New test `test_progress`.
+- Not done: option 2 (the duplicate native tests in the product lane). It would reduce coverage of the product environment.
+- Full check, source, with options 1 and 3: engine 326 passed; product 370 passed, 8 skipped; harness 143 passed; tools 38 passed; 0 failed. PASS in 6.1 min (7.5 min before).
+  After the progress line: tools lane 39 passed; `tests/test_check_tool.py` 5 passed in the product environment.
+- Open finding: `test_loopback_watcher` failed once more in a side run (no connection seen in 15 samples). Evidence: `.cache/test-runs/parallel-slots-20261103-084811`.
+
 ## Candidate measures part 2: contribution to the book - 3 November 2026
 
 - Owner, 3 November 2026: "yes go ahead with part 2". Built as `docs/CANDIDATE_MEASURES_DESIGN.md` part 2 (see "As built" there).

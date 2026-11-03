@@ -72,7 +72,9 @@ Run all routine test lanes with one command:
 
     .cache/engine-env/Scripts/python.exe tools/check.py [--lanes engine,product,harness,tools]
 
-- The command runs the lanes one after another, so only one heavy job runs at a time.
+- The command runs the `engine` and `product` lanes one after another, so only one heavy job runs at a time.
+  Since 3 November 2026 (owner: "ok" to a shorter check), the `harness` and `tools` lanes run beside them. They are light, and they start no sandbox job.
+- In a terminal, the command shows a live line for the running lane: tests done, total, share, failures and elapsed time (owner: "ok add the progress line").
 - The `engine` lane runs `tests/test_engine_*.py` and `tests/windows/test_harness_sandbox.py` in `.cache/engine-env`.
 - The `product` lane runs the established product file list in `.cache/clean-env-m0` (`PRODUCT_TESTS`, `PRODUCT_EXTRA` and the tool tests in `tools/check.py`).
   `tests/test_engine_french.py` and `tests/test_engine_scoring.py` are not on the list, because they need packages that only the engine environment has.

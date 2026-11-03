@@ -74,6 +74,11 @@ The owner directed: "Use NumPy and other robust packages where able."
 - `python -m compertum.ai.engine.libraries` builds the folder from `.cache/engine-env`. It checks every file against the hash in the wheel's `RECORD` file and writes a manifest.
 - A practice run refuses to start unless the folder matches its manifest (`check_library`). Every slot must then pass three more probe controls: import allowed, write denied, and one BLAS thread.
 - For each job, the slot identity gets read and execute rights on the folder. The rights end with the job. The job has no write right on the folder.
+  Changed 3 November 2026 (owner: "ok" to a shorter check): each of the 3 slot identities keeps one lasting read and execute entry on the folder.
+  A slot's identity comes from its fixed profile name, so the first job of a slot sets the entry and later jobs only check it (`Profile.share`).
+  Any other right for a slot refuses the job (`SANDBOX_LIBRARY_DENIED`). The three probe controls still run in every slot at every practice start.
+  Reason: setting and removing the entry rewrote the rights of 947 files for every job. That took about 4 s of each 5.6 s slot check, and about 1.3 s of each Engineer job.
+  The Python standard library is already readable by every sandbox in the same way.
 - Jobs run with `OPENBLAS_NUM_THREADS`, `OMP_NUM_THREADS` and `MKL_NUM_THREADS` set to 1, so the Auditor's reruns give the same output.
 - The roles' prompts now say "the Python standard library and NumPy 2.5.4". Other packages need the same build, probe and test path before jobs can use them.
 Section 19 sandbox rules are unchanged otherwise. The judge, the Auditor checks and the vault do not change.
