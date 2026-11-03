@@ -46,6 +46,8 @@ BENCH_TRIALS=5*CYCLES_PER_MARKET*MAX_HYPOTHESES  # the most candidates a default
 RESERVED_SEEDS=(range(100,200),range(900,1000))
 EVALUATION_STATUSES=frozenset({'QUEUED','EVALUATION_GATE_PASS'})  # passed the real gate and the Auditor
 FOUND_CAPTURE=Decimal('0.5')  # half of the reference rule's Sharpe advantage over buy-and-hold
+GAP_FLOOR=Decimal('-1')
+GAP_CEILING=Decimal('1')
 HOLDOUT_USES=5  # the holdout set retires after this many counted uses; only the owner changes it
 # (kind, window, seed). kind None is a market with no pattern. Seeds are assigned in order, not chosen by result.
 SETS={
@@ -222,6 +224,28 @@ def bench_level(candidate,score,trials=BENCH_TRIALS):
     return 10 if level>=7 and audited(candidate) and local['status']=='PASS' else level
 
 
+def sharpe_gap(cycle):
+    """The continuous bench score of one cycle (owner, 2 November 2026): the best Sharpe minus the buy-and-hold Sharpe among its scored
+    candidates that the Auditor did not reject, clipped to GAP_FLOOR..GAP_CEILING. A cycle with no such candidate scores GAP_FLOOR."""
+    scores=cycle.get('scores') or {};best=None
+    for candidate in cycle.get('candidates') or []:
+        if not isinstance(candidate,dict) or candidate.get('status') in AUDIT_STATUSES: continue
+        score=scores.get(candidate.get('hypothesis_id'))
+        if not isinstance(score,dict) or score.get('sharpe_status')!='DEFINED' or score.get('benchmark_sharpe_status')!='DEFINED': continue
+        own,base=_decimal(score.get('sharpe')),_decimal(score.get('benchmark_sharpe'))
+        if own is None or base is None: continue
+        best=own-base if best is None else max(best,own-base)
+    return GAP_FLOOR if best is None else min(GAP_CEILING,max(GAP_FLOOR,best))
+
+
+def gap_summary(gaps):
+    if not gaps: return {'mean_sharpe_gap':None,'sharpe_gap_stderr':None,'sharpe_gap_cycles':0}
+    n=len(gaps);mean=sum(gaps)/n
+    spread=(sum((g-mean)**2 for g in gaps)/(n-1)).sqrt()/Decimal(n).sqrt() if n>1 else None
+    return {'mean_sharpe_gap':format(mean.quantize(Decimal('0.001')),'f'),'sharpe_gap_stderr':None if spread is None else format(spread.quantize(Decimal('0.001')),'f'),
+            'sharpe_gap_cycles':n}
+
+
 def bench_cycle(cycle,trials=BENCH_TRIALS):
     scores=cycle.get('scores') or {}
     levels=[bench_level(c,scores.get(c.get('hypothesis_id')),trials) for c in cycle.get('candidates') or [] if isinstance(c,dict)]
@@ -236,7 +260,8 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
         mine=[c for c in cycles if c.get('market')==market['label']];real=market['kind']=='real'
         reference=None if real else reference_score(market);patterned=None if real else market['kind'] is not None
         row={'market':market['label'],'pattern':patterned,'cycles':len(mine),'cycles_stopped':sum(1 for c in mine if c.get('stop_code') is not None),
-             'levels':[bench_cycle(c,trials) for c in mine],'candidates':0,'scored':0,'beat_buy_and_hold':0,'audit_passed':0,'bench_gate_passed':0,
+             'levels':[bench_cycle(c,trials) for c in mine],'sharpe_gaps':[format(sharpe_gap(c).quantize(Decimal('0.001')),'f') for c in mine],
+             'candidates':0,'scored':0,'beat_buy_and_hold':0,'audit_passed':0,'bench_gate_passed':0,
              'best_capture':None,'reference':None if real else {'sharpe':reference['sharpe'],'benchmark_sharpe':reference['benchmark_sharpe'],'beats_baseline':reference['beats_baseline'],
                                               'bench_deflated_sharpe':bench_deflation(reference,trials)['deflated_sharpe']},
              'statuses':{}}
@@ -275,6 +300,7 @@ def report(cycles,markets,cycles_per_market=CYCLES_PER_MARKET):
             'real_beat_buy_and_hold':sum(r['beat_buy_and_hold'] for r in rows if r['pattern'] is None),
             'real_bench_gate_passed':sum(r['bench_gate_passed'] for r in rows if r['pattern'] is None),
             'mean_level':format((Decimal(sum(levels))/len(levels)).quantize(Decimal('0.01')),'f') if levels else None,
+            **gap_summary([Decimal(g) for r in rows for g in r['sharpe_gaps']]),
             'verdict':('BROKEN: a strategy passed on a market with no pattern' if any(r['false_discoveries'] for r in empty) else
                        'INCOMPLETE: a market has no finished cycle' if any(r['cycles']==0 for r in rows) else 'MEASURED'),
             'rule':'capture: (candidate Sharpe - buy-and-hold Sharpe) / (reference Sharpe - buy-and-hold Sharpe), for audited candidates that beat buy-and-hold. '

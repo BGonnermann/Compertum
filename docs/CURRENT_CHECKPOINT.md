@@ -1,5 +1,33 @@
 # Current Compertum checkpoint
 
+## Efficiency path steps 1 and 5 - 2 November 2026
+
+The owner approved the path from the second efficiency research cycle (`docs/EFFICIENCY_RESEARCH.md`): "Lets do it", step 3 "few small jobs at once", step 5 "Yes", step 6 "agreed, approved". Step 4 is open; step 2 was not chosen.
+Step 1 (commit 9ef641b):
+- The Engineer task shows /main.py in a code fence.
+- `roles.accepted_stop` ends the Engineer conversation when `run_job` accepts the signals. There is no DONE reply, and the model never sees the accepted run's output (it can hold VALIDATION figures).
+- Preflight template checks skip fenced code. No sealed file changed.
+Step 5: `bench.sharpe_gap` is a continuous bench score: per cycle, the best Sharpe minus the buy-and-hold Sharpe among candidates the Auditor did not reject, clipped to -1..1, and -1 when there is none.
+The report adds `sharpe_gaps`, `mean_sharpe_gap`, `sharpe_gap_stderr` and `sharpe_gap_cycles`. `compare` rebuilds older reports from the ledger, and now passes the project root, which real-data sets need.
+
+Bench check, step 1 against baseline 1 (bench-french-1, GLM 5.3 flash, 2 cycles per market):
+| | Baseline 1 `run-20261102-8d10b89b` | Step 1 `run-20261102-c0ddd213` |
+|---|---|---|
+| Requests | 423 | 323 (-24%) |
+| Engineer requests | 218 | 115 |
+| Cost (`run_cost.py`) | $0.1277 | $0.0988 |
+| Wall time | 1,430 s | 1,232 s |
+| Faults | 1 | 0 |
+| Mean level | 5.19 | 5.38 |
+| Mean Sharpe gap | -0.569 (standard error 0.094) | -0.507 (0.109) |
+| Candidates | 47 REJECTED | 47 REJECTED, 1 REJECTED_AUDIT |
+Quality held within noise, and requests fell by a quarter. Wall time fell less, because sandbox jobs still run one at a time (step 3).
+The first attempt refused with `STORAGE_SCAN_DEADLINE` before any request, right after an engine test lane. A later scan measured 17.7 s against the 30 s limit, and the retry ran.
+Verification: engine lane, 274 passed, 0 failed, 0 skipped (`.cache/test-runs/engine-lane-step5-20261102-191145`).
+Design for step 6, approved with D1 to D4 as recommended: `docs/PANEL_CANDIDATES_DESIGN.md`.
+
+Exact next action: step 3, three concurrent sandbox slots, with native sandbox tests. Then step 6, phase 1.
+
 ## Held-out test set and gpt-oss-20b baseline - 2 November 2026
 
 The owner asked for a held-out test set to measure fine-tune progress, with base gpt-oss-20b (MXFP4) as the baseline. Report: `reports/HELDOUT_BASELINE.md`. Method: `docs/BASE_MODEL_EVAL.md`.

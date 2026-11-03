@@ -25,7 +25,7 @@ def run_rows(connection,run_id):
     return starts[0],ends[0]
 
 
-def legacy_report(connection,start,end):
+def legacy_report(connection,start,end,root=None):
     purpose=start.get('purpose')
     if purpose not in ('bench','holdout'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     labels=start.get('markets') or []
@@ -33,7 +33,7 @@ def legacy_report(connection,start,end):
     if not counts or len(set(counts.values()))!=1: raise RuntimeRefused('ENGINE_RUN_INCOMPLETE')
     first=next(iter(counts))
     set_name=start.get('holdout_set') if purpose=='holdout' else first.split(':',1)[0]
-    markets=bench.set_markets(set_name)
+    markets=bench.set_markets(set_name,root)
     by_hash={market_sha256(m):m['label'] for m in markets}
     cycles=[]
     for raw, in connection.execute("SELECT record FROM engine_cycles WHERE phase='END' ORDER BY rowid"):
@@ -43,13 +43,14 @@ def legacy_report(connection,start,end):
     return bench.report(cycles,markets,counts[first])
 
 
-def run_summary(connection,run_id):
+def run_summary(connection,run_id,root=None):
     start,end=run_rows(connection,run_id)
     purpose=start.get('purpose')
     if purpose not in ('bench','holdout'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     cycles=[json.loads(raw) for raw, in connection.execute("SELECT record FROM engine_cycles WHERE phase='END' AND json_extract(record,'$.run_id')=? ORDER BY rowid",(run_id,))]
     statuses=Counter(c.get('status') for cycle in cycles for c in cycle.get('candidates') or [])
-    report=end.get('report') or legacy_report(connection,start,end)
+    report=end.get('report')
+    if not report or 'mean_sharpe_gap' not in report: report=legacy_report(connection,start,end,root)
     return {'run_id':run_id,'purpose':purpose,'reason':end.get('reason'),'requests':end.get('requests'),'elapsed_seconds':end.get('elapsed_seconds'),
             'cycles':len(cycles),'faults':sum(len(cycle.get('faults') or []) for cycle in cycles),'statuses':dict(sorted(statuses.items())),'report':report}
 
@@ -76,7 +77,10 @@ def compare_summaries(left,right):
                         'left_false_discoveries':a.get('false_discoveries'),'right_false_discoveries':b.get('false_discoveries')})
     return {'left_run':left['run_id'],'right_run':right['run_id'],'cycles_per_market':left['report']['cycles_per_market'],
             'delta':{key:_delta(left if key in left else left['report'],right if key in right else right['report'],key) for key in keys},
-            'mean_level_delta':_delta(left['report'],right['report'],'mean_level'),'markets':markets,
+            'mean_level_delta':_delta(left['report'],right['report'],'mean_level'),
+            'mean_sharpe_gap':[left['report'].get('mean_sharpe_gap'),right['report'].get('mean_sharpe_gap')],
+            'sharpe_gap_stderr':[left['report'].get('sharpe_gap_stderr'),right['report'].get('sharpe_gap_stderr')],
+            'mean_sharpe_gap_delta':_delta(left['report'],right['report'],'mean_sharpe_gap'),'markets':markets,
             'warning':'Equal paired runs reduce measurement differences. One comparison does not establish repeatable improvement.'}
 
 
@@ -85,7 +89,8 @@ def compare(store_path,left_run,right_run):
     if not path.is_file(): raise RuntimeRefused('ENGINE_STORE_UNAVAILABLE')
     connection=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)
     try:
-        left=run_summary(connection,left_run);right=run_summary(connection,right_run)
+        root=path.parent.parent
+        left=run_summary(connection,left_run,root);right=run_summary(connection,right_run,root)
         return {'runs':[left,right],'comparison':compare_summaries(left,right)}
     finally: connection.close()
 

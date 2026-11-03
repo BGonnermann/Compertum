@@ -399,3 +399,18 @@ def test_option_passing(tmp_path,monkeypatch,capsys):
     assert practice.main(['--project',str(tmp_path),'bench','--requests','450','--note','n','--bench-set','bench-2'])==0 and seen['bench_set']=='bench-2'
     wrapper=(PROJECT/'tools/practice.ps1').read_text(encoding='utf-8')
     assert "@('--bench-set',$BenchSet)" in wrapper and "$Mode -eq 'holdout' -and $PSBoundParameters.ContainsKey('BenchSet')" in wrapper
+
+
+def test_sharpe_gap():
+    """The continuous bench score: best Sharpe gap to buy-and-hold per cycle, Auditor rejects left out, clipped to -1..1, -1 with no score."""
+    from decimal import Decimal
+    def score(own,base,status='DEFINED'): return {'sharpe':own,'benchmark_sharpe':base,'sharpe_status':status,'benchmark_sharpe_status':'DEFINED'}
+    cycle={'candidates':[{'hypothesis_id':'h1','status':'REJECTED'},{'hypothesis_id':'h2','status':'REJECTED_AUDIT'},{'hypothesis_id':'h3','status':'REJECTED'}],
+           'scores':{'h1':score('0.4','0.6'),'h2':score('3.0','0.6'),'h3':score('0.5','0.6')}}
+    assert bench.sharpe_gap(cycle)==Decimal('-0.1')
+    assert bench.sharpe_gap({'candidates':[{'hypothesis_id':'h1','status':'REJECTED'}],'scores':{'h1':score('9','0.5')}})==Decimal('1')
+    assert bench.sharpe_gap({'candidates':[{'hypothesis_id':'h1','status':'REJECTED'}],'scores':{'h1':score(None,'0.5','UNDEFINED')}})==Decimal('-1')
+    assert bench.sharpe_gap({'candidates':[],'scores':{}})==Decimal('-1') and bench.sharpe_gap({})==Decimal('-1')
+    summary=bench.gap_summary([Decimal('-1'),Decimal('0'),Decimal('0.5')])
+    assert summary=={'mean_sharpe_gap':'-0.167','sharpe_gap_stderr':'0.441','sharpe_gap_cycles':3}
+    assert bench.gap_summary([])=={'mean_sharpe_gap':None,'sharpe_gap_stderr':None,'sharpe_gap_cycles':0}
