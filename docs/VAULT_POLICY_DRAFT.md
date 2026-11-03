@@ -35,7 +35,7 @@ Every candidate spent raises the bar for every later one in the same vault. The 
 - Library rules already ELIGIBLE on french49: `xs_momentum` and `dual_momentum` (sweep `library-multi-20261102-c1d7704d`). Neither passed the stage-1 gate of 0.95; both beat the benchmark with the lag check.
 - `momentum_tilt`: pre-registered on 3 November 2026 and ELIGIBLE since its sweep the same day: VALIDATION IR 0.678, deflated Sharpe ratio 0.359
   (the highest stage-1 value on french49), turnover 1.13 a year. If 2026-Q4 is closed under the current rule, it ranks first.
-- Engine panel candidates: they can enter stage 1 once the `firm-panel` vault route (panel design, phase 4) is built.
+- Engine panel candidates: since 7d4f830 an audited panel candidate becomes ELIGIBLE on french-v1 with the `firm-panel` route (panel design, phase 4). None exists yet.
 
 ## Owner sign-off
 
