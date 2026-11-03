@@ -1,5 +1,29 @@
 # Current Compertum checkpoint
 
+## Step 4 bench test and the scan-headroom cleanup - 2 November 2026
+
+Step 4 (owner: "Yes try and test that"). The routing key `approve` (yes|skip) was added (commit dba452b). The bench test ran with a temporary `routing.md`: `review: off` and `approve: skip`. The file was then restored to the committed version.
+| | `run-20261103-f7999196` (full steps, slots) | `run-20261103-e7608c3c` (no approval, no review) |
+|---|---|---|
+| Requests | 330 | 240 (-27%) |
+| Wall time | 1,060 s | 703 s (-34%) |
+| Cost | $0.1361 | $0.1233 |
+| Mean Sharpe gap | -0.630 (0.120) | -0.655 (0.118) |
+| Mean level | 5.31 | 5.19 |
+| Faults | 1 | 2 (Engineer: `ENGINE_STEP_LIMIT`, `AI_TOOL_EXECUTION_DENIED`) |
+Quality held within noise. Keeping the lean routing needs the owner's decision and a section 19 amendment, because section 19 names both steps. The committed routing is unchanged.
+
+Cleanup for storage-scan headroom (owner: "Yes do them all thats fine for questions 1 and 2"). An inventory classified all 1,432 top folders of `.cache/test-runs`.
+Removed (`docs/TEST_RETENTION.md`): working files of 27 passing jobs; of 40 failed `run_tests.py` jobs whose same tests later passed; and of 85 passing sub-jobs in `m5-local-economics-20261017-01`.
+That is 478 paths: 76,584 files, 39,457 folders, about 4.0 GB. 0 removals failed, and every kept result file has an unchanged SHA-256. Record: `.cache/test-runs/cleanup-records/cleanup-20261102-212529-scan-headroom.json`.
+Kept:
+- M3 history, live test runtimes, pinned evidence, and unresolved failures (including `e8-windows-01`);
+- 175 old hand runs without saved results;
+- the 2 failed jobs with no later pass (`engine-honest4` and `engine-honest5`);
+- the 4 jobs that show a pass only by a summary line (question 3 was not answered);
+- 14 engine sandbox folders of 1 November, because the engine queue holds 16 events.
+The storage scan took 13.6 to 14.5 s afterwards, against 18 to 25 s before and the 30 s limit. `.cache/test-runs` holds 181,890 files.
+
 ## Step 6: panel candidates wired into the cycle and the Auditor - 2 November 2026
 
 A portfolio-weight run on the anonymous 49-industry panel is now a practice run. Command: `tools\practice.ps1 -Panel french49 -Cycles N -Requests M -Note "..."` (run mode only, not with `-MarketManifest`).
