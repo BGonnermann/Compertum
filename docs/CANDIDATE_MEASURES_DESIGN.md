@@ -1,6 +1,7 @@
 # Design: candidate measures and contribution to the book
 
-Status: draft for the owner's review. Nothing is built.
+Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Nothing is built.
+Owner's aim, 2 November 2026: "I want the firm to be able to think for itself and produce real results." Live results should let the roles talk and adjust.
 Owner, 2 November 2026: "ok write the design for those two", after the firm-precedents research.
 Source: the precedents report (Quantopian's 888-strategy study, WorldQuant's 101 alphas, Numerai's meta-model contribution) and `docs/MATH_RESEARCH.md`.
 
@@ -87,7 +88,10 @@ A report tool, `tools/measure_study.py`, reads the ledger and the series files. 
 
 ## Decisions for the owner
 
-- D1. Do the roles see the measures? Recommendation: no, not until the study shows which measures predict. If the roles see a measure, they may aim at it, and it can stop being an honest test (Goodhart's law).
+- D1, decided (middle path): the roles do not see the stability measures (block Sharpe ratios, tail ratio, lag and cost sensitivity, autocorrelation).
+  They can reveal which parts of VALIDATION work, and tuning to them adds trials that the count does not record.
+  The roles see the contribution measures of their own earlier candidates: the largest correlation with the book and the combined Sharpe gain.
+  A bench exam with the contribution measures shown, against one without them, decides whether they stay. That exam needs the owner's OK, because it costs OpenRouter credit.
 - D2. The book: stage-1 candidates and library stage-1 results on the same market. Recommendation: yes.
 - D3. Series storage for every scored candidate, or only for candidates that beat the baseline. Recommendation: every scored candidate. The study needs the weak and failed candidates too.
 - D4. The early proxy (first two thirds against the last third of VALIDATION). Recommendation: yes, reported as a proxy and never as vault evidence.
