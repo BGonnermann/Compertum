@@ -64,6 +64,28 @@ def market_brief(engine):
             'Only these two files exist; propose nothing that needs other data.')
 
 
+def panel_brief(train_sessions,validation_dates,assets):
+    """The fixed market description for a portfolio-weight run on the anonymous 49-industry panel (docs/PANEL_CANDIDATES_DESIGN.md).
+    Facts only (no-steering rule, 29 October 2026): files, output format, limits, costs, the benchmark and the gate."""
+    costs=sorted({cost_at(d) for d in validation_dates}) or [COST]
+    cost=str(costs[0]) if len(costs)==1 else f'{costs[0]} to {costs[-1]} by era (older sessions cost more)'
+    return ('MARKET\n'
+            f'A panel of {assets} assets with anonymous names (A01 to A{assets:02d}), daily sessions, real market history. '
+            f'Two files: panel_train.csv ({train_sessions} sessions) and panel_validation.csv ({len(validation_dates)} sessions), '
+            f'columns session, A01 ... A{assets:02d}, rate. A value is the asset\'s total-return index level at that session\'s close, empty when the asset has no close; '
+            'rate is the daily cash (T-bill) rate. A hypothesis is a rule that sets portfolio weights from data up to each session. '
+            'The program writes weights.csv with the header session,asset,weight. A listed session is a rebalance at that session\'s close to the listed weights; '
+            'a session that is not listed holds the positions, which drift with returns. Long only: each weight is 0 or more, the weights of one session add up to 1 or less, '
+            'and the rest is cash at the daily rate. Only an asset with a close at that session may get weight. '
+            f'Score: weights chosen at session t earn the returns of session t+1, and each rebalance pays {cost} of NAV for each unit of weight traded, drift included. '
+            'The benchmark holds every asset with a close in equal weights, rebalanced daily at no cost. '
+            'A strategy beats the baseline when its Sharpe ratio above the cash rate is defined, its annual mean excess over the benchmark is positive, '
+            'its Sharpe is above the benchmark\'s, and all three still hold when every rebalance is executed one session later. '
+            'The final gate asks whether the daily gain over the benchmark is too large to be luck among all ideas tried. '
+            f'The program runs with the Python standard library only, on one CPU, with 120 seconds per run, on {train_sessions+len(validation_dates)} sessions and {assets} assets. '
+            'Only these two files exist; propose nothing that needs other data.')
+
+
 TOOL_OUTPUT_BYTES=8192
 
 

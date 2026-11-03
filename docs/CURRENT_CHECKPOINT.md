@@ -19,9 +19,25 @@ Verification, engine environment:
 - engine lane plus `tests/windows/test_harness_sandbox.py`: 281 passed, 0 failed, 0 skipped;
 - harness lane: 143 passed, 0 failed, 0 skipped;
 - sandbox file alone: 29 passed, including the native concurrent-slot test.
-No bench run used the slots yet.
+Bench check with the slots: `run-20261103-f7999196` (bench-french-1, GLM 5.3 flash, 2 cycles per market). All 3 slots passed verification.
+| | Baseline 1 | Step 1 `run-20261102-c0ddd213` | Step 1 + slots |
+|---|---|---|---|
+| Wall time | 1,430 s | 1,232 s | 1,060 s |
+| Requests | 423 | 323 | 330 |
+| Cost | $0.1277 | $0.0988 | $0.1361 |
+| Mean Sharpe gap | -0.569 (0.094) | -0.507 (0.109) | -0.630 (0.120) |
+| Mean level | 5.19 | 5.38 | 5.31 |
+The quality differences are within noise. The two failures are not slot faults: one program failed 3 times on its own code, and one Engineer reply was `AI_RESPONSE_INCOMPLETE`.
+The first attempt refused with `STORAGE_SCAN_DEADLINE` because a game used about 70% of the CPU. The scan took 29-30 s then, and 17.2 s after the game closed.
 
-Exact next action: a bench check with the slots, against the step 1 run (`run-20261102-c0ddd213`). Then step 6, phase 1.
+Step 6, phase 1 (`docs/PANEL_CANDIDATES_DESIGN.md`), in files that are not sealed:
+- `ai/engine/panel.py`: anonymous names, panel files, the `weights.csv` reader, the library scorer, the panel Auditor checks (`PanelMarket`), and a starter program.
+- `tasks.panel_brief`: the facts-only panel brief.
+Tests: `tests/test_engine_panel.py`, 20 passed. A firm `weights.csv` that copies a library family scores exactly like the library (3 families, lag check included). A rule that reads the next close fails the lookahead check.
+On the real panel: 20,519 sessions (12,825 TRAIN), 49 industries, last date 2003-08-13. Files of 6.75 MB and 4.64 MB. The starter runs in 0.4 s, and reading plus scoring take 0.6 s.
+Not yet wired into the cycle: that changes sealed files (`cycle.py`, `audit.py`, `execution.py`, `run.py`), and `panel.py` plus `library_multi.py` join `FIXED_FILES`.
+
+Exact next action: wire panel candidates into the cycle and the Auditor, then a panel practice run.
 
 ## Efficiency path steps 1 and 5 - 2 November 2026
 
