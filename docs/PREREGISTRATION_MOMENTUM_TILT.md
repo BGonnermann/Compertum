@@ -50,6 +50,12 @@ Every input uses closes up to t only. The library's lookahead check (closes of t
 - Reported in every case, success or not: VALIDATION active Sharpe ratio (IR), the deflated Sharpe ratio, turnover, and the IR by decade.
 - A vault test is not part of this registration. Whether this candidate, `xs_momentum` or another goes into the first french-v1 batch is the owner's written decision, made before any vault look.
 
+## Addendum, 3 November 2026, before any code or score
+
+- A session where no eligible industry has a momentum score (only the first months of TRAIN, 1926) uses k_t = 0: pure equal weight. Without this rule the weights would add up to 1 − k.
+- Weights of exactly 0 (unscored industries when k_t = 1) are left out of the target. This changes no position.
+- "Standard deviation" in step 4 is the sample standard deviation (divisor 125 for 126 sessions).
+
 ## What may not change after this point
 
 The rule, the grid, the data, the choice rule and the scoring above. A changed family is a new family with its own registration and its own trials.
