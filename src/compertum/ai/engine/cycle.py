@@ -224,7 +224,10 @@ def _run_cycle(engine,cycle_index):
         if memo is None:
             out['decision']={'decision':'reject','reason':f'memo step failed ({faults[-1]["code"]})','source':'code'};return out
         out['memo']=memo['text']
-        decision=parsed('director','approve',approve_task(hid,memo['text']),{'hypothesis_id':hid},parse_decision,own=own,faults=faults)
+        if routing['approve']=='skip':
+            decision={'decision':'approve','reason':'routing: approval skipped','source':'code'}
+            ledger.record_step(cycle_id,next_step(),'director','approve',{'phase':'SKIPPED','hypothesis_id':hid,'reason':'routing approve: skip'})
+        else: decision=parsed('director','approve',approve_task(hid,memo['text']),{'hypothesis_id':hid},parse_decision,own=own,faults=faults)
         if decision is None:
             last=faults[-1]['code'] if faults and faults[-1]['kind']=='approve' else 'ENGINE_REPLY_INVALID'
             decision={'decision':'reject','reason':f'approval step unusable ({last})','source':'code'}  # a fault, not the Director's verdict (levels.lessons)

@@ -391,7 +391,8 @@ def test_supervised_cycle(bridge,root,verification,market,project):
 
 def test_routing_inputs(bridge,root,verification,market,project):
     """Routing (owner direction, 26 October 2026): every route on, then the review off. The routing changes what roles receive, never the judge."""
-    on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes','director_sees_tool':'yes','researcher_sees_tool':'yes','specify_sees_tool':'yes'}
+    on={'review':'rebuild','specify_sees_hypothesis':'yes','engineer_sees_memo':'yes','researcher_sees_lessons':'yes','director_sees_tool':'yes','researcher_sees_tool':'yes','specify_sees_tool':'yes',
+        'approve':'yes'}
     (project/'config'/'engine_prompts'/'routing.md').write_text(routing_text(on),encoding='utf-8',newline='\n')
     with role_server() as (port,state):
         engine=make_engine(bridge,root,verification,market,client(port,limit=80),project);result=run_cycle(engine,1)
@@ -712,3 +713,23 @@ def test_panel_cycle(bridge,root,verification,market,project):
                 assert candidate['queue']=='NOT_QUEUED' and 'promoted_folder' not in candidate
                 assert any(s['kind']=='promotion' and s['phase']=='NOT_QUEUED' for s in engine.ledger.steps(result['cycle_id']))
         assert not any(s['kind']=='tool' for s in engine.ledger.steps(result['cycle_id']))
+
+
+def test_skip_steps(bridge,root,verification,market,project):
+    """Efficiency path step 4 (owner, 2 November 2026: test it): routing approve 'skip' and review 'off' send no Director approval and no
+    Mathematician review; each skip is recorded; the candidates are still built, scored and audited. An older routing text without the
+    approve key still loads, with approve 'yes'."""
+    from compertum.ai.engine.prompts import parse_routing
+    old='ROUTING\n'+''.join(f'{k}: {v}\n' for k,v in ROUTING_DEFAULT.items() if k!='approve')
+    assert parse_routing(old)['approve']=='yes' and routing_text({k:v for k,v in ROUTING_DEFAULT.items() if k!='approve'}).endswith('approve: yes\n')
+    lean=dict(ROUTING_DEFAULT,review='off',approve='skip')
+    with role_server() as (port,state):
+        engine=make_engine(bridge,root,verification,market,client(port),project)
+        engine.prompts={**{role:load_prompt(project,role) for role in ROLES},'routing':routing_text(lean)};result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and result['routing']==lean and result['candidates']
+        directors=[q['messages'][1]['content'] for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: director\n')]
+        assert directors and not any(t.startswith('Approve') for t in directors)
+        assert not [q for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: mathematician\n') and q['messages'][1]['content'].startswith('Review')]
+        steps=engine.ledger.steps(result['cycle_id'])
+        assert {(s['phase'],s.get('reason')) for s in steps if s['kind']=='approve'}=={('SKIPPED','routing approve: skip')}
+        assert all(c['run_statuses'] and result['scores'].get(c['hypothesis_id']) is not None for c in result['candidates'])

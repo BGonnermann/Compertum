@@ -47,9 +47,11 @@ ROUTING_OPTIONS={
     'director_sees_tool':('no','yes'),  # the tool's output goes to the Director's pick
     'researcher_sees_tool':('no','yes'),  # ... to the Researcher's memo
     'specify_sees_tool':('no','yes'),  # ... to the Mathematician's specification
+    'approve':('yes','skip'),
 }
+LATE_KEYS=frozenset({'approve'})
 ROUTING_DEFAULT={'review':'advice','specify_sees_hypothesis':'no','engineer_sees_memo':'no','researcher_sees_lessons':'no',
-                 'director_sees_tool':'no','researcher_sees_tool':'no','specify_sees_tool':'no'}
+                 'director_sees_tool':'no','researcher_sees_tool':'no','specify_sees_tool':'no','approve':'yes'}
 TOKEN_CAPS=('model','1024','2048','4096','8192','16384')  # model: the model file's cap, or the engine default without one
 TEMPERATURES=('0','0.3','0.7','1')
 SETTINGS_OPTIONS={'hypotheses':('1','2','3'),'retries':('0','1','2'),'engineer_runs':('2','3','4','5'),
@@ -77,13 +79,16 @@ def parse_options(name,text):
         key,sep,value=line.partition(':');key=key.strip();value=value.strip()
         if not sep or key not in options or key in values or value not in options[key]: raise RuntimeRefused(code)
         values[key]=value
-    if set(values)!=set(options): raise RuntimeRefused(code)
+    missing=set(options)-set(values)
+    if missing-LATE_KEYS: raise RuntimeRefused(code)
+    values.update({key:OPTION_SLOTS[name][2][key] for key in missing})
     return values
 
 
 def options_text(name,values):
     header,options,_=OPTION_SLOTS[name]
-    return header+'\n'+''.join(f'{key}: {values[key]}\n' for key in options)
+    defaults=OPTION_SLOTS[name][2]
+    return header+'\n'+''.join(f'{key}: {values.get(key,defaults[key]) if key in LATE_KEYS else values[key]}\n' for key in options)
 
 
 def parse_routing(text): return parse_options('routing',text)
