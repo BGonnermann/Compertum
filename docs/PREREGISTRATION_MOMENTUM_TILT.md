@@ -59,3 +59,16 @@ Every input uses closes up to t only. The library's lookahead check (closes of t
 ## What may not change after this point
 
 The rule, the grid, the data, the choice rule and the scoring above. A changed family is a new family with its own registration and its own trials.
+
+## Result, 3 November 2026 (sweep `library-multi-20261103-58b1f2ed`, after commit 7d4f830)
+
+- 16 trials recorded before the first VALIDATION score; global trial count after the sweep: 28,587.
+- Chosen on TRAIN: lookback 252, k 1.0, hold 63, scale off. TRAIN Sharpe ratio 0.527; it beat the TRAIN benchmark.
+- VALIDATION (7,694 sessions, 1973-02-26 to 2003-08-13): Sharpe ratio 0.523 against 0.421 for the equal-weight benchmark; annual mean excess 1.62%;
+  maximum drawdown 40.8%; turnover 1.13 a year. One session late: Sharpe ratio 0.521, still beats the benchmark.
+- Active IR (annual Sharpe ratio of daily active returns): 0.678. By decade: 1970s 1.12, 1980s 0.75, 1990s 1.02, 2000 to August 2003 -0.05 (3.6 years only).
+  For comparison, xs_momentum (sweep c1d7704d): IR 0.48; 1970s 1.50, 1980s -0.13, 1990s 0.77, 2000s 0.10.
+- Deflated Sharpe ratio with N = 28,587: 0.359 (xs_momentum 0.075, dual_momentum 0.002). Stage-1 gate (0.95): FAIL, as expected at this N.
+- Stage 1: ELIGIBLE, quarter 2026-Q4 (recompute and lookahead checks passed). Candidate id `library-multi-20261103-58b1f2ed:french49:momentum_tilt`.
+- Primary success criterion met. A vault test is not part of this registration; it needs the owner's written vault policy and a batch note.
+- Caution: VALIDATION lies inside the period in which industry momentum was published; the weak 2000 to 2003 slice may hint at decay after publication.

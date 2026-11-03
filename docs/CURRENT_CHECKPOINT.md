@@ -1,5 +1,12 @@
 # Current Compertum checkpoint
 
+## momentum_tilt result - 3 November 2026
+
+- Sweep `library-multi-20261103-58b1f2ed` (french49, family momentum_tilt only, 16 trials, $0): chosen on TRAIN lookback 252, k 1.0, hold 63, scale off.
+  VALIDATION Sharpe 0.523 against 0.421; active IR 0.678 (decades 1.12, 0.75, 1.02, and -0.05 for 2000 to August 2003); turnover 1.13 a year;
+  lag check passes; deflated Sharpe ratio 0.359 at N = 28,587. Stage 1: ELIGIBLE in 2026-Q4. Details: `docs/PREREGISTRATION_MOMENTUM_TILT.md`, section "Result".
+- Next: the owner's vault policy (`docs/VAULT_POLICY_DRAFT.md`); `control close-quarter --quarter 2026-Q4` is possible on or after 2027-01-01.
+
 ## /watch follows any run - 3 November 2026
 
 - Owner, relayed by the engine session: "can /watch follow any run regardless if its internal or not?", then "yes" to building it in the harness session.
