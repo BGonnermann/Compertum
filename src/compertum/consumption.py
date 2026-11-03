@@ -8,7 +8,6 @@ import json
 import os
 import re
 from datetime import datetime, timezone
-from pathlib import Path
 from .events import canonical, uuid
 from .runtime.errors import RuntimeRefused
 from .runtime.owners import _owner_scope, require_live_owner

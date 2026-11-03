@@ -13,6 +13,7 @@ import math
 import random
 from compertum.runtime.errors import RuntimeRefused
 from . import library_multi
+from .market import invalid
 
 ALIAS_SEED=20261102
 PANEL_ROLES=('engineer','mathematician')
@@ -50,25 +51,28 @@ def panel_files(p,aliases):
 def parse_weights(text,p,aliases):
     """Admit a weights.csv. Returns one target dict per session (real industry names); sessions between rebalances share one dict,
     which is how library_multi.run_navs tells a hold from a trade. Any bad row refuses the whole file."""
-    if not isinstance(text,str) or len(text.encode('utf-8'))>WEIGHTS_BYTES: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    if not isinstance(text,str) or len(text.encode('utf-8'))>WEIGHTS_BYTES: raise invalid(f'the file is larger than {WEIGHTS_BYTES} bytes')
     lines=[line.strip() for line in text.strip().splitlines()]
-    if not lines or lines[0].replace(' ','')!=HEADER or len(lines)-1>WEIGHTS_ROWS: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    if not lines or lines[0].replace(' ','')!=HEADER: raise invalid(f'the first line must be {HEADER}')
+    if len(lines)-1>WEIGHTS_ROWS: raise invalid(f'the file has more than {WEIGHTS_ROWS} rows')
     real={a:s for s,a in aliases.items()};n=len(p['dates']);listed={};seen={}
     for line in lines[1:]:
         cells=[c.strip() for c in line.split(',')]
-        if len(cells)!=3: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if len(cells)!=3: raise invalid(f'row {line[:80]!r} must have 3 values: session,asset,weight')
         try: session=int(cells[0]);weight=float(cells[2])
-        except ValueError: raise RuntimeRefused('ENGINE_SIGNALS_INVALID') from None
+        except ValueError: raise invalid(f'row {line[:80]!r}: the session must be a whole number and the weight a number') from None
         asset=cells[1]
-        if not 0<=session<n or not math.isfinite(weight) or weight<0: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if not 0<=session<n or not math.isfinite(weight) or weight<0: raise invalid(f'row {line[:80]!r}: the session must be 0 to {n-1} and the weight a finite number of 0 or more')
         targets=listed.setdefault(session,{});names=seen.setdefault(session,set())
-        if asset in names or (asset==CASH and (weight!=1 or names)) or (asset!=CASH and CASH in names): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if asset in names or (asset==CASH and (weight!=1 or names)) or (asset!=CASH and CASH in names):
+            raise invalid(f'row {line[:80]!r}: an asset is listed twice in one session, or CASH is not alone with weight 1')
         names.add(asset)
         if asset==CASH: continue
         symbol=real.get(asset)
-        if symbol is None or symbol not in p['eligible'][session]: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if symbol is None or symbol not in p['eligible'][session]: raise invalid(f'row {line[:80]!r}: {asset} is not a column of the panel or has no value at session {session}')
         if weight>0: targets[symbol]=weight
-    if any(sum(t.values())>1+SUM_SLACK for t in listed.values()): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    over=next((t for t,w in sorted(listed.items()) if sum(w.values())>1+SUM_SLACK),None)
+    if over is not None: raise invalid(f'the weights of session {over} add up to {sum(listed[over].values()):.6f}, more than 1')
     out=[];current={}
     for t in range(n):
         if t in listed: current=listed[t]
@@ -85,10 +89,18 @@ def panel_score(p,targets):
 
 STARTER_PANEL='''"""Starter program for a portfolio specification. Edit decide(); keep the file names as they are.
 Reads panel_train.csv and panel_validation.csv (session, A01..A49, rate) and writes weights.csv (session,asset,weight).
-A listed session is a rebalance at that session's close; other sessions hold. Long only; weights add up to 1 or less; the rest is cash."""
+A listed session is a rebalance at that session's close; other sessions hold. Long only; weights add up to 1 or less; the rest is cash.
+main() fills these NumPy arrays before the first decide() call. Row s is session s; column i is ASSETS[i]; a missing value is NaN.
+PRICES[s,i]: asset i's level at the close of session s. RETURNS[s,i]: its return from session s-1 to s (row 0 is NaN). RATES[s]: the cash rate.
+At session t use rows up to t only, for example PRICES[:t+1] or RETURNS[t-20:t+1]; np.nanmean and np.nanstd skip NaN."""
 import csv
+import numpy as np
 
 REBALANCE=21
+ASSETS=[]
+PRICES=np.empty((0,0))
+RETURNS=np.empty((0,0))
+RATES=np.empty(0)
 
 
 def load(name):
@@ -98,15 +110,21 @@ def load(name):
 
 
 def decide(closes,t,assets):
-    """Target weights at the close of session t. closes[a][s] is asset a's level at session s, or None; use only sessions up to t."""
+    """Target weights at the close of session t, as {asset: weight}. closes[a][s] is asset a's level at session s, or None; use only sessions up to t.
+    PRICES, RETURNS and RATES above hold the same data as arrays."""
     live=[a for a in assets if closes[a][t] is not None]
     return {a:1.0/len(live) for a in live} if live else {}
 
 
 def main():
+    global ASSETS,PRICES,RETURNS,RATES
     header,train=load('panel_train.csv');_,validation=load('panel_validation.csv')
     assets=header[1:-1];rows=train+validation
     closes={a:[float(r[i+1]) if r[i+1] else None for r in rows] for i,a in enumerate(assets)}
+    ASSETS=assets
+    PRICES=np.array([[float(x) if x else np.nan for x in r[1:-1]] for r in rows])
+    RETURNS=np.full(PRICES.shape,np.nan);RETURNS[1:]=PRICES[1:]/PRICES[:-1]-1
+    RATES=np.array([float(r[-1]) if r[-1] else 0.0 for r in rows])
     first=int(validation[0][0]);out=['session,asset,weight']
     for row in validation:
         t=int(row[0])

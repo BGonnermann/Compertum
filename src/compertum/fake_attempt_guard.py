@@ -5,8 +5,7 @@ new simulated attempts; restoring an old database cannot erase a saved attempt.
 """
 import hashlib,json,os
 from .data.encoding import canonical
-from .domain import ExecutionIntent,ExecutionDecision,ContractError
-from .execution_contracts import instant,record_sha256
+from .domain import ContractError
 from .execution_risk import client_order_id
 from .persistence import checked_path,StateStore
 from .runtime.errors import RuntimeRefused
@@ -35,7 +34,6 @@ def _flush(path,raw):
 
 
 from .attempt_records import record_key as _records,is_paper,is_native,is_fake
-from .paper_intent_records import UNCONSUMED
 
 
 def _identity(project,mixed=False,native=False):

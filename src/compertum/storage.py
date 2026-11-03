@@ -13,7 +13,7 @@ from ._native_storage import Directory
 from .config import _DEFAULTS
 from .events import uuid,canonical
 from .persistence import checked_path,open_store
-from .runtime._windows import WindowsAPI,HANDLE,DWORD,BOOL
+from .runtime._windows import HANDLE,DWORD,BOOL
 from .runtime.errors import RuntimeRefused
 from .runtime.owners import _owner_scope,require_live_owner
 
@@ -24,8 +24,6 @@ TOTAL_CAP=_DEFAULTS['storage']['total_bytes']  # the project total; the 50 GiB f
 SCAN_SECONDS=_DEFAULTS['resources']['storage_scan_seconds']
 INVENTORY_MAX_AGE=_DEFAULTS['resources']['project_monitor_seconds']
 
-class IOStatus(c.Structure):
-    _fields_=[('status',c.c_void_p),('information',c.c_size_t)]
 class StandardInfo(c.Structure):
     _fields_=[('allocation',c.c_int64),('size',c.c_int64),('links',DWORD),('delete_pending',c.c_ubyte),('directory',c.c_ubyte)]
 

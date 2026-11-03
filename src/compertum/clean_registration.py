@@ -1,5 +1,5 @@
 """Coordinator-owned pair preregistration; no campaign creation or admission."""
-import hashlib,sqlite3,json
+import hashlib,sqlite3
 from compertum.clean_pair import PairRecord,read_pair,MAX_PAIR_BYTES
 from compertum.data.encoding import canonical
 from compertum.data.errors import DataError

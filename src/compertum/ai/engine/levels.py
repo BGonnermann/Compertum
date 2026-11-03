@@ -27,6 +27,7 @@ NOT_BUILT_OTHER='Not built: a step failed or the cycle stopped before a candidat
 MAX_LESSONS=40
 BOOK_KEYS=('max_correlation','combined_sharpe_gain')
 BOOK_MODES=('shown','hidden','alternate')
+KINDS=('new','change','combine','repair')
 IDEA_CHARS=120
 
 
@@ -123,3 +124,21 @@ def lessons(cycle_ends,market_sha256):
                 if hid in books: row['book']={k:books[hid].get(k) for k in BOOK_KEYS}
             rows[key]=row
     return [{k:v for k,v in row.items() if k!='best_level'} for row in list(rows.values())[-MAX_LESSONS:]]
+
+
+def kind_table(cycle_ends,market_sha256):
+    """The Director's step-type table (owner, 3 November 2026: "Information only"): for each kind of hypothesis on this market, how often it
+    was tried, how many candidates produced a valid file, how many beat the benchmark, and the best outcome in words. Code builds it; it
+    holds no Sharpe number and chooses nothing: the Director still picks freely."""
+    rows={k:{'kind':k,'tries':0,'valid_files':0,'beat_benchmark':0,'best_level':None} for k in KINDS}
+    for cycle in cycle_ends:
+        if not isinstance(cycle,dict) or cycle.get('market_sha256')!=market_sha256: continue
+        scores=cycle.get('scores') if isinstance(cycle.get('scores'),dict) else {}
+        built={c.get('hypothesis_id'):candidate_level(c,scores.get(c.get('hypothesis_id'))) for c in cycle.get('candidates') or [] if isinstance(c,dict) and c.get('status')}
+        for hypothesis in cycle.get('hypotheses') or []:
+            if not isinstance(hypothesis,dict) or hypothesis.get('kind') not in rows: continue
+            row=rows[hypothesis['kind']];row['tries']+=1;level=built.get(hypothesis.get('id'))
+            if level is None: continue
+            row['valid_files']+=level>=3;row['beat_benchmark']+=level>=7
+            if row['best_level'] is None or level>row['best_level']: row['best_level']=level
+    return [{**{k:v for k,v in r.items() if k!='best_level'},'best_outcome':LEVELS[r['best_level']] if r['best_level'] else None} for r in rows.values()]

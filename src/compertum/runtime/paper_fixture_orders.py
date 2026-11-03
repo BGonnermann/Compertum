@@ -12,7 +12,7 @@ from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope
 from ._winhttp_order import _OwnedOrderHTTP,_wire
 from ._winhttp_get import _utc_now,_HTTPResult
-from .paper_order_qualification import prepare_order_exchange,qualify_order_reply,_PreparedOrderExchange,_PrivateOrderReply
+from .paper_order_qualification import prepare_order_exchange,qualify_order_reply,_PrivateOrderReply
 from .paper_fixture_risk import fixture_risk_context,_INVALID
 from .paper_fixture_economics import _account_original
 from .paper_credential_slot import load_paper_slot

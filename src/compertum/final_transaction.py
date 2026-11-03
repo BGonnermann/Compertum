@@ -1,10 +1,10 @@
 """Owner-held synthetic final transaction. No protected reader is exposed here."""
-import hashlib,json,sqlite3
+import hashlib,json
 from uuid import UUID,uuid5,uuid4
 from .data.encoding import canonical
 from .data.errors import DataError
 from .final_recipe import recipe,recipe_hash,recipe_for_pin
-from .evaluation_protocol import identifier,digest
+from .evaluation_protocol import identifier
 from .runtime.errors import RuntimeRefused
 from .runtime.owners import require_live_owner
 

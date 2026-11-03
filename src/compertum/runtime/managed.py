@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import time
 from .jobs import JobAPI,JobHandle,ExtendedLimits,Startup,ProcessInfo,SIZE
 from ._windows import HANDLE,DWORD,BOOL,OwnedHandle
 from .owners import _owner_scope,require_live_owner

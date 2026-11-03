@@ -98,18 +98,24 @@ def split_market_tiers(rows,train_fraction=0.5,validation_fraction=0.3):
     return train,validation,vault
 
 
+def invalid(reason):
+    """ENGINE_SIGNALS_INVALID with a reason that names the broken format rule, for the Engineer. A reason never holds a result."""
+    error=RuntimeRefused('ENGINE_SIGNALS_INVALID');error.reason=reason;return error
+
+
 def parse_signals(text,validation_rows):
     """Admit a signals.csv with exactly one position in {0, 1} for every validation session, in order."""
-    if not isinstance(text,str) or len(text.encode('utf-8'))>SIGNALS_BYTES: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    if not isinstance(text,str) or len(text.encode('utf-8'))>SIGNALS_BYTES: raise invalid(f'the file is larger than {SIGNALS_BYTES} bytes')
     try: reader=list(csv.reader(io.StringIO(text)))
-    except csv.Error: raise RuntimeRefused('ENGINE_SIGNALS_INVALID') from None
-    if not reader or reader[0]!=['session','position']: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    except csv.Error: raise invalid('the file is not valid CSV') from None
+    if not reader or reader[0]!=['session','position']: raise invalid('the first line must be session,position')
     body=[row for row in reader[1:] if row!=[]]
     expected=[str(row['session']) for row in validation_rows]
-    if len(body)!=len(expected) or any(len(row)!=2 for row in body): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    if len(body)!=len(expected): raise invalid(f'the file must have one row for each of the {len(expected)} validation sessions, not {len(body)}')
+    if any(len(row)!=2 for row in body): raise invalid('every row must have 2 values: session,position')
     positions=[]
     for row,session in zip(body,expected):
-        if row[0]!=session or row[1] not in ('0','1'): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if row[0]!=session or row[1] not in ('0','1'): raise invalid(f'row {",".join(row)[:80]!r}: expected session {session} in order, with position 0 or 1')
         positions.append(int(row[1]))
     return positions
 

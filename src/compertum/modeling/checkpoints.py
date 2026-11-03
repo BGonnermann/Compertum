@@ -8,7 +8,7 @@ from compertum.simulation.market import load_market,WATCHLIST
 from compertum.simulation.policy import fixed_decimal
 from .registry import variant,annual_cutoff,FEATURES
 from .dataset import assemble_training_rows,DatasetAssembly
-from .ridge import FitRows,FitManifest,RidgeArtifact,prepare_fit,fit_ridge,predict
+from .ridge import FitRows,RidgeArtifact,prepare_fit,fit_ridge,predict
 
 from compertum.simulation.fit_record import FIELDS
 

@@ -52,6 +52,7 @@ class RoleModel:
     # 31 October 2026: a thinking budget. Three OpenRouter models spent the whole output limit on thinking and never answered.
     # When set, the request carries reasoning.max_tokens (OpenRouter's unified field); a provider that lacks the field ignores it.
     reasoning_tokens:int|None=None
+    provider_sort:str|None=None
 
 
 # Remote providers (owner standard, 26 October 2026: the engine runs on any local model, API key or sign-in). The owner lists each
@@ -60,6 +61,7 @@ class RoleModel:
 # A key is read at request time from the named user environment variable, sent only in the Authorization header to that provider,
 # and never recorded, printed or stored in the project.
 PROVIDERS_FILE='config/providers.toml'
+PROVIDER_SORTS=('price','throughput','latency')
 _KEY=re.compile(r'[\x21-\x7e]{8,512}')
 _PROVIDER_NAME=re.compile(r'[a-z0-9][a-z0-9-]{0,31}')
 _KEY_ENV=re.compile(r'[A-Z][A-Z0-9_]{1,63}')
@@ -124,6 +126,7 @@ def checked_spec(spec):
     if not (spec.seconds is None or (type(spec.seconds) is int and 1<=spec.seconds<=MAX_SECONDS)): return False
     if not (spec.temperature is None or (type(spec.temperature) in (int,float) and 0<=spec.temperature<=2)): return False
     if not (spec.reasoning_tokens is None or (type(spec.reasoning_tokens) is int and 1<=spec.reasoning_tokens<=MAX_OUTPUT_TOKENS)): return False
+    if spec.provider_sort not in (None,*PROVIDER_SORTS): return False
     if spec.provider==PROVIDER: return loopback_base_url(spec.base_url)==spec.base_url and spec.key_env is None
     return (isinstance(spec.provider,str) and bool(_PROVIDER_NAME.fullmatch(spec.provider)) and remote_base_url(spec.base_url)==spec.base_url
             and (spec.key_env is None or (isinstance(spec.key_env,str) and bool(_KEY_ENV.fullmatch(spec.key_env)))))
@@ -246,16 +249,17 @@ def load_models(path,project_root):
     result={}
     for role in sorted(ENGINE_ROLES):
         entry=roles[role]
-        if not isinstance(entry,dict) or not {'base_url','model'}<=entry.keys()<={'base_url','model','max_tokens','seconds','temperature','reasoning_tokens'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
+        if not isinstance(entry,dict) or not {'base_url','model'}<=entry.keys()<={'base_url','model','max_tokens','seconds','temperature','reasoning_tokens','provider_sort'}: raise RuntimeRefused('UNKNOWN_CONFIG_FIELD')
         limits={k:entry.get(k) for k in ('max_tokens','seconds','reasoning_tokens')}
         if not (limits['max_tokens'] is None or (type(limits['max_tokens']) is int and 1<=limits['max_tokens']<=MAX_OUTPUT_TOKENS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         if not (limits['reasoning_tokens'] is None or (type(limits['reasoning_tokens']) is int and 1<=limits['reasoning_tokens']<=MAX_OUTPUT_TOKENS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         if not (limits['seconds'] is None or (type(limits['seconds']) is int and 1<=limits['seconds']<=MAX_SECONDS)): raise RuntimeRefused('AI_SETTINGS_DENIED')
-        temperature=entry.get('temperature')
+        temperature=entry.get('temperature');sort=entry.get('provider_sort')
+        if sort not in (None,*PROVIDER_SORTS): raise RuntimeRefused('AI_SETTINGS_DENIED')
         if not (temperature is None or (type(temperature) in (int,float) and 0<=temperature<=2)): raise RuntimeRefused('AI_SETTINGS_DENIED')
         base=model_base_url(entry['base_url'],providers);provider,key_env=providers.get(base,(PROVIDER,None))
         result[role]=RoleModel(role,base,model_id(entry['model']),provider,key_env,limits['max_tokens'],limits['seconds'],None if temperature is None else float(temperature),
-                               limits['reasoning_tokens'])
+                               limits['reasoning_tokens'],sort if provider!=PROVIDER else None)
     return MappingProxyType(result)
 
 
@@ -408,7 +412,8 @@ class ModelClient:
                'address':spec.base_url if spec else None,'model_requested':spec.model if spec else None,'model_reported':None,
                'settings':{'temperature':recorded_number(temperature),'max_tokens':recorded_number(max_tokens),
                            'request_seconds':recorded_number(seconds),'stream':False,
-                           **({'reasoning_tokens':spec.reasoning_tokens} if spec is not None and spec.reasoning_tokens is not None else {})},
+                           **({'reasoning_tokens':spec.reasoning_tokens} if spec is not None and spec.reasoning_tokens is not None else {}),
+                           **({'provider_sort':spec.provider_sort} if spec is not None and spec.provider_sort is not None else {})},
                'prompt_sha256':None,'response_sha256':None,'usage':None,'finish_reason':None,'refusal_detail':None,'elapsed_seconds':None,
                'available_memory_bytes':None,'memory_floor_bytes':self.memory_floor_bytes,
                'request_index':self.requests+1,'request_limit':self.request_limit,'tools':None,'tool_calls':None,'status':None,'cycle_id':CYCLE.get()}
@@ -435,6 +440,7 @@ class ModelClient:
             exchange={'messages':messages,'tools':names}
             payload={'model':spec.model,'messages':messages,'temperature':temperature,'max_tokens':max_tokens,'stream':False}
             if spec.reasoning_tokens is not None: payload['reasoning']={'max_tokens':spec.reasoning_tokens}
+            if spec.provider_sort is not None: payload['provider']={'sort':spec.provider_sort}
             if tools is not None: payload.update(tools=tools,tool_choice='auto')
             tool_calls=[]
             try:

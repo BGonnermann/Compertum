@@ -44,7 +44,6 @@ from .preflight import preflight
 from .market import market_csv,split_market_tiers,synthetic_market
 
 START_FLOOR=8*1024**3  # the owner's start floor for free host memory: 16 GiB from 14 October 2026, lowered to 8 GiB by the owner on 26 October 2026
-MODELS_BYTES=65536
 MAX_MODEL_IDS=64
 # The model file the owner chooses for a run (owner standard, 26 October 2026: any local model, API key or sign-in). Remote addresses
 # in it must belong to a provider in config/providers.toml. Results on different models are not comparable; each model needs its own

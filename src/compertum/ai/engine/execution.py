@@ -139,7 +139,7 @@ def read_signals(job,name='signals.csv',limit=SIGNALS_BYTES):
 
 class EngineerSandbox:
     """Runs Engineer jobs for one cycle. Holds the data tiers the Engineer may see: TRAIN and VALIDATION only."""
-    def __init__(self,root,*,ledger,lease,verification,cycle_id,train_csv,validation_csv,memory_floor_bytes,seconds=120,memory_bytes=512*MIB,max_runs=3,layout='single'):
+    def __init__(self,root,*,ledger,lease,verification,cycle_id,train_csv,validation_csv,memory_floor_bytes,seconds=120,memory_bytes=512*MIB,max_runs=3,layout='single',check=None):
         require_verified(verification)
         if layout not in LAYOUTS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
         self.layout=LAYOUTS[layout]
@@ -147,7 +147,7 @@ class EngineerSandbox:
         if not isinstance(train_csv,str) or not isinstance(validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         self.train_csv=train_csv;self.validation_csv=validation_csv
         self.memory_floor_bytes=memory_floor_bytes;self.seconds=seconds;self.memory_bytes=memory_bytes;self.max_runs=max_runs
-        self.runs=[];self._candidate_start=0;self.library=(verification.get('library') or {}).get('path')
+        self.runs=[];self._candidate_start=0;self.library=(verification.get('library') or {}).get('path');self.check=check
 
     def begin_candidate(self):
         """A new candidate starts: it gets its own `max_runs` Engineer runs. Practice run 11 (25 October 2026) showed that one count for the whole cycle let
@@ -160,7 +160,8 @@ class EngineerSandbox:
     def run(self,files,entry):
         """One Engineer run. Returns the bounded record the agent may see. Raises ENGINE_FROZEN after writing the freeze row."""
         record=self._launch(files,entry,purpose='engineer',validation_csv=self.validation_csv,count_limit=True)
-        return {k:record[k] for k in ('run_id','entry','status','stdout','stderr','signals_present')}|{'exit_code':(record['result'] or {}).get('exit_code'),'timed_out':(record['result'] or {}).get('timed_out')}
+        return ({k:record[k] for k in ('run_id','entry','status','stdout','stderr','signals_present')}|{'exit_code':(record['result'] or {}).get('exit_code'),'timed_out':(record['result'] or {}).get('timed_out')}
+                |({'format_error':record['format_error']} if record.get('format_error') else {}))
 
     def rerun_frozen(self,files,entry,*,purpose,validation_csv=None):
         """Trusted re-run of frozen code (stage E6). `files` is the `files` entry of an earlier launch record: the code exactly as
@@ -217,6 +218,9 @@ class EngineerSandbox:
             else:
                 signals=read_signals(job,self.layout[2],self.layout[3]);record['signals_present']=signals is not None;record['status']='COMPLETED'
                 record['signals']=signals
+                if purpose=='engineer' and signals is not None and self.check is not None:
+                    try: self.check(signals)
+                    except RuntimeRefused as error: record['format_error']=str(getattr(error,'reason',None) or error.code)[:300]
         except RuntimeRefused as error:
             record['status']='REFUSED_'+error.code
         finally:
@@ -248,7 +252,9 @@ def run_job_tool(sandbox):
         # /spec.md is the specification the Engineer reads, not part of the program: it is not submitted, rerun or promoted with the code.
         texts={path:file_data_to_string(fd) for path,fd in files.items() if path!=SPEC_FILE and isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
         result=sandbox.run(texts,entry)
-        if result['signals_present']:
+        if result.get('format_error'):
+            result['next']=f'{output} was written but cannot be scored: {result["format_error"]}. Fix the program so that {output} follows the format, and run it again.'
+        elif result['signals_present']:
             rows=max((sandbox.runs[-1].get('signals') or '').count('\n')-1,0)
             result['next']=f'{output} was written with {rows} rows and is accepted. The job is complete. Do not search for the file. Reply with the single word DONE and one sentence about the program.'
         elif result['status']=='COMPLETED': result['next']=f'The program ran but wrote no {output} in its current folder. Fix the program (open files by their plain names, write {output} next to the program) and run it again.'

@@ -2,13 +2,11 @@
 from datetime import datetime,timezone
 import hashlib
 import json,os
-from pathlib import Path
 
 from compertum.data.errors import DataError
 from compertum.data.encoding import canonical
 from compertum.events import uuid
 from compertum.persistence import checked_path
-from compertum.recovery import _package_hash
 from . import replay
 from .policy import fixed_decimal
 

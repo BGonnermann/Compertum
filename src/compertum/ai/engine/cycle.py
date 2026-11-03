@@ -24,13 +24,15 @@ from .deflation import deflated_sharpe,trial_variance
 from .execution import EngineerSandbox,run_job_tool
 from .ledger import EVALUATION_PURPOSES,HISTORY_FREE_PURPOSES,PURPOSES
 from .limits import STEP_FAULTS
-from .market import score_signals
-from .levels import without_book
+from .market import parse_signals,score_signals
+from .codebook import ERROR_BYTES,closest,examples_text,save_entry
+from .firm_panel import VAULT as PANEL_VAULT,route_record
+from .levels import KINDS,without_book
 from .measures import book_view,candidate_measures
 from .promotion import promote
 from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,parse_routing,parse_settings
 from .roles import ROLES,build_role_agent,load_prompt
-from .panel import PANEL_ROLES,STARTER_PANEL
+from .panel import PANEL_ROLES,STARTER_PANEL,parse_weights
 from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
                     market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 from .vault import VAULTS,CandidateQueue
@@ -65,10 +67,11 @@ def parse_hypotheses(reply):
     if not isinstance(items,list) or not 1<=len(items)<=MAX_HYPOTHESES: raise RuntimeRefused('ENGINE_REPLY_INVALID')
     out=[];seen=set()
     for item in items:
-        if (not isinstance(item,dict) or item.keys()!={'id','title','idea'} or any(not isinstance(item[k],str) or not 1<=len(item[k])<=4096 for k in item)
+        if (not isinstance(item,dict) or not {'id','title','idea'}<=item.keys()<={'id','title','idea','kind'}
+                or any(not isinstance(item[k],str) or not 1<=len(item[k])<=4096 for k in ('id','title','idea'))
                 or item['id'] in seen or not re.fullmatch(r'[A-Za-z0-9_-]{1,32}',item['id'])):
             raise RuntimeRefused('ENGINE_REPLY_INVALID')
-        seen.add(item['id']);out.append({'id':item['id'],'title':item['title'],'idea':item['idea']})
+        seen.add(item['id']);out.append({'id':item['id'],'title':item['title'],'idea':item['idea'],**({'kind':item['kind']} if item.get('kind') in KINDS else {})})
     return out
 
 
@@ -242,27 +245,47 @@ def _run_cycle(engine,cycle_index):
         if spec is not None: out['specification']=spec['text']
         return out
 
+    def check(text):
+        return parse_weights(text,engine.market.p,engine.market.aliases) if engine.market is not None else parse_signals(text,engine.validation_rows)
+
+    def keep(candidate,sandbox,status,error=None):
+        """The candidate's record in the Engineer's code library (codebook.py), in practice cycles only. A failed write never stops the cycle."""
+        if engine.purpose in HISTORY_FREE_PURPOSES: return
+        runs=list(sandbox.runs)
+        if status=='SCORED': source=next((r for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None and not r.get('format_error')),None)
+        else:
+            source=next((r for r in reversed(runs) if r.get('files')),None)
+            if error is None and runs: error=(runs[-1].get('stderr') or '').strip()[-ERROR_BYTES:] or None
+        try: save_entry(engine.project_root,layout=layout,candidate_id=candidate['candidate_id'],specification=state['specifications'].get(candidate['hypothesis_id']),
+                        files=(source or {}).get('files') or {},status=status,error=error)
+        except (RuntimeRefused,OSError) as failure:
+            ledger.record_step(cycle_id,next_step(),'archivist','library',{'phase':'NOT_SAVED','candidate_id':candidate['candidate_id'],
+                                                                       'code':getattr(failure,'code',type(failure).__name__)})
+
     def build(candidate):
         """The Engineer builds one candidate in its own sandbox, with its own run limit; the Mathematician reviews. Candidates run side by side.
         Nothing here scores, deflates, audits or promotes: that happens afterwards, in candidate order."""
         hid=candidate['hypothesis_id'];faults=[]
         sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
                                 train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes,
-                                max_runs=int(settings['engineer_runs']),layout=layout)
+                                max_runs=int(settings['engineer_runs']),layout=layout,check=check)
         with lock: sandboxes.append(sandbox)
         own={'engineer':role_agent('engineer',sandbox),'mathematician':role_agent('mathematician')}
         memo=routed('engineer_sees_memo',state['memos'][hid]);specification=state['specifications'][hid];cid=candidate['candidate_id']
-        task,start_files=engineer_task(engine,specification,memo=memo,starter=starter)
-        built=attempt('engineer','build',task,{'candidate_id':cid},files=start_files,own=own,faults=faults)
+        shown=closest(engine.project_root,layout,specification) if engine.purpose not in HISTORY_FREE_PURPOSES else []
+        examples=examples_text(shown);candidate['examples']=[r['candidate_id'] for r in shown]
+        task,start_files=engineer_task(engine,specification,memo=memo,starter=starter,examples=examples)
+        built=attempt('engineer','build',task,{'candidate_id':cid,'examples':candidate['examples']},files=start_files,own=own,faults=faults)
         if built is not None and not sandbox.runs:
             # GEPA run 1 (24 October 2026): three times the model read the starter and replied DONE without ever calling run_job.
             # One bounded retry, a fresh conversation that names the omission; the starter is offered again.
             ledger.record_step(cycle_id,built['step_index'],'engineer','build',{'phase':'INVALID','code':'ENGINE_NO_RUN','retry':0,'candidate_id':cid})
-            task,start_files=engineer_task(engine,specification,previous_reply=built['text'],memo=memo,starter=starter)
+            task,start_files=engineer_task(engine,specification,previous_reply=built['text'],memo=memo,starter=starter,examples=examples)
             built=attempt('engineer','build',task,{'candidate_id':cid,'retry':1},files=start_files,own=own,faults=faults)
         def latest():
             runs=list(sandbox.runs);candidate['runs']=[r['run_id'] for r in runs];candidate['run_statuses']=[r['status'] for r in runs]
-            return next((r.get('signals') for r in reversed(runs) if r['status']=='COMPLETED' and r.get('signals') is not None),None)
+            done=[r for r in runs if r['status']=='COMPLETED' and r.get('signals') is not None]
+            return next((r['signals'] for r in reversed(done) if not r.get('format_error')),done[-1]['signals'] if done else None)
         signals=latest()
         if built is None and signals is None:
             # The Engineer step faulted (loop, timeout, unusable reply) with no completed run. The candidate stays a counted trial with no score.
@@ -311,16 +334,16 @@ def _run_cycle(engine,cycle_index):
             candidate=result['candidate'];hid=candidate['hypothesis_id'];sandbox=result['sandbox'];signals=result['signals'];cid=candidate['candidate_id']
             if result['build_failed'] is not None:
                 code=result['build_failed'];candidate['status']='BUILD_FAILED';state['scores'][hid]=None
-                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code})
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'BUILD_FAILED','code':code});keep(candidate,sandbox,'BUILD_FAILED',code)
                 ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'BUILD_FAILED','code':code,'candidate_id':cid});continue
             if signals is None:
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
-                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'NO_SIGNALS'})
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'NO_SIGNALS'});keep(candidate,sandbox,'NO_SIGNALS')
                 ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'NO_SIGNALS','candidate_id':cid});continue
             try: score=engine.market.score(signals) if engine.market is not None else score_signals(signals,engine.validation_rows)
             except RuntimeRefused as error:
                 candidate['status']='INVALID_SIGNALS';state['scores'][hid]=None
-                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
+                ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code});keep(candidate,sandbox,'INVALID_SIGNALS',error.code)
                 ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'INVALID','code':error.code,'candidate_id':cid});continue
             # Deflation: the total trial count across all campaigns and the null variance of this estimate (owner, option C, 1 November 2026).
             inputs=score['deflation_inputs'];trials=ledger.total_trials()
@@ -335,6 +358,7 @@ def _run_cycle(engine,cycle_index):
                                         validation_rows=engine.validation_rows,runs=sandbox.runs,ledger=ledger,market_sha256=market)
             # Decision D1, middle path (owner, 2 November 2026): the lessons table shows only the contribution to the book, never the stability measures.
             if book_view(measures) is not None: candidate['book']=book_view(measures)
+            keep(candidate,sandbox,'SCORED')
             ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'SCORED','candidate_id':cid,'score':score,'status':candidate['status'],
                                                                         'deflation':deflation,'trial_variance':variance,'measures':measures})
             if not score['beats_baseline']: continue
@@ -354,16 +378,11 @@ def _run_cycle(engine,cycle_index):
                 # A bench or holdout check measures prompts; its strategies never become templates or enter the vault queue (review, 25 October 2026).
                 if deflation['status']=='PASS': candidate['status']='EVALUATION_GATE_PASS'
                 continue
-            if engine.market is not None:
-                if deflation['status']=='PASS': candidate['status']='EVALUATION_GATE_PASS'
-                candidate['queue']='NOT_QUEUED'
-                ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'NOT_QUEUED','candidate_id':cid,
-                                                                               'reason':'panel candidate: no vault route yet (docs/PANEL_CANDIDATES_DESIGN.md, phase 4)'})
-                continue
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate becomes ELIGIBLE (stage 1).
             source=sandbox.record_for(audit['source_run_id'])
             promoted=promote(engine.project_root,cid,source['files'],audit=audit,score=score,deflation=deflation,source_job_folder=source['job_folder'])
-            eligible=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True,vault=engine.vault)
+            route=route_record(engine.market,source['files'],source['entry']) if engine.market is not None else None
+            eligible=queue.admit(cid,score,deflation,tests_passed=True,auditor_passed=True,route=route,vault=PANEL_VAULT if engine.market is not None else engine.vault)
             if deflation['status']=='PASS': candidate['status']='QUEUED'
             candidate['queue']='ELIGIBLE';candidate['promoted_folder']=promoted['folder']
             ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'PROMOTED','candidate_id':cid,'queue_event_id':eligible['event_id'],

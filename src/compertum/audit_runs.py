@@ -15,7 +15,7 @@ from .runtime.startup_record import expected_proof,check_report
 from .runtime.campaign_environment import check_native,observed_from_native
 from .development_seals import expected_environment
 from .campaign_contract import UNITS
-from .runtime.job_identity import validate_execution_identity,same_process
+from .runtime.job_identity import validate_execution_identity
 from .development_seals import check_campaign_seal
 from .audit_history import reconstruct,validate_state as validate_audit_state,transition as audit_transition,receipt_terminal
 

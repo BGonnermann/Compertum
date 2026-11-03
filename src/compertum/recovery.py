@@ -6,7 +6,6 @@ import importlib.metadata
 import json
 import os
 from pathlib import Path
-import shutil
 import sqlite3
 import time
 from uuid import uuid4,uuid5,NAMESPACE_URL

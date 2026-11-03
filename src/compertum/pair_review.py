@@ -1,5 +1,5 @@
 """Compact pair-review evidence, rebuilt from two committed aggregate reviews."""
-import json,re
+import json
 from .data.encoding import canonical
 from .data.errors import DataError
 from .evaluation_protocol import identifier,digest

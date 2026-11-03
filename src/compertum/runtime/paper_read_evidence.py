@@ -1,7 +1,7 @@
 """Bounded encrypted historical read artifacts; no transport, grant or freshness."""
 from contextlib import contextmanager,ExitStack
 from dataclasses import dataclass
-import hashlib,json,re
+import hashlib,re
 from compertum.data.encoding import canonical
 from compertum.domain import ContractError
 from compertum.paper_contracts import PAPER_ORIGIN,identifier,strict_json

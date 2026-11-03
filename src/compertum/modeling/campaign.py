@@ -7,7 +7,7 @@ from compertum.data.errors import DataError
 from compertum.data.snapshot import validate_snapshot
 from compertum.simulation.market import load_market,WATCHLIST
 from .registry import VARIANTS,FEATURES,annual_cutoff,variant
-from compertum.campaign_contract import YEARS,SEEDS,Unit,UNITS,_schedule
+from compertum.campaign_contract import YEARS,SEEDS,UNITS
 from .ridge import _estimators
 
 MIB=1024**2

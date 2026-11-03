@@ -6,7 +6,7 @@ import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from compertum.events import canonical
 from compertum.ai.engine.ledger import SUMMARY_BYTES,EngineLedger
-from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,book_shown,lessons,without_book
+from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,book_shown,kind_table,lessons,without_book
 
 MARKET='a'*64
 OTHER='b'*64
@@ -49,6 +49,21 @@ def test_book_shown():
     assert rows[0]['book']=={'max_correlation':0.42,'combined_sharpe_gain':-0.03} and 'book' not in rows[1]
     ends.append(end(4,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_CLOSE}))
     assert 'book' not in lessons(ends,MARKET)[-1]
+
+
+def test_kind_table():
+    """The Director's step-type table counts each kind on this market only: tries, valid files, beats, and the best outcome in words, no numbers."""
+    beat={**SCORE_WORSE,'beats_baseline':True,'sharpe':'1.2','benchmark_sharpe':'0.9'}
+    audited={'hypothesis_id':'h2','status':'REJECTED_DEFLATED','audit':{'label':'VERIFIED_PASS'},'deflation':{'deflated_sharpe':'0.3'}}
+    ends=[end(1,[('h1','Momentum'),('h2','Blend')],candidates=[{'hypothesis_id':'h1','status':'NO_SIGNALS'},audited],scores={'h2':beat}),
+          end(2,[('h1','Momentum again')],candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_WORSE}),
+          end(3,[('h1','Elsewhere')],market=OTHER,candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_WORSE})]
+    ends[0]['hypotheses'][0]['kind']='new';ends[0]['hypotheses'][1]['kind']='combine';ends[1]['hypotheses'][0]['kind']='new';ends[2]['hypotheses'][0]['kind']='new'
+    rows={r['kind']:r for r in kind_table(ends,MARKET)}
+    assert list(rows)==['new','change','combine','repair']
+    assert rows['new']=={'kind':'new','tries':2,'valid_files':1,'beat_benchmark':0,'best_outcome':LEVELS[5]}
+    assert rows['combine']=={'kind':'combine','tries':1,'valid_files':1,'beat_benchmark':1,'best_outcome':LEVELS[7]}
+    assert rows['repair']=={'kind':'repair','tries':0,'valid_files':0,'beat_benchmark':0,'best_outcome':None}
 
 
 def test_book_order():

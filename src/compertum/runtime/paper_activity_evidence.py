@@ -10,7 +10,7 @@ from compertum.storage import owner_of_grant
 from .errors import RuntimeRefused
 from .owners import _MUTEX,_owner_scope,require_live_owner
 from .paper_credentials import _alias,_crypt_bounded,_wipe,open_paper_credentials
-from .paper_credential_slot import _coordinator_records,load_paper_slot
+from .paper_credential_slot import _coordinator_records
 from .paper_market_evidence import _pinned
 from .paper_market_collection import _scan_generated
 

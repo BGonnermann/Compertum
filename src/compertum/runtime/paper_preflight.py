@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 from compertum.data.calendar import session_times
 from compertum.data.errors import DataError
 from compertum.data.encoding import canonical
-from compertum.domain import ContractError
 from compertum.persistence import StateStore
 from compertum.storage import JournalReserve
 from compertum.paper_contracts import identifier

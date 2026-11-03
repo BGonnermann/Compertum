@@ -1,5 +1,5 @@
 """Exact per-attempt tasks within the consumed final transaction's total budget."""
-from datetime import datetime,timedelta,timezone
+from datetime import datetime,timedelta
 import hashlib
 from .data.encoding import canonical
 from .data.errors import DataError

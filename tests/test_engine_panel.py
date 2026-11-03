@@ -100,10 +100,16 @@ def test_starter_program(tmp_path):
     p=synthetic();aliases=panel.asset_names(SYMBOLS)
     for name,text in panel.panel_files(p,aliases).items(): (tmp_path/name).write_text(text,encoding='utf-8')
     (tmp_path/'main.py').write_text(panel.STARTER_PANEL,encoding='utf-8')
-    here=os.getcwd()
+    here=os.getcwd();scope={'__name__':'__main__'}
     try:
-        os.chdir(tmp_path);exec(compile(panel.STARTER_PANEL,'main.py','exec'),{'__name__':'__main__'})
+        os.chdir(tmp_path);exec(compile(panel.STARTER_PANEL,'main.py','exec'),scope)
     finally: os.chdir(here)
+    real={a:s for s,a in aliases.items()};n=len(p['dates']);prices,returns=scope['PRICES'],scope['RETURNS']
+    assert prices.shape==returns.shape==(n,len(SYMBOLS)) and scope['ASSETS']==sorted(real) and scope['RATES'].shape==(n,)
+    for i,a in enumerate(scope['ASSETS']):
+        closes=p['closes'][real[a]]
+        assert [None if x!=x else x for x in prices[:,i]]==pytest.approx([None if c is None else float(f'{c:.10g}') for c in closes])
+        assert all(returns[t,i]!=returns[t,i] for t in range(n) if t==0 or closes[t] is None or closes[t-1] is None)
     targets=panel.parse_weights((tmp_path/'weights.csv').read_text(encoding='utf-8'),p,aliases)
     assert targets[p['train']]=={s:1.0/len(SYMBOLS) for s in SYMBOLS} and targets[p['train']+1] is targets[p['train']]
     score=panel.panel_score(p,targets)
@@ -163,3 +169,18 @@ def test_panel_prompts():
         assert load_prompt(root,role)!=text
     assert 'weights.csv' in load_prompt(root,'engineer','panel') and 'signals.csv' in load_prompt(root,'engineer')
     with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): load_prompt(root,'engineer','other')
+
+
+def test_weights_reasons():
+    """Every refusal keeps the code ENGINE_SIGNALS_INVALID and names the broken format rule, so the Engineer can fix the file in its run."""
+    p=synthetic();aliases=panel.asset_names(SYMBOLS);a=aliases['Food'];fun=aliases['Fun'];start=p['train']
+    cases=[('day,asset,weight\n','the first line must be session,asset,weight'),
+           (f'session,asset,weight\n{start},{a}\n','must have 3 values'),
+           (f'session,asset,weight\n{start},{a},x\n','the weight a number'),
+           (f'session,asset,weight\n{start},{a},-1\n','finite number of 0 or more'),
+           (f'session,asset,weight\n{start},{a},0.5\n{start},{a},0.2\n','listed twice'),
+           (f'session,asset,weight\n10,{fun},0.5\n',f'{fun} is not a column of the panel or has no value at session 10'),
+           (f'session,asset,weight\n{start},{a},0.7\n{start},{fun},0.7\n',f'the weights of session {start} add up to 1.400000, more than 1')]
+    for text,reason in cases:
+        with pytest.raises(panel.RuntimeRefused,match='^ENGINE_SIGNALS_INVALID$') as caught: panel.parse_weights(text,p,aliases)
+        assert reason in caught.value.reason,(text,caught.value.reason)

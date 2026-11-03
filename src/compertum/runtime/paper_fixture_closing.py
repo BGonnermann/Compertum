@@ -5,12 +5,12 @@ import hashlib,json
 from compertum.data.encoding import canonical
 from compertum.fake_attempt_guard import require_attempt_guard
 from compertum.fixture_closing import next_close_child,settle_close_child
-from compertum.native_attempt_records import native_client_id,sha
+from compertum.native_attempt_records import sha
 from compertum.native_write_journal import _logical_snapshot,_replace
 from compertum.paper_contracts import number,timestamp
 from compertum.paper_portfolio import TERMINAL
 from .errors import RuntimeRefused
-from .owners import _MUTEX,_owner_scope
+from .owners import _MUTEX
 from .paper_fixture_send_commit import _ProofWriteCall,_ConsumeCall
 from .paper_fixture_risk import fixture_risk_context,_join,_INVALID
 from .paper_fixture_economics import fixture_economic_context

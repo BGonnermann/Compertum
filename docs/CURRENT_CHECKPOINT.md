@@ -21,6 +21,38 @@
 - Limits: a sweep has no record while it loads its panel, so it appears only when its trial row exists, seconds before its report.
   A killed `run_tests` job without `retention.json` shows NO OUTPUT FOR N MINUTES, not FAILED.
 
+## Cleanup, code library, format check, step-type table and momentum_tilt - 3 November 2026
+
+- Owner, 3 November 2026: "lets do" (code library and step-type table), "Information only" (step types), "find and disolve old code and tests", "yes go ahead with all of it".
+- Cleanup (finders' "safe now" list, `docs/RESEARCH_20261103.md` section 4): about 90 unused imports in 40 files outside sealed files, kept wherever another file imports the name or a line says `F401`;
+  `practice.MODELS_BYTES`, `prompts.load_routing`, `storage.IOStatus`, two constants in `tools/prepare_pipe_policy.py`. The orphan `tests/helpers/clean_supervisor_holder.py` went out in 5d230f6.
+  Verification, product environment, under `m5-local-economics-20261017-01`: the 171 test files that import a changed module gave 63 failed, 2,960 passed,
+  5 skipped and 5 errors in 1 h 51 min (other test jobs ran at the same time). One failure was caused by the cleanup: `test_fake_recovery` patches
+  `fake_recovery.ExecutionIntent` through a variable; that file's imports are restored. `test_engine_french::test_vault_separation` needs `langchain_core`
+  (not in the product environment; that file is outside the product lane). The other 67 were rerun alone: 42 failed, 5 errors, 20 passed, with the cleanup;
+  and exactly the same 47 failed on the committed code without it (`failed-baseline-20261103-133056`). The cleanup causes none of them.
+  Open finding: 47 native M5 tests fail on master (28 `BOOTSTRAP_DENIED`, 5 `KeyError: 'COMPERTUM_DISPATCH_PLAN'`, 2 `PIPE_DEADLINE_EXCEEDED`, others);
+  they are in no routine lane; the last full product suite passed on 24 to 25 October. Evidence: `failed-alone-20261103-130309`, `failed-baseline-20261103-133056`.
+- Code library (`ai/engine/codebook.py`, new): every practice candidate leaves its specification, code, status and last error under `state/engine/code_library/<layout>/`; no score.
+  Before a build the Engineer gets the 2 working records (valid file) nearest by specification words. Bench, holdout and GEPA cycles neither write nor read it. The build step records the example ids.
+- Format check (sealed `execution.py`): an Engineer job's output file goes through the scorer's own reader in the run; `run_job` returns the broken rule as `format_error`.
+  `market.invalid` and `panel.parse_weights` keep the code `ENGINE_SIGNALS_INVALID` and add a reason. The cycle scores the last run that passed the check.
+- Panel starter (sealed `panel.py`): NumPy arrays `PRICES`, `RETURNS`, `RATES` (row = session, NaN for missing) are filled before `decide()`; `decide()` is unchanged.
+- OpenRouter routing: `provider_sort` in model files (`price`, `throughput`, `latency`); `config/models-openrouter-think.toml` uses `throughput`. Loopback models never send it.
+- Step-type table, information only: the Director may label a hypothesis `kind` (new, change, combine, repair); an unknown kind is dropped. `levels.kind_table` adds a `kinds` table to the summary:
+  tries, valid files, beats and the best outcome in words for each kind on the market. `director.md` explains both. The Director still chooses freely.
+- `momentum_tilt` (sealed `library_multi.py`): registered first in `docs/PREREGISTRATION_MOMENTUM_TILT.md` (83f1c8f, addendum f948ba8), then built exactly as written.
+  `sweep --family` runs one family alone and records only its settings as trials. A full sweep now has 7 families and 91 settings.
+- Sealed files: `cycle.py` 64729cb4 to 626e24aa, `execution.py` f5de4fa7 to a091e401, `panel.py` 9062017e to d84c6223, `market.py` a059ea9c to 5c062e81,
+  `ledger.py` a05f07c8 to d98dc079, `library_multi.py` 5272eef7 to 83bcb116, `audit.py` c1a2f725 to c5adf409.
+- Phase 4, the firm-panel vault route (`ai/engine/firm_panel.py`, new, sealed; `FIXED_FILES` now 19 files plus the store):
+  an audited panel candidate is promoted and becomes ELIGIBLE on french-v1 with its code hash, input file hashes, entry and industry count (it was `NOT_QUEUED`).
+  `vault_score` reruns the frozen code and must reproduce the admitted VALIDATION score hash before the look reads any vault row; then it runs once with the vault
+  sessions appended and scores only those. Owner command: `python -m compertum.ai.engine.firm_panel --project . vault --look LOOK --candidate ID` (memory floor and slot checks first).
+  Panel candidates always enter french-v1. Tests: `tests/test_engine_firm_panel.py` (3) and the native `test_panel_cycle`.
+- `docs/VAULT_POLICY_DRAFT.md`: batch size, choice rule, order and stop rule for french-v1, for the owner to decide. No batch opens before the owner signs it.
+- Full check, source: engine 341 passed; product 384 passed, 8 skipped; harness 148 passed; tools 45 passed; 0 failed. PASS in 9.5 min.
+
 ## /watch follows the newest run and fits the pane - 3 November 2026
 
 - Owner, 3 November 2026: "figure out how /watch can populate automatically with the newest information" and work "without error or bugs".

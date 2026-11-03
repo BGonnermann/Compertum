@@ -137,7 +137,7 @@ def retry_task(task,code,previous_reply):
             f'\n\nPREVIOUS REPLY\n{previous}')
 
 
-def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=None,code=None,starter=STARTER_MAIN):
+def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=None,code=None,starter=STARTER_MAIN,examples=''):
     """The Engineer's task and its starting files. The specification is in the task text AND in /spec.md. A sample of the TRAIN rows shows the columns.
     Practice runs 5 to 10 (24 to 25 October 2026) sent the literal text of a template instead of the specification: the second half of the string had no f prefix.
     Routing (26 October 2026): memo adds the Researcher's memo; review and code make a rebuild task that starts from the built code and the Mathematician's review."""
@@ -162,4 +162,4 @@ def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=No
           f'When run_job reports that {output} was written, the build is complete.\n\n'
           f'TRAIN SAMPLE (the first rows of {train})\n{sample}\n\nSPECIFICATION\n{specification}\n\n/main.py\n```python\n{clip_bytes(main,MAIN_TEXT_BYTES)}\n```')
     if memo is not None: task+=f'\n\nMEMO (the research behind the specification)\n{memo}'
-    return task,{'/main.py':main,'/spec.md':specification}
+    return task+examples,{'/main.py':main,'/spec.md':specification}

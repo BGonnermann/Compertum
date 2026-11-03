@@ -1,14 +1,11 @@
 """Pure fixed generated final batch. Admission and durable attempts live elsewhere."""
 from dataclasses import dataclass
 from decimal import Decimal as D
-import hashlib,json,re
-from uuid import UUID,uuid5
+import hashlib,json
 import numpy as np
 from compertum.data.calendar import utc_time
 from compertum.data.encoding import canonical
 from compertum.data.errors import DataError
-from compertum.evaluation_protocol import fixed_definition,identity,identifier
-from compertum.final_recipe import recipe_for_pin
 from compertum.simulation.policy import fixed_decimal
 from compertum.simulation.engine import _replay_market
 from compertum.audit import _portfolio,_metrics,reconstruct_metrics
@@ -16,7 +13,7 @@ from compertum.audit_predictions import SourceEvidence
 from compertum.audit_execution import _policy_dates
 from .generated_market import generate_market
 from .generated_tables import pack_final
-from .generated_fits import _selection,_Vectors,_fit
+from .generated_fits import _Vectors,_fit
 from .candidate import _CandidateMarket,_predictions
 from .ridge import RidgeArtifact,_numbers
 from .registry import FEATURES

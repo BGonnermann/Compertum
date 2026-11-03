@@ -6,7 +6,7 @@ import hashlib,json,re
 from .calendar import NY,session_date,session_times,utc_time
 from .errors import DataError
 from .encoding import canonical
-from .snapshot_text import MAX_INPUT,SECRET,safe_text
+from .snapshot_text import MAX_INPUT,safe_text
 
 MAX_BARS=1024
 BAR_FIELDS=set('asset_id session_date reference adjustment feed revision_id bar_label_time provider_timestamp retrieved_at first_seen_at feature_available_at simulated_available_at simulated_revision_available_at open high low close volume'.split())

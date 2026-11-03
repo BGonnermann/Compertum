@@ -1,13 +1,12 @@
 """Committed coordinator shortlist tickets and independent owner validation."""
 import json,sqlite3,time
 from .data.encoding import canonical
-from .data.errors import DataError
 from .shortlist_ticket import MAX_TICKET_BYTES,read_ticket,build_ticket,review_pin
 from .clean_registration import _text,read_registration
 from .persistence import _active_store_path
 from .runtime.errors import RuntimeRefused
 from .runtime.owners import require_live_owner
-from .review_evidence import check,sha
+from .review_evidence import check
 
 
 def owner_ticket(project,seal_id,ticket_sha256,evidence):

@@ -1,9 +1,8 @@
 """Coordinator-owned independent Final audit: immutable inputs and at most two Jobs."""
 from copy import deepcopy
 from datetime import datetime,timezone
-import io,json,os
+import io,json
 from .data.encoding import canonical
-from .data.errors import DataError
 from .evaluation_protocol import identifier
 from .clean_registration import _text
 from .completed_final_evidence import completed_final
@@ -18,7 +17,6 @@ from .runtime.identity_pins import runtime_identity
 from .runtime.job_identity import validate_execution_identity,same_process
 from .runtime.startup_record import expected_proof
 from .runtime.owners import require_live_owner
-from .persistence import checked_path
 
 MIB=1024**2
 

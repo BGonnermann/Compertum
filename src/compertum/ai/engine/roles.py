@@ -12,7 +12,6 @@ Role prompts live in `config/engine_prompts/<role>.md`, the routing in `config/e
 """
 from dataclasses import dataclass
 import json
-from pathlib import Path
 from typing import Any
 from . import harden_environment
 harden_environment()  # before any LangChain import, so the libraries see tracing off and no provider key
@@ -22,7 +21,6 @@ from langchain_core.outputs import ChatGeneration,ChatResult
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.errors import GraphRecursionError
 from pydantic import ConfigDict,PrivateAttr
-from compertum.domain import ContractError,resolve_project_path  # noqa: E402
 from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 
 from .prompts import PROMPT_BYTES,ROLES,load_prompt  # noqa: E402,F401  (re-exported; the loader has no engine library dependency)

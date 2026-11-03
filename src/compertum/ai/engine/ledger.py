@@ -10,7 +10,7 @@ from uuid import uuid4
 from compertum.events import canonical
 from compertum.runtime.errors import RuntimeRefused
 from ..manual import read_json
-from .levels import lessons
+from .levels import kind_table,lessons
 
 MAX_SUMMARY_CYCLES=20
 SUMMARY_BYTES=16384
@@ -206,7 +206,7 @@ class EngineLedger:
             candidates=[{'hypothesis_id':str(x.get('hypothesis_id'))[:32],'status':str(x.get('status'))[:40]} for x in (c.get('candidates') or [])[:3] if isinstance(x,dict)]
             recent.append({'cycle_index':c['cycle_index'],'status':str(c.get('status'))[:40],'hypotheses':hypotheses,'candidates':candidates})
         result={'cycles_completed':len(all_ends),'active_freezes':len(self.active_freezes()),'recent':recent}
-        if market_sha256 is not None: result['lessons']=lessons(all_ends,market_sha256)
+        if market_sha256 is not None: result['lessons']=lessons(all_ends,market_sha256);result['kinds']=kind_table(all_ends,market_sha256)
         while recent and len(canonical(result))>SUMMARY_BYTES: recent.pop(0)
         while result.get('lessons') and len(canonical(result))>SUMMARY_BYTES: result['lessons'].pop(0)
         return result

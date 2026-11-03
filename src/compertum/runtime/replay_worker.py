@@ -6,7 +6,7 @@ import ctypes as c
 import hashlib,json,sys
 from ._windows import WindowsAPI,OwnedHandle,DWORD
 from compertum.data.errors import DataError
-from compertum.data.snapshot import canonical,validate_snapshot
+from compertum.data.snapshot import canonical
 from compertum.simulation.runs import unit_schedule,runtime_identity,compute_unit
 from compertum.simulation.engine import replay
 from compertum.simulation.worker_record import pack_result

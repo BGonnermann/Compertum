@@ -26,6 +26,7 @@ import json
 import math
 from pathlib import Path
 import re
+import statistics
 import sys
 from uuid import uuid4
 from compertum.data.errors import DataError
@@ -36,6 +37,9 @@ from .market import cost_at,dated,verdict
 
 NOTE_LIMIT=500
 MIN_UNIVERSE=10
+TILT_SKIP=21
+TILT_WINDOW=126
+TILT_HISTORY=2520
 ETFS=frozenset({'AGG','DIA','EEM','EFA','EMB','EWJ','EWZ','FXI','GDX','GLD','HYG','IBB','IEF','IWM','JNK','KRE','LQD','QQQ','SHY','SLV','SMH','SPY',
                 'TIP','TLT','USO','VEA','VNQ','VWO','XBI','XHB','XLB','XLE','XLF','XLI','XLK','XLP','XLRE','XLU','XLV','XLY','XRT'})
 
@@ -144,6 +148,43 @@ def breadth(u,t,window,level):
     return _equal(u,t) if known and sum(known)/len(known)>level else {}
 
 
+def _tilt_ranks(u,t,lookback):
+    known=sorted((v,s) for s,v in ((s,_past_return(u,s,t,lookback,TILT_SKIP)) for s in u['eligible'][t]) if v is not None)
+    total=len(known)*(len(known)+1)/2
+    return {s:(i+1)/total for i,(_,s) in enumerate(known)}
+
+
+def _tilt_risk(u,lookback):
+    """S_s of docs/PREREGISTRATION_MOMENTUM_TILT.md: the sample standard deviation of the pure tilt's daily active returns over the last
+    TILT_WINDOW sessions, each return made with the weights of the session before."""
+    key=('tilt',lookback)
+    if key not in u['cache']:
+        n=u['n'];active=[None]*n;before=None
+        for s in range(n):
+            if before is not None:
+                ranks,equal=before;active[s]=sum((ranks.get(a,0.0)-equal.get(a,0.0))*(u['returns'][a][s] or 0.0) for a in set(ranks)|set(equal))
+            names=u['eligible'][s];before=(_tilt_ranks(u,s,lookback),{a:1.0/len(names) for a in names})
+        spread=[None]*n
+        for s in range(TILT_WINDOW,n):
+            window=active[s-TILT_WINDOW+1:s+1]
+            if None not in window: spread[s]=statistics.stdev(window)
+        u['cache'][key]=spread
+    return u['cache'][key]
+
+
+def momentum_tilt(u,t,lookback,k,scale):
+    """The pre-registered family (docs/PREREGISTRATION_MOMENTUM_TILT.md): equal weight blended with momentum rank weights over every
+    eligible industry; with scale, the blend shrinks while the tilt's recent risk is above its own 10-year median."""
+    names=u['eligible'][t]
+    if not names: return {}
+    ranks=_tilt_ranks(u,t,lookback);strength=k if ranks else 0.0
+    if scale and ranks:
+        spread=_tilt_risk(u,lookback);now=spread[t];past=[x for x in spread[max(0,t-TILT_HISTORY+1):t+1] if x is not None]
+        if now and past: strength=k*min(1.0,statistics.median(past)/now)
+    weights={a:(1-strength)/len(names)+strength*ranks.get(a,0.0) for a in names}
+    return {a:w for a,w in weights.items() if w>0}
+
+
 FAMILIES={
     'xs_momentum':(xs_momentum,[{'lookback':l,'skip':k,'share':q,'hold':h} for l in (20,60,120,252) for k in (0,20) for q in (0.1,0.2) for h in (5,21)]),
     'xs_reversal':(xs_reversal,[{'lookback':l,'share':q,'hold':h} for l in (1,5,10,20) for q in (0.1,0.2) for h in (1,5)]),
@@ -151,6 +192,7 @@ FAMILIES={
     'dual_momentum':(dual_momentum,[{'lookback':l,'share':q,'hold':21} for l in (60,120,252) for q in (0.1,0.2)]),
     'ew_trend':(ew_trend,[{'window':w,'hold':1} for w in (50,100,200)]),
     'breadth':(breadth,[{'window':w,'level':b,'hold':1} for w in (50,200) for b in (0.4,0.5,0.6)]),
+    'momentum_tilt':(momentum_tilt,[{'lookback':l,'k':k,'hold':h,'scale':v} for l in (126,252) for k in (0.5,1.0) for h in (21,63) for v in (False,True)]),
 }
 SETTINGS=sum(len(grid) for _,grid in FAMILIES.values())
 
@@ -205,9 +247,10 @@ def _safe(u,targets,start,end,lag=True):
     except RuntimeRefused as error: return {'refused':error.code}
 
 
-def choose(u,train):
+def choose(u,train,families=None):
     chosen={}
     for name,(_,grid) in FAMILIES.items():
+        if families is not None and name not in families: continue
         best=None
         for knobs in grid:
             s=_safe(u,weights(u,name,knobs),0,train,lag=False);value=Decimal(s['sharpe']) if s.get('sharpe_status')=='DEFINED' else None
@@ -223,14 +266,16 @@ def universes(p):
     return {name:members for name,members in (('stocks',stocks),('etfs',etfs)) if len(members)>=MIN_UNIVERSE}
 
 
-def sweep(p,ledger,*,run_id,note):
+def sweep(p,ledger,*,run_id,note,families=None):
+    """families: a subset of FAMILIES to run alone, for a pre-registered family; only its settings count as trials. None runs every family."""
     groups=universes(p)
-    if not groups: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    if not groups or (families is not None and (not families or set(families)-set(FAMILIES))): raise RuntimeRefused('ENGINE_MARKET_DENIED')
+    settings=sum(len(grid) for name,(_,grid) in FAMILIES.items() if families is None or name in families)
     ledger.require_unfrozen()
-    prepared={name:prepare(p,members) for name,members in groups.items()};choices={name:choose(u,p['train']) for name,u in prepared.items()}
-    trials=SETTINGS*len(groups)
-    ledger.record_external_trials(f'library-multi:{run_id}',trials,{'kind':'strategy-library-multi','run_id':run_id,'settings_per_universe':SETTINGS,
-                                                                    'universes':{k:len(v) for k,v in groups.items()},'families':sorted(FAMILIES),'note':note})
+    prepared={name:prepare(p,members) for name,members in groups.items()};choices={name:choose(u,p['train'],families) for name,u in prepared.items()}
+    trials=settings*len(groups)
+    ledger.record_external_trials(f'library-multi:{run_id}',trials,{'kind':'strategy-library-multi','run_id':run_id,'settings_per_universe':settings,
+                                                                    'universes':{k:len(v) for k,v in groups.items()},'families':sorted(families or FAMILIES),'note':note})
     total=ledger.total_trials();rows=[]
     for name,u in prepared.items():
         for family,choice in choices[name].items():
@@ -241,7 +286,7 @@ def sweep(p,ledger,*,run_id,note):
             rows.append(row)
     admit_rows(p,ledger,run_id,groups,rows)
     return {'run_id':run_id,'kind':'strategy-library-multi','note':note,'calendar':[p['dates'][0],p['dates'][p['train']],p['dates'][-1]],
-            'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'skipped':p.get('skipped',[]),'settings_per_universe':SETTINGS,'trials_recorded':trials,'total_trials':total,
+            'universes':{k:len(v) for k,v in groups.items()},'dropped':p['dropped'],'skipped':p.get('skipped',[]),'settings_per_universe':settings,'families':sorted(families or FAMILIES),'trials_recorded':trials,'total_trials':total,
             'membership':p.get('membership'),
             'gate_rule':'beats the equal-weight universe and deflated Sharpe >= 0.95 with the total trial count and the null variance (option C)','rows':rows}
 
@@ -415,6 +460,7 @@ def main(argv=None):
     parser.add_argument('--project',type=Path,default=Path('.'));parser.add_argument('--config',type=Path,default=Path('config/default.toml'))
     commands=parser.add_subparsers(dest='command',required=True);run=commands.add_parser('sweep');run.add_argument('--note',required=True)
     run.add_argument('--universe',choices=('all','sp500-pit','french49'),default='all')
+    run.add_argument('--family',action='append',choices=sorted(FAMILIES),help='run only these families (a pre-registered family); default: every family')
     admit=commands.add_parser('admit');admit.add_argument('--run',required=True)
     vault=commands.add_parser('vault');vault.add_argument('--look',required=True);vault.add_argument('--candidate',required=True)
     args=parser.parse_args(argv)
@@ -434,7 +480,7 @@ def main(argv=None):
         p=pit_panel(root,manifests) if args.universe=='sp500-pit' else french_panel(root,manifests) if args.universe=='french49' else load_panel(root,manifests)
         lease=acquire_owner(resolve_project(root),'coordinator')
         store=StorageManager(lease,load_config(config,root)).store
-        report=sweep(p,EngineLedger(store),run_id=run_id,note=args.note)
+        report=sweep(p,EngineLedger(store),run_id=run_id,note=args.note,families=args.family)
     except RuntimeRefused as error:
         print(json.dumps({'refused':error.code}));return 2
     except (ContractError,ConfigError) as error:

@@ -6,7 +6,7 @@ from compertum.domain import ContractError
 from compertum.paper_contracts import identifier,strict_json,utc
 from compertum.paper_activity_records import prepare_activity_request,parse_activity_page,activity_traversal,sha
 from .errors import RuntimeRefused
-from .owners import _MUTEX,_owner_scope,require_live_owner
+from .owners import _MUTEX,require_live_owner
 from .paper_account_context import _PaperAccountContext
 from .paper_portfolio_context import _portfolio_context,_journal_snapshot
 from .paper_opening import _original

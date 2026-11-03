@@ -1,6 +1,5 @@
 """Owned current local accounting. This never creates submission authority."""
 import hashlib,json
-from compertum.attempt_records import is_native
 from compertum.data.encoding import canonical
 from compertum.fake_attempt_guard import require_attempt_guard
 from compertum.fixture_order_journal import decode_order_journal

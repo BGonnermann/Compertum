@@ -28,7 +28,7 @@ FIXED_FILES=('docs/BUILD_SPEC.md','AGENTS.md','config/default.toml','config/engi
              'src/compertum/ai/engine/run.py','src/compertum/ai/engine/cycle.py','src/compertum/ai/engine/audit.py',
              'src/compertum/ai/engine/market.py','src/compertum/ai/engine/ledger.py','src/compertum/ai/engine/execution.py',
              'src/compertum/runtime/sandbox.py','src/compertum/ai/engine/panel.py','src/compertum/ai/engine/library_multi.py',
-             'src/compertum/ai/engine/measures.py')
+             'src/compertum/ai/engine/measures.py','src/compertum/ai/engine/firm_panel.py')
 STORE_FILE='state/research.sqlite'
 SCORECARD_SCHEMA='synthetic-campaign-scorecard-v1'
 INTEGRITY_CHECKS=('trial_counted','candidates_before_runs','score_recomputed','deflation_consistent','no_forbidden_access')

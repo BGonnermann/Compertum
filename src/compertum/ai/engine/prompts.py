@@ -127,6 +127,3 @@ def load_component(project_root,name):
     try: text=path.read_bytes()[:CODE_BYTES+1].decode('utf-8')
     except (OSError,UnicodeError): raise RuntimeRefused(f'ENGINE_{name.upper()}_INVALID') from None
     return check_component(name,text)
-
-
-def load_routing(project_root): return load_component(project_root,'routing')

@@ -8,7 +8,6 @@ from compertum.campaign_contract import UNITS
 from compertum.domain import validate_record
 from compertum.events import canonical, uuid
 from compertum.evaluation_protocol import digest
-from compertum.runtime.errors import RuntimeRefused
 from compertum.runtime.ipc import ProtocolDecision
 from compertum.runtime.owners import require_live_owner
 from .cycle_record import CycleRecords, ACTIVE, _checked, _deadline, _need

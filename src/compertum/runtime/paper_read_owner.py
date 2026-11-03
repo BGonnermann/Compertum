@@ -5,7 +5,7 @@ still need the human operator's exact plan authorization. No caller transport,
 credentials, wall clock, health assertion or account UUID is accepted.
 """
 from datetime import datetime,timedelta,timezone
-import base64,hashlib,json,re,time
+import base64,hashlib,re,time
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 from compertum.data.encoding import canonical

@@ -625,6 +625,26 @@ def test_a_model_file_may_set_a_thinking_budget_that_the_request_carries(tmp_pat
     assert {spec.reasoning_tokens for spec in think.values()}=={2048,4096} and all(spec.max_tokens>spec.reasoning_tokens for spec in think.values())
 
 
+def test_a_model_file_may_ask_openrouter_for_the_fastest_providers(tmp_path):
+    """3 November 2026: provider_sort asks OpenRouter for the cheapest, fastest or quickest providers first. A loopback model never sends it."""
+    path=write_models(tmp_path,[(role,'http://127.0.0.1:1234/v1','m') for role in sorted(ENGINE_ROLES)])
+    path.write_text(path.read_text(encoding='utf-8').replace('model = "m"\n','model = "m"\nprovider_sort = "throughput"\n'),encoding='utf-8')
+    assert {spec.provider_sort for spec in load_models(path,tmp_path).values()}=={None}
+    path.write_text(path.read_text(encoding='utf-8').replace('provider_sort = "throughput"','provider_sort = "cheapest"',1),encoding='utf-8')
+    with pytest.raises(RuntimeRefused,match='^AI_SETTINGS_DENIED$'): load_models(path,tmp_path)
+    assert not checked_spec(RoleModel('director','http://127.0.0.1:1234/v1','m',provider_sort='fast'))
+    messages=[{'role':'system','content':'Synthetic fixture.'},{'role':'user','content':'route'}]
+    with server() as (port,state):
+        fast={role:RoleModel(role,f'http://127.0.0.1:{port}/v1','synthetic-model',provider_sort='throughput') for role in ENGINE_ROLES}
+        ledger=ListLedger();c=ModelClient(fast,ledger,memory_floor_bytes=FLOOR,request_limit=2,available_memory=lambda:FLOOR+1,native_limits=False)
+        c.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)
+        plain=client(port,ListLedger(),limit=2);plain.complete('engineer',messages,purpose='e1-fixture',max_tokens=64)
+        assert state['posts'][0]['provider']=={'sort':'throughput'} and 'provider' not in state['posts'][1]
+        assert ledger.entries[0]['settings']['provider_sort']=='throughput' and 'provider_sort' not in plain.ledger.entries[0]['settings']
+    root=Path(__file__).resolve().parents[1];think=load_models(root/'config/models-openrouter-think.toml',root)
+    assert {spec.provider_sort for spec in think.values()}=={'throughput'}
+
+
 def test_a_large_model_list_is_read_for_its_ids_and_a_confirmed_model_is_not_listed_again():
     from compertum.ai.models import MODEL_LIST_BYTES,model_ids
     assert model_ids(b'{"data":[{"id":"a/b"},{"id":""},{"name":"x"},{"id":7}]}')==frozenset({'a/b'}) and model_ids(b'{"x":1}')==frozenset()

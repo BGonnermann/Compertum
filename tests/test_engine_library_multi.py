@@ -2,6 +2,7 @@
 every setting counted before any VALIDATION score, and the real gate. Fixture prices are generated inside the test only; research runs use real data."""
 from datetime import date,timedelta
 import math
+import statistics
 import random
 import pytest
 from test_ai_manual import bridge  # noqa: F401  (fixture)
@@ -35,7 +36,7 @@ def markets(count=12,sessions=500,train=300,drifts=None):
 
 
 def test_grid_size():
-    assert len(lm.FAMILIES)==6 and lm.SETTINGS==75
+    assert len(lm.FAMILIES)==7 and lm.SETTINGS==91 and len(lm.FAMILIES["momentum_tilt"][1])==16
 
 
 def test_common_calendar():
@@ -75,8 +76,8 @@ def test_sweep_gate(bridge,monkeypatch):
         calls.append(start);return real_safe(u,targets,start,end,**k)
     monkeypatch.setattr(lm,'_safe',safe)
     report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000001',note='fixture')
-    assert report['universes']=={'stocks':12} and report['trials_recorded']==75 and report['total_trials']==125==ledger.total_trials()
-    assert all(c==0 for c in calls[:75]) and all(c==300 for c in calls[75:]) and len(calls)==81
+    assert report['universes']=={'stocks':12} and report['trials_recorded']==91 and report['total_trials']==141==ledger.total_trials()
+    assert all(c==0 for c in calls[:91]) and all(c==300 for c in calls[91:]) and len(calls)==98
     for r in report['rows']:
         if r['gate']=='UNDEFINED': continue
         assert r['gate']==('PASS' if r['validation']['beats_baseline'] and float(r['deflated_sharpe'])>=0.95 else 'FAIL')
@@ -135,7 +136,7 @@ def test_pit_benchmark():
 def test_pit_sweep(bridge):
     b,_=bridge;ledger=EngineLedger(b.store);p=pit()
     report=lm.sweep(p,ledger,run_id='library-multi-20261101-00000004',note='fixture')
-    assert report['universes']=={'sp500-pit':14} and report['trials_recorded']==75 and ledger.total_trials()==75
+    assert report['universes']=={'sp500-pit':14} and report['trials_recorded']==91 and ledger.total_trials()==91
     assert {r['family'] for r in report['rows']}==set(lm.FAMILIES) and all(r['universe']=='sp500-pit' for r in report['rows'])
 
 
@@ -166,3 +167,31 @@ def test_pit_periods(tmp_path,monkeypatch):
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): lm.pit_panel(tmp_path,manifests)
     (idx/'periods.json').unlink()
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_INPUT_UNAVAILABLE$'): lm.pit_panel(tmp_path,manifests)
+
+
+def test_momentum_tilt():
+    """The pre-registered family (docs/PREREGISTRATION_MOMENTUM_TILT.md): equal weight blended with rank weights, no cash, highest momentum
+    largest; no scored industry means equal weight; scale shrinks the blend by the median of past tilt risk over its present risk, never above k."""
+    p=lm.panel(markets(12,sessions=420,train=250));u=lm.prepare(p,sorted(p['closes']));t=300;n=len(u['eligible'][t])
+    scores={s:u['closes'][s][t-21]/u['closes'][s][t-21-126]-1 for s in u['eligible'][t]};order=sorted(scores,key=lambda s:(scores[s],s))
+    w=lm.momentum_tilt(u,t,126,0.5,False)
+    assert math.isclose(sum(w.values()),1.0) and all(x>0 for x in w.values())
+    for i,s in enumerate(order,1): assert math.isclose(w[s],0.5/n+0.5*i/(n*(n+1)/2))
+    assert lm.momentum_tilt(u,100,126,1.0,False)=={s:1.0/n for s in u['eligible'][100]}
+    full=lm.momentum_tilt(u,t,126,1.0,False);assert set(full)==set(order) and math.isclose(full[order[0]],1/(n*(n+1)/2)) and math.isclose(sum(full.values()),1.0)
+    spread=lm._tilt_risk(u,126);t2=next(i for i in range(len(spread)) if spread[i] is not None and i>=t)
+    past=[x for x in spread[max(0,t2-2519):t2+1] if x is not None];strength=min(1.0,statistics.median(past)/spread[t2])
+    scaled=lm.momentum_tilt(u,t2,126,1.0,True);ranks=lm._tilt_ranks(u,t2,126)
+    assert all(math.isclose(scaled.get(s,0.0),(1-strength)/n+strength*ranks.get(s,0.0)) for s in u['eligible'][t2])
+
+
+def test_family_sweep(bridge):
+    """A pre-registered family runs alone: only its 16 settings are recorded as trials, before any VALIDATION score; an unknown family is refused."""
+    b,_=bridge;ledger=EngineLedger(b.store);p=lm.panel(markets(12,sessions=420,train=250))
+    before=ledger.total_trials()
+    report=lm.sweep(p,ledger,run_id='library-multi-20261103-0000000a',note='fixture',families=['momentum_tilt'])
+    assert report['trials_recorded']==16 and report['families']==['momentum_tilt'] and ledger.total_trials()==before+16
+    assert {r['family'] for r in report['rows']}=={'momentum_tilt'} and report['rows'][0]['knobs'] in lm.FAMILIES['momentum_tilt'][1]
+    for bad in (['nope'],[]):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): lm.sweep(p,ledger,run_id='library-multi-20261103-0000000b',note='x',families=bad)
+    assert ledger.total_trials()==before+16

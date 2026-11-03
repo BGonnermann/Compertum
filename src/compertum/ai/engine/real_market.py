@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from compertum.data.alpaca import SYMBOLS,read_bar_evidence
 from compertum.data.errors import DataError
-from compertum.data.provider_snapshot import MAX_CHUNKS,MAX_TOTAL,ProviderSnapshot,build_provider_snapshot,verify_provider_snapshot
+from compertum.data.provider_snapshot import MAX_CHUNKS,MAX_TOTAL,build_provider_snapshot,verify_provider_snapshot
 from compertum.data.snapshot_text import MAX_INPUT
 from compertum.domain import ContractError,resolve_project_path,validate_record
 from compertum.runtime.errors import RuntimeRefused

@@ -298,7 +298,9 @@ def test_strict_replies():
     for bad in ('[1]','no json here','','{"a":',None,'x'*70000):
         with pytest.raises(RuntimeRefused,match='^ENGINE_REPLY_INVALID$'): parse_json_reply(bad)
     assert parse_hypotheses('{"hypotheses":[{"id":"h1","title":"t","idea":"i"}]}')==[{'id':'h1','title':'t','idea':'i'}]
-    for bad in ('{"hypotheses":[]}','{"hypotheses":[{"id":"h1","title":"t"}]}','{"hypotheses":[{"id":"h 1","title":"t","idea":"i"}]}',
+    assert parse_hypotheses('{"hypotheses":[{"id":"h1","title":"t","idea":"i","kind":"combine"},{"id":"h2","title":"t","idea":"i","kind":"other"}]}')==[
+        {'id':'h1','title':'t','idea':'i','kind':'combine'},{'id':'h2','title':'t','idea':'i'}]
+    for bad in ('{"hypotheses":[{"id":"h1","title":"t","idea":"i","note":"x"}]}','{"hypotheses":[]}','{"hypotheses":[{"id":"h1","title":"t"}]}','{"hypotheses":[{"id":"h 1","title":"t","idea":"i"}]}',
                 '{"hypotheses":[{"id":"h1","title":"t","idea":"i"},{"id":"h1","title":"t","idea":"i"}]}','{"hypotheses":[{"id":"h%d","title":"t","idea":"i"}]}'.replace('[{','[{"id":"a","title":"t","idea":"i"},{"id":"b","title":"t","idea":"i"},{"id":"c","title":"t","idea":"i"},{')):
         with pytest.raises(RuntimeRefused,match='^ENGINE_REPLY_INVALID$'): parse_hypotheses(bad)
     assert parse_decision('{"decision":"reject","reason":"r"}')=={'decision':'reject','reason':'r'}
@@ -323,6 +325,20 @@ def test_sandbox_tool(bridge,root,verification,market):
     with pytest.raises(RuntimeRefused,match='^SANDBOX_UNVERIFIED'):
         EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification={'controls':{},'failed':[]},cycle_id='c',train_csv='a',validation_csv='b',memory_floor_bytes=FLOOR)
     assert job_files({'/a/b.py':'x'})=={'a/b.py':'x'}
+
+
+def test_format_check(bridge,root,verification,market):
+    """The scorer's reader checks an Engineer job's output in the sandbox run itself: a bad file reports the broken rule, and the run record keeps it."""
+    from compertum.ai.engine.market import parse_signals
+    b,_=bridge;ledger=EngineLedger(b.store);rows=market['validation_rows']
+    sandbox=EngineerSandbox(root,ledger=ledger,lease=b.storage.lease,verification=verification,cycle_id='cycle-format',train_csv=market['train_csv'],
+                            validation_csv=market['validation_csv'],memory_floor_bytes=FLOOR,check=lambda text:parse_signals(text,rows))
+    bad=sandbox.run({'/main.py':"open('signals.csv','w').write('day,position\\n')\n"},'main.py')
+    assert bad['signals_present'] is True and bad['format_error']=='the first line must be session,position'
+    body='session,position\n'+''.join(f"{r['session']},1\n" for r in rows)
+    good=sandbox.run({'/main.py':f"open('signals.csv','w').write({body!r})\n"},'main.py')
+    assert good['status']=='COMPLETED' and good['signals_present'] is True and 'format_error' not in good
+    assert [r.get('format_error') for r in ledger.runs('cycle-format')]==['the first line must be session,position',None]
 
 
 def test_numpy_jobs(bridge,root,verification,market):
@@ -488,6 +504,15 @@ def test_lessons_table(bridge,root,verification,market,project):
         assert {'idea':'Mean reversion','tries':1,'last_cycle':1,'best_outcome':'Not built: the Director rejected the memo.'} in summary['lessons']
         assert 'lessons' in state['posts'][0]['messages'][-1]['content'] and json.loads(state['posts'][0]['messages'][-1]['content'].split('Ledger summary:\n',1)[1])['lessons']==[]
         starts=[r for r in engine.ledger.cycles() if r['phase']=='START'];assert all(r['market_sha256']==first['market_sha256'] for r in starts)
+        index=project/'state'/'engine'/'code_library'/'single'/'index.jsonl'
+        lines=[json.loads(x) for x in index.read_text(encoding='utf-8').splitlines()]
+        assert [x['candidate_id'] for x in lines]==[c['candidate_id'] for c in first['candidates']+second['candidates']]
+        working=[x['candidate_id'] for x in lines[:len(first['candidates'])] if x['status']=='SCORED']
+        assert working and second['candidates'][0]['examples']==working[:2] and 'score' not in index.read_text(encoding='utf-8')
+        builds=[p['messages'][1]['content'] for p in state['posts'][posts:] if p['messages'][0]['content'].startswith('ROLE: engineer') and p['messages'][1]['content'].startswith('Build')]
+        assert builds and all('WORKING EXAMPLES' in b for b in builds) and not any('WORKING EXAMPLES' in p['messages'][1]['content'] for p in state['posts'][:posts])
+        engine.purpose='gepa';before=index.read_text(encoding='utf-8');third=run_cycle(engine,3)
+        assert third['candidates'][0]['examples']==[] and index.read_text(encoding='utf-8')==before
 
 
 def test_book_switch(bridge,root,verification,market,project):
@@ -745,8 +770,10 @@ def test_panel_cycle(bridge,root,verification,market,project):
                 audit=candidate['audit'];assert audit['label']=='VERIFIED_PASS',audit
                 steps=[s for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='audit']
                 assert steps and len(steps[0]['audit']['perturbations'])==3 and all(e['prefix_equal'] for e in steps[0]['audit']['perturbations'])
-                assert candidate['queue']=='NOT_QUEUED' and 'promoted_folder' not in candidate
-                assert any(s['kind']=='promotion' and s['phase']=='NOT_QUEUED' for s in engine.ledger.steps(result['cycle_id']))
+                assert candidate['queue']=='ELIGIBLE' and Path(candidate['promoted_folder']).is_dir()
+                event=[e for e in engine.ledger.queue_events(candidate['candidate_id']) if e['event']=='ELIGIBLE'][0];route=event['route']
+                assert event['vault']=='french-v1' and route['kind']=='firm-panel' and route['members']==len(p['closes'])
+                assert route['inputs']=={k:hashlib.sha256(v.encode('utf-8')).hexdigest() for k,v in sorted(board.files.items())}
         assert not any(s['kind']=='tool' for s in engine.ledger.steps(result['cycle_id']))
 
 

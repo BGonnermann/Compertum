@@ -17,7 +17,7 @@ from prepare_pipe_experiment import (
     PIPE_NAME, LABEL, BOUNDS, PREPARATION, prepare, from_record, identity_fields,
     checked_observation, check_pair, descriptor, failure_fields,
 )
-from prepare_pipe_policy import Observation, proposed_outputs
+from prepare_pipe_policy import proposed_outputs
 from pipe_experiment_identity import IdentityReader
 from evidence_folder import EvidenceFolder, EvidenceJournal, regular_folder
 

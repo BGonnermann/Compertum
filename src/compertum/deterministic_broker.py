@@ -2,7 +2,6 @@
 from contextlib import contextmanager
 from decimal import Decimal as D
 from pathlib import Path
-import hashlib
 import json
 import sqlite3
 from uuid import uuid4,uuid5,NAMESPACE_URL

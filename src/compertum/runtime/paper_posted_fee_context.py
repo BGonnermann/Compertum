@@ -1,6 +1,6 @@
 """Private original posted-fee observations. Posting times and liabilities stay unknown."""
 from dataclasses import dataclass
-import json,sqlite3
+import sqlite3
 
 from compertum.data.encoding import canonical
 from compertum.paper_contracts import identifier

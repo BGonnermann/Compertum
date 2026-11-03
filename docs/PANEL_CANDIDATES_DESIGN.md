@@ -1,6 +1,6 @@
 # Design: portfolio-weight candidates from the AI firm (efficiency path, step 6)
 
-Status: approved by the owner on 2 November 2026 ("approved"), with D1 to D4 as recommended: anonymous names and session numbers, long only with cash, one market kind per run, the vault route later. Phases 1 and 2 are built (see the checkpoint); the Auditor cuts follow the candidate's own last 3 rebalances instead of fixed tails of 1, 4 and 8 sessions. Owner, 2 November 2026: step 6 "agreed, approved"; "write the design ill review it and we go from there."
+Status: approved by the owner on 2 November 2026 ("approved"), with D1 to D4 as recommended: anonymous names and session numbers, long only with cash, one market kind per run, the vault route later. Phases 1, 2 and 4 are built (see the checkpoint; phase 4 on 3 November 2026, owner: "yes go ahead with all of it"); the Auditor cuts follow the candidate's own last 3 rebalances instead of fixed tails of 1, 4 and 8 sessions. Owner, 2 November 2026: step 6 "agreed, approved"; "write the design ill review it and we go from there."
 Source: `docs/EFFICIENCY_RESEARCH.md` (second cycle, step 7) and `docs/IMPROVEMENT_RESEARCH.md` item 4.
 
 ## Why

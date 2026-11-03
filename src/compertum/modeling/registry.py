@@ -1,6 +1,6 @@
 """Predeclared candidates and feature order from BUILD_SPEC section 9."""
 from datetime import datetime,time,timezone
-from compertum.campaign_contract import FEATURES,Variant,VARIANTS,variant
+from compertum.campaign_contract import FEATURES,VARIANTS,variant
 from compertum.data.errors import DataError
 
 def annual_cutoff(year):

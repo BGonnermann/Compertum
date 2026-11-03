@@ -1,6 +1,6 @@
 """Closed generated annual fits; no external rows or financial admission."""
 from dataclasses import dataclass
-import hashlib,json
+import hashlib
 from importlib.metadata import version
 import numpy as np
 from compertum.data.calendar import session_times,utc_time
@@ -11,7 +11,7 @@ from compertum.simulation.policy import fixed_decimal
 from compertum.simulation.prediction import _label
 from .generated_market import generate_market
 from .features import feature_vector
-from .registry import FEATURES,variant
+from .registry import FEATURES
 from .ridge import _partition_rows,_estimators,_numbers
 
 

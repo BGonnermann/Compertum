@@ -11,7 +11,7 @@ from compertum.modeling.generated_tables import read_final
 from compertum.modeling.generated_market import generate_market
 from compertum.simulation.policy import fixed_decimal
 from compertum.audit import _portfolio,_metrics,reconstruct_metrics
-from compertum.audit_predictions import SourceEvidence,_check,_exact,_compare,_hash
+from compertum.audit_predictions import SourceEvidence,_check,_exact,_hash
 from compertum.audit_execution import _policy_dates
 from compertum.audit_generated_predictions import training,predictions
 from compertum.modeling.qualification import QualificationInput,EvaluationSegment,HoldingInterval,PredictionRow,qualify_synthetic

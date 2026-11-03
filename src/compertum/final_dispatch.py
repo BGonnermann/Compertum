@@ -18,7 +18,6 @@ from .final_request import build_request,read_request
 from .final_task import build_task,validate_task
 from .final_attempts import ATTEMPT_FIELDS,_start
 from .runtime.owners import require_live_owner
-from .runtime.errors import RuntimeRefused
 
 MAXIMUM=32768
 FIELDS={'schema','seal_id','attempt','request_artifact','task_artifact'}

@@ -7,8 +7,6 @@ from dataclasses import dataclass
 import re
 
 CLIENT_ACCESS = 0x00100083
-EVIDENCE_NAME = 'pipe-isolated01'
-EVIDENCE_FOLDER = 'artifacts/m5/simulated-evidence-next-01'
 # Proposed suballocation of the existing 1 MiB preparation allowance.
 # This ledger is not an active reservation or fresh capacity admission.
 OUTPUT_LIMITS = (
