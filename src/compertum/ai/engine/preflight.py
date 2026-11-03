@@ -11,6 +11,7 @@ import re
 from types import SimpleNamespace
 from compertum.runtime.errors import RuntimeRefused
 from .prompts import COMPONENTS,ROLES,check_component,load_component,load_prompt
+from .panel import STARTER_PANEL
 from .tasks import (REVIEW_LENGTH_RULE,SAMPLE_ROWS,STARTER_MAIN,agenda_task,approve_task,engineer_task,market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 
 TASK_BYTES=65536  # no task may be larger than one reply bound
@@ -56,8 +57,12 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
     """The problems in the tasks that one market produces. An empty list means that every task is complete."""
     label=market.get('label','market')
     train_lines=market['train_csv'].splitlines();validation_lines=market['validation_csv'].splitlines()
-    engine=SimpleNamespace(train_csv=market['train_csv'],validation_rows=market['validation_rows'],max_hypotheses=max_hypotheses)
-    brief=market_brief(engine)
+    panel=market.get('panel')
+    engine=SimpleNamespace(train_csv=market['train_csv'],validation_rows=market['validation_rows'],max_hypotheses=max_hypotheses,market=panel)
+    brief=panel.brief() if panel is not None else market_brief(engine)
+    starter=STARTER_PANEL if panel is not None else STARTER_MAIN
+    names=('panel_train.csv','panel_validation.csv') if panel is not None else ('train.csv','validation.csv')
+    validation_count=len(validation_lines)-1 if panel is not None else len(market['validation_rows'])
     summary_json=json.dumps(SUMMARY,sort_keys=True);hypothesis_json=json.dumps(HYPOTHESIS,sort_keys=True);code_json=json.dumps(CODE,sort_keys=True)
     pick=pick_task(max_hypotheses,cycle_index,brief,SUMMARY)
     built={
@@ -77,18 +82,18 @@ def check_market(market,max_hypotheses=3,cycle_index=1):
         'mathematician specify with tool':(specify_task(brief,MEMO,None,TOOL),{'market brief':brief,'memo':MEMO,'tool output':TOOL}),
     }
     problems=[]
-    if f'train.csv ({max(len(train_lines)-1,0)} sessions)' not in brief or f'validation.csv ({len(market["validation_rows"])} sessions)' not in brief:
+    if f'{names[0]} ({max(len(train_lines)-1,0)} sessions)' not in brief or f'{names[1]} ({validation_count} sessions)' not in brief:
         problems.append(f'{label}: the market brief gives the wrong session counts')
     sample='\n'.join(train_lines[:SAMPLE_ROWS+1])
     for retry,previous in (('engineer build',None),('engineer build retry',REPLY)):
-        task,files=engineer_task(engine,SPEC,previous_reply=previous)
+        task,files=engineer_task(engine,SPEC,previous_reply=previous,starter=starter)
         required={'specification':SPEC,'train sample':sample}
         if previous is not None: required['previous reply']=previous
         built[retry]=(task,required)
         if set(files)!={'/main.py','/spec.md'}: problems.append(f'{label}: {retry}: the start files are {sorted(files)}, not /main.py and /spec.md')
         if files.get('/spec.md')!=SPEC: problems.append(f'{label}: {retry}: /spec.md does not equal the specification')
-        if files.get('/main.py')!=STARTER_MAIN: problems.append(f'{label}: {retry}: /main.py is not the starter program')
-    task,_=engineer_task(engine,SPEC,memo=MEMO);built['engineer build with memo']=(task,{'specification':SPEC,'train sample':sample,'memo':MEMO})
+        if files.get('/main.py')!=starter: problems.append(f'{label}: {retry}: /main.py is not the starter program')
+    task,_=engineer_task(engine,SPEC,memo=MEMO,starter=starter);built['engineer build with memo']=(task,{'specification':SPEC,'train sample':sample,'memo':MEMO})
     task,files=engineer_task(engine,SPEC,memo=MEMO,review=REVIEW,code=CODE)
     built['engineer rebuild']=(task,{'specification':SPEC,'train sample':sample,'memo':MEMO,'review':REVIEW})
     if files.get('/main.py')!=CODE['/main.py'] or files.get('/spec.md')!=SPEC: problems.append(f'{label}: engineer rebuild: the start files are not the built code and the specification')

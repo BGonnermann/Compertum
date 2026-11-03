@@ -15,6 +15,8 @@ from compertum.runtime.errors import RuntimeRefused
 from . import library_multi
 
 ALIAS_SEED=20261102
+PANEL_ROLES=('engineer','mathematician')
+AUDIT_REBALANCES=3
 CASH='CASH'
 HEADER='session,asset,weight'
 WEIGHTS_BYTES=4*1024*1024
@@ -51,7 +53,7 @@ def parse_weights(text,p,aliases):
     if not isinstance(text,str) or len(text.encode('utf-8'))>WEIGHTS_BYTES: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
     lines=[line.strip() for line in text.strip().splitlines()]
     if not lines or lines[0].replace(' ','')!=HEADER or len(lines)-1>WEIGHTS_ROWS: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
-    real={a:s for s,a in aliases.items()};n=len(p['dates']);listed={}
+    real={a:s for s,a in aliases.items()};n=len(p['dates']);listed={};seen={}
     for line in lines[1:]:
         cells=[c.strip() for c in line.split(',')]
         if len(cells)!=3: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
@@ -59,10 +61,12 @@ def parse_weights(text,p,aliases):
         except ValueError: raise RuntimeRefused('ENGINE_SIGNALS_INVALID') from None
         asset=cells[1]
         if not 0<=session<n or not math.isfinite(weight) or weight<0: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
-        targets=listed.setdefault(session,{})
+        targets=listed.setdefault(session,{});names=seen.setdefault(session,set())
+        if asset in names or (asset==CASH and (weight!=1 or names)) or (asset!=CASH and CASH in names): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        names.add(asset)
         if asset==CASH: continue
         symbol=real.get(asset)
-        if symbol is None or symbol in targets or symbol not in p['eligible'][session]: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+        if symbol is None or symbol not in p['eligible'][session]: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
         if weight>0: targets[symbol]=weight
     if any(sum(t.values())>1+SUM_SLACK for t in listed.values()): raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
     out=[];current={}
@@ -116,8 +120,6 @@ main()
 '''
 
 
-PERTURB=(1,4,8)
-
 
 def weight_rows(text):
     """The admitted rows of a weights.csv as sorted (session, asset, weight) tuples, for comparing two outputs."""
@@ -126,9 +128,10 @@ def weight_rows(text):
 
 
 def perturbed_panel(p,k):
-    """The panel with the closes of the last k sessions changed, each asset by its own factor (as library_multi.causal)."""
+    """The panel with the closes of the last k sessions changed. Each asset gets its own factor, which depends on k and is at least 4%
+    away from 1 at the first changed session, so every asset's next return changes there (review, 2 November 2026)."""
     n=len(p['dates'])
-    def factor(j,t): return (0.85+0.3*((j*7)%11)/10)*(1-0.01*(t-n+k))
+    def factor(j,t): return 1+(1 if j%2==0 else -1)*(0.04+0.02*((j*7+k)%5))*(1+0.1*(t-n+k))
     closes={s:[c if c is None or t<n-k else c*factor(j,t) for t,c in enumerate(series)] for j,(s,series) in enumerate(sorted(p['closes'].items()))}
     return {**p,'closes':closes}
 
@@ -146,8 +149,18 @@ class PanelMarket:
         return panel_score(self.p,parse_weights(text,self.p,self.aliases))
 
     def perturbed_files(self,k):
-        if not 1<=k<self.n-self.p['train']-1: raise RuntimeRefused('ENGINE_AUDIT_DENIED')
+        if not 1<=k<=self.n-self.p['train']-1: raise RuntimeRefused('ENGINE_AUDIT_DENIED')
         return panel_files(perturbed_panel(self.p,k),self.aliases)
+
+    def audit_cuts(self,text):
+        """The Auditor's tails: for each of the last AUDIT_REBALANCES rebalance sessions r in VALIDATION (before the last session), change
+        every session after r. A rebalance lists only some sessions, so fixed tails would miss a short peek at a rare rebalance."""
+        sessions=sorted({r[0] for r in weight_rows(text) if self.p['train']<=r[0]<=self.n-2})
+        return [self.n-r-1 for r in reversed(sessions[-AUDIT_REBALANCES:])] or [1]
+
+    def same_output(self,first,second):
+        """Two outputs hold the same rebalance rows, whatever their row order."""
+        return weight_rows(first)==weight_rows(second)
 
     def prefix_equal(self,original,changed,k):
         """True when every rebalance row before the changed tail is the same in both outputs, and the changed output is admitted."""

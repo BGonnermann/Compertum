@@ -52,7 +52,7 @@ OUT_OF_MEMORY_EXITS=(0xC0000017,0xC000012D)
 CONTROLS=('appcontainer_token','low_integrity','external_network_denied',
           'outside_read_denied','outside_write_denied','outside_file_absent','previous_job_read_denied','inside_write_allowed',
           'child_process_denied','memory_limit_enforced','fixed_targets_read_denied','pipe_open_denied')
-MAX_FIXED_TARGETS=16
+MAX_FIXED_TARGETS=24
 # Loopback is observed, not gated. On this host (Windows 11 10.0.26300) a capability-less AppContainer reaches a loopback listener.
 # The owner accepted this as a documented limitation on 23 October 2026 (option 1 in docs/ENGINE_PLAN.md, "Loopback finding").
 # The engine records the observation with every verification; stage E3 adds the compensating connection check.
@@ -492,7 +492,7 @@ def observations_from(report,*,listener_saw_connection):
 
 
 def fixed_target_paths(targets):
-    """Admit at most 16 existing, absolute, regular files that the probe must fail to read. These are the real fixed parts."""
+    """Admit at most MAX_FIXED_TARGETS existing, absolute, regular files that the probe must fail to read. These are the real fixed parts."""
     if not isinstance(targets,(list,tuple)) or len(targets)>MAX_FIXED_TARGETS: raise RuntimeRefused('SANDBOX_TARGETS_DENIED')
     paths=[]
     for target in targets:

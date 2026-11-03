@@ -24,9 +24,9 @@ def test_fixed_targets(tmp_path):
     for name in ('docs/BUILD_SPEC.md','AGENTS.md','config/default.toml','config/engine.toml','config/models.toml','src/compertum/ai/engine/deflation.py',
                  'src/compertum/ai/engine/vault.py','src/compertum/ai/engine/limits.py','src/compertum/ai/engine/run.py','src/compertum/ai/engine/cycle.py',
                  'src/compertum/ai/engine/audit.py','src/compertum/ai/engine/market.py','src/compertum/ai/engine/ledger.py','src/compertum/ai/engine/execution.py',
-                 'src/compertum/runtime/sandbox.py'):
+                 'src/compertum/runtime/sandbox.py','src/compertum/ai/engine/panel.py','src/compertum/ai/engine/library_multi.py'):
         assert name in names
-    assert len(targets)<=16 and fixed_target_paths(targets)==[str(p) for p in targets]  # the sandbox admits them as probe targets
+    assert len(targets)<=24 and fixed_target_paths(targets)==[str(p) for p in targets]  # the sandbox admits them as probe targets
     assert PERTURBATIONS==(1,4,8)
     assert set(FIXED_FILES)>=names-{'state/research.sqlite'}
     # The store file joins when it exists; missing files are skipped, never invented.

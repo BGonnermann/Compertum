@@ -52,6 +52,7 @@ param(
     [int]$CyclesPerMarket=4,
     [ValidateSet('bench-french-1','bench-1','bench-2','bench-3','bench-4')][string]$BenchSet='bench-french-1',
     [string[]]$MarketManifest=@(),
+    [ValidateSet('','french49')][string]$Panel='',
     [int]$Seed=12,
     [string]$PromptsRun='',
     [int]$PromptsCandidate=-1,
@@ -88,7 +89,8 @@ if ($evaluationMode -and $MarketManifest.Count -gt 0) { Fail '-MarketManifest ap
 if ($Mode -ne 'run' -and $PSBoundParameters.ContainsKey('Seed')) { Fail '-Seed applies to run only; GEPA, bench and holdout markets are fixed' }
 if ($Mode -eq 'holdout') { Fail 'real market data only (owner, 1 November 2026): the holdout uses generated markets and is off until a real holdout exists' }
 if ($Mode -eq 'bench' -and $BenchSet -notlike 'bench-french-*') { Fail 'real market data only (owner, 1 November 2026): the generated bench sets are off; use -BenchSet bench-french-1' }
-if (-not $evaluationMode -and $MarketManifest.Count -eq 0) { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json' }
+if ($Panel -ne '' -and ($Mode -ne 'run' -or $MarketManifest.Count -gt 0)) { Fail '-Panel applies to -Mode run only, without -MarketManifest (one market kind per run)' }
+if (-not $evaluationMode -and $MarketManifest.Count -eq 0 -and $Panel -eq '') { Fail 'real market data only (owner, 1 November 2026): give -MarketManifest data\history\SYMBOL\manifest.json, or -Panel french49' }
 if (($PromptsRun -eq '') -ne ($PromptsCandidate -eq -1)) { Fail 'give -PromptsRun and -PromptsCandidate together, or neither' }
 # GEPA needs a cycle limit: -Hours alone would load the model and then be refused (review, 26 October 2026).
 if ($Mode -eq 'gepa' -and $Hours -gt 0 -and -not $PSBoundParameters.ContainsKey('Cycles')) { Fail 'gepa needs -Cycles; -Hours alone is not enough' }
@@ -241,6 +243,7 @@ try {
         if ($Hours -le 0 -or $PSBoundParameters.ContainsKey('Cycles')) { $arguments+=@('--cycles',"$Cycles") }
         if ($Mode -eq 'run' -and $PSBoundParameters.ContainsKey('Seed')) { $arguments+=@('--seed',"$Seed") }
         foreach ($manifest in $MarketManifest) { $arguments+=@('--market-manifest',$manifest) }
+        if ($Panel -ne '') { $arguments+=@('--panel',$Panel) }
         if ($ReflectModels -ne '' -or $ReflectModel -ne '') {
             if ($Mode -ne 'gepa') { Fail '-ReflectModels and -ReflectModel apply to -Mode gepa only' }
             if ($ReflectModels -eq '') { $ReflectModels='local' }

@@ -663,3 +663,52 @@ def test_accepted_stop():
     assert not signals_accepted([AIMessage(content=''),failed]) and not signals_accepted([AIMessage(content=''),other])
     assert not signals_accepted([ok,AIMessage(content='DONE')]) and not signals_accepted([]) and not signals_accepted(None)
     assert not signals_accepted([ToolMessage(content='not json',tool_call_id='4',name='run_job')])
+
+
+PANEL_CODE='''import csv
+def load(name):
+    with open(name,newline='',encoding='utf-8') as f: rows=list(csv.reader(f))
+    return rows[0],rows[1:]
+header,train=load('panel_train.csv');_,validation=load('panel_validation.csv')
+assets=header[1:-1];rows=train+validation
+closes={a:[float(r[i+1]) if r[i+1] else None for r in rows] for i,a in enumerate(assets)}
+out=['session,asset,weight'];first=int(validation[0][0])
+for row in validation:
+    t=int(row[0])
+    if (t-first)%5: continue
+    scores={a:closes[a][t]/closes[a][t-20] for a in assets if closes[a][t] and closes[a][t-20]}
+    out+=[f'{t},{a},0.5' for a in sorted(scores,key=lambda a:(-scores[a],a))[:2]]
+with open('weights.csv','w',encoding='utf-8') as f: f.write(chr(10).join(out)+chr(10))
+print('weights written',len(out)-1)
+'''
+
+
+def test_panel_cycle(bridge,root,verification,market,project):
+    """A full cycle on a synthetic panel: the Engineer's program reads the anonymous panel files and writes weights.csv; the Validator
+    scores it with the library rules on the VALIDATION sessions; a candidate that beats the benchmark gets the three panel lookahead reruns."""
+    from compertum.ai.engine.panel import PanelMarket
+    from test_engine_panel import synthetic
+    p=synthetic(drift=0.003);board=PanelMarket(p)
+    with role_server(engineer_code=PANEL_CODE) as (port,state):
+        c=client(port);engine=make_engine(bridge,root,verification,market,c,project)
+        engine.train_csv=board.files['panel_train.csv'];engine.validation_csv=board.files['panel_validation.csv'];engine.validation_rows=[];engine.market=board
+        result=run_cycle(engine,1)
+        assert result['status']=='COMPLETED' and result['candidates']
+        build_task=next(q['messages'][1]['content'] for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: engineer'))
+        assert 'panel_train.csv' in build_task and 'weights.csv' in build_task and 'train.csv or validation.csv' not in build_task
+        engineer_prompt=next(q['messages'][0]['content'] for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: engineer'))
+        assert 'weights.csv' in engineer_prompt and 'signals.csv' not in engineer_prompt
+        pick=next(q['messages'][1]['content'] for q in state['posts'] if q['messages'][0]['content'].startswith('ROLE: director'))
+        assert 'A panel of 7 assets' in pick and 'session,asset,weight' in pick
+        for candidate in result['candidates']:
+            assert candidate['run_statuses'][-1]=='COMPLETED',candidate
+            score=result['scores'][candidate['hypothesis_id']]
+            assert score['sessions']==len(p['dates'])-p['train'] and score['sharpe_status']=='DEFINED'
+            assert score['beats_baseline'],score
+            if score['beats_baseline']:
+                audit=candidate['audit'];assert audit['label']=='VERIFIED_PASS',audit
+                steps=[s for s in engine.ledger.steps(result['cycle_id']) if s['kind']=='audit']
+                assert steps and len(steps[0]['audit']['perturbations'])==3 and all(e['prefix_equal'] for e in steps[0]['audit']['perturbations'])
+                assert candidate['queue']=='NOT_QUEUED' and 'promoted_folder' not in candidate
+                assert any(s['kind']=='promotion' and s['phase']=='NOT_QUEUED' for s in engine.ledger.steps(result['cycle_id']))
+        assert not any(s['kind']=='tool' for s in engine.ledger.steps(result['cycle_id']))

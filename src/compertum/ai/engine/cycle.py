@@ -28,6 +28,7 @@ from .market import score_signals
 from .promotion import promote
 from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,parse_routing,parse_settings
 from .roles import ROLES,build_role_agent,load_prompt
+from .panel import PANEL_ROLES,STARTER_PANEL
 from .tasks import (RETRY_REPLY_BYTES,SAMPLE_ROWS,STARTER_MAIN,TRANSCRIPT_BYTES,agenda_task,approve_task,clip_bytes,engineer_task,  # noqa: F401 (kept importable from cycle)
                     market_brief,memo_task,pick_task,retry_task,review_task,specify_task)
 from .vault import VAULTS,CandidateQueue
@@ -99,6 +100,7 @@ class Engine:
     purpose:str='practice'  # 'gepa', 'bench' or 'holdout': no history in, no lessons out, no agenda step; bench and holdout also never promote
     parallel_ideas:bool=True
     vault:str='history-v1'
+    market:Any=None  # a panel.PanelMarket for a portfolio-weight run (docs/PANEL_CANDIDATES_DESIGN.md); None is the single-asset market
 
     def __post_init__(self):
         if self.vault not in VAULTS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -129,7 +131,9 @@ def _run_cycle(engine,cycle_index):
     ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[],'tool':None}
-    if engine.prompts is None: prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
+    if engine.prompts is None:
+        prompts={role:load_prompt(engine.project_root,role) for role in ROLES}
+        if engine.market is not None: prompts.update({role:load_prompt(engine.project_root,role,'panel') for role in PANEL_ROLES})
     else:
         if (not isinstance(engine.prompts,dict) or set(engine.prompts)-set(SLOTS)!=set(ROLES)
                 or any(not isinstance(engine.prompts[r],str) or not engine.prompts[r].startswith(f'ROLE: {r}\n') for r in ROLES)):
@@ -140,6 +144,8 @@ def _run_cycle(engine,cycle_index):
     given=engine.prompts if isinstance(engine.prompts,dict) else {}
     def slot(name): return check_component(name,given[name]) if name in given else load_component(engine.project_root,name)
     routing=parse_routing(slot('routing'));settings=parse_settings(slot('settings'));tool_code=slot('tool');starter=slot('starter')
+    layout='panel' if engine.market is not None else 'single'
+    if engine.market is not None: starter=STARTER_PANEL
     def routed(key,value): return value if routing[key]=='yes' else None
     max_hypotheses=min(engine.max_hypotheses,int(settings['hypotheses']));retries=int(settings['retries'])
     queue=CandidateQueue(ledger)
@@ -160,7 +166,7 @@ def _run_cycle(engine,cycle_index):
         so the Auditor's checks of a candidate see only that candidate's runs. A denied access or a loopback connection still freezes the engine."""
         if engine.gate is not None: engine.gate()
         toolbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=f'{cycle_id}-tool',
-                                train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes)
+                                train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes,layout=layout)
         record=toolbox.run_tool(tool_code)
         output=record['stdout'] if record['status']=='COMPLETED' and record['stdout'].strip() else None
         state['tool']={'run_id':record['run_id'],'status':record['status'],'output_bytes':len(output.encode('utf-8')) if output else 0}
@@ -234,7 +240,7 @@ def _run_cycle(engine,cycle_index):
         hid=candidate['hypothesis_id'];faults=[]
         sandbox=EngineerSandbox(engine.sandbox_root,ledger=ledger,lease=engine.lease,verification=engine.verification,cycle_id=cycle_id,
                                 train_csv=engine.train_csv,validation_csv=engine.validation_csv,memory_floor_bytes=engine.memory_floor_bytes,
-                                max_runs=int(settings['engineer_runs']))
+                                max_runs=int(settings['engineer_runs']),layout=layout)
         with lock: sandboxes.append(sandbox)
         own={'engineer':role_agent('engineer',sandbox),'mathematician':role_agent('mathematician')}
         memo=routed('engineer_sees_memo',state['memos'][hid]);specification=state['specifications'][hid];cid=candidate['candidate_id']
@@ -274,9 +280,9 @@ def _run_cycle(engine,cycle_index):
 
     try:
         # 1. Director picks hypotheses from the ledger summary and its lessons table.
-        brief=market_brief(engine)
+        brief=engine.market.brief() if engine.market is not None else market_brief(engine)
         # 0. The analysis tool runs first when the routing sends its output to any role.
-        tool_output=run_tool() if any(routing[key]=='yes' for key in TOOL_ROUTES) else None
+        tool_output=run_tool() if engine.market is None and any(routing[key]=='yes' for key in TOOL_ROUTES) else None
         picked=parsed('director','pick',pick_task(max_hypotheses,cycle_index,brief,summary,routed('director_sees_tool',tool_output)),{},parse_hypotheses)
         state['hypotheses']=picked[:max_hypotheses] if picked is not None else []
         # 2 and 3. Researcher memo, Director decision and Mathematician specification, one idea beside another. A faulty memo or verdict rejects
@@ -303,7 +309,7 @@ def _run_cycle(engine,cycle_index):
                 candidate['status']='NO_SIGNALS';state['scores'][hid]=None
                 ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'NO_SIGNALS'})
                 ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'NO_SIGNALS','candidate_id':cid});continue
-            try: score=score_signals(signals,engine.validation_rows)
+            try: score=engine.market.score(signals) if engine.market is not None else score_signals(signals,engine.validation_rows)
             except RuntimeRefused as error:
                 candidate['status']='INVALID_SIGNALS';state['scores'][hid]=None
                 ledger.record_trial_score(cid,{'sharpe_per_period':None,'status':'INVALID_SIGNALS','code':error.code})
@@ -324,7 +330,8 @@ def _run_cycle(engine,cycle_index):
             # Since 25 October 2026 (owner decision) it checks every candidate that beat buy-and-hold, at the gate or below it, so a strategy
             # that read future data is caught at any deflated Sharpe. Since 2 November 2026 (owner, two stages) every audited candidate that
             # beat the baseline is promoted and becomes ELIGIBLE; its DSR ranks it at the quarter's close. Its status still reports the global gate.
-            audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows)
+            audit=audit_candidate(ledger=ledger,sandbox=sandbox,cycle_id=cycle_id,candidate=candidate,score=score,deflation=deflation,validation_rows=engine.validation_rows,
+                                  market=engine.market)
             ledger.record_step(cycle_id,next_step(),'auditor','audit',{'phase':audit['label'],'candidate_id':cid,'audit':audit})
             candidate['audit']={'label':audit['label'],'integrity':audit['integrity'],'reasons':audit['reasons']}
             if not audit['integrity']:
@@ -334,6 +341,12 @@ def _run_cycle(engine,cycle_index):
             if engine.purpose in EVALUATION_PURPOSES:
                 # A bench or holdout check measures prompts; its strategies never become templates or enter the vault queue (review, 25 October 2026).
                 if deflation['status']=='PASS': candidate['status']='EVALUATION_GATE_PASS'
+                continue
+            if engine.market is not None:
+                if deflation['status']=='PASS': candidate['status']='EVALUATION_GATE_PASS'
+                candidate['queue']='NOT_QUEUED'
+                ledger.record_step(cycle_id,next_step(),'archivist','promotion',{'phase':'NOT_QUEUED','candidate_id':cid,
+                                                                               'reason':'panel candidate: no vault route yet (docs/PANEL_CANDIDATES_DESIGN.md, phase 4)'})
                 continue
             # Tests and Auditor passed: the code becomes a versioned trusted template, then the candidate becomes ELIGIBLE (stage 1).
             source=sandbox.record_for(audit['source_run_id'])

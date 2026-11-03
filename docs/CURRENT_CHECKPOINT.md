@@ -1,5 +1,27 @@
 # Current Compertum checkpoint
 
+## Step 6: panel candidates wired into the cycle and the Auditor - 2 November 2026
+
+A portfolio-weight run on the anonymous 49-industry panel is now a practice run. Command: `tools\practice.ps1 -Panel french49 -Cycles N -Requests M -Note "..."` (run mode only, not with `-MarketManifest`).
+- `practice.py --panel french49` loads `french_panel` without vault rows. It refuses unless all 49 industries load. Transcripts are not for training.
+- `run.py` admits a panel item only as a `PanelMarket`, in a practice run, with matching files.
+- Sandbox layout `panel` (`execution.LAYOUTS`): the job gets `panel_train.csv` and `panel_validation.csv`, and the program writes `weights.csv` (at most 4 MiB). For single-asset runs, the `run_job` text and the task text are byte-identical to before.
+- The cycle uses the panel brief, the panel starter, the panel scorer (`library_multi.score` by `PanelMarket.score`) and panel prompt variants (`config/engine_prompts/panel/engineer.md`, `mathematician.md`). Panel runs do not run the single-asset analysis tool.
+- Auditor for panel candidates: reproducibility compares sorted rows. For lookahead, the tails start after each of the candidate's last 3 rebalances in VALIDATION (`PanelMarket.audit_cuts`), every asset changes at least 4% at the first changed session, and every row up to the cut must stay the same.
+- An audited panel candidate is recorded as `NOT_QUEUED`. It is not promoted and enters no vault queue until phase 4 of the design (owner decision D4).
+- `panel.py` and `library_multi.py` joined `FIXED_FILES`. `MAX_FIXED_TARGETS` rose from 16 to 24, because the probe now holds 17 fixed files plus the store.
+Independent review: 1 blocker, which is fixed. The fixed lookahead tails missed a short peek by a program that rebalances rarely; the tails now follow the candidate's own rebalances, and a test shows that a 21-session rebalancer that peeks 2 or 3 sessions ahead fails.
+Also fixed: no queue for panel candidates; panel prompt variants; size limits in the brief; reproducibility by sorted rows; a duplicate row after a 0 weight and CASH mixed with assets are refused; the run setup checks the panel object; and 49 industries are required.
+Not changed: `RESERVED` now also refuses agent files named `weights.csv`, `panel_train.csv` or `panel_validation.csv` in single-asset runs. `library_multi.causal` (the library's own lookahead check) keeps its older perturbation, which the review called weak; that is an owner item.
+Sealed files changed with the owner's approval of step 6:
+`cycle.py` db97a0f6 to d27ac5a8, `audit.py` 9c757035 to ef79fb54, `execution.py` f89579a9 to ee104933, `run.py` 976d9629 to a66c995f, `runtime/sandbox.py` a834c93a to aa46388f.
+Newly sealed: `panel.py` 9062017e and `library_multi.py` 5272eef7.
+Verification, engine environment:
+- engine lane plus `tests/windows/test_harness_sandbox.py`: 307 passed, 0 failed, 0 skipped, including the native end-to-end panel cycle with the Auditor's 3 panel reruns;
+- harness lane: 143 passed, 0 failed, 0 skipped.
+
+Exact next action: the first panel practice run on GLM 5.3 flash.
+
 ## Efficiency path step 3: three sandbox slots - 2 November 2026
 
 Owner: step 3, "few small jobs at once". The sandbox has 3 slots (`SLOTS` in `runtime/sandbox.py`). Each slot has its own AppContainer profile and SID (slot 0 keeps `Compertum.Engine.Sandbox`) and its own CPU (every other logical CPU).

@@ -77,6 +77,8 @@ def panel_brief(train_sessions,validation_dates,assets):
             'The program writes weights.csv with the header session,asset,weight. A listed session is a rebalance at that session\'s close to the listed weights; '
             'a session that is not listed holds the positions, which drift with returns. Long only: each weight is 0 or more, the weights of one session add up to 1 or less, '
             'and the rest is cash at the daily rate. Only an asset with a close at that session may get weight. '
+            'Each asset appears at most once per listed session; a session listed only with asset CASH and weight 1 holds all cash. '
+            'weights.csv may hold at most 200000 rows and 4 MiB. '
             f'Score: weights chosen at session t earn the returns of session t+1, and each rebalance pays {cost} of NAV for each unit of weight traded, drift included. '
             'The benchmark holds every asset with a close in equal weights, rebalanced daily at no cost. '
             'A strategy beats the baseline when its Sharpe ratio above the cash rate is defined, its annual mean excess over the benchmark is positive, '
@@ -152,10 +154,12 @@ def engineer_task(engine,specification,*,previous_reply=None,memo=None,review=No
               f'PREVIOUS REPLY\n{clip_bytes(previous_reply,RETRY_REPLY_BYTES)}\n\n')
     origin='your program from the first build' if review is not None else 'a starter program'
     main=code.get('/main.py',starter) if review is not None and isinstance(code,dict) else starter
+    panel=getattr(engine,'market',None) is not None
+    train,validation,output=('panel_train.csv','panel_validation.csv','weights.csv') if panel else ('train.csv','validation.csv','signals.csv')
     task=(head+f'Your file store holds two files: /main.py, {origin} (edit decide(), keep the file names), and /spec.md, the specification below. '
           'Both are shown in full below, so you do not need to read them first. '
-          'You cannot read train.csv or validation.csv yourself: your program opens them by those plain names in the job folder. '
-          'When run_job reports that signals.csv was written, the build is complete.\n\n'
-          f'TRAIN SAMPLE (the first rows of train.csv)\n{sample}\n\nSPECIFICATION\n{specification}\n\n/main.py\n```python\n{clip_bytes(main,MAIN_TEXT_BYTES)}\n```')
+          f'You cannot read {train} or {validation} yourself: your program opens them by those plain names in the job folder. '
+          f'When run_job reports that {output} was written, the build is complete.\n\n'
+          f'TRAIN SAMPLE (the first rows of {train})\n{sample}\n\nSPECIFICATION\n{specification}\n\n/main.py\n```python\n{clip_bytes(main,MAIN_TEXT_BYTES)}\n```')
     if memo is not None: task+=f'\n\nMEMO (the research behind the specification)\n{memo}'
     return task,{'/main.py':main,'/spec.md':specification}

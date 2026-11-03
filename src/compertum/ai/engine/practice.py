@@ -165,7 +165,7 @@ def gepa_markets(sessions,strength):
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=None,strength=0.004,available_memory=available_physical_memory,gepa=False,
                  purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None,bench_set=bench.BENCH_SET,market_manifests=None,
-                 reflect_models=None,reflect_model=None,speed_weight=None,goal=None):
+                 reflect_models=None,reflect_model=None,speed_weight=None,goal=None,panel=None):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
     committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record."""
@@ -184,14 +184,24 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
         if not listing['all_listed']: raise RuntimeRefused('LOCAL_COMPLETION_UNVERIFIED')
         reflector_roles=chosen_roles(root,reflect_models,reflect_model)
     # Seeds of the bench and holdout sets are reserved, so a practice or GEPA run never reproduces an evaluation market (review, 25 October 2026).
-    if market_manifests is None and purpose=='practice' and not gepa and (bench.reserved_seed(seed) or seed in GEPA_SEEDS): raise RuntimeRefused('ENGINE_SEED_RESERVED')
+    if panel is not None and (panel!='french49' or purpose!='practice' or gepa or market_manifests is not None): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
+    if market_manifests is None and panel is None and purpose=='practice' and not gepa and (bench.reserved_seed(seed) or seed in GEPA_SEEDS): raise RuntimeRefused('ENGINE_SEED_RESERVED')
     prompts=None
     if (prompts_run is None)!=(prompts_candidate is None) or (prompts_run is not None and purpose=='practice'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
     if prompts_run is not None:
         from .gepa_run import candidate_prompts
         prompts=candidate_prompts(root,prompts_run,prompts_candidate)
     schedule=None;holdout_set=None
-    if market_manifests is not None:
+    if panel is not None:
+        from .library_multi import french_panel
+        from .panel import PanelMarket,french_manifests
+        loaded_panel=french_panel(root,french_manifests(root))
+        if len(loaded_panel['closes'])!=49 or loaded_panel['skipped']: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        board=PanelMarket(loaded_panel)
+        market={'label':'french49-panel','train_csv':board.files['panel_train.csv'],'validation_csv':board.files['panel_validation.csv'],'validation_rows':[],
+                'vault':'french-v1','panel':board,'provenance':board.p['membership']}
+        markets=[market];validation_markets=None
+    elif market_manifests is not None:
         from .gepa_run import MAX_MARKETS
         from .real_market import open_market
         if (not isinstance(market_manifests,(list,tuple)) or any(not isinstance(p,str) for p in market_manifests)
@@ -230,12 +240,12 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                 from .gepa_run import run_gepa
                 result=run_gepa(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,roles=roles,markets=markets,
                                 validation_markets=validation_markets,memory_floor_bytes=START_FLOOR,limits=limits,owner_approval=note,
-                                transcript_training_allowed=False if market_manifests is not None else None,reflector_roles=reflector_roles,**gepa_options)
+                                transcript_training_allowed=False if market_manifests is not None or panel is not None else None,reflector_roles=reflector_roles,**gepa_options)
             else:
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none
                 options=dict(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,market=market,memory_floor_bytes=START_FLOOR,
                              limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set,
-                             transcript_training_allowed=False if market_manifests is not None else None)
+                             transcript_training_allowed=False if market_manifests is not None or panel is not None else None)
                 if together:
                     from .ledger import EngineLedger
                     from .run import CycleCounter
@@ -246,7 +256,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
             set_state(store,previous);after=research_state(store)
         common={'sandbox_root':str(sandbox_root),'vault_sessions_held_back':held_back,'verification':{'failed':verification['failed'],'observations':verification['observations']},
                 'research_state_after':after,'free_memory_bytes_at_start':available,'preflight':checked}
-        if market_manifests is not None: common['market_provenance']=[m['provenance'] for m in markets]
+        if market_manifests is not None or panel is not None: common['market_provenance']=[m['provenance'] for m in markets]
         if purpose!='practice': common.update(cycles_per_market=cycles_per_market,prompts_source='config/engine_prompts' if prompts is None else f'{prompts_run} candidate {prompts_candidate}')
         kind='gepa' if gepa else 'cycles' if purpose=='practice' else purpose
         if together:
@@ -306,6 +316,7 @@ def main(argv=None):
         sub.add_argument('--cycles',type=int);sub.add_argument('--hours',type=float);sub.add_argument('--requests',type=int,required=True);sub.add_argument('--note',required=True)
         sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int);sub.add_argument('--strength',type=float,default=0.004)
         sub.add_argument('--market-manifest',action='append',dest='market_manifests')
+        sub.add_argument('--panel',choices=('french49',),help='a portfolio-weight run on the anonymous 49-industry panel (docs/PANEL_CANDIDATES_DESIGN.md)')
         if name=='gepa':
             sub.add_argument('--reflect-models',help='the model file for the reflection calls: NAME is config/models-NAME.toml')
             sub.add_argument('--reflect-model',help='one model ID for every reflection call, for this run only')
@@ -330,7 +341,7 @@ def main(argv=None):
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
                                   gepa=args.command=='gepa',models=args.models,model=args.model,market_manifests=args.market_manifests,
                                   reflect_models=getattr(args,'reflect_models',None),reflect_model=getattr(args,'reflect_model',None),
-                                  speed_weight=getattr(args,'speed_weight',None),goal=getattr(args,'goal',None))
+                                  speed_weight=getattr(args,'speed_weight',None),goal=getattr(args,'goal',None),panel=getattr(args,'panel',None))
     except RuntimeRefused as error:
         refused={'refused':error.code}
         if getattr(error,'problems',None): refused['problems']=error.problems

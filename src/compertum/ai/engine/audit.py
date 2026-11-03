@@ -27,7 +27,7 @@ FIXED_FILES=('docs/BUILD_SPEC.md','AGENTS.md','config/default.toml','config/engi
              'src/compertum/ai/engine/deflation.py','src/compertum/ai/engine/vault.py','src/compertum/ai/engine/limits.py',
              'src/compertum/ai/engine/run.py','src/compertum/ai/engine/cycle.py','src/compertum/ai/engine/audit.py',
              'src/compertum/ai/engine/market.py','src/compertum/ai/engine/ledger.py','src/compertum/ai/engine/execution.py',
-             'src/compertum/runtime/sandbox.py')
+             'src/compertum/runtime/sandbox.py','src/compertum/ai/engine/panel.py','src/compertum/ai/engine/library_multi.py')
 STORE_FILE='state/research.sqlite'
 SCORECARD_SCHEMA='synthetic-campaign-scorecard-v1'
 INTEGRITY_CHECKS=('trial_counted','candidates_before_runs','score_recomputed','deflation_consistent','no_forbidden_access')
@@ -75,7 +75,7 @@ def deflation_consistent(deflation,total_trials):
     except (InvalidOperation,TypeError,ValueError,AttributeError): return False
 
 
-def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validation_rows):
+def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validation_rows,market=None):
     """Audit one candidate that beat the baseline, at the deflation gate or below it (owner decision, 25 October 2026). Returns the audit record.
 
     record['integrity'] False means the engine must freeze. record['label'] is VERIFIED_PASS only when every check passed.
@@ -91,7 +91,8 @@ def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validati
     mine=[sandbox.record_for(r) for r in candidate.get('runs') or []]
     completed=[r for r in mine if r['purpose']=='engineer' and r['status']=='COMPLETED' and r.get('signals') is not None and r.get('files')]
     source=completed[-1] if completed else None
-    try: checks['score_recomputed']=source is not None and canonical(score_signals(source['signals'],validation_rows))==canonical(score)
+    def rescore(text): return market.score(text) if market is not None else score_signals(text,validation_rows)
+    try: checks['score_recomputed']=source is not None and canonical(rescore(source['signals']))==canonical(score)
     except RuntimeRefused: checks['score_recomputed']=False
     # 4. The deflation record is consistent with itself, the fixed minimum and the trial count.
     checks['deflation_consistent']=deflation_consistent(deflation,ledger.total_trials())
@@ -110,11 +111,22 @@ def audit_candidate(*,ledger,sandbox,cycle_id,candidate,score,deflation,validati
         checks['reproducible']=False;reasons.append(f'candidate: rerun refused {refused}')
     else:
         record.update(rerun_id=rerun['run_id'],rerun_status=rerun['status'])
-        checks['reproducible']=rerun['status']=='COMPLETED' and rerun.get('signals') is not None and sha(rerun['signals'])==record['frozen_sha256']
+        same=(market.same_output(source['signals'],rerun['signals']) if market is not None and rerun.get('signals') is not None
+              else rerun.get('signals') is not None and sha(rerun['signals'])==record['frozen_sha256'])
+        checks['reproducible']=rerun['status']=='COMPLETED' and same
         if not checks['reproducible']: reasons.append('candidate: signals not reproduced by the frozen code')
     # 7. Automated test: no lookahead. Positions before a perturbed tail must not move when the tail changes.
     checks['no_lookahead']=checks['reproducible']
-    if checks['reproducible']:
+    if checks['reproducible'] and market is not None:
+        for k in market.audit_cuts(source['signals']):
+            changed=market.perturbed_files(k)['panel_validation.csv'];rerun,refused=_rerun(sandbox,source,validation_csv=changed)
+            entry={'k':k,'rerun_id':rerun['run_id'] if rerun else None,'status':rerun['status'] if rerun else f'REFUSED_{refused}','prefix_equal':False}
+            if rerun is not None and rerun['status']=='COMPLETED' and rerun.get('signals') is not None:
+                try: entry['prefix_equal']=market.prefix_equal(source['signals'],rerun['signals'],k)
+                except RuntimeRefused: entry['prefix_equal']=False
+            record['perturbations'].append(entry)
+            if not entry['prefix_equal']: checks['no_lookahead']=False;reasons.append(f'candidate: weights before the changed tail moved (k={k})');break
+    elif checks['reproducible']:
         original=parse_signals(source['signals'],validation_rows);n=len(validation_rows)
         for k in PERTURBATIONS:
             rows=perturbed_rows(validation_rows,k);rerun,refused=_rerun(sandbox,source,validation_csv=market_csv(rows))

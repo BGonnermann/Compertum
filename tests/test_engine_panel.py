@@ -13,7 +13,7 @@ from compertum.runtime.errors import RuntimeRefused  # noqa: E402
 SYMBOLS=['Agric','Food','Soda','Beer','Smoke','Toys','Fun']
 
 
-def synthetic(n=320,train=200,seed=5):
+def synthetic(n=320,train=200,seed=5,drift=0.0003):
     rng=random.Random(seed);day=date(1990,1,2);dates=[]
     while len(dates)<n:
         if day.weekday()<5: dates.append(day.isoformat())
@@ -22,7 +22,7 @@ def synthetic(n=320,train=200,seed=5):
     for j,s in enumerate(SYMBOLS):
         level=100.0;series=[]
         for t in range(n):
-            level*=1+rng.gauss(0.0003*(j-3),0.012);series.append(None if s=='Fun' and t<60 else level)
+            level*=1+rng.gauss(drift*(j-3),0.012);series.append(None if s=='Fun' and t<60 else level)
         closes[s]=series
     eligible=[[s for s in sorted(closes) if closes[s][t] is not None] for t in range(n)]
     return {'dates':dates,'train':train,'closes':closes,'eligible':eligible,'rates':['0.0001']*n,'universe':'french49','vault':'french-v1'}
@@ -66,7 +66,9 @@ def test_weights_parse():
 @pytest.mark.parametrize('bad',['', 'session,weight\n200,0.5\n', 'session,asset,weight\nx,A01,0.5\n', 'session,asset,weight\n999,A01,0.5\n',
                                 'session,asset,weight\n200,A99,0.5\n', 'session,asset,weight\n200,A01,-0.1\n', 'session,asset,weight\n200,A01,nan\n',
                                 'session,asset,weight\n200,A01,0.7\n200,A02,0.4\n', 'session,asset,weight\n200,A01,0.5\n200,A01,0.2\n',
-                                'session,asset,weight\n200,A01\n'])
+                                'session,asset,weight\n200,A01\n','session,asset,weight\n200,A01,0\n200,A01,0.5\n',
+                                'session,asset,weight\n200,CASH,0.5\n','session,asset,weight\n200,A01,0.5\n200,CASH,1\n',
+                                'session,asset,weight\n200,CASH,1\n200,A01,0.5\n'])
 def test_weights_refused(bad):
     """Every malformed or illegal file is refused whole."""
     p=synthetic();aliases=panel.asset_names(SYMBOLS)
@@ -118,24 +120,46 @@ def test_panel_brief():
     assert brief.startswith('MARKET\n') and 'momentum' not in brief.lower() and 'reversal' not in brief.lower()
 
 
+def peeking_rows(q,aliases,members,start,n,every,ahead):
+    out=[panel.HEADER];c=q['closes']
+    for t in range(start,n):
+        if (t-start)%every: continue
+        scores={s:c[s][min(t+ahead,n-1)]/c[s][t] for s in members if c[s][t] is not None}
+        out.append(f"{t},{aliases[max(sorted(scores),key=lambda s:scores[s])]},1.0")
+    return '\n'.join(out)+'\n'
+
+
 def test_panel_audit():
-    """The panel Auditor: an honest rule keeps every weight before a changed tail; a rule that reads the next close does not."""
-    p=synthetic();market=panel.PanelMarket(p);members=sorted(p['closes']);u=library_multi.prepare(p,members);aliases=market.aliases
+    """The panel Auditor cuts at the candidate's own last rebalances: an honest rule keeps every row up to each cut; a rule that peeks
+    one or two sessions ahead fails, also when it rebalances only every 21 sessions (review, 2 November 2026)."""
+    p=synthetic();market=panel.PanelMarket(p);members=sorted(p['closes']);n=len(p['dates']);start=p['train'];aliases=market.aliases
+    u=library_multi.prepare(p,members)
     def honest(q):
-        w=library_multi.weights(library_multi.prepare(q,members),'xs_momentum',{'lookback':20,'skip':0,'share':0.3,'hold':5})
-        return rows_for(q,aliases,w,[t for t in range(p['train'],u['n']) if t%5==0])
-    def peeking(q):
-        out=[panel.HEADER];c=q['closes']
-        for t in range(p['train'],u['n']-1):
-            best=max(members,key=lambda s:(c[s][t+1] or 0)/(c[s][t] or 1))
-            out.append(f'{t},{aliases[best]},1.0')
-        return '\n'.join(out)+'\n'
-    caught=[]
-    for k in panel.PERTURB:
-        q=panel.perturbed_panel(p,k);assert q['closes']['Food'][:u['n']-k]==p['closes']['Food'][:u['n']-k] and q['closes']['Food'][-1]!=p['closes']['Food'][-1]
-        assert market.prefix_equal(honest(p),honest(q),k)
-        caught.append(not market.prefix_equal(peeking(p),peeking(q),k))
-    assert any(caught),caught
-    assert market.score(honest(p))['sessions']==u['n']-p['train'] and 'panel_validation.csv' in market.perturbed_files(4)
+        w=library_multi.weights(library_multi.prepare(q,members),'xs_momentum',{'lookback':20,'skip':0,'share':0.3,'hold':21})
+        return rows_for(q,aliases,w,[t for t in range(start,n) if t%21==0])
+    cuts=market.audit_cuts(honest(p));assert len(cuts)==3 and all(1<=k<=n-start-1 for k in cuts)
+    assert [n-k-1 for k in cuts]==sorted({int(r.split(',')[0]) for r in honest(p).splitlines()[1:]},reverse=True)[:3]
+    assert all(market.prefix_equal(honest(p),honest(panel.perturbed_panel(p,k)),k) for k in cuts)
+    for every,ahead in ((1,1),(21,2),(21,3),(5,1)):
+        original=peeking_rows(p,aliases,members,start,n,every,ahead);cuts=market.audit_cuts(original)
+        caught=[not market.prefix_equal(original,peeking_rows(panel.perturbed_panel(p,k),aliases,members,start,n,every,ahead),k) for k in cuts]
+        assert any(caught),(every,ahead,caught)
+    for k in (1,4,30):
+        q=panel.perturbed_panel(p,k)
+        assert all(q['closes'][s][:n-k]==p['closes'][s][:n-k] for s in members)
+        assert all(q['closes'][s][n-k]!=p['closes'][s][n-k] for s in members if p['closes'][s][n-k] is not None)
+    assert market.same_output('session,asset,weight\n200,A01,0.5\n200,A02,0.5\n','session,asset,weight\n200,A02,0.5\n200,A01,0.5\n')
+    assert market.audit_cuts('session,asset,weight\n')==[1] and market.score(honest(p))['sessions']==u['n']-start
     with pytest.raises(RuntimeRefused,match='^ENGINE_AUDIT_DENIED$'): market.perturbed_files(0)
     with pytest.raises(RuntimeRefused,match='^ENGINE_MARKET_DENIED$'): panel.PanelMarket({**p,'universe':'other'})
+
+
+def test_panel_prompts():
+    """Panel runs get panel variants of the Engineer and Mathematician prompts; the single-asset prompts stay as they are."""
+    from compertum.ai.engine.prompts import load_prompt
+    root=Path(__file__).resolve().parents[1]
+    for role in panel.PANEL_ROLES:
+        text=load_prompt(root,role,'panel');assert text.startswith(f'ROLE: {role}\n') and 'signals.csv' not in text and 'position in {0, 1}' not in text
+        assert load_prompt(root,role)!=text
+    assert 'weights.csv' in load_prompt(root,'engineer','panel') and 'signals.csv' in load_prompt(root,'engineer')
+    with pytest.raises(RuntimeRefused,match='^ENGINE_PROMPT_INVALID$'): load_prompt(root,'engineer','other')

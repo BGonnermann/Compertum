@@ -69,7 +69,7 @@ def engine_slot(lease,purpose):
 MAX_FILES,MAX_FILE_BYTES,MAX_TOTAL_BYTES=32,262144,262144
 OUTPUT_HEAD=8192
 SIGNALS_BYTES=1024*1024
-RESERVED=frozenset({'train.csv','validation.csv','signals.csv','stdout.txt','stderr.txt','targets.json','probe.json'})
+RESERVED=frozenset({'train.csv','validation.csv','signals.csv','panel_train.csv','panel_validation.csv','weights.csv','stdout.txt','stderr.txt','targets.json','probe.json'})
 MIB=1024**2
 SPEC_FILE='/spec.md'  # the Engineer's copy of the specification; never submitted with the code
 CANDIDATES_PER_CYCLE=3  # at most this many candidates share one sandbox object (one cycle)
@@ -96,7 +96,8 @@ def job_files(files):
 
 
 FORBIDDEN=(b'PermissionError',b'Access is denied',b'WinError 5')
-DATA_TIERS=('train.csv','validation.csv')
+DATA_TIERS=('train.csv','validation.csv','panel_train.csv','panel_validation.csv')
+LAYOUTS={'single':('train.csv','validation.csv','signals.csv',SIGNALS_BYTES),'panel':('panel_train.csv','panel_validation.csv','weights.csv',4*MIB)}
 
 
 def forbidden_access(stderr):
@@ -126,20 +127,22 @@ def remove_data_tiers(job_folder):
     return removed
 
 
-def read_signals(job):
-    """Read signals.csv from a finished job folder. The folder is hostile: no reparse point, bounded size, text only."""
-    path=job/'signals.csv'
+def read_signals(job,name='signals.csv',limit=SIGNALS_BYTES):
+    """Read the output file (signals.csv, or weights.csv for a panel) from a finished job folder. The folder is hostile: no reparse point, bounded size, text only."""
+    path=job/name
     try: info=path.lstat()
     except FileNotFoundError: return None
-    if info.st_file_attributes&REPARSE_POINT or not path.is_file() or info.st_size>SIGNALS_BYTES: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
-    try: return path.read_bytes()[:SIGNALS_BYTES].decode('utf-8')
+    if info.st_file_attributes&REPARSE_POINT or not path.is_file() or info.st_size>limit: raise RuntimeRefused('ENGINE_SIGNALS_INVALID')
+    try: return path.read_bytes()[:limit].decode('utf-8')
     except UnicodeError: raise RuntimeRefused('ENGINE_SIGNALS_INVALID') from None
 
 
 class EngineerSandbox:
     """Runs Engineer jobs for one cycle. Holds the data tiers the Engineer may see: TRAIN and VALIDATION only."""
-    def __init__(self,root,*,ledger,lease,verification,cycle_id,train_csv,validation_csv,memory_floor_bytes,seconds=120,memory_bytes=512*MIB,max_runs=3):
+    def __init__(self,root,*,ledger,lease,verification,cycle_id,train_csv,validation_csv,memory_floor_bytes,seconds=120,memory_bytes=512*MIB,max_runs=3,layout='single'):
         require_verified(verification)
+        if layout not in LAYOUTS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
+        self.layout=LAYOUTS[layout]
         self.root=Path(root).resolve(strict=True);self.ledger=ledger;self.lease=lease;self.cycle_id=cycle_id
         if not isinstance(train_csv,str) or not isinstance(validation_csv,str): raise RuntimeRefused('ENGINE_MARKET_DENIED')
         self.train_csv=train_csv;self.validation_csv=validation_csv
@@ -188,7 +191,7 @@ class EngineerSandbox:
             job=self.root/f'job-{len(self.runs)+1:03d}-{uuid4().hex[:8]}';job.mkdir();record['job_folder']=str(job)
             for relative,content in copied.items():
                 target=job/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content,encoding='utf-8',newline='\n')
-            (job/'train.csv').write_text(self.train_csv,encoding='utf-8');(job/'validation.csv').write_text(validation_csv,encoding='utf-8')
+            (job/self.layout[0]).write_text(self.train_csv,encoding='utf-8');(job/self.layout[1]).write_text(validation_csv,encoding='utf-8')
             watcher=LoopbackWatcher()
             with engine_slot(self.lease,purpose) as slot:
                 self.ledger.require_unfrozen()
@@ -212,7 +215,7 @@ class EngineerSandbox:
             elif result.disk_overrun: record['status']='DISK_OVERRUN'
             elif result.exit_code!=0: record['status']='FAILED'
             else:
-                signals=read_signals(job);record['signals_present']=signals is not None;record['status']='COMPLETED'
+                signals=read_signals(job,self.layout[2],self.layout[3]);record['signals_present']=signals is not None;record['status']='COMPLETED'
                 record['signals']=signals
         except RuntimeRefused as error:
             record['status']='REFUSED_'+error.code
@@ -238,17 +241,20 @@ def run_job_tool(sandbox):
     from deepagents.backends.utils import file_data_to_string
     from langchain.tools import ToolRuntime,tool
 
-    @tool
+    train,validation,output,_=sandbox.layout
+
     def run_job(entry:str,runtime:ToolRuntime)->str:
-        """Run one of your Python files in the sandbox. entry is the file name without a folder, for example main.py. The job folder also holds train.csv and validation.csv next to your file; open them by those names. The result has the status, the exit code, stdout, stderr, whether signals.csv was written, and what to do next. The job folder is not your file store: you cannot read signals.csv yourself; the result tells you about it."""
         files=runtime.state.get('files') or {}
         # /spec.md is the specification the Engineer reads, not part of the program: it is not submitted, rerun or promoted with the code.
         texts={path:file_data_to_string(fd) for path,fd in files.items() if path!=SPEC_FILE and isinstance(fd,dict) and fd.get('encoding','utf-8')=='utf-8'}
         result=sandbox.run(texts,entry)
         if result['signals_present']:
             rows=max((sandbox.runs[-1].get('signals') or '').count('\n')-1,0)
-            result['next']=f'signals.csv was written with {rows} rows and is accepted. The job is complete. Do not search for the file. Reply with the single word DONE and one sentence about the program.'
-        elif result['status']=='COMPLETED': result['next']='The program ran but wrote no signals.csv in its current folder. Fix the program (open files by their plain names, write signals.csv next to the program) and run it again.'
+            result['next']=f'{output} was written with {rows} rows and is accepted. The job is complete. Do not search for the file. Reply with the single word DONE and one sentence about the program.'
+        elif result['status']=='COMPLETED': result['next']=f'The program ran but wrote no {output} in its current folder. Fix the program (open files by their plain names, write {output} next to the program) and run it again.'
         else: result['next']='The run did not complete. Read stderr, fix the program with edit_file or write_file, and run it again.'
         return json.dumps(result,sort_keys=True)
-    return run_job
+    run_job.__doc__=(f'Run one of your Python files in the sandbox. entry is the file name without a folder, for example main.py. The job folder also holds {train} and {validation} next to your file; '
+                     f'open them by those names. The result has the status, the exit code, stdout, stderr, whether {output} was written, and what to do next. '
+                     f'The job folder is not your file store: you cannot read {output} yourself; the result tells you about it.')
+    return tool(run_job)

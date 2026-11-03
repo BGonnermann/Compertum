@@ -9,12 +9,15 @@ ROLES=('director','researcher','mathematician','engineer')
 PROMPT_BYTES=16384
 
 
-def load_prompt(project_root,role):
-    """Read one bounded role prompt from inside the project. The first line must name the role."""
+def load_prompt(project_root,role,variant=None):
+    """Read one bounded role prompt from inside the project. The first line must name the role.
+    variant 'panel' reads config/engine_prompts/panel/<role>.md, the prompt for a portfolio-weight run (docs/PANEL_CANDIDATES_DESIGN.md)."""
+    if variant not in (None,'panel'): raise RuntimeRefused('ENGINE_PROMPT_INVALID')
     if role not in ROLES: raise RuntimeRefused('AI_ROLE_DENIED')
     root=Path(project_root).absolute()
     try:
-        with resolve_project_path(f'config/engine_prompts/{role}.md',root).open('rb') as stream: raw=stream.read(PROMPT_BYTES+1)
+        name=f'config/engine_prompts/{role}.md' if variant is None else f'config/engine_prompts/{variant}/{role}.md'
+        with resolve_project_path(name,root).open('rb') as stream: raw=stream.read(PROMPT_BYTES+1)
     except ContractError as error: raise RuntimeRefused(error.reason) from None
     except OSError: raise RuntimeRefused('ENGINE_PROMPT_UNAVAILABLE') from None
     if len(raw)>PROMPT_BYTES: raise RuntimeRefused('ENGINE_PROMPT_TOO_LARGE')
