@@ -5,7 +5,7 @@ These tests need no engine library; they run in the product environment.
 from test_ai_manual import bridge  # noqa: F401  (fixture)
 from compertum.events import canonical
 from compertum.ai.engine.ledger import SUMMARY_BYTES,EngineLedger
-from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,lessons
+from compertum.ai.engine.levels import LEVELS,MAX_LESSONS,NOT_BUILT_OTHER,NOT_BUILT_REJECTED,lessons,without_book
 
 MARKET='a'*64
 OTHER='b'*64
@@ -48,6 +48,12 @@ def test_book_shown():
     assert rows[0]['book']=={'max_correlation':0.42,'combined_sharpe_gain':-0.03} and 'book' not in rows[1]
     ends.append(end(4,[('h1','Momentum')],candidates=[{'hypothesis_id':'h1','status':'REJECTED'}],scores={'h1':SCORE_CLOSE}))
     assert 'book' not in lessons(ends,MARKET)[-1]
+
+
+def test_without_book():
+    summary={'cycles_completed':2,'recent':[],'lessons':[{'idea':'a','book':{'max_correlation':0.1}},{'idea':'b'}]}
+    assert without_book(summary)=={'cycles_completed':2,'recent':[],'lessons':[{'idea':'a'},{'idea':'b'}]} and 'book' in summary['lessons'][0]
+    assert without_book({'cycles_completed':0})=={'cycles_completed':0}
 
 
 def test_other_markets():

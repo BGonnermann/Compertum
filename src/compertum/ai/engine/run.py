@@ -50,7 +50,7 @@ def real_bench(prints,project_root):
 
 def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,market=None,memory_floor_bytes,limits,owner_approval,
                 available_memory=None,clock=time.monotonic,recursion_limit=40,summary=True,schedule=None,purpose='practice',prompts=None,holdout_set=None,
-                transcript_training_allowed=None,run_group=None,cycle_counter=None):
+                transcript_training_allowed=None,run_group=None,cycle_counter=None,show_book=True):
     """Run cycles until a limit. Returns the run state. Refusals before the START row leave no run record.
     schedule: for a bench or holdout run (bench.py), the market of each cycle in order; the cycle limit must not exceed its length.
     prompts: role prompts to measure (a GEPA candidate); None uses config/engine_prompts.
@@ -114,11 +114,11 @@ def run_bounded(*,store,lease,project_root,sandbox_root,verification,roles,marke
         engines[item.get('label')]=Engine(client=client,ledger=ledger,lease=lease,project_root=project_root,sandbox_root=sandbox_root,verification=verification,
                                           train_csv=item['train_csv'],validation_csv=item['validation_csv'],validation_rows=item['validation_rows'],
                                           memory_floor_bytes=memory_floor_bytes,recursion_limit=recursion_limit,gate=gate,run_id=run_id,prompts=prompts,purpose=purpose,
-                                          vault=item.get('vault','history-v1'),market=item.get('panel'))
+                                          vault=item.get('vault','history-v1'),market=item.get('panel'),show_book=show_book)
     state={'run_id':run_id,'purpose':purpose,'started_at':started,'limits':bounds,'owner_approval':owner_approval,'models':models,'cycles':[],'requests':0,
            'reason':None,'elapsed_seconds':None,'summary_path':None}
     start={'limits':bounds,'owner_approval':owner_approval,'settings_path':settings['path'],'first_cycle_index':first,
-           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file),**({'run_group':run_group} if run_group is not None else {})}
+           'models':models,'pid':os.getpid(),'started_at':started,'stop_file':str(gate.stop_file),'show_book':show_book,**({'run_group':run_group} if run_group is not None else {})}
     if purpose!='practice':
         # The committed prompts are hashed too (26 October 2026), so every evaluation run records the exact prompts it measured.
         measured=prompts if prompts is not None else {name:load_component(project_root,name) for name in COMPONENTS}

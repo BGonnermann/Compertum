@@ -166,11 +166,13 @@ def gepa_markets(sessions,strength):
 
 def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,sessions=None,strength=0.004,available_memory=available_physical_memory,gepa=False,
                  purpose='practice',cycles_per_market=bench.CYCLES_PER_MARKET,prompts_run=None,prompts_candidate=None,models='local',model=None,bench_set=bench.BENCH_SET,market_manifests=None,
-                 reflect_models=None,reflect_model=None,speed_weight=None,goal=None,panel=None):
+                 reflect_models=None,reflect_model=None,speed_weight=None,goal=None,panel=None,show_book=True):
     """One owner-started bounded run against the configured model servers on a synthetic market. gepa=True runs the E7 prompt
     improvement instead of plain cycles (the cycle limit then bounds GEPA's evaluations). purpose 'bench' or 'holdout' measures the
-    committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record."""
+    committed prompts, or one GEPA candidate's prompts, on the fixed markets of bench.py. Returns the printed record.
+    show_book=False hides the book numbers from the lessons table; only practice cycles see that table, so other runs refuse it."""
     root=Path(project_root).absolute()
+    if show_book is not True and (show_book is not False or gepa or purpose!='practice'): raise RuntimeRefused('ENGINE_RUN_PURPOSE_DENIED')
     available=available_memory()
     if type(available) is not int or available<START_FLOOR: raise RuntimeRefused('AVAILABLE_RAM_FLOOR')
     if type(seed) is not int or (sessions is not None and type(sessions) is not int) or type(strength) not in (int,float): raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -249,7 +251,7 @@ def run_practice(project_root,config_path,*,cycles,hours,requests,note,seed=12,s
                 from .run import run_bounded  # needs the engine environment; imported after the checks that need none
                 options=dict(store=store,lease=lease,project_root=root,sandbox_root=sandbox_root,verification=verification,market=market,memory_floor_bytes=START_FLOOR,
                              limits=limits,owner_approval=note,schedule=schedule,purpose=purpose,prompts=prompts,holdout_set=holdout_set,
-                             transcript_training_allowed=False if market_manifests is not None or panel is not None else None)
+                             transcript_training_allowed=False if market_manifests is not None or panel is not None else None,show_book=show_book)
                 if together:
                     from .ledger import EngineLedger
                     from .run import CycleCounter
@@ -321,6 +323,7 @@ def main(argv=None):
         sub.add_argument('--seed',type=int,default=12);sub.add_argument('--sessions',type=int);sub.add_argument('--strength',type=float,default=0.004)
         sub.add_argument('--market-manifest',action='append',dest='market_manifests')
         sub.add_argument('--panel',choices=('french49',),help='a portfolio-weight run on the anonymous 49-industry panel (docs/PANEL_CANDIDATES_DESIGN.md)')
+        if name=='run': sub.add_argument('--hide-book',action='store_true',help='hide the book numbers from the lessons table (the paired test of decision D1)')
         if name=='gepa':
             sub.add_argument('--reflect-models',help='the model file for the reflection calls: NAME is config/models-NAME.toml')
             sub.add_argument('--reflect-model',help='one model ID for every reflection call, for this run only')
@@ -345,7 +348,8 @@ def main(argv=None):
         else: result=run_practice(root,config,cycles=args.cycles,hours=args.hours,requests=args.requests,note=args.note,seed=args.seed,sessions=args.sessions,strength=args.strength,
                                   gepa=args.command=='gepa',models=args.models,model=args.model,market_manifests=args.market_manifests,
                                   reflect_models=getattr(args,'reflect_models',None),reflect_model=getattr(args,'reflect_model',None),
-                                  speed_weight=getattr(args,'speed_weight',None),goal=getattr(args,'goal',None),panel=getattr(args,'panel',None))
+                                  speed_weight=getattr(args,'speed_weight',None),goal=getattr(args,'goal',None),panel=getattr(args,'panel',None),
+                                  show_book=not getattr(args,'hide_book',False))
     except RuntimeRefused as error:
         refused={'refused':error.code}
         if getattr(error,'problems',None): refused['problems']=error.problems

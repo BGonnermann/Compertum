@@ -146,6 +146,17 @@ def test_speed_weight(tmp_path,monkeypatch):
         practice.run_practice(second,second/'config.toml',cycles=2,hours=None,requests=50,note='fixture',available_memory=lambda:practice.START_FLOOR+1,goal=goal)
 
 
+def test_hide_book(tmp_path,monkeypatch):
+    """--hide-book reaches the run as show_book=False; GEPA, bench and holdout runs refuse it, because their cycles see no lessons table."""
+    for options in ({'gepa':True},{'purpose':'bench'},{'purpose':'holdout'},{}):
+        with pytest.raises(RuntimeRefused,match='^ENGINE_RUN_PURPOSE_DENIED$'):
+            practice.run_practice(tmp_path,tmp_path/'config.toml',cycles=1,hours=None,requests=5,note='x',show_book=False if options else 'no',**options)
+    seen={}
+    monkeypatch.setattr(practice,'run_practice',lambda *a,**k:seen.update(k) or {})
+    assert practice.main(['--project',str(tmp_path),'run','--requests','5','--note','x','--panel','french49','--hide-book'])==0 and seen['show_book'] is False
+    assert practice.main(['--project',str(tmp_path),'run','--requests','5','--note','x','--panel','french49'])==0 and seen['show_book'] is True
+
+
 def test_several_models(tmp_path,capsys):
     """31 October 2026: --model A,B,C names several models. The listing checks each; the run refuses the forms that cannot share a process."""
     assert practice.model_list(None) is None and practice.model_list('a')==['a'] and practice.model_list(' a, b ')==['a','b'] and practice.model_list(['a','b'])==['a','b']

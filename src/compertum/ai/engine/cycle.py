@@ -25,6 +25,7 @@ from .execution import EngineerSandbox,run_job_tool
 from .ledger import EVALUATION_PURPOSES,HISTORY_FREE_PURPOSES,PURPOSES
 from .limits import STEP_FAULTS
 from .market import score_signals
+from .levels import without_book
 from .measures import book_view,candidate_measures
 from .promotion import promote
 from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,parse_routing,parse_settings
@@ -102,6 +103,7 @@ class Engine:
     parallel_ideas:bool=True
     vault:str='history-v1'
     market:Any=None  # a panel.PanelMarket for a portfolio-weight run (docs/PANEL_CANDIDATES_DESIGN.md); None is the single-asset market
+    show_book:bool=True  # False hides the lessons table's book numbers (the paired test of decision D1); the measures are still recorded
 
     def __post_init__(self):
         if self.vault not in VAULTS: raise RuntimeRefused('ENGINE_MARKET_DENIED')
@@ -129,7 +131,9 @@ def _run_cycle(engine,cycle_index):
     market=market_sha256(engine)
     # A bench or holdout cycle starts with no history (bench.py), so every evaluation cycle sees the same task whatever ran before it.
     summary=ledger.summary(market) if engine.purpose not in HISTORY_FREE_PURPOSES else ledger.blank_summary()
-    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'summary':summary,'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
+    if not engine.show_book: summary=without_book(summary)
+    ledger.record_cycle(cycle_id,cycle_index,'START',{'run_id':engine.run_id,'purpose':engine.purpose,'market_sha256':market,'summary':summary,'show_book':engine.show_book,
+                                                      'requests_before':engine.client.requests,'request_limit':engine.client.request_limit})
     state={'cycle_id':cycle_id,'cycle_index':cycle_index,'status':'RUNNING','hypotheses':[],'memos':{},'decisions':{},'specifications':{},'candidates':[],
            'reviews':{},'scores':{},'steps':0,'stop_code':None,'transcript':[],'faults':[],'tool':None}
     if engine.prompts is None:

@@ -1,5 +1,15 @@
 # Current Compertum checkpoint
 
+## Switch for the paired test of the book numbers - 3 November 2026
+
+- Owner, 3 November 2026: "build the switch". `tools\practice.ps1 -HideBook` (run mode only) hides the book numbers from the Director's lessons table.
+  Path: `--hide-book` in `practice.py`, `show_book` in `run_bounded` and `Engine`, then `levels.without_book` on the summary before the cycle uses or records it.
+  The run START row and each cycle START row record `show_book`. GEPA, bench and holdout runs refuse it (`ENGINE_RUN_PURPOSE_DENIED`).
+- Sealed files: `cycle.py` d9c83583 to 64729cb4, `run.py` a66c995f to 986ed9e5.
+- Tests: `test_without_book`, `test_hide_book`, and the native `test_book_switch` (one cycle shown, one hidden).
+- Limits (see the design, D1): only the french49 panel has a non-empty book today, and both arms share its lessons table. Running the test costs model credit and needs the owner's OK.
+- Full check, source: engine 329 passed; product 377 passed, 8 skipped; harness 143 passed; tools 44 passed; 0 failed. PASS in 6.2 min.
+
 ## Candidate measures part 3: the study tool - 3 November 2026
 
 - Owner, 3 November 2026: "go ahead with part 3". New `tools/measure_study.py` (see the design, part 3, "As built"). It reads the ledger read-only, opens no vault and writes one report.

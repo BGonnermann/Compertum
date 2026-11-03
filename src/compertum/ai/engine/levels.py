@@ -73,6 +73,12 @@ def cycle_level(result):
     return max(levels) if levels else 1
 
 
+def without_book(summary):
+    """The summary with no "book" field in any lessons row: the hidden arm of the paired test of decision D1 (owner, 3 November 2026: "build the switch")."""
+    if not isinstance(summary,dict) or not isinstance(summary.get('lessons'),list): return summary
+    return {**summary,'lessons':[{k:v for k,v in row.items() if k!='book'} if isinstance(row,dict) else row for row in summary['lessons']]}
+
+
 def lessons(cycle_ends,market_sha256):
     """The Director's lessons table: one row per distinct idea tried on this market, oldest first, at most MAX_LESSONS rows.
 

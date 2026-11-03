@@ -490,6 +490,21 @@ def test_lessons_table(bridge,root,verification,market,project):
         starts=[r for r in engine.ledger.cycles() if r['phase']=='START'];assert all(r['market_sha256']==first['market_sha256'] for r in starts)
 
 
+def test_book_switch(bridge,root,verification,market,project):
+    """Decision D1, paired test: with show_book the Director's pick shows the row's book numbers; without it the row has none, and the
+    cycle's START record says which one the roles saw."""
+    row={'idea':'Momentum','tries':1,'last_cycle':1,'best_outcome':'x','book':{'max_correlation':0.42,'combined_sharpe_gain':-0.03}}
+    def pick(state,index): return json.loads(state['posts'][index]['messages'][-1]['content'].split('Ledger summary:\n',1)[1])['lessons']
+    for show in (True,False):
+        with role_server() as (port,state):
+            engine=make_engine(bridge,root,verification,market,client(port),project);engine.show_book=show
+            engine.ledger.summary=lambda market_sha256:{'cycles_completed':1,'active_freezes':0,'recent':[],'lessons':[dict(row)]}
+            result=run_cycle(engine,1);assert result['status']=='COMPLETED'
+            assert pick(state,0)==([row] if show else [{k:v for k,v in row.items() if k!='book'}])
+            start=[c for c in engine.ledger.cycles() if c['phase']=='START' and c['cycle_id']==result['cycle_id']][0]
+            assert start['show_book'] is show and ('book' in start['summary']['lessons'][0])==show
+
+
 def test_loopback_freeze(bridge,root,verification,market,project):
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);listener.settimeout(60);port=listener.getsockname()[1]
     def accept():
