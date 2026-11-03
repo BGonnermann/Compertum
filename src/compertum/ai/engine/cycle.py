@@ -25,6 +25,7 @@ from .execution import EngineerSandbox,run_job_tool
 from .ledger import EVALUATION_PURPOSES,HISTORY_FREE_PURPOSES,PURPOSES
 from .limits import STEP_FAULTS
 from .market import score_signals
+from .measures import candidate_measures
 from .promotion import promote
 from .prompts import COMPONENTS,SETTINGS_DEFAULT,check_component,load_component,parse_routing,parse_settings
 from .roles import ROLES,build_role_agent,load_prompt
@@ -326,8 +327,10 @@ def _run_cycle(engine,cycle_index):
             state['scores'][hid]=score
             candidate['status']=('BEATS_BASELINE_PENDING_AUDIT' if deflation['status']=='PASS' else 'REJECTED_DEFLATED') if score['beats_baseline'] else 'REJECTED'
             candidate['deflation']={'trials':trials,'deflated_sharpe':deflation['deflated_sharpe'],'status':deflation['status']}
+            measures=candidate_measures(project_root=engine.project_root,candidate_id=cid,signals=signals,score=score,market=engine.market,
+                                        validation_rows=engine.validation_rows,runs=sandbox.runs)
             ledger.record_step(cycle_id,next_step(),'validator','score',{'phase':'SCORED','candidate_id':cid,'score':score,'status':candidate['status'],
-                                                                        'deflation':deflation,'trial_variance':variance})
+                                                                        'deflation':deflation,'trial_variance':variance,'measures':measures})
             if not score['beats_baseline']: continue
             # 5b (E6). The Auditor is the binding gate. Integrity failure freezes the engine; a candidate defect rejects the candidate.
             # Since 25 October 2026 (owner decision) it checks every candidate that beat buy-and-hold, at the gate or below it, so a strategy

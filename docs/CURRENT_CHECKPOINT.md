@@ -2,8 +2,17 @@
 
 ## Candidate measures, the mandate and the overseer - 2 November 2026
 
-- Design `docs/CANDIDATE_MEASURES_DESIGN.md`: the owner approved D2 to D4 and the middle path for D1. Nothing is built. Next: part 1, the measures and the series files.
-- Draft `docs/FIRM_MANDATE.md`, for the owner to edit. It is not in force.
+- Design `docs/CANDIDATE_MEASURES_DESIGN.md`: the owner approved D2 to D4 and the middle path for D1. Part 1 is built (owner: "ok go ahead with part 1").
+  - New sealed `src/compertum/ai/engine/measures.py` (970defaf) records, for every scored candidate: active Sharpe ratio, tail ratio, hit rate, 4 block Sharpe ratios,
+    lag drop, active Sharpe ratio at double costs, lag-1 autocorrelation, Newey-West t-statistic, exposure, turnover, panel concentration, Engineer runs and code size.
+    It also records the same measures on the first two thirds of VALIDATION and the active Sharpe ratio of the last third (the early proxy, D4).
+  - The daily active returns go to `state/engine/series/<candidate>.json.gz` with the SHA-256 in the record (D3). The measures go only into the validator's score step.
+    The roles do not see them (D1). The score, verdict, status and queue do not change. A failed measure records `UNDEFINED` with the reason.
+  - Sealed files: `cycle.py` 8c97ffdb to 5f24bb36, `audit.py` ef79fb54 to c1a2f725 (`measures.py` joined `FIXED_FILES`; 18 fixed files plus the store, limit 24).
+  - Tests: `tests/test_engine_measures.py` (7 passed) and new checks in the native `test_supervised_cycle`.
+  - Full check, source: engine 321 passed; product 363 passed, 8 skipped; harness 143 passed; tools 37 passed; 0 failed. Answer: PASS.
+  - Next: part 2, the book and the contribution measures.
+- Draft `docs/FIRM_MANDATE.md`, for the owner to edit. It is not in force. Item 10 is the owner's text: "accurate, truthful and small edges that turn into profits".
 - Owner idea: a third role that sees all data except the vault and warns the others when the firm drifts from the mandate.
   Proposal: an advisor with fixed message types that can pause the engine and ask the owner. It does not reject candidates. A design follows after the mandate.
 - Open M5 item: the live loop. The roles watch live results, discuss them and adjust (owner: "if we place a trade and they see it not going well then it can talk to one another and adjust").

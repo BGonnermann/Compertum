@@ -1,6 +1,6 @@
 # Design: candidate measures and contribution to the book
 
-Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Nothing is built.
+Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Part 1 is built (see the checkpoint). Parts 2 and 3 are not built.
 Owner's aim, 2 November 2026: "I want the firm to be able to think for itself and produce real results." Live results should let the roles talk and adjust.
 Owner, 2 November 2026: "ok write the design for those two", after the firm-precedents research.
 Source: the precedents report (Quantopian's 888-strategy study, WorldQuant's 101 alphas, Numerai's meta-model contribution) and `docs/MATH_RESEARCH.md`.
@@ -34,8 +34,8 @@ Measures for every scored candidate, on its VALIDATION sessions:
 | `tail_ratio` | 95th percentile of daily active returns divided by the absolute 5th percentile. Quantopian found it among the most useful. |
 | `hit_rate` | Share of sessions with a positive active return. |
 | `block_sharpes` | Sharpe ratio of active returns in each of 4 equal blocks of VALIDATION, with the minimum, the spread and the number of positive blocks. |
-| `lag_drop` | Sharpe ratio minus the Sharpe ratio with every trade one session later (from the existing lag check). |
-| `cost_2x_sharpe` | Sharpe ratio with double costs. This is a record only, not the owner's open "2x cost stress" gate item. |
+| `active_sharpe`, `lag_drop` | Annual Sharpe ratio of daily active returns, and that ratio minus the same ratio with every trade one session later. |
+| `cost_2x_active_sharpe` | Active Sharpe ratio with double costs. This is a record only, not the owner's open "2x cost stress" gate item. |
 | `autocorrelation` | Lag-1 autocorrelation of daily active returns, and a Newey-West t-statistic of their mean (a t-statistic corrected for returns that depend on earlier returns). |
 | `exposure`, `turnover_per_year` | Share of sessions invested, and traded weight per year. |
 | `concentration` | Panel only: the mean effective number of assets held (1 divided by the sum of squared weights), and the largest single weight. |

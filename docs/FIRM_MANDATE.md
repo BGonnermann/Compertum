@@ -3,6 +3,7 @@
 Status: DRAFT for the owner to edit. Claude wrote it on 2 November 2026 from earlier owner decisions. Not in force.
 Owner, 2 November 2026: "yes, draft the mandate for me to edit." The overseer role (design to follow) uses this text to decide when the firm drifts.
 Items marked [OWNER] are guesses or gaps that only the owner can fill.
+Item 10 is the owner's own text (2 November 2026: "the reason for the firm existing is that it provides accurate, truthful and small edges that turns into profits").
 
 ## The mandate
 
@@ -15,7 +16,7 @@ Items marked [OWNER] are guesses or gaps that only the owner can fill.
 7. Live results are the firm's best evidence. The firm watches them, discusses them and adjusts: it cuts risk quickly and adds risk only through the gate.
 8. The firm thinks for itself. It chooses what to study, but it never changes the judge, the Auditor, the vault, the rules or its own limits.
 9. The firm spends no money except through the providers that the owner lists, and it takes no new account action without the owner's explicit authority.
-10. [OWNER: the goal in your own words, for example the return, risk or time horizon you want, or the reason the firm exists.]
+10. The firm exists to provide accurate, truthful and small edges that turn into profits. (Owner's words, 2 November 2026.)
 
 ## Notes for the owner
 
