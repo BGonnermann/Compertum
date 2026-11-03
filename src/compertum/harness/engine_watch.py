@@ -133,28 +133,6 @@ def engine_card(root: Path, run_id: str, recent: int = 6):
     return card
 
 
-def newest_run(root: Path):
-    """The engine run with the newest START row, or None."""
-    con = _connect(root)
-    if con is None:
-        return None
-    try:
-        row = con.execute("select run_id from engine_bounded_runs where phase = 'START' "
-                          "order by recorded_at desc limit 1").fetchone()
-    except sqlite3.Error:
-        raise RunError("the research store cannot be read now") from None
-    finally:
-        con.close()
-    return row[0] if row else None
-
-
-def follow_card(root: Path):
-    """The newest engine run's card. Each refresh looks again, so a new run replaces the old one once its START row exists."""
-    run_id = newest_run(root)
-    if run_id is None:
-        return {"status": "WAITING", "note": "no engine run yet; the next run shows here when it starts"}
-    return engine_card(root, run_id)
-
 
 def activity(root: Path, run_id: str, count: int = ACTIVITY):
     """The last steps of the run's transcript, oldest first, one line each (owner, 3 November 2026: "so I can see the firm working").

@@ -1,5 +1,26 @@
 # Current Compertum checkpoint
 
+## /watch follows any run - 3 November 2026
+
+- Owner, relayed by the engine session: "can /watch follow any run regardless if its internal or not?", then "yes" to building it in the harness session.
+- New read-only module `src/compertum/harness/watch.py`. It writes no file or row and never lists or reads vault data.
+  - Test jobs of `tools/run_tests.py` and lanes of `tools/check.py`: folders under `.cache/test-runs` with a time in their name, also one level down (`--under`).
+    Only other folders changed in the last 7 days are opened, and their child lists are cached until their time changes.
+    Status: `retention.json` or `failed.json` gives COMPLETED or FAILED. Output without a record is RUNNING, or NO OUTPUT FOR N MINUTES after 30 quiet minutes.
+    Progress: `[done/total]` or `[ nn%]`; for buffered `run_tests` output, the count of `tmp` folders. A passed check lane's removed folder is read from `check-history.jsonl`.
+  - Library sweeps: the `engine_trials` row with source `library:` or `library-multi:`, and the report `state/engine/library/<run>.json`.
+    The card shows the note, the trials, the PASS count and the six best rows by deflated Sharpe ratio. No report after 10 minutes shows NO REPORT AFTER N MINUTES.
+  - `newest` now follows the newest running run of any kind, else the newest run. Running engine runs, harness test runs, open test jobs and sweeps all count.
+  - The picker lists harness runs, 5 engine runs, 5 test jobs and 3 sweeps; running runs come first. Pane IDs may now hold one `/` for nested jobs.
+- Bug found and fixed: a store without the `engine_trials` table made the whole `/watch` command fail. It now means no sweeps.
+- `engine_watch.newest_run` and `follow_card` were removed; `watch.watch_card` replaces them in `pane.py` and `cli.py`.
+- Native trial on master: follow mode found the other session's running nested job `m5-local-economics-20261017-01/import-cleanup-20261103-105915`.
+  A follow refresh takes 0.055 s after the first one (0.15 s).
+- Tests: new `test_any_run`; `test_follow_newest` and `test_outside_run` updated.
+- Check, source: harness 148 passed; tools 45 passed; 0 failed, 0 skipped. PASS in 0.4 min. Engine and product lanes were not rerun; no file that they test changed.
+- Limits: a sweep has no record while it loads its panel, so it appears only when its trial row exists, seconds before its report.
+  A killed `run_tests` job without `retention.json` shows NO OUTPUT FOR N MINUTES, not FAILED.
+
 ## /watch follows the newest run and fits the pane - 3 November 2026
 
 - Owner, 3 November 2026: "figure out how /watch can populate automatically with the newest information" and work "without error or bugs".

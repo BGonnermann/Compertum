@@ -80,7 +80,7 @@ def test_outside_run(tmp_path):
     steps = iter(["/watch", "/runs", "/exit"])
     main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
          pick_run=pick_run, watch=watch)
-    assert shown[0][0].startswith("newest  follows the newest engine run")
+    assert shown[0][0].startswith("newest  follows the newest run of any kind")
     assert shown[0][1].startswith("run-live  gepa  RUNNING  cycles 2 of 100 (2%)")
     title, lines = watched[0]
     assert title == "Watching run-live" and "status: RUNNING" in lines and "cycles: 2 of 100 (2%)" in lines
@@ -199,28 +199,97 @@ def test_recent_activity(tmp_path):
 def test_follow_newest(tmp_path):
     """/watch newest shows the newest engine run, and a run that starts later replaces it at the next refresh."""
     from compertum.harness import pane
-    from compertum.harness.engine_watch import follow_card, newest_run
+    from compertum.harness.watch import newest, watch_card
     root = project(tmp_path)
-    assert newest_run(root) is None and follow_card(root)["status"] == "WAITING"
+    assert newest(root) is None and watch_card(root, "newest")["status"] == "WAITING"
     store(root, [("run-old", "bench", 300, True, 1)])
-    assert follow_card(root)["run"] == "run-old"
+    assert watch_card(root, "newest")["run"] == "run-old"
     (root / "state" / "research.sqlite").unlink()
     store(root, [("run-old", "bench", 300, True, 1), ("run-new", "gepa", 1, False, 2)])
-    assert newest_run(root) == "run-new" and follow_card(root)["cycles"] == "2 of 100 (2%)"
+    assert newest(root) == "run-new" and watch_card(root, "newest")["cycles"] == "2 of 100 (2%)"
     watched = []
     output = StringIO()
     steps = iter(["/watch", "/watch newest", "/exit"])
     main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
          pick_run=lambda options: 0, watch=lambda title, fetch: watched.append((title, fetch())))
-    assert [title for title, _ in watched] == ["Watching the newest engine run"] * 2
+    assert [title for title, _ in watched] == ["Watching the newest run"] * 2
     assert "run: run-new" in watched[0][1] and "/watch [RUN_ID|newest]" in main.__globals__["help_text"]()
     out = StringIO()
     keys = iter(["", "q"])
     assert pane.main(["--project", str(root), "newest"], out=out, get_key=lambda: next(keys)) == 0
-    assert "Watching the newest engine run" in out.getvalue() and "run: run-new" in out.getvalue()
+    assert "Watching the newest run" in out.getvalue() and "run: run-new" in out.getvalue()
     commands = []
     pane.open_pane(root, "newest", spawn=lambda command, **kwargs: commands.append(command), which=lambda name: "wt.exe")
     assert "Watch the newest run" in commands[0] and commands[0][-4] == "newest"
+
+
+def test_any_run(tmp_path):
+    """Test jobs, check lanes, nested jobs and library sweeps get cards, join the picker, and can be followed. Nothing is written."""
+    from compertum.harness import pane
+    from compertum.harness.watch import newest, sweeps, test_jobs, watch_card
+    root = project(tmp_path)
+    store(root, [("run-old", "bench", 300, True, 1)])
+    base = root / ".cache" / "test-runs"
+    stamp = lambda minutes: (datetime.now() - timedelta(minutes=minutes)).strftime("%Y%m%d-%H%M%S")
+    done, lane, nested, failed = f"unit-{stamp(30)}", f"check-engine-{stamp(10)}", f"suite-{stamp(20)}", f"check-tools-{stamp(40)}"
+    for name in (done, lane, f"m5-economics/{nested}", failed):
+        (base / name / "tmp" / "t1").mkdir(parents=True)
+    (base / done / "output.txt").write_text("command: python -m pytest tests/a.py\n.. [100%]\n2 passed in 1.0s\n", encoding="utf-8")
+    (base / done / "retention.json").write_text(json.dumps({"passed": True, "summary": "2 passed in 1.0s", "elapsed_seconds": 3.2}), encoding="utf-8")
+    (base / lane / "output.txt").write_text("..F. [  4/20]\n.E   [  6/20]\n", encoding="utf-8")
+    (base / "m5-economics" / nested / "output.txt").write_text("command: python -m pytest tests\n", encoding="utf-8")
+    (base / failed / "output.txt").write_text("F [1/1]\n1 failed in 2.0s\n", encoding="utf-8")
+    (base / failed / "failed.json").write_text(json.dumps({"passed": False, "summary": "1 failed in 2.0s", "seconds": 2.5}), encoding="utf-8")
+    (base / "check-history.jsonl").write_text(json.dumps({"run": "check-harness-20261103-105802", "passed": True,
+                                                          "summary": "147 passed", "seconds": 12.4}) + "\n", encoding="utf-8")
+    con = sqlite3.connect(root / "state" / "research.sqlite")
+    con.execute("create table engine_trials (trial_id text, source text, count integer, recorded_at text, record text)")
+    for run_id, minutes in (("library-multi-20261103-aaaaaaaa", 50), ("library-20261103-bbbbbbbb", 60)):
+        at = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        source = f"{run_id.rsplit('-', 2)[0]}:{run_id}"
+        con.execute("insert into engine_trials values (?, ?, 75, ?, ?)",
+                    (f"external:{source}", source, at, json.dumps({"evidence": {"note": "sweep note"}})))
+    con.commit()
+    con.close()
+    (root / "state" / "engine" / "library").mkdir(parents=True)
+    rows = [{"universe": "french49", "family": "breadth", "gate": "FAIL", "deflated_sharpe": "0.31"},
+            {"universe": "french49", "family": "trend", "gate": "PASS", "deflated_sharpe": 0.97}]
+    (root / "state" / "engine" / "library" / "library-multi-20261103-aaaaaaaa.json").write_text(
+        json.dumps({"rows": rows, "total_trials": 900}), encoding="utf-8")
+    before = sorted((str(path), path.stat().st_mtime_ns) for path in root.rglob("*"))
+
+    card = watch_card(root, lane)
+    assert card["type"] == "check lane" and card["status"] == "RUNNING" and card["progress"] == "6/20 tests (30%)" and card["failed"] == 2
+    card = watch_card(root, f"m5-economics/{nested}")
+    assert card["type"] == "test job" and card["status"] == "RUNNING" and card["progress"] == "1 tmp folders so far"
+    card = watch_card(root, done)
+    assert card["status"] == "COMPLETED" and card["result"] == "2 passed in 1.0s" and card["elapsed"] == "0:03"
+    assert watch_card(root, failed)["status"] == "FAILED"
+    card = watch_card(root, "check-harness-20261103-105802")
+    assert card["status"] == "COMPLETED" and card["folder"] == "removed after the pass"
+    card = watch_card(root, "library-multi-20261103-aaaaaaaa")
+    assert card["status"] == "COMPLETED" and card["gates"] == "1 of 2 PASS" and card["best_rows"][0] == "french49 trend · PASS · deflated 0.97"
+    card = watch_card(root, "library-20261103-bbbbbbbb")
+    assert card["status"].startswith("NO REPORT AFTER") and card["note"] == "sweep note"
+    assert [item["run"] for item in sweeps(root)] == ["library-multi-20261103-aaaaaaaa", "library-20261103-bbbbbbbb"]
+    assert [item["run"] for item in test_jobs(root)] == [lane, f"m5-economics/{nested}", done, failed]
+    assert newest(root) == lane
+    for bad in ("../outside-20261103-101010", "a;b", "m5-economics/../x-20261103-101010", "plain-name", "a/b/c-20261103-101010"):
+        with pytest.raises(RunError):
+            watch_card(root, bad)
+    with pytest.raises(RunError, match="not valid"):
+        pane.open_pane(root, "a;new-tab", spawn=lambda command, **kwargs: pytest.fail("bad ID"), which=lambda name: "wt")
+    assert sorted((str(path), path.stat().st_mtime_ns) for path in root.rglob("*")) == before
+
+    shown = []
+    output = StringIO()
+    steps = iter(["/watch", "/exit"])
+    main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps),
+         pick_run=lambda options: shown.append(options), watch=lambda title, fetch: None)
+    labels = shown[0]
+    assert labels[0].startswith("newest  follows the newest run of any kind")
+    assert labels[1].startswith(f"{lane}  check lane  RUNNING  6/20 tests (30%)")
+    assert any(label.startswith("library-multi-20261103-aaaaaaaa  library sweep  COMPLETED") for label in labels)
 
 
 def test_view_fits():

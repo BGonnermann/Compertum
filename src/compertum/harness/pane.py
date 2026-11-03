@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -12,18 +11,13 @@ from pathlib import Path
 from .display import readable
 from .downloads import DownloadView
 from .editor import LiveView, enable_vt
-from .engine_watch import NEWEST, engine_card, follow_card
-from .runs import RunError, read_card
-
-RUN_ID = re.compile(r"[A-Za-z0-9_-]{1,80}")
+from .engine_watch import NEWEST
+from .runs import RunError
+from .watch import JOB_ID, watch_card
 
 
 def card(root: Path, identity: str):
-    if identity == NEWEST:
-        return follow_card(root)
-    if (root / "state" / "harness" / "runs" / f"{identity}.json").is_file():
-        return read_card(root, identity)
-    return engine_card(root, identity)
+    return watch_card(root, identity)
 
 
 def available(environ=os.environ, which=shutil.which):
@@ -42,7 +36,7 @@ def _split(root: Path, title: str, arguments, spawn, which):
 
 
 def open_pane(root: Path, identity: str, spawn=subprocess.Popen, which=shutil.which):
-    if not RUN_ID.fullmatch(identity):
+    if not JOB_ID.fullmatch(identity):
         raise RunError("the run ID is not valid")
     _split(root, "Watch the newest run" if identity == NEWEST else f"Watch {identity}", [identity], spawn, which)
 
@@ -66,7 +60,7 @@ def main(argv=None, out=None, get_key=None):
     if args.downloads:
         view = DownloadView(out, root, get_key=get_key, color=color)
     else:
-        title = "Watching the newest engine run" if args.run == NEWEST else f"Watching {args.run}"
+        title = "Watching the newest run" if args.run == NEWEST else f"Watching {args.run}"
         view = LiveView(out, lambda: readable(card(root, args.run)).splitlines(), title,
                         get_key=get_key, color=color, hint="q closes this pane")
     try:

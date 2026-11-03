@@ -14,7 +14,8 @@ from .commands import EXAMPLES, USAGES, help_text
 from .config import known_models, load, model_files, remember, remember_models, remembered
 from .display import Display, readable
 from .editor import LineEditor, LiveView, Picker, enable_vt
-from .engine_watch import NEWEST, engine_card, engine_runs, follow_card
+from .engine_watch import NEWEST, engine_runs
+from .watch import sweeps, test_jobs, watch_card
 from .downloads import painted, progress_lines, read_progress
 from .pane import available as pane_available, open_downloads, open_pane
 from .endpoint import parse
@@ -190,13 +191,11 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
 
     def run_card(identity):
         """Return a harness run card with its last log lines, or an engine run's progress."""
-        if identity == NEWEST:
-            return follow_card(root)
         if identity in runs.active:
             card = runs.report(identity)
             card["log_tail"] = "\n".join(card.get("log_tail", "").splitlines()[-10:])
             return card
-        return engine_card(root, identity)
+        return watch_card(root, identity)
 
     def watch_choices():
         """List runs to watch: running ones first, then the newest ended ones. Engine runs started outside count too."""
@@ -207,11 +206,16 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
             card = runs.card(identity)
             rows.append((card["status"] != "RUNNING", identity,
                          f"{identity}  {card['type']}  {card['status']}  {card.get('progress', '')}".rstrip()))
-        for item in engine_runs(root):
+        for item in engine_runs(root, limit=5):
             rows.append((item["status"] != "RUNNING", item["run"],
                          f"{item['run']}  {item['type']}  {item['status']}  cycles {item['cycles']}  {item['elapsed']}"))
+        for item in test_jobs(root, limit=5):
+            rows.append((item["status"] != "RUNNING", item["run"],
+                         f"{item['run']}  {item['type']}  {item['status']}  {item.get('progress') or item['result']}"))
+        for item in sweeps(root):
+            rows.append((item["status"] != "RUNNING", item["run"], f"{item['run']}  {item['type']}  {item['status']}"))
         rows.sort(key=lambda row: row[0])  # Stable: running first, newest first within each group.
-        return [(identity, label) for _, identity, label in rows[:12]]
+        return [(identity, label) for _, identity, label in rows[:16]]
 
     def model_choices():
         """List each model file's default, the active model and IDs cached by /models. Nothing is requested."""
@@ -314,11 +318,11 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
                 if identity is None:
                     choices = watch_choices()
                     if not choices:
-                        output.note("No runs yet. /watch newest shows the next engine run when it starts.")
+                        output.note("No runs yet. /watch newest shows the next run when it starts.")
                     elif pick_run is None:
                         identity = choices[0][0]  # Scripted input: the newest running run, else the newest run.
                     else:
-                        choices.insert(0, (NEWEST, "newest  follows the newest engine run, and each new run when it starts"))
+                        choices.insert(0, (NEWEST, "newest  follows the newest run of any kind, running runs first"))
                         picked = pick_run([label for _, label in choices])
                         identity = None if picked is None else choices[picked][0]
                 if identity is not None:
@@ -329,7 +333,7 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
                         output.note(f"Watching {identity} in the pane on the right. Press q there to close it.")
                         continue
                     if watch is not None:
-                        title = "Watching the newest engine run" if identity == NEWEST else f"Watching {identity}"
+                        title = "Watching the newest run" if identity == NEWEST else f"Watching {identity}"
                         watch(title, lambda: readable(fetch()).splitlines())
                     output.json(fetch())  # The last snapshot stays on screen after the live view closes.
             elif text == "/data" or text.startswith("/data "):
