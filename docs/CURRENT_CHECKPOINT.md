@@ -1,5 +1,15 @@
 # Current Compertum checkpoint
 
+## First book test, /watch activity and five research reports - 3 November 2026
+
+- Owner: "run the alternate test with 20 cycles". Run `run-20261103-134ce184` (`-Panel french49 -Book alternate`, GLM 5.3 flash): 20 cycles, 381 requests, 1,439 s, $0.165, CYCLE_LIMIT.
+  The dry check before it confirmed both french49 library rules rebuild (7,693 sessions each). Results: `docs/RESEARCH_20261103.md`, section 5 (too small to use: 23 shown, 15 hidden).
+- Owner: "add like 15 lines below the recent cycles section". The `/watch` engine card shows "recent activity": the last 15 transcript steps (cycle, role, first reply line or tools and files).
+  `harness/engine_watch.activity` reads only the last 2 MiB of the transcript. `tests/test_harness_watch.py` joined the sandbox-free list. New test `test_recent_activity`.
+- Five read-only research reports (R&D-Agent, cost and speed, deflated Sharpe ratio, old code, old tests) are summarized in `docs/RESEARCH_20261103.md`.
+- Owner decisions, 3 November 2026: build the code library for the Engineer; the Director step-type idea as "Information only" (no steering; the Director still chooses).
+- Full check, source: engine 331 passed; product 379 passed, 8 skipped; harness 145 passed; tools 45 passed; 0 failed. PASS in 6.5 min.
+
 ## Alternating test of the book numbers - 3 November 2026
 
 - Owner, 3 November 2026: "build the alternating version". `-Book shown|hidden|alternate` replaces `-HideBook` (b2d5aef) in `tools\practice.ps1`; `--book` in `practice.py`.

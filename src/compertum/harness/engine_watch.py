@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,10 @@ from .runs import RunError
 
 # A run with no END record and no new cycle for this long may have stopped without recording its end.
 QUIET_SECONDS = 30 * 60
+ACTIVITY = 15
+TAIL_BYTES = 2 * 1024 * 1024
+LINE_CHARS = 140
+RUN_ID = re.compile(r"run-[0-9]{8}-[0-9a-f]{8}")
 
 
 def _connect(root: Path):
@@ -123,4 +128,65 @@ def engine_card(root: Path, run_id: str, recent: int = 6):
     finally:
         con.close()
     card["recent_cycles"] = [_cycle_line(cycle) for cycle in cycles[-recent:]] or ["no finished cycle yet"]
+    card["recent_activity"] = activity(root, run_id)
     return card
+
+
+def activity(root: Path, run_id: str, count: int = ACTIVITY):
+    """The last steps of the run's transcript, oldest first, one line each (owner, 3 November 2026: "so I can see the firm working").
+    Only the end of the file is read, so a long run stays quick to watch."""
+    if not RUN_ID.fullmatch(run_id):
+        return ["no transcript"]
+    try:
+        with open(root / "state" / "engine" / "transcripts" / f"{run_id}.jsonl", "rb") as handle:
+            size = handle.seek(0, 2)
+            handle.seek(max(0, size - TAIL_BYTES))
+            lines = handle.read().split(b"\n")
+    except OSError:
+        return ["no transcript yet"]
+    if size > TAIL_BYTES:
+        lines = lines[1:]
+    out = []
+    for raw in reversed(lines):
+        if len(out) == count:
+            break
+        try:
+            entry = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(entry, dict):
+            out.append(_step_line(entry))
+    return out[::-1] or ["no transcript yet"]
+
+
+def _plain(text):
+    return "".join(ch if ch.isprintable() else " " for ch in str(text)).strip()
+
+
+def _step_line(entry):
+    cycle = re.match(r"cycle-0*(\d+)", str(entry.get("cycle_id") or ""))
+    parts = [f"cycle {cycle.group(1)}" if cycle else "tool", _plain(entry.get("role") or "?")]
+    calls = [c for c in entry.get("tool_calls") or [] if isinstance(c, dict)]
+    if calls:
+        named = []
+        for call in calls[:3]:
+            args = call.get("arguments")
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except ValueError:
+                    args = {}
+            args = args if isinstance(args, dict) else {}
+            target = next((args[k] for k in ("file_path", "path", "entry") if isinstance(args.get(k), str)), "")
+            named.append(_plain(f"{call.get('name') or '?'} {target}"))
+        parts.append(", ".join(named))
+    else:
+        rows = [_plain(row) for row in str(entry.get("content") or "").splitlines() if _plain(row)]
+        text = rows[0] if rows else "(no text)"
+        if len(text) < 20 and len(rows) > 1:
+            text = f"{text} {rows[1]}"
+        parts.append(text)
+    if entry.get("status") not in (None, "COMPLETED"):
+        parts.append(_plain(entry.get("status")))
+    line = " · ".join(parts)
+    return line if len(line) <= LINE_CHARS else line[:LINE_CHARS - 1] + "…"

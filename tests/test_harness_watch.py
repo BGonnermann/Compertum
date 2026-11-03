@@ -175,3 +175,21 @@ def test_cycle_share():
     from compertum.harness.engine_watch import _share
     assert _share(7, 20) == "7 of 20 (35%)" and _share(0, 20) == "0 of 20 (0%)" and _share(25, 20) == "25 of 20 (100%)"
     assert _share(3, None) == "3 of ?" and _share(3, "x") == "3 of x"
+
+
+def test_recent_activity(tmp_path):
+    """The card's activity shows the last 15 transcript steps, oldest first: the reply's first line, or the tools called with their files."""
+    from compertum.harness.engine_watch import activity
+    folder = tmp_path / "state" / "engine" / "transcripts"
+    folder.mkdir(parents=True)
+    rows = [{"cycle_id": "cycle-0007-aaaaaaaa", "role": "researcher", "content": f"Memo {i}\nmore", "status": "COMPLETED"} for i in range(16)]
+    rows += [{"cycle_id": "cycle-0007-aaaaaaaa", "role": "engineer", "content": "", "status": "COMPLETED",
+              "tool_calls": [{"name": "write_file", "arguments": {"file_path": "/main.py", "content": "x"}}, {"name": "run_job", "arguments": '{"entry": "main.py"}'}]},
+             {"cycle_id": "cycle-0007-aaaaaaaa", "role": "director", "content": "1. Pick\nMomentum on \x1b[31mred\x1b[0m industries", "status": "FAILED"}]
+    text = "\n".join(json.dumps(r) for r in rows) + "\n{broken\n"
+    (folder / "run-20261103-0000aaaa.jsonl").write_text(text, encoding="utf-8")
+    lines = activity(tmp_path, "run-20261103-0000aaaa")
+    assert len(lines) == 15 and lines[0] == "cycle 7 · researcher · Memo 3 more"
+    assert lines[-2] == "cycle 7 · engineer · write_file /main.py, run_job main.py"
+    assert lines[-1].startswith("cycle 7 · director · 1. Pick Momentum on ") and "\x1b" not in lines[-1] and lines[-1].endswith(" · FAILED")
+    assert activity(tmp_path, "run-20261103-0000bbbb") == ["no transcript yet"] and activity(tmp_path, "../../etc") == ["no transcript"]
