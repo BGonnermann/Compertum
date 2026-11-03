@@ -1,6 +1,6 @@
 # Design: candidate measures and contribution to the book
 
-Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Parts 1 and 2 are built (see the checkpoint). Part 3 is not built.
+Status: the owner approved D2, D3 and D4 on 2 November 2026 ("approved 2-4"), and the middle path for D1 ("for now middle path yes"). Parts 1, 2 and 3 are built (see the checkpoint).
 Owner's aim, 2 November 2026: "I want the firm to be able to think for itself and produce real results." Live results should let the roles talk and adjust.
 Owner, 2 November 2026: "ok write the design for those two", after the firm-precedents research.
 Source: the precedents report (Quantopian's 888-strategy study, WorldQuant's 101 alphas, Numerai's meta-model contribution) and `docs/MATH_RESEARCH.md`.
@@ -87,6 +87,13 @@ A report tool, `tools/measure_study.py`, reads the ledger and the series files. 
 - Vault study: the same table against the vault results, when vault batches exist. It runs on the vault results that `evaluate_in_vault` already records. It opens no vault.
 - The report states the sample size. Below 30 candidates it labels every result as too small to use.
 - The report goes to `reports/`. Any change to ranking or the gate goes to the owner as a separate proposal.
+
+As built (3 November 2026): `.cache/engine-env/Scripts/python.exe tools/measure_study.py [--out <file>]` writes `reports/MEASURE_STUDY_<date>.md`.
+- It reads the live store read-only (the same path rule as `tools/run_tests.py`) and checks each series file hash. It writes nothing else.
+- Proxy tables: for all markets together, and for each market fingerprint. Measures over the whole of VALIDATION (exposure, turnover, concentration, book) are marked "overlaps the target period".
+- The combined model uses only the early measures that every candidate in the table has. It is ordinary least squares on standardized measures, with 5 folds in a fixed order.
+- The bootstrap uses 2000 resamples with a fixed seed, so the same ledger gives the same report.
+- Vault study target: the vault active Sharpe ratio (`sharpe_per_period` times the square root of 252) of each `VAULT_EVALUATED` event with status SCORED.
 
 ## Sealed files and checks
 

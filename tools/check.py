@@ -21,7 +21,7 @@ FAILED='failed.json'
 PRODUCT_TESTS=('acceptance','audit','bench','bench_run','compare','gepa','gepa_run','history_market','lessons','limits','practice','practice_run','preflight',
                'real_market','roles','run','sandbox','tail','transcripts','validator','library','library_multi','panel','libraries','measures')
 PRODUCT_EXTRA=('tests/test_ai_models_interface.py','tests/test_pull_bars.py','tests/test_route_search.py','tests/test_update_indices.py')
-TOOL_TESTS=('tests/test_run_tests_tool.py','tests/test_run_cost_tool.py','tests/test_base_eval.py','tests/test_clean_test_runs.py','tests/test_check_tool.py')
+TOOL_TESTS=('tests/test_run_tests_tool.py','tests/test_run_cost_tool.py','tests/test_base_eval.py','tests/test_clean_test_runs.py','tests/test_check_tool.py','tests/test_measure_study.py')
 RESULTS=re.compile(r'^([.FEsxX]+)(?:\s+\[\s*\d+/\d+\])?\s*$')
 COUNT=re.compile(r'\[\s*(\d+)/(\d+)\]\s*$')
 LIGHT=frozenset({'harness','tools'})  # lanes that start no sandbox job; they run beside the sandbox lanes, which run one at a time

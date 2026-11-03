@@ -1,5 +1,14 @@
 # Current Compertum checkpoint
 
+## Candidate measures part 3: the study tool - 3 November 2026
+
+- Owner, 3 November 2026: "go ahead with part 3". New `tools/measure_study.py` (see the design, part 3, "As built"). It reads the ledger read-only, opens no vault and writes one report.
+- Tests: `tests/test_measure_study.py`, 5 passed in the engine and the product environments. It joined the tools lane and the sandbox-free list.
+- First run on master's ledger: 0 measured candidates and 0 vault results, because no engine run has happened since part 1. The empty report was not kept.
+- What happens next: the usual practice, GEPA and bench runs fill the records. The proxy study needs about 30 scored candidates on one market. The vault study waits for a vault batch.
+- Check, source: product 375 passed, 8 skipped; harness 143 passed; tools 44 passed; 0 failed. PASS.
+  The engine lane was not rerun: this part changes no file under `src/`, and the engine lane passed on c09aa84 (326 passed).
+
 ## A shorter check - 3 November 2026
 
 - Owner asked for a shorter check ("yes, make it shorter after part 2"), then answered "ok" to the recommendation: options 1 and 3.
