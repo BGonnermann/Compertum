@@ -99,13 +99,15 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
     parser.add_argument("--workspace", type=Path)
     parser.add_argument("--models", help="model file; default: the last /model choice, else local")
     parser.add_argument("--model")
-    # Owner choice, 29 October 2026: a real bug hunt needs room, so tasks default to the highest limits.
-    parser.add_argument("--max-steps", type=int, default=100)
+    # Owner choice, 29 October 2026: a real bug hunt needs room, so tasks default to no step limit and the longest time.
+    parser.add_argument("--max-steps", default=None)
     parser.add_argument("--max-minutes", type=float, default=60)
     parser.add_argument("--resume")
     args = parser.parse_args(argv)
     output = display or Display()
     try:
+        if isinstance(args.max_steps, str):
+            args.max_steps = None if args.max_steps.lower() == "none" else int(args.max_steps)
         root = args.project.resolve(strict=True)
         # Explicit options win. Otherwise the last /model choice applies, so a restart or resume keeps the model.
         saved = None if args.models else remembered(root)
@@ -366,15 +368,23 @@ def _console(argv, display, input_fn, choose, pick_run, watch, side, downloads):
                 parts = _arguments(text)
                 if len(parts) == 3:
                     try:
-                        steps, minutes = int(parts[1]), float(parts[2])
+                        minutes = float(parts[2])
                     except ValueError:
-                        raise ValueError("use /limits STEPS MINUTES, for example /limits 100 60") from None
+                        raise ValueError("use /limits STEPS MINUTES, for example /limits none 60") from None
+                    word = parts[1].lower()
+                    if word in ("none", "0"):
+                        steps = None
+                    else:
+                        try:
+                            steps = int(word)
+                        except ValueError:
+                            raise ValueError("use /limits STEPS MINUTES, for example /limits none 60") from None
                     settings = load(root, settings.workspace, settings.models, settings.model.model, steps, minutes)
                     agent.limits = Limits(settings.max_steps, settings.max_seconds)
                 elif len(parts) != 1:
-                    raise ValueError("use /limits STEPS MINUTES, for example /limits 100 60")
+                    raise ValueError("use /limits STEPS MINUTES, for example /limits none 60")
                 output.json({"max_steps": settings.max_steps, "max_minutes": settings.max_seconds / 60,
-                             "range": "1 to 100 steps and 1 to 60 minutes per task"})
+                             "range": "no step limit or 1 to 100000 steps, and 1 to 60 minutes per task"})
             elif text.startswith("/"):
                 output.error("unknown command; /help shows the commands")
             else:

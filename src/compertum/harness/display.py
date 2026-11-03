@@ -260,10 +260,11 @@ class Display:
         self.line(self._c(MUTED, text))
 
     def step(self, number, maximum, elapsed):
+        shown = f"step {number}" if maximum is None else f"step {number}/{maximum}"
         if self.animate:
-            self.busy(f"Working · step {number}/{maximum}", since=elapsed)
+            self.busy(f"Working · {shown}", since=elapsed)
         else:
-            self.line(self._c(ACCENT, f"[asking] step {number}/{maximum} | {clock(elapsed)}"))
+            self.line(self._c(ACCENT, f"[asking] {shown} | {clock(elapsed)}"))
 
     def model_event(self, kind, text):
         self._quiet()

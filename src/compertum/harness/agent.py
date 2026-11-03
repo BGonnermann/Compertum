@@ -46,7 +46,7 @@ def call_key(call):
 
 @dataclass
 class Limits:
-    max_steps: int
+    max_steps: int | None
     max_seconds: float
 
 
@@ -119,7 +119,7 @@ class Agent:
             # Inside the try, so a full or unwritable session ends the task with an outcome.
             self._append({"role": "user", "content": task})
             while True:
-                if step >= self.limits.max_steps:
+                if self.limits.max_steps is not None and step >= self.limits.max_steps:
                     return end("step_limit", detail=f"the step limit ({self.limits.max_steps}) was reached")
                 if self.clock() >= deadline:
                     return end("time_limit", detail="the task time limit was reached")

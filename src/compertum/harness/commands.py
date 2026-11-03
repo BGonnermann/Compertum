@@ -37,7 +37,7 @@ EXAMPLES = {
     "/run": "/run 8 450 2 test current prompts",
     "/gepa": "/gepa 20 450 2 improve reversal capture",
     "/bench": "/bench 4 600 2 compare baseline",
-    "/limits": "/limits 100 60",
+    "/limits": "/limits none 60",
     "/runs": "/runs",
     "/watch": "/watch",
     "/data": "/data",

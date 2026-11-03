@@ -1,7 +1,9 @@
+import json
 import re
 from io import StringIO
 
 from compertum.harness.cli import LazyClient, main
+from compertum.harness.model import Reply
 from compertum.harness.display import Display
 from compertum.harness.runs import RunManager
 from compertum.harness.sessions import SessionStore
@@ -285,11 +287,18 @@ def test_interactive_provider(tmp_path, monkeypatch):
 def test_task_limits(tmp_path):
     root = tmp_path / "project"
     config(root)
-    text = status_model(root, answers=("/limits", "/limits 40 20", "/limits 0 5", "/limits x", "/exit"))
-    blocks = re.findall(r'"max_minutes": ([\d.]+),\s+"max_steps": (\d+)', text)
-    assert blocks == [("60.0", "100"), ("20.0", "40")]
-    assert "task limits must be 1 to 100 steps and 1 to 60 minutes" in text
-    assert "use /limits STEPS MINUTES, for example /limits 100 60" in text
+    text = status_model(root, answers=("/limits", "/limits none 60", "/limits 40 20", "/limits 0 5", "/limits x", "/exit"))
+    blocks = re.findall(r'"max_minutes": ([\d.]+),\s+"max_steps": (\w+)', text)
+    assert blocks == [("60.0", "null"), ("60.0", "null"), ("20.0", "40"), ("5.0", "null")]
+    assert "use /limits STEPS MINUTES, for example /limits none 60" in text
+
+
+def test_task_limits_refused(tmp_path):
+    root = tmp_path / "project"
+    config(root)
+    text = status_model(root, answers=("/limits -1 60", "/limits 5 0", "/limits 5 61", "/limits x 60", "/limits 5", "/exit"))
+    assert text.count("task limits must be no step limit or 1 to 100000 steps, and 1 to 60 minutes") == 3
+    assert text.count("use /limits STEPS MINUTES, for example /limits none 60") == 2
 
 
 def test_placeholder_messages(tmp_path, monkeypatch):
@@ -311,3 +320,28 @@ def test_placeholder_messages(tmp_path, monkeypatch):
     # The task ends as a normal error outcome with the fix, not a bare code from the console loop.
     assert "[error] 1 steps | 0:00 AI_CREDENTIAL_UNAVAILABLE: the key variable is not set." in text
     assert "or choose another model with /model" in text and "Error: AI_CREDENTIAL_UNAVAILABLE" not in text
+
+
+def test_no_step_limit_task(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    config(root)
+    (root / "notes").mkdir()
+    for number in range(11):
+        (root / "notes" / f"note-{number}.txt").write_text(f"note {number}")
+    calls = [{"id": f"call-{n}", "name": "read", "arguments": json.dumps({"path": f"notes/note-{n}.txt"})}
+             for n in range(10)]
+    replies = [Reply(tool_calls=[call]) for call in calls]
+
+    def chat(self, messages, tools, on_event=None, deadline=None):
+        return replies.pop(0) if replies else Reply(content="the last answer")
+
+    monkeypatch.setattr(LazyClient, "chat", chat)
+    output = StringIO()
+    steps = iter(["/limits none 60", "go on", "/exit"])
+    result = main(["--project", str(root)], display=Display(output, color=False), input_fn=lambda _: next(steps))
+    assert result == 0
+    text = output.getvalue()
+    assert '"max_steps": null' in text
+    assert "[done] 11 steps |" in text
+    assert "[reply] final answer" in text
+    assert "[step_limit]" not in text

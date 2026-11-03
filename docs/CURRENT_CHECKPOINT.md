@@ -1,5 +1,14 @@
 # Current Compertum checkpoint
 
+## Harness: no step limit by default - 3 November 2026
+
+- Owner: "can we remove the steps lock in the harness?", then "give me a prompt to tell glm flash what todo then you can review the work".
+  GLM 5.3 flash in the harness made the change from that prompt; this session reviewed it.
+- A harness task has no step limit by default. `/limits none 60` or `/limits 0 60` removes a cap; `/limits N 60` sets a cap of 1 to 100,000 steps.
+  The task time limit (default 15 minutes from the config, 60 from the command line, at most 60) and the repeat guard stay. The display shows "step N" without a cap.
+- Review added `test_time_guard`: with no step cap, a task that never answers ends at the time limit. Harness lane: 153 passed.
+- A running harness keeps its old limits until it is restarted.
+
 ## momentum_tilt result - 3 November 2026
 
 - Sweep `library-multi-20261103-58b1f2ed` (french49, family momentum_tilt only, 16 trials, $0): chosen on TRAIN lookback 252, k 1.0, hold 63, scale off.
